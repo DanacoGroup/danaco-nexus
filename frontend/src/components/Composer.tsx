@@ -75,12 +75,29 @@ export function Composer(props: Props) {
     }
   }, [prefill]);
 
-  useEffect(() => {
+  const resize = () => {
     const element = textarea.current;
     if (!element) return;
     element.style.height = "auto";
-    element.style.height = `${Math.min(element.scrollHeight, 260)}px`;
-  }, [text]);
+    if (element.value) element.style.height = `${Math.min(element.scrollHeight, 260)}px`;
+  };
+
+  useEffect(resize, [text]);
+
+  // Szerokość pola zmienia się z układem (obrót telefonu, panel boczny) – wysokość liczona na nowo.
+  useEffect(() => {
+    const element = textarea.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    let width = element.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (element.clientWidth !== width) {
+        width = element.clientWidth;
+        resize();
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const uploading = attachments.some((item) => item.status === "uploading");
   const ready = attachments.filter((item) => item.status === "done" && item.info);
