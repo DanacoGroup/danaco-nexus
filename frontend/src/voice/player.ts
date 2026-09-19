@@ -21,7 +21,11 @@ function audio(): HTMLAudioElement {
 /** Wywoływane synchronicznie w obsłudze kliknięcia (odblokowanie odtwarzania na iOS). */
 export function unlockAudio(): void {
   const player = audio();
-  player.src = SILENCE;
+  // Adres blob: (dozwolony przez CSP strony), nie data:.
+  const bytes = Uint8Array.from(atob(SILENCE.split(",")[1]), (char) => char.charCodeAt(0));
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  player.src = currentUrl;
   void player.play().catch(() => undefined);
 }
 
