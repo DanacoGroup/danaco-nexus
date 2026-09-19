@@ -17,39 +17,58 @@ function extension(name: string): string {
   return dot > 0 ? name.slice(dot + 1).toUpperCase().slice(0, 4) : "PLIK";
 }
 
-export function FileCard({ file, onPreview, compact = false }: { file: FileInfo; onPreview: (file: FileInfo) => void; compact?: boolean }) {
+export function FileCard({
+  file,
+  onPreview,
+  compact = false,
+}: {
+  file: FileInfo;
+  onPreview: (file: FileInfo) => void;
+  compact?: boolean;
+}) {
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const showThumbnail = THUMBNAIL.test(file.mime) && !thumbnailFailed;
+  const open = () => (canPreview(file) ? onPreview(file) : window.open(downloadUrl(file), "_blank"));
   return (
-    <div className={`file-card${compact ? " compact" : ""}`}>
+    <div
+      className={`group flex min-w-0 items-center gap-2.5 rounded-xl border border-line bg-app p-1.5 pr-1 ${
+        compact ? "max-w-[260px]" : ""
+      }`}
+    >
       <button
         type="button"
-        className="file-thumb"
-        onClick={() => (canPreview(file) ? onPreview(file) : window.open(downloadUrl(file), "_blank"))}
+        className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-raised text-muted"
+        onClick={open}
         title={canPreview(file) ? "Podgląd" : "Pobierz"}
       >
         {showThumbnail ? (
-          <img src={thumbnailUrl(file)} alt="" loading="lazy" onError={() => setThumbnailFailed(true)} />
+          <img
+            src={thumbnailUrl(file)}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover"
+            onError={() => setThumbnailFailed(true)}
+          />
         ) : (
-          <span className="file-ext">
-            <FileIcon size={18} />
+          <span className="flex flex-col items-center text-[10px] leading-tight font-semibold">
+            <FileIcon size={16} />
             {extension(file.name)}
           </span>
         )}
       </button>
-      <div className="file-meta">
-        <span className="file-name" title={file.name}>
+      <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={open}>
+        <span className="truncate text-sm font-medium" title={file.name}>
           {file.name}
         </span>
-        <span className="file-size">{formatSize(file.size)}</span>
-      </div>
-      <div className="file-actions">
-        {canPreview(file) && (
-          <button type="button" className="icon-button" onClick={() => onPreview(file)} aria-label="Podgląd">
+        <span className="text-xs text-muted">{formatSize(file.size)}</span>
+      </button>
+      <div className="flex shrink-0">
+        {canPreview(file) && !compact && (
+          <button type="button" className="icon-btn size-8" onClick={() => onPreview(file)} aria-label="Podgląd">
             <EyeIcon size={17} />
           </button>
         )}
-        <a className="icon-button" href={downloadUrl(file)} download={file.name} aria-label="Pobierz">
+        <a className="icon-btn size-8" href={downloadUrl(file)} download={file.name} aria-label="Pobierz">
           <DownloadIcon size={17} />
         </a>
       </div>

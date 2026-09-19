@@ -6,7 +6,7 @@ import { formatSize } from "../runState";
 import { CloseIcon, FileIcon, PaperclipIcon, SendIcon, StopIcon } from "./icons";
 
 export const ACCEPTED_FILES =
-  ".pdf,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.txt,.md,.html,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp,.gif,.svg,.zip,.mp4,.mov,.mkv,.webm,.mp3,.wav,.m4a,.ogg,.flac";
+  ".pdf,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.txt,.md,.html,.jpg,.jpeg,.png,.heic,.tif,.tiff,.bmp,.webp,.gif,.svg,.zip,.mp4,.mov,.mkv,.webm,.mp3,.wav,.m4a,.ogg,.flac";
 
 interface Attachment {
   key: string;
@@ -48,7 +48,9 @@ export function Composer(props: Props) {
       setAttachments((items) => [...items, { key, file, progress: 0, status: "uploading", abort: upload.abort }]);
       upload.promise
         .then((info) =>
-          setAttachments((items) => items.map((item) => (item.key === key ? { ...item, status: "done", info, progress: 1 } : item))),
+          setAttachments((items) =>
+            items.map((item) => (item.key === key ? { ...item, status: "done", info, progress: 1 } : item)),
+          ),
         )
         .catch((error: Error) =>
           setAttachments((items) =>
@@ -96,6 +98,7 @@ export function Composer(props: Props) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Na telefonie Enter dodaje nową linię; wysyła przycisk.
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.innerWidth > 700) {
       event.preventDefault();
       void submit();
@@ -116,30 +119,47 @@ export function Composer(props: Props) {
   };
 
   return (
-    <div className="composer">
+    <div className="rounded-3xl border border-line bg-raised shadow-sm transition-colors focus-within:border-line-strong dark:shadow-black/20">
       {attachments.length > 0 && (
-        <div className="attachments">
+        <div className="flex flex-wrap gap-2 px-3 pt-3">
           {attachments.map((item) => (
-            <div key={item.key} className={`attachment ${item.status}`} title={item.error ?? item.file.name}>
-              <FileIcon size={16} />
-              <span className="attachment-name">{item.file.name}</span>
-              <span className="attachment-size">
+            <div
+              key={item.key}
+              title={item.error ?? item.file.name}
+              className={`relative flex max-w-[240px] items-center gap-2 overflow-hidden rounded-xl border py-1.5 pr-1 pl-2.5 text-sm ${
+                item.status === "error" ? "border-danger/50 bg-danger-soft text-danger" : "border-line bg-app"
+              }`}
+            >
+              <FileIcon size={16} className="shrink-0 text-muted" />
+              <span className="min-w-0 truncate">{item.file.name}</span>
+              <span className="shrink-0 text-xs text-muted">
                 {item.status === "uploading"
                   ? `${Math.round(item.progress * 100)}%`
                   : item.status === "error"
                     ? "błąd"
                     : formatSize(item.file.size)}
               </span>
-              <button type="button" className="attachment-remove" onClick={() => remove(item)} aria-label="Usuń załącznik">
+              <button type="button" className="icon-btn size-6" onClick={() => remove(item)} aria-label="Usuń załącznik">
                 <CloseIcon size={14} />
               </button>
-              {item.status === "uploading" && <span className="attachment-progress" style={{ width: `${item.progress * 100}%` }} />}
+              {item.status === "uploading" && (
+                <span
+                  className="absolute bottom-0 left-0 h-0.5 bg-accent transition-[width]"
+                  style={{ width: `${item.progress * 100}%` }}
+                />
+              )}
             </div>
           ))}
         </div>
       )}
-      <div className="composer-row">
-        <button type="button" className="icon-button attach" onClick={() => picker.current?.click()} aria-label="Dodaj pliki">
+      <div className="flex items-end gap-1.5 p-2">
+        <button
+          type="button"
+          className="icon-btn size-10 rounded-full"
+          onClick={() => picker.current?.click()}
+          aria-label="Dodaj pliki"
+          title="Dodaj pliki"
+        >
           <PaperclipIcon />
         </button>
         <input
@@ -157,18 +177,30 @@ export function Composer(props: Props) {
           ref={textarea}
           rows={1}
           value={text}
-          placeholder="Napisz, co mam zrobić z plikami…"
+          placeholder="Napisz do Nexusa lub dodaj pliki…"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
+          className="max-h-[260px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-fg outline-none placeholder:text-muted"
         />
         {running ? (
-          <button type="button" className="send-button stop" onClick={onStop} aria-label="Zatrzymaj">
-            <StopIcon size={18} />
+          <button
+            type="button"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-fg text-app transition-opacity hover:opacity-85"
+            onClick={onStop}
+            aria-label="Zatrzymaj"
+          >
+            <StopIcon size={16} />
           </button>
         ) : (
-          <button type="button" className="send-button" disabled={!canSend} onClick={() => void submit()} aria-label="Wyślij">
-            {sending ? <span className="spinner light" /> : <SendIcon size={18} />}
+          <button
+            type="button"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-on-accent transition-colors hover:bg-accent-hover disabled:bg-line-strong disabled:text-muted"
+            disabled={!canSend}
+            onClick={() => void submit()}
+            aria-label="Wyślij"
+          >
+            {sending ? <span className="spinner" /> : <SendIcon size={18} />}
           </button>
         )}
       </div>

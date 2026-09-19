@@ -28,9 +28,23 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
-        "frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        "frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; "
+        "worker-src 'self'; manifest-src 'self'"
     ),
 }
+# Pliki PWA, które przeglądarka musi zawsze sprawdzać (aktualizacje aplikacji).
+NO_CACHE_FILES = frozenset({"sw.js", "registerSW.js", "manifest.webmanifest", "index.html"})
+IMMUTABLE = "public, max-age=31536000, immutable"
+MEDIA_TYPES = {".webmanifest": "application/manifest+json", ".js": "text/javascript"}
+
+
+class ImmutableStatic(StaticFiles):
+    """Zasoby z nazwą zawierającą skrót treści – buforowane bezterminowo."""
+
+    def file_response(self, *args, **kwargs) -> Response:  # type: ignore[no-untyped-def]
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = IMMUTABLE
+        return response
 
 
 class SecurityHeaders(BaseHTTPMiddleware):
@@ -86,7 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     static = settings.static_dir
     if (static / "index.html").is_file():
         if (static / "assets").is_dir():
-            app.mount("/assets", StaticFiles(directory=static / "assets"), name="assets")
+            app.mount("/assets", ImmutableStatic(directory=static / "assets"), name="assets")
 
         @app.get("/{path:path}", include_in_schema=False)
         async def spa(path: str) -> Response:
@@ -94,7 +108,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return JSONResponse({"detail": "Nie znaleziono."}, status_code=404)
             candidate = (static / path).resolve()
             if path and candidate.is_file() and candidate.is_relative_to(static.resolve()):
-                return FileResponse(candidate)
+                cache = "no-cache" if candidate.name in NO_CACHE_FILES else "public, max-age=86400"
+                if candidate.name.startswith("workbox-"):
+                    cache = IMMUTABLE
+                return FileResponse(
+                    candidate,
+                    media_type=MEDIA_TYPES.get(candidate.suffix),
+                    headers={"Cache-Control": cache},
+                )
             return FileResponse(static / "index.html", headers={"Cache-Control": "no-cache"})
 
     return app

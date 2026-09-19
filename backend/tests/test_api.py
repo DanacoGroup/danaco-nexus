@@ -194,3 +194,24 @@ def test_security_headers(client: TestClient) -> None:
     headers = client.get("/api/health").headers
     assert headers["x-frame-options"] == "DENY"
     assert "default-src 'self'" in headers["content-security-policy"]
+
+
+def test_pwa_files_served_with_cache_rules(settings: Settings) -> None:
+    static = settings.static_dir
+    (static / "assets").mkdir(parents=True)
+    (static / "index.html").write_text("<!doctype html><title>Nexus</title>", encoding="utf-8")
+    (static / "sw.js").write_text("self.addEventListener('fetch', () => {});", encoding="utf-8")
+    (static / "manifest.webmanifest").write_text('{"name": "Danaco Nexus"}', encoding="utf-8")
+    (static / "assets" / "index-abc123.js").write_text("console.log(1);", encoding="utf-8")
+    with TestClient(create_app(settings)) as client:
+        worker = client.get("/sw.js")
+        assert worker.headers["cache-control"] == "no-cache"
+        assert worker.headers["content-type"].startswith("text/javascript")
+        manifest = client.get("/manifest.webmanifest")
+        assert manifest.headers["content-type"].startswith("application/manifest+json")
+        assert manifest.headers["cache-control"] == "no-cache"
+        asset = client.get("/assets/index-abc123.js")
+        assert "immutable" in asset.headers["cache-control"]
+        spa = client.get("/c/00000000-0000-0000-0000-000000000000")
+        assert spa.status_code == 200 and "Nexus" in spa.text
+        assert "worker-src 'self'" in spa.headers["content-security-policy"]

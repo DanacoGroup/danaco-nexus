@@ -12,18 +12,21 @@ import {
   type Turn,
 } from "./api";
 import { Composer } from "./components/Composer";
-import { MenuIcon, PaperclipIcon, SparkIcon } from "./components/icons";
+import { Logo, MenuIcon, PaperclipIcon, PlusIcon } from "./components/icons";
 import { Login } from "./components/Login";
 import { PreviewModal } from "./components/PreviewModal";
 import { Sidebar } from "./components/Sidebar";
 import { AssistantMessage, UserMessage } from "./components/Turns";
 import { applyRunEvent, emptyAssistantTurn } from "./runState";
+import { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 
 const SUGGESTIONS = [
-  "Wykonaj OCR tego skanu i przygotuj przeszukiwalny PDF.",
-  "Popraw maksymalnie jakość tego dokumentu i wykonaj OCR.",
-  "Popraw to zdjęcie tak, aby wyglądało jak do profesjonalnego ogłoszenia.",
-  "Ten PDF zawiera wiele dokumentów – podziel go na osobne pliki.",
+  { title: "Uporządkuj dokumenty", text: "Ten PDF zawiera wiele dokumentów – podziel go na osobne pliki i nazwij je według treści." },
+  { title: "Popraw zdjęcie", text: "Popraw to zdjęcie tak, aby wyglądało jak do profesjonalnego ogłoszenia." },
+  { title: "Przeszukiwalny PDF", text: "Zrób z tych skanów jeden przeszukiwalny PDF w najlepszej jakości." },
+  { title: "Audio i wideo", text: "Wytnij z tego nagrania fragment 00:30–02:00 i zapisz go jako MP3 z wyrównaną głośnością." },
+  { title: "Streszczenie i pismo", text: "Przeczytaj te dokumenty, streść najważniejsze ustalenia i przygotuj pismo w DOCX." },
+  { title: "Z chmury", text: "Pobierz z chmury katalog Faktury i zestaw kwoty z wszystkich faktur w tabeli XLSX." },
 ];
 
 function conversationFromPath(): string | null {
@@ -34,6 +37,7 @@ function conversationFromPath(): string | null {
 export default function App() {
   const [user, setUser] = useState<string | null | undefined>(undefined);
   const [cloudUrl, setCloudUrl] = useState("");
+  const [theme, setTheme] = useState<ThemeChoice>(storedTheme());
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(conversationFromPath());
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
@@ -148,6 +152,15 @@ export default function App() {
     return () => unsubscribe.current?.();
   }, [loadMe]);
 
+  // Motyw „systemowy” podąża za zmianą ustawień urządzenia.
+  useEffect(() => {
+    if (theme !== "system") return;
+    const media = window.matchMedia?.("(prefers-color-scheme: light)");
+    const onChange = () => applyTheme("system");
+    media?.addEventListener("change", onChange);
+    return () => media?.removeEventListener("change", onChange);
+  }, [theme]);
+
   // Wejście z chmury bez sesji (?next=cloud): po zalogowaniu powrót do chmury.
   useEffect(() => {
     if (user && cloudUrl && new URLSearchParams(window.location.search).get("next") === "cloud") {
@@ -205,18 +218,20 @@ export default function App() {
     if (files.length) setDropped(files);
   };
 
-  if (user === undefined) return <div className="boot" />;
+  if (user === undefined) return <div className="h-full bg-app" />;
   if (user === null) return <Login onLoggedIn={() => loadMe()} />;
 
   const turns = detail?.turns ?? [];
   return (
-    <div className="layout">
+    <div className="flex h-full overflow-hidden">
       <Sidebar
         conversations={conversations}
         currentId={currentId}
         username={user}
         cloudUrl={cloudUrl}
         open={sidebarOpen}
+        theme={theme}
+        onTheme={setTheme}
         onSelect={open}
         onNew={() => open(null)}
         onRename={(id, title) =>
@@ -241,7 +256,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
       />
       <main
-        className="chat"
+        className="relative flex min-w-0 flex-1 flex-col bg-app"
         onDragOver={(event) => {
           event.preventDefault();
           setDragging(true);
@@ -251,50 +266,66 @@ export default function App() {
         }}
         onDrop={onDrop}
       >
-        <header className="chat-header">
-          <button type="button" className="icon-button menu" onClick={() => setSidebarOpen(true)} aria-label="Historia rozmów">
+        <header className="safe-top titlebar-drag sticky top-0 z-10 flex items-center gap-2 border-b border-line/60 bg-app/85 px-3 py-2 backdrop-blur md:border-transparent">
+          <button type="button" className="icon-btn md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Historia rozmów">
             <MenuIcon />
           </button>
-          <h1>{detail?.title ?? "Nowa rozmowa"}</h1>
+          <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium">{detail?.title ?? "Nowa rozmowa"}</h1>
+          <button type="button" className="icon-btn md:hidden" onClick={() => open(null)} aria-label="Nowa rozmowa">
+            <PlusIcon />
+          </button>
         </header>
         <div
-          className="messages"
+          className="min-h-0 flex-1 overflow-y-auto"
           ref={scroller}
           onScroll={(event) => {
             const element = event.currentTarget;
             stickToBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
           }}
         >
-          <div className="messages-inner">
+          <div className="mx-auto w-full max-w-3xl px-4 pt-4 pb-10 md:px-6">
             {turns.length === 0 ? (
-              <div className="welcome">
-                <div className="welcome-mark">
-                  <SparkIcon size={28} />
-                </div>
-                <h2>W czym mogę pomóc?</h2>
-                <p>Dodaj pliki i opisz, co mam z nimi zrobić – sam dobiorę narzędzia i parametry.</p>
-                <div className="suggestions">
+              <div className="flex min-h-[calc(100dvh-260px)] animate-rise flex-col items-center justify-center py-8 text-center">
+                <Logo size={56} className="mb-5 rounded-2xl shadow-lg shadow-accent/20" />
+                <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">W czym mogę pomóc?</h2>
+                <p className="mt-2 max-w-md text-muted">
+                  Opisz zadanie i dodaj pliki – dokumenty, zdjęcia, PDF, nagrania. Sam dobiorę narzędzia, wykonam pracę
+                  i oddam gotowy wynik.
+                </p>
+                <div className="mt-8 grid w-full gap-2.5 sm:grid-cols-2">
                   {SUGGESTIONS.map((suggestion) => (
-                    <button key={suggestion} type="button" className="suggestion" onClick={() => setPrefill(suggestion)}>
-                      {suggestion}
+                    <button
+                      key={suggestion.title}
+                      type="button"
+                      className="rounded-2xl border border-line px-4 py-3 text-left transition-colors hover:bg-raised"
+                      onClick={() => setPrefill(suggestion.text)}
+                    >
+                      <span className="block text-sm font-medium">{suggestion.title}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-sm text-muted">{suggestion.text}</span>
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
-              turns.map((turn, index) =>
-                turn.type === "user" ? (
-                  <UserMessage key={`u${turn.id}`} turn={turn} onPreview={setPreview} />
-                ) : (
-                  <AssistantMessage key={`a${turn.run_id ?? index}-${index}`} turn={turn} onPreview={setPreview} />
-                ),
-              )
+              <div className="space-y-7">
+                {turns.map((turn, index) =>
+                  turn.type === "user" ? (
+                    <UserMessage key={`u${turn.id}`} turn={turn} onPreview={setPreview} />
+                  ) : (
+                    <AssistantMessage key={`a${turn.run_id ?? index}-${index}`} turn={turn} onPreview={setPreview} />
+                  ),
+                )}
+              </div>
             )}
           </div>
         </div>
-        <div className="composer-dock">
+        <div className="safe-bottom relative mx-auto w-full max-w-3xl px-3 md:px-6">
           {error && (
-            <div className="toast" role="alert" onClick={() => setError("")}>
+            <div
+              role="alert"
+              onClick={() => setError("")}
+              className="absolute inset-x-3 bottom-full mb-2 cursor-pointer rounded-xl border border-danger/40 bg-danger-soft px-4 py-2.5 text-sm text-danger shadow-lg md:inset-x-6"
+            >
               {error}
             </div>
           )}
@@ -308,10 +339,12 @@ export default function App() {
             prefill={prefill}
             onPrefillConsumed={() => setPrefill("")}
           />
-          <div className="disclaimer">Danaco Nexus korzysta z Claude. Wyniki warto sprawdzić przed użyciem.</div>
+          <div className="py-1.5 text-center text-xs text-muted">
+            Danaco Nexus korzysta z Claude. Wyniki warto sprawdzić przed użyciem.
+          </div>
         </div>
         {dragging && (
-          <div className="drop-overlay">
+          <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-accent bg-accent-soft/90 text-lg font-medium text-accent">
             <PaperclipIcon size={32} />
             Upuść pliki, aby je dodać
           </div>

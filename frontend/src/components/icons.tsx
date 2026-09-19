@@ -116,3 +116,54 @@ export const CloudIcon = (p: IconProps) => (
     <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4.75 4.75 0 0 1-.25 9.5H7Z" />
   </Icon>
 );
+export const SunIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </Icon>
+);
+export const MoonIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+  </Icon>
+);
+export const MonitorIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8M12 16v4" />
+  </Icon>
+);
+export const InstallIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+    <path d="M12 7v7M9 11l3 3 3-3M10 18.5h4" />
+  </Icon>
+);
+export const RefreshIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" />
+  </Icon>
+);
+export const ShareIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+  </Icon>
+);
+
+/** Znak Danaco Nexus (to samo logo co ikona aplikacji). */
+export function Logo({ size = 28, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 512 512" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="nexus-logo" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#8b7cf6" />
+          <stop offset="1" stopColor="#4f46e5" />
+        </linearGradient>
+      </defs>
+      <rect width="512" height="512" rx="116" fill="url(#nexus-logo)" />
+      <path d="M164 352V160l184 192V160" fill="none" stroke="#fff" strokeWidth="46" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="164" cy="352" r="34" fill="#fff" />
+      <circle cx="348" cy="160" r="34" fill="#fff" />
+    </svg>
+  );
+}

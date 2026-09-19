@@ -1,5 +1,6 @@
 # Danaco Nexus — prywatny asystent AI i chmura osobista.
 #   danaco-nexus.pl         → API i interfejs (127.0.0.1:8930)
+#   api.danaco-nexus.pl    → samo API (integracje)
 #   cloud.danaco-nexus.pl  → Nextcloud na FrankenPHP (127.0.0.1:8940)
 # Instalacja: skopiować do /etc/caddy/witryny/ i przeładować Caddy hosta.
 
@@ -33,6 +34,33 @@ danaco-nexus.pl {
 			read_timeout 30m
 			write_timeout 30m
 		}
+	}
+}
+
+api.danaco-nexus.pl {
+	import danaco-nexus-naglowki
+	request_body {
+		max_size 2GB
+	}
+	log {
+		output file /var/log/caddy/danaco-nexus-api.access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+	# Samo API (integracje, automatyzacje); interfejs i PWA działają pod domeną główną.
+	@api path /api/*
+	handle @api {
+		reverse_proxy 127.0.0.1:8930 {
+			flush_interval -1
+			transport http {
+				read_timeout 30m
+				write_timeout 30m
+			}
+		}
+	}
+	handle {
+		redir https://danaco-nexus.pl{uri} 302
 	}
 }
 
