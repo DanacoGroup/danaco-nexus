@@ -162,3 +162,21 @@ def harness(tmp_path: Path) -> ToolHarness:
 
 def pytest_configure(config: pytest.Config) -> None:
     os.environ.setdefault("NEXUS_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+
+
+# Ustawienia produkcyjne (np. z .env serwera), które zmieniają zachowanie aplikacji
+# w testach: domena ciasteczka, adresy publiczne, klucze usług zewnętrznych.
+PRODUCTION_ONLY_SETTINGS = (
+    "NEXUS_COOKIE_DOMAIN",
+    "NEXUS_PUBLIC_URL",
+    "NEXUS_CHMURA_PUBLIC_URL",
+    "NEXUS_COOKIE_SECURE",
+    "NEXUS_VOICE_GOOGLE_KEY_FILE",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Testy nie zależą od ustawień produkcyjnych obecnych w środowisku."""
+    for name in PRODUCTION_ONLY_SETTINGS:
+        monkeypatch.delenv(name, raising=False)
