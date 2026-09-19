@@ -24,11 +24,7 @@ CHMURA_URL = os.environ.get("NEXUS_TEST_CHMURA_URL", "http://127.0.0.1:8940")
 
 def call(harness: ToolHarness, name: str, /, **arguments: object):  # type: ignore[no-untyped-def]
     tool = registry.get(name)
-    context = harness.context()
-    try:
-        return tool.handler(context, tool.parse(arguments))
-    finally:
-        context.cleanup()
+    return tool.handler(harness.context(), tool.parse(arguments))
 
 
 @pytest.mark.parametrize(
