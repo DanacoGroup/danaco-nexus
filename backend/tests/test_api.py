@@ -40,6 +40,10 @@ def settings(tmp_path: Path) -> Settings:
         static_dir=tmp_path / "static",
         database_url=postgres or f"sqlite+aiosqlite:///{(tmp_path / 'nexus.db').as_posix()}",
         cookie_secure=False,
+        cookie_domain="",
+        public_url="",
+        chmura_public_url="",
+        redis_url="",
         login_attempts_per_15_min=3,
         qdrant_url="http://127.0.0.1:1",
     )

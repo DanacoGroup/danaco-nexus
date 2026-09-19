@@ -31,12 +31,12 @@ def timestamp(seconds: float, separator: str = ",") -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}{separator}{milliseconds:03d}"
 
 
-def to_srt(segments: list[dict[str, Any]]) -> str:
+def to_srt(segments: list[dict[str, Any]], separator: str = ",") -> str:
+    """Napisy SRT (przecinek w czasie) albo treść WebVTT (kropka)."""
     blocks = []
     for index, segment in enumerate(segments, 1):
-        blocks.append(
-            f"{index}\n{timestamp(segment['start'])} --> {timestamp(segment['end'])}\n{segment['text']}\n"
-        )
+        start, end = timestamp(segment["start"], separator), timestamp(segment["end"], separator)
+        blocks.append(f"{index}\n{start} --> {end}\n{segment['text']}\n")
     return "\n".join(blocks)
 
 
@@ -99,7 +99,7 @@ def transcribe_audio(ctx: ToolContext, args: TranscribeInput) -> ToolResult:
         elif kind == "srt":
             content = to_srt(segments)
         else:
-            content = "WEBVTT\n\n" + to_srt(segments).replace(",", ".")
+            content = "WEBVTT\n\n" + to_srt(segments, separator=".")
         target = ctx.output_path(with_suffix(file.name, f".{kind}", "_transkrypcja"))
         target.write_text(content + "\n", encoding="utf-8")
         outputs.append(OutputFile(target, target.name, f"Transkrypcja ({kind.upper()})"))
@@ -115,8 +115,5 @@ def transcribe_audio(ctx: ToolContext, args: TranscribeInput) -> ToolResult:
     if truncated:
         data["note"] = "Transkrypcja skrócona – pełna treść jest w pliku wynikowym."
     minutes = (result.get("duration") or 0) / 60
-    return ToolResult(
-        data,
-        f"Transkrypcja {file.name}: {minutes:.1f} min, język {result.get('language')}, {len(segments)} fragmentów",
-        files=outputs,
-    )
+    summary = f"Transkrypcja {file.name}: {minutes:.1f} min, język {result.get('language')}"
+    return ToolResult(data, f"{summary}, {len(segments)} fragmentów", files=outputs)
