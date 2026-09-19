@@ -1,0 +1,62 @@
+{
+  "name": "nexus-desktop",
+  "productName": "Nexus Desktop",
+  "version": "0.1.0",
+  "description": "Danaco Nexus dla Windows: wysuwany panel asystenta i lokalny agent komputera",
+  "author": "Danaco Group",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke-test",
+    "test": "node --test \"test/**/*.test.js\"",
+    "build": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "pl.danaco.nexus.desktop",
+    "productName": "Nexus Desktop",
+    "copyright": "Danaco Group",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nexus Desktop",
+      "installerLanguages": [
+        "pl_PL"
+      ],
+      "language": "1045",
+      "artifactName": "Nexus-Desktop-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
