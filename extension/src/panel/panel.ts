@@ -30,6 +30,7 @@ let numer = 0;
 let strona = { host: "", tytul: "", ukrytyPrzycisk: false };
 let mozliwosci: Mozliwosci = { zrzut: false, menu: false, skroty: false, opcje: false };
 const oczekiwane = new Map<number, (dane: unknown) => void>();
+const oczekujaceNaPort: Array<() => void> = [];
 
 // ---------- komunikaty ----------
 
@@ -51,9 +52,24 @@ async function doTla<T>(komunikat: { type: string }): Promise<T | null> {
   }
 }
 
+/**
+ * Port przychodzi po zdarzeniu load ramki panelu, które czeka na załadowanie ramki Nexusa –
+ * pierwsza akcja może więc wyprzedzić port. Czekamy na niego krótko zamiast zgłaszać błąd.
+ */
+function czekajNaPort(czas: number): Promise<boolean> {
+  if (port) return Promise.resolve(true);
+  return new Promise((gotowe) => {
+    const limit = setTimeout(() => gotowe(false), czas);
+    oczekujaceNaPort.push(() => {
+      clearTimeout(limit);
+      gotowe(true);
+    });
+  });
+}
+
 /** Zapytanie do skryptu treści (przez prywatny port) z odpowiedzią. */
-function doTresci<T>(komunikat: BezNumeru<Extract<DoTresci, { nr: number }>>, czas = 8000): Promise<T | null> {
-  if (!port) return Promise.resolve(null);
+async function doTresci<T>(komunikat: BezNumeru<Extract<DoTresci, { nr: number }>>, czas = 8000): Promise<T | null> {
+  if (!(await czekajNaPort(3000))) return null;
   const nr = ++numer;
   return new Promise((gotowe) => {
     const limit = setTimeout(() => {
@@ -101,6 +117,7 @@ function przyjmijPort(): void {
     if (port || !klucz || dane?.type !== TYP_PORTU || dane.klucz !== klucz || !e.ports[0]) return;
     port = e.ports[0];
     port.onmessage = (zdarzenie: MessageEvent<ZTresci>) => naKomunikatTresci(zdarzenie.data);
+    for (const odbiorca of oczekujaceNaPort.splice(0)) odbiorca();
   });
 }
 

@@ -48,6 +48,8 @@ const context = await chromium.launchPersistentContext(profil, {
   channel: "chromium",
   headless: true,
   viewport: { width: 1400, height: 900 },
+  // Bez animacji wysuwania panelu – kliknięcia w ramce trafiają w stałe miejsce.
+  reducedMotion: "reduce",
   args: [`--disable-extensions-except=${ROZSZERZENIE}`, `--load-extension=${ROZSZERZENIE}`],
 });
 
@@ -115,10 +117,19 @@ try {
   sprawdz("komunikaty do Nexusa pochodzą z rozszerzenia", auth?.origin === pochodzenieRozszerzenia, auth?.origin);
   await panel.waitForSelector('[data-akcja="stresc"]:not([disabled])', { timeout: 5000 });
 
+  /** Wykonuje akcję i czeka na następną parę nexus:context + nexus:prompt. */
+  const poAkcji = async (dzialanie, czas = 8000) => {
+    const k = (await odebrane(nexus, "nexus:context")).length;
+    const p = (await odebrane(nexus, "nexus:prompt")).length;
+    await dzialanie();
+    return {
+      kontekst: await czekajNaKomunikat(nexus, "nexus:context", k + 1, czas),
+      polecenie: await czekajNaKomunikat(nexus, "nexus:prompt", p + 1, czas),
+    };
+  };
+
   // Streść stronę → kontekst strony (artykuł) + polecenie.
-  await panel.click('[data-akcja="stresc"]');
-  const kontekst1 = await czekajNaKomunikat(nexus, "nexus:context", 1);
-  const polecenie1 = await czekajNaKomunikat(nexus, "nexus:prompt", 1);
+  const { kontekst: kontekst1, polecenie: polecenie1 } = await poAkcji(() => panel.click('[data-akcja="stresc"]'));
   const k1 = kontekst1?.data.context;
   sprawdz(
     "Streść: nexus:context z tytułem, adresem i treścią artykułu",
@@ -134,9 +145,7 @@ try {
   const liczbaOpinii = await panel.locator(".opinia").count();
   sprawdz("Odpowiedz: rozpoznano 2 opinie z panelu partnera Booking", liczbaOpinii === 2, String(liczbaOpinii));
   sprawdz("Odpowiedz: przy opinii znaleziono pole odpowiedzi", (await panel.locator(".opinia-pole").count()) === 2);
-  await panel.locator(".opinia").first().click();
-  const kontekst2 = await czekajNaKomunikat(nexus, "nexus:context", 2);
-  const polecenie2 = await czekajNaKomunikat(nexus, "nexus:prompt", 2);
+  const { kontekst: kontekst2, polecenie: polecenie2 } = await poAkcji(() => panel.locator(".opinia").first().click());
   sprawdz(
     "Odpowiedz: kontekst zawiera autora, ocenę i treść opinii",
     kontekst2?.data.context.text.includes("Autor: Marek") &&
@@ -167,8 +176,7 @@ try {
   // Popraw tekst: cała treść aktywnego pola → „Wstaw” zastępuje treść.
   await strona.fill("#zwykle", "Tekts z błedem");
   await strona.focus("#zwykle");
-  await panel.click('[data-akcja="popraw"]');
-  const kontekst3 = await czekajNaKomunikat(nexus, "nexus:context", 3);
+  const { kontekst: kontekst3 } = await poAkcji(() => panel.click('[data-akcja="popraw"]'));
   sprawdz("Popraw: kontekstem jest treść aktywnego pola", kontekst3?.data.context.text === "Tekts z błedem");
   await nexus.evaluate(() => (window.__doWstawienia = "Tekst z błędem"));
   await nexus.click("#wstaw");
@@ -180,8 +188,7 @@ try {
   sprawdz("Zrzut: przeglądarka udostępnia captureVisibleTab (przełącznik widoczny)", zrzutDostepny);
   if (zrzutDostepny) {
     await panel.check("#zrzut");
-    await panel.click('[data-akcja="stresc"]');
-    const kontekst4 = await czekajNaKomunikat(nexus, "nexus:context", 4, 10000);
+    const { kontekst: kontekst4 } = await poAkcji(() => panel.click('[data-akcja="stresc"]'), 10000);
     const obraz = kontekst4?.data.context.image ?? "";
     sprawdz(
       "Zrzut: kontekst z obrazem JPEG (data URL)",
