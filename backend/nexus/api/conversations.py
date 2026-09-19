@@ -33,6 +33,7 @@ class RenameConversation(BaseModel):
 class SendMessage(BaseModel):
     text: str = Field("", max_length=100_000)
     file_ids: list[uuid.UUID] = Field(default_factory=list, max_length=500)
+    voice: bool = Field(False, description="Wiadomość z rozmowy głosowej (odpowiedź do przeczytania).")
 
 
 def file_payload(record: StoredFile) -> dict[str, Any]:
@@ -320,7 +321,7 @@ async def send_message(conversation_id: uuid.UUID, payload: SendMessage, request
                 role="user",
                 kind="user",
                 content=content,
-                meta={"text": text, "file_ids": [str(r.id) for r in records]},
+                meta={"text": text, "file_ids": [str(r.id) for r in records], "voice": payload.voice},
             )
         )
         values: dict[str, Any] = {"updated_at": utcnow()}

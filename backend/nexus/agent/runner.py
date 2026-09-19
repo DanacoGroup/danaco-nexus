@@ -84,6 +84,11 @@ STREAM_LINE_LIMIT = 256 * 1024 * 1024
 STDERR_TAIL_LINES = 40
 HISTORY_DIGEST_MESSAGES = 16
 HISTORY_DIGEST_CHARS = 1500
+VOICE_INSTRUCTION = (
+    "[Rozmowa głosowa: użytkownik mówi, a Twoja odpowiedź zostanie przeczytana na głos. "
+    "Odpowiadaj naturalnie i zwięźle, pełnymi zdaniami, bez Markdown, list, tabel i adresów. "
+    "Zadania na plikach wykonuj jak zwykle; o wynikach powiedz krótko, pliki pojawią się na ekranie.]"
+)
 
 
 class RunCancelled(Exception):
@@ -655,11 +660,14 @@ class CliFailure(Exception):
 def _prompt_text(message: Message | None) -> str:
     if message is None:
         raise CliFailure("brak wiadomości użytkownika dla zadania")
-    return "\n".join(
+    text = "\n".join(
         block.get("text", "")
         for block in message.content
         if isinstance(block, dict) and block.get("type") == "text"
     ).strip()
+    if (message.meta or {}).get("voice"):
+        text = f"{VOICE_INSTRUCTION}\n\n{text}"
+    return text
 
 
 def _usage(result: dict[str, Any]) -> dict[str, Any]:

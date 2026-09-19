@@ -12,19 +12,20 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from nexus import __version__
-from nexus.api import auth, conversations, files, runs
+from nexus.api import auth, conversations, files, runs, voice
 from nexus.config import Settings, get_settings
 from nexus.db import Database
 from nexus.events import EventBus
 from nexus.knowledge import KnowledgeBase
 from nexus.logging_setup import configure_logging
 from nexus.storage import FileStorage
+from nexus.voice import VoiceEngine
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "same-origin",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
     "Content-Security-Policy": (
         "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
@@ -73,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.storage = FileStorage(settings.files_dir)
         app.state.login_throttle = auth.LoginThrottle(settings.login_attempts_per_15_min)
         app.state.events = EventBus(settings.redis_url)
+        app.state.voice = VoiceEngine(settings)
         app.state.knowledge = KnowledgeBase(
             settings.qdrant_url,
             settings.qdrant_collection,
@@ -92,7 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url=None,
     )
     app.add_middleware(SecurityHeaders)
-    for module in (auth, conversations, files, runs):
+    for module in (auth, conversations, files, runs, voice):
         app.include_router(module.router)
 
     @app.get("/api/health")
