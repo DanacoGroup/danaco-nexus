@@ -4,8 +4,13 @@ Wypisuje zdarzenia w formacie CLI i – w scenariuszu ``tool`` – naprawdę
 uruchamia serwer MCP z ``--mcp-config`` oraz wywołuje przez niego narzędzie
 ``convert_images`` dla pierwszego ``file_id`` z treści zadania.
 
-Sterowanie zmiennymi: ``FAKE_CLAUDE_SCENARIO`` (``tool``, ``text``, ``auth``,
-``hang``, ``crash``) i ``FAKE_CLAUDE_LOG`` (plik JSONL z argumentami wywołań).
+Scenariusz ``agents`` odtwarza strumień z podagentami (zdarzenia z
+``parent_tool_use_id``, podagent w tle z ``task_notification``, dwie tury
+i dwa wyniki), a podagent wywołuje narzędzie przez prawdziwy serwer MCP.
+
+Sterowanie zmiennymi: ``FAKE_CLAUDE_SCENARIO`` (``tool``, ``agents``, ``text``,
+``sleep``, ``auth``, ``hang``, ``crash``), ``FAKE_CLAUDE_SLEEP`` (sekundy dla
+``sleep``) i ``FAKE_CLAUDE_LOG`` (plik JSONL z argumentami wywołań).
 """
 
 from __future__ import annotations
@@ -48,15 +53,117 @@ def text_block(session: str, index: int, text: str) -> None:
     stream(session, {"type": "content_block_stop", "index": index})
 
 
-def assistant(session: str, content: list[dict[str, Any]]) -> None:
+def assistant(session: str, content: list[dict[str, Any]], parent: str | None = None) -> None:
     out(
         {
             "type": "assistant",
             "message": {"id": "msg_1", "role": "assistant", "model": "claude-opus-5", "content": content},
             "session_id": session,
-            "parent_tool_use_id": None,
+            "parent_tool_use_id": parent,
         }
     )
+
+
+def tool_result(session: str, tool_use_id: str, result: dict[str, Any], parent: str | None = None) -> None:
+    out(
+        {
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": tool_use_id, **result}],
+            },
+            "session_id": session,
+            "parent_tool_use_id": parent,
+        }
+    )
+
+
+def system(session: str, subtype: str, **data: Any) -> None:
+    out({"type": "system", "subtype": subtype, "session_id": session, **data})
+
+
+def agents_scenario(session: str, config_path: str, file_id: str) -> None:
+    """Dwa podagenty: pierwszy (na pierwszym planie) konwertuje plik, drugi pracuje w tle."""
+    out(
+        {
+            "type": "rate_limit_event",
+            "rate_limit_info": {
+                "status": "allowed",
+                "unifiedWindows": {"five_hour": {"utilization": 0.95, "resetsAt": 1789834200}},
+            },
+            "session_id": session,
+        }
+    )
+    first = {"description": "Konwersja skanu", "subagent_type": "pomocnik", "prompt": f"Zamień {file_id}"}
+    second = {
+        "description": "Opis dokumentu",
+        "subagent_type": "pomocnik",
+        "prompt": "Opisz dokument",
+        "run_in_background": True,
+    }
+    stream(
+        session,
+        {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {"type": "tool_use", "id": "toolu_a1", "name": "Agent", "input": {}},
+        },
+    )
+    assistant(
+        session,
+        [
+            {"type": "tool_use", "id": "toolu_a1", "name": "Agent", "input": first},
+            {"type": "tool_use", "id": "toolu_a2", "name": "Agent", "input": second},
+        ],
+    )
+    system(session, "task_started", task_id="t1", tool_use_id="toolu_a1", description="Konwersja skanu")
+    tool_result(
+        session,
+        "toolu_a2",
+        {
+            "content": [
+                {"type": "text", "text": "Async agent launched successfully.\nagentId: a2 (internal ID)"}
+            ]
+        },
+    )
+    assistant(session, [{"type": "text", "text": "Zamieniam skan na PNG."}], parent="toolu_a1")
+    tool_input = {"file_ids": [file_id], "target_format": "png"}
+    assistant(
+        session,
+        [{"type": "tool_use", "id": "toolu_s1", "name": f"{MCP_PREFIX}convert_images", "input": tool_input}],
+        parent="toolu_a1",
+    )
+    called = asyncio.run(call_tool(config_path, "convert_images", tool_input))
+    tool_result(session, "toolu_s1", called, parent="toolu_a1")
+    assistant(
+        session,
+        [{"type": "tool_use", "id": "toolu_s2", "name": "ToolSearch", "input": {}}],
+        parent="toolu_a2",
+    )
+    tool_result(session, "toolu_s2", {"content": "brak"}, parent="toolu_a2")
+    tool_result(
+        session,
+        "toolu_a1",
+        {
+            "content": [
+                {"type": "text", "text": "Plik PNG gotowy.\nagentId: a1\n<usage>total_tokens: 10</usage>"}
+            ]
+        },
+    )
+    text_block(session, 1, "Pierwszy podagent skończył, czekam na drugi.")
+    assistant(session, [{"type": "text", "text": "Pierwszy podagent skończył, czekam na drugi."}])
+    result(session)
+    system(session, "task_progress", tool_use_id="toolu_a2", description="Czytam dokument")
+    assistant(session, [{"type": "text", "text": "Dokument to umowa."}], parent="toolu_a2")
+    system(
+        session,
+        "task_notification",
+        task_id="a2",
+        tool_use_id="toolu_a2",
+        status="completed",
+        summary="Dokument to umowa o świadczenie usług.",
+    )
+    system(session, "init", model="claude-opus-5", mcp_servers=[{"name": "nexus", "status": "connected"}])
 
 
 def result(session: str, is_error: bool = False, text: str = "Gotowe.", subtype: str = "success") -> None:
@@ -123,6 +230,8 @@ def main() -> int:
                         "token": os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", ""),
                         "api_key_present": "ANTHROPIC_API_KEY" in os.environ,
                         "config_dir": os.environ.get("CLAUDE_CONFIG_DIR", ""),
+                        "cwd": os.getcwd(),
+                        "git_author": os.environ.get("GIT_AUTHOR_NAME", ""),
                     }
                 )
                 + "\n"
@@ -145,6 +254,12 @@ def main() -> int:
     if scenario == "auth":
         result(session, True, "Invalid API key · Please run /login")
         return 1
+    if scenario == "sleep":
+        time.sleep(float(os.environ.get("FAKE_CLAUDE_SLEEP", "1")))
+    if scenario == "agents":
+        match = re.search(r"file_id: ([0-9a-f-]{36})", prompt)
+        assert match, prompt
+        agents_scenario(session, option(args, "--mcp-config"), match.group(1))
     if scenario == "hang":
         text_block(session, 0, "Pracuję…")
         time.sleep(600)

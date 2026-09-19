@@ -1,0 +1,78 @@
+/* Moduł Kod: kolory podświetlania składni (highlight.js) i różnic git – motyw jasny i ciemny. */
+
+.kod-code {
+  --kod-keyword: #7c3aed;
+  --kod-string: #15803d;
+  --kod-number: #b45309;
+  --kod-comment: #71717a;
+  --kod-title: #1d4ed8;
+  --kod-type: #0f766e;
+  --kod-attr: #9333ea;
+  --kod-meta: #be185d;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.dark .kod-code {
+  --kod-keyword: #c4b5fd;
+  --kod-string: #86efac;
+  --kod-number: #fcd34d;
+  --kod-comment: #8b8b94;
+  --kod-title: #93c5fd;
+  --kod-type: #5eead4;
+  --kod-attr: #f0abfc;
+  --kod-meta: #f9a8d4;
+}
+
+.kod-code .hljs-keyword,
+.kod-code .hljs-selector-tag,
+.kod-code .hljs-built_in,
+.kod-code .hljs-literal {
+  color: var(--kod-keyword);
+}
+.kod-code .hljs-string,
+.kod-code .hljs-regexp,
+.kod-code .hljs-addition,
+.kod-code .hljs-template-variable {
+  color: var(--kod-string);
+}
+.kod-code .hljs-number,
+.kod-code .hljs-symbol,
+.kod-code .hljs-bullet {
+  color: var(--kod-number);
+}
+.kod-code .hljs-comment,
+.kod-code .hljs-quote {
+  color: var(--kod-comment);
+  font-style: italic;
+}
+.kod-code .hljs-title,
+.kod-code .hljs-section,
+.kod-code .hljs-name {
+  color: var(--kod-title);
+}
+.kod-code .hljs-type,
+.kod-code .hljs-class,
+.kod-code .hljs-params {
+  color: var(--kod-type);
+}
+.kod-code .hljs-attr,
+.kod-code .hljs-attribute,
+.kod-code .hljs-property,
+.kod-code .hljs-variable {
+  color: var(--kod-attr);
+}
+.kod-code .hljs-meta,
+.kod-code .hljs-deletion,
+.kod-code .hljs-tag {
+  color: var(--kod-meta);
+}
+
+.kod-diff-add {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.kod-diff-del {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}

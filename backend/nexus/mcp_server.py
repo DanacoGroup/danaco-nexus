@@ -36,11 +36,23 @@ logger = logging.getLogger("nexus.mcp")
 
 SERVER_NAME = "nexus"
 PROGRESS_MIN_INTERVAL = 0.7
+# Claude Code przekazuje identyfikator wywołania narzędzia w ``_meta`` żądania MCP – dzięki
+# niemu postęp równoległych wywołań (np. kilku podagentów) trafia do właściwego elementu.
+TOOL_USE_ID_META = "claudecode/toolUseId"
 
 
 def _image_content(data: bytes) -> types.ImageContent:
     mime = "image/png" if data[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
     return types.ImageContent(data=base64.standard_b64encode(data).decode("ascii"), mime_type=mime)
+
+
+def _tool_use_id(params: types.CallToolRequestParams) -> str:
+    """Identyfikator wywołania w sesji CLI (``_meta`` żądania), gdy klient go przekazuje."""
+    meta = params.meta
+    if hasattr(meta, "model_dump"):
+        meta = meta.model_dump(by_alias=True)
+    value = meta.get(TOOL_USE_ID_META) if isinstance(meta, dict) else None
+    return value if isinstance(value, str) else ""
 
 
 def _error(message: str) -> types.CallToolResult:
@@ -78,15 +90,16 @@ class ToolServer:
             ]
         )
 
-    def _context(self, loop: asyncio.AbstractEventLoop, name: str) -> ToolContext:
+    def _context(self, loop: asyncio.AbstractEventLoop, name: str, tool_use_id: str = "") -> ToolContext:
         last = [0.0]
+        base = {"name": name, "tool_use_id": tool_use_id} if tool_use_id else {"name": name}
 
         def progress(text: str) -> None:
             now = loop.time()
             if now - last[0] >= PROGRESS_MIN_INTERVAL:
                 last[0] = now
                 asyncio.run_coroutine_threadsafe(
-                    self.emit("tool.progress", {"name": name, "text": text}), loop
+                    self.emit("tool.progress", {**base, "text": text}), loop
                 ).result()
 
         return ToolContext(
@@ -109,7 +122,7 @@ class ToolServer:
             arguments = tool.parse(params.arguments or {})
         except ToolError as error:
             return _error(str(error))
-        context = self._context(loop, params.name)
+        context = self._context(loop, params.name, _tool_use_id(params))
         try:
             result = await loop.run_in_executor(self._executor, tool.handler, context, arguments)
             files = await self._files.store_outputs(self._run_id, self._conversation_id, result.files)

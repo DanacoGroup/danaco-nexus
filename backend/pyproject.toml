@@ -53,3 +53,8 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = ["tools: test wymaga programów narzędziowych (LibreOffice, FFmpeg, unpaper, ImageMagick)"]
+
+# --- moduł agenci ---
+# Instrukcje trybów rozmów (nexus/agent/tryby/<tryb>.md) w instalacji nieedytowalnej.
+[tool.setuptools.package-data]
+"nexus.agent" = ["tryby/*.md"]

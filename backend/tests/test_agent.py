@@ -21,6 +21,7 @@ from sqlalchemy import select, update
 
 from nexus.agent.runner import (
     ALLOWED_TOOLS,
+    RATE_LIMIT_KEY,
     AgentRunner,
     build_command,
     friendly_error,
@@ -29,9 +30,10 @@ from nexus.agent.runner import (
     tool_display_name,
 )
 from nexus.config import Settings
-from nexus.db import Conversation, Database, Message, Run, RunEvent, StoredFile, ToolCall
+from nexus.db import Conversation, Database, Message, Run, RunEvent, Setting, StoredFile, ToolCall
 from nexus.storage import FileStorage
 from nexus.tools import registry
+from nexus.worker import Worker
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="grupy procesów i skrypty wykonywalne POSIX")
 
@@ -291,3 +293,160 @@ def test_tool_result_helpers() -> None:
 @pytest.mark.parametrize("name", registry.names())
 def test_tool_names_are_valid_for_mcp(name: str) -> None:
     assert re.fullmatch(r"[a-z][a-z0-9_]{1,63}", name)
+
+
+# --- podagenci, tryby rozmów, wiele sesji ----------------------------------------------------
+
+
+async def test_subagents_become_nested_events(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings, database, conversation_id, run_id, _file_id, log = await prepare(
+        tmp_path, monkeypatch, "agents"
+    )
+    await AgentRunner(settings, database).execute(run_id)
+    async with database.session() as session:
+        run = await session.get(Run, run_id)
+        tool_calls = {
+            call.tool_use_id: call
+            for call in (await session.scalars(select(ToolCall).where(ToolCall.run_id == run_id))).all()
+        }
+        results = (await session.scalars(select(StoredFile).where(StoredFile.origin == "result"))).all()
+        messages = (
+            await session.scalars(
+                select(Message).where(Message.conversation_id == conversation_id).order_by(Message.id)
+            )
+        ).all()
+        limits = await session.get(Setting, RATE_LIMIT_KEY)
+    assert run is not None and run.status == "done", run.error if run else ""
+    # Dwie tury CLI (podagent w tle) – zużycie jest sumą obu wyników.
+    assert run.usage["input_tokens"] == 240 and run.usage["num_turns"] == 4
+    assert set(tool_calls) == {"toolu_a1", "toolu_a2", "toolu_s1"}
+    first, second, nested = tool_calls["toolu_a1"], tool_calls["toolu_a2"], tool_calls["toolu_s1"]
+    assert first.name == second.name == "podagent" and nested.name == "convert_images"
+    assert first.status == "done" and first.summary == "Plik PNG gotowy."
+    assert second.status == "done" and second.summary == "Dokument to umowa o świadczenie usług."
+    # Plik z narzędzia podagenta trafia też do wywołania podagenta (historia rozmowy).
+    assert len(results) == 1 and first.output_file_ids == [str(results[0].id)] == nested.output_file_ids
+    assert limits is not None and json.loads(limits.value)["status"] == "allowed"
+
+    stored = [block for message in messages if message.kind == "assistant" for block in message.content]
+    assert [block["name"] for block in stored if block["type"] == "tool_use"] == ["podagent", "podagent"]
+    # Tekst podagentów nie trafia do historii rozmowy głównej.
+    texts = " ".join(block.get("text", "") for block in stored)
+    assert "Zamieniam skan" not in texts and "Gotowe – plik PNG" in texts
+
+    evts = await events(database, run_id)
+    started = [e.data for e in evts if e.type == "tool.started"]
+    assert started[0]["agent"] == {
+        "description": "Konwersja skanu",
+        "subagent_type": "pomocnik",
+        "background": False,
+    }
+    assert started[1]["agent"]["background"] is True
+    assert next(d for d in started if d["tool_use_id"] == "toolu_s1")["parent_tool_use_id"] == "toolu_a1"
+    nested_text = [e.data for e in evts if e.type == "text.delta" and e.data.get("parent_tool_use_id")]
+    assert {d["parent_tool_use_id"] for d in nested_text} == {"toolu_a1", "toolu_a2"}
+    progress = [e.data for e in evts if e.type == "tool.progress" and e.data.get("tool_use_id") == "toolu_a2"]
+    assert [d["text"] for d in progress] == ["Pracuje w tle…", "Czytam dokument"]
+    finished = {e.data["tool_use_id"]: e.data for e in evts if e.type == "tool.finished"}
+    assert finished["toolu_s1"]["parent_tool_use_id"] == "toolu_a1"
+    assert finished["toolu_a1"]["files"][0]["id"] == str(results[0].id)
+    notices = [e.data["text"] for e in evts if e.type == "notice"]
+    assert len(notices) == 1 and "95% limitu 5-godzinnego" in notices[0]
+    assert "ToolSearch" not in {d["name"] for d in started}
+
+    (invocation,) = calls(log)
+    args = invocation["args"]
+    agents = json.loads(args[args.index("--agents") + 1])
+    assert "Agent" not in agents["pomocnik"]["tools"]
+    assert "mcp__nexus__convert_images" in agents["pomocnik"]["tools"]
+    assert "--forward-subagent-text" in args
+    assert args[args.index("--tools") + 1] == "ToolSearch,Agent,WebSearch,WebFetch"
+
+
+async def test_code_mode_runs_in_project_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings, database, conversation_id, run_id, _file_id, log = await prepare(tmp_path, monkeypatch, "text")
+    project = settings.kod_dir / "sklep"
+    project.mkdir(parents=True)
+    async with database.session() as session:
+        await session.execute(
+            update(Conversation)
+            .where(Conversation.id == conversation_id)
+            .values(meta={"mode": "code", "workspace": "sklep"})
+        )
+    await AgentRunner(settings, database).execute(run_id)
+    async with database.session() as session:
+        run = await session.get(Run, run_id)
+    assert run is not None and run.status == "done", run.error
+    (invocation,) = calls(log)
+    args = invocation["args"]
+    assert Path(invocation["cwd"]).resolve() == project.resolve()
+    assert invocation["git_author"] == settings.kod_git_name
+    assert args[args.index("--permission-mode") + 1] == "acceptEdits"
+    assert args[args.index("--add-dir") + 1] == str(project)
+    assert "sesja programistyczna" in args[args.index("--append-system-prompt") + 1]
+    assert "Bash" in args[args.index("--tools") + 1].split(",")
+
+    # Usunięty projekt: zadanie kończy się czytelnym błędem.
+    project.rmdir()
+    second = await add_run(database, conversation_id, "Dalej")
+    await AgentRunner(settings, database).execute(second)
+    async with database.session() as session:
+        failed = await session.get(Run, second)
+    assert failed is not None and failed.status == "failed" and "sklep" in failed.error
+
+
+async def test_worker_runs_sessions_in_parallel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings, database, _conversation_id, first_run, _file_id, _log = await prepare(
+        tmp_path, monkeypatch, "sleep"
+    )
+    monkeypatch.setenv("FAKE_CLAUDE_SLEEP", "2")
+    run_ids = [first_run]
+    for index in range(3):
+        conversation = Conversation(id=uuid.uuid4(), title=f"Sesja {index}")
+        async with database.session() as session:
+            session.add(conversation)
+        run_ids.append(await add_run(database, conversation.id, "Zadanie w tle"))
+    worker = Worker(settings.model_copy(update={"worker_concurrency": 4}), database)
+    loop = asyncio.create_task(worker.run())
+    try:
+        for _ in range(300):
+            async with database.session() as session:
+                statuses = (await session.scalars(select(Run.status).where(Run.id.in_(run_ids)))).all()
+            if all(value == "done" for value in statuses):
+                break
+            await asyncio.sleep(0.1)
+    finally:
+        worker.stop()
+        await asyncio.wait_for(loop, 30)
+    check = Database(settings.database_url)
+    async with check.session() as session:
+        runs = (await session.scalars(select(Run).where(Run.id.in_(run_ids)))).all()
+    await check.close()
+    assert [run.status for run in runs] == ["done"] * 4
+    # Wszystkie cztery sesje trwały jednocześnie (każda ~2 s).
+    assert max(run.started_at for run in runs) < min(run.finished_at for run in runs)
+
+
+async def test_worker_stop_interrupts_runs_after_grace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings, database, _conversation_id, run_id, _file_id, _log = await prepare(
+        tmp_path, monkeypatch, "hang"
+    )
+    worker = Worker(settings.model_copy(update={"worker_stop_grace_s": 0}), database)
+    loop = asyncio.create_task(worker.run())
+    for _ in range(100):
+        if any(event.type == "text.delta" for event in await events(database, run_id)):
+            break
+        await asyncio.sleep(0.1)
+    worker.stop()
+    await asyncio.wait_for(loop, 30)
+    check = Database(settings.database_url)
+    async with check.session() as session:
+        run = await session.get(Run, run_id)
+        final = await session.scalar(
+            select(RunEvent.type).where(RunEvent.run_id == run_id).order_by(RunEvent.id.desc()).limit(1)
+        )
+    await check.close()
+    assert run is not None and run.status == "failed" and "przerwane" in run.error
+    assert final == "run.failed"
