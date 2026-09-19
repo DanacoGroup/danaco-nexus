@@ -159,7 +159,7 @@ class GoogleSpeech:
                 "encoding": "LINEAR16",
                 "sampleRateHertz": 16000,
                 "languageCode": LANGUAGE if language in ("pl", "auto") else language,
-                "model": "latest_short" if duration < 20 else "latest_long",
+                "model": "default",
                 "enableAutomaticPunctuation": True,
             },
             "audio": {"content": base64.b64encode(pcm).decode("ascii")},

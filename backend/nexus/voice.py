@@ -33,6 +33,7 @@ MARKDOWN = re.compile(
 
 
 VOLUME = 0.8
+GOOGLE_EMPTY_RETRY_SECONDS = 1.0
 
 
 class VoiceUnavailable(RuntimeError):
@@ -96,13 +97,19 @@ class VoiceEngine:
         if self.google.available():
             try:
                 text, duration = self.google.transcribe(audio, language)
-                return Transcript(text=text, language=language, duration=round(duration, 2))
+                # Pusty wynik przy dłuższym nagraniu – druga próba modelem lokalnym.
+                if text or duration < GOOGLE_EMPTY_RETRY_SECONDS or not self._local_stt_available():
+                    return Transcript(text=text, language=language, duration=round(duration, 2))
+                logger.info("Google nie rozpoznał mowy (%.1f s) – próba modelem lokalnym", duration)
             except GoogleSpeechError as error:
                 logger.warning("Rozpoznawanie Google niedostępne, używam modelu lokalnego: %s", error)
         return self._transcribe_local(audio, language)
 
+    def _local_stt_available(self) -> bool:
+        return (self.stt_model_dir / "model.bin").is_file()
+
     def _transcribe_local(self, audio: Path, language: str) -> Transcript:
-        if not (self.stt_model_dir / "model.bin").is_file():
+        if not self._local_stt_available():
             raise VoiceUnavailable(f"Brak modelu rozpoznawania mowy w {self.stt_model_dir}.")
         with self._stt_lock:
             model = self._load_stt()
