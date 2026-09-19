@@ -32,7 +32,7 @@ krok() { printf '\n== %s\n' "$*"; }
 
 krok "Katalogi projektu"
 umask 002
-mkdir -p dane/app dane/run dane/qdrant programy .cache
+mkdir -p dane/app dane/run dane/qdrant dane/tmp dane/.cache programy .cache
 if [ ! -d dane/claude-profil ]; then
     sudo -u "$USLUGA_UZYTKOWNIK" mkdir -m 700 dane/claude-profil
 fi
