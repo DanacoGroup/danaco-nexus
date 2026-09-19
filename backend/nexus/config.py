@@ -67,8 +67,8 @@ class Settings(BaseSettings):
     login_attempts_per_15_min: int = 8
 
     # --- moduł biuro ---
-    # Poczta: plik z loginem, hasłem i serwerami (deploy/zapisz-poczte.sh), limit czasu połączeń.
-    poczta_config_file: Path = Path("dane/app/poczta.json")
+    # Poczta: plik z loginem, hasłem i serwerami (deploy/zapisz-poczte.sh; ścieżka względna = w data_dir).
+    poczta_config_file: Path = Path("poczta.json")
     poczta_timeout_s: int = 30
     poczta_attachments_limit_mb: int = 25
     # Kalendarz (CalDAV Nextcloud, konto chmura_user): kalendarz domyślny i strefa czasowa.

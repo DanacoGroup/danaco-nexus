@@ -83,9 +83,15 @@ class MailConfig:
         return formataddr((self.name, self.address)) if self.name else self.address
 
 
+def config_path(settings: Settings) -> Path:
+    """Plik konta pocztowego (ścieżka względna liczona od katalogu danych)."""
+    path = Path(settings.poczta_config_file)
+    return path if path.is_absolute() else settings.data_dir / path
+
+
 def load_config(settings: Settings) -> MailConfig:
     """Wczytuje konto z pliku; brak lub błąd pliku zgłasza ``MailNotConfigured``."""
-    path = Path(settings.poczta_config_file)
+    path = config_path(settings)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as error:
@@ -116,7 +122,7 @@ def load_config(settings: Settings) -> MailConfig:
 
 def is_configured(settings: Settings) -> bool:
     """Czy plik konfiguracji poczty istnieje."""
-    return Path(settings.poczta_config_file).is_file()
+    return config_path(settings).is_file()
 
 
 # --- zmodyfikowane UTF-7 (RFC 3501) dla nazw folderów, gdy serwer nie obsługuje UTF8=ACCEPT ---
