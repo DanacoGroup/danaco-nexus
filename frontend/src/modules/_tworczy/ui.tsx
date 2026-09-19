@@ -11,6 +11,9 @@ export const buttonSecondary =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-line px-3.5 py-2 text-sm font-medium transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50";
 export const inputClass =
   "w-full rounded-xl border border-line bg-app px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted focus:border-accent";
+/** Pole wyboru w wierszu (szerokość według treści). */
+export const selectInlineClass =
+  "rounded-xl border border-line bg-app px-3 py-2 text-sm outline-none transition-colors focus:border-accent";
 export const labelClass = "mb-1 block text-xs font-medium tracking-wide text-muted uppercase";
 
 export function ModuleHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {

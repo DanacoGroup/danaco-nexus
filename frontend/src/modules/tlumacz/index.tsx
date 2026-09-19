@@ -7,7 +7,7 @@ import type { ModulePageProps, NexusModule } from "../registry";
 import { cancelJob, errorText, requestJson, waitForJob, type JobState } from "../_tworczy/http";
 import { CopyIcon, SwapIcon, TranslateIcon } from "../_tworczy/icons";
 import { worthTranslating } from "../_tworczy/logic";
-import { buttonPrimary, buttonSecondary, ErrorBanner, FileDrop, inputClass, labelClass, ModuleHeader, Segmented, Spinner } from "../_tworczy/ui";
+import { buttonPrimary, buttonSecondary, ErrorBanner, FileDrop, inputClass, labelClass, ModuleHeader, Segmented, selectInlineClass, Spinner } from "../_tworczy/ui";
 
 const BASE = "/api/tlumacz";
 const DOCUMENT_ACCEPT = ".docx,.pptx,.pdf,.txt,.md";
@@ -36,7 +36,7 @@ function LanguageSelect({
   label: string;
 }) {
   return (
-    <select className={`${inputClass} w-auto min-w-36`} value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
+    <select className={`${selectInlineClass} min-w-36`} value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
       {allowAuto && <option value="auto">Wykryj język</option>}
       {languages.map((language) => (
         <option key={language.code} value={language.code}>
@@ -176,7 +176,7 @@ function TranslatorPage(_: ModulePageProps) {
               <SwapIcon size={18} />
             </button>
             <LanguageSelect label="Język docelowy" value={target} onChange={setTarget} languages={languages} />
-            <select className={`${inputClass} w-auto`} value={style} onChange={(event) => setStyle(event.target.value)} aria-label="Styl tłumaczenia">
+            <select className={selectInlineClass} value={style} onChange={(event) => setStyle(event.target.value)} aria-label="Styl tłumaczenia">
               {styles.map((item) => (
                 <option key={item.id} value={item.id} title={item.description}>
                   Styl: {item.id}
