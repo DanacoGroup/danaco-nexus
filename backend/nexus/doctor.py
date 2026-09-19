@@ -45,7 +45,7 @@ def check_programs() -> list[Check]:
     checks = []
     tesseract = shutil.which("tesseract")
     if tesseract:
-        languages = set(_run([tesseract, "--list-langs"]).stdout.split()[1:])
+        languages = {line.strip() for line in _run([tesseract, "--list-langs"]).stdout.splitlines()[1:]}
         missing = [lang for lang in REQUIRED_TESSERACT_LANGUAGES if lang not in languages]
         checks.append(
             Check(

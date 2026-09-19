@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         results = run_checks(get_settings(), online=arguments.online)
         width = max(len(check.name) for check in results)
         for check in results:
-            print(f"{'OK ' if check.ok else 'BŁĄD'}  {check.name.ljust(width)}  {check.detail}")
+            print(f"{'OK  ' if check.ok else 'BŁĄD'}  {check.name.ljust(width)}  {check.detail}")
         failed = sum(not check.ok for check in results)
         print(f"\nKontrole: {len(results) - failed} poprawnych, {failed} z błędem.")
         return 1 if failed else 0
