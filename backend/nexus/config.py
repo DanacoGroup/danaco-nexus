@@ -86,8 +86,9 @@ class Settings(BaseSettings):
     push_enabled: bool = True
     push_vapid_file: Path | None = None
     push_contact: str = ""
-    # Kto może osadzać kompaktowy panel (/?widok=panel) w ramce: rozszerzenie, Nexus Desktop.
-    panel_frame_ancestors: str = "*"
+    # Kto może osadzać kompaktowy panel (/?widok=panel) w ramce: strony (panel wstrzykiwany przez
+    # rozszerzenie), strony rozszerzeń i Nexus Desktop. „*” nie obejmuje schematów innych niż http(s).
+    panel_frame_ancestors: str = "* chrome-extension: moz-extension: safari-web-extension: file:"
 
     @property
     def vapid_file(self) -> Path:

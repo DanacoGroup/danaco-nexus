@@ -26,7 +26,7 @@ def panel_csp(base: str, ancestors: str) -> str:
     return f"{base.rstrip('; ')}; frame-ancestors {ancestors}"
 
 
-@router.get("/", include_in_schema=False)
+@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 async def index(request: Request) -> FileResponse:
     """``index.html`` interfejsu; dla ``?widok=panel`` z nagłówkami pozwalającymi na ramkę."""
     from nexus.api.app import SECURITY_HEADERS

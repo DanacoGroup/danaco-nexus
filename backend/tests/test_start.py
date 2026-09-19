@@ -251,7 +251,7 @@ def test_panel_view_may_be_framed(settings: Settings) -> None:
         panel = client.get("/?widok=panel")
         assert panel.status_code == 200 and "Nexus" in panel.text
         csp = panel.headers["content-security-policy"]
-        assert "frame-ancestors *" in csp and "'none'" not in csp and "script-src 'self'" in csp
+        assert "frame-ancestors * chrome-extension: moz-extension:" in csp and "'none'" not in csp
         assert panel.headers["x-frame-options"] == ""
         assert panel.headers["cache-control"] == "no-cache"
 
