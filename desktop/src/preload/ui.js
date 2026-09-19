@@ -1,5 +1,5 @@
 'use strict';
-// Preload lokalnych stron aplikacji (pasek panelu, języczek, ustawienia, okno zgody):
+// Preload lokalnych stron aplikacji (pasek panelu, języczek, ustawienia, zgoda, pasek strony):
 // wąskie API z listą dozwolonych kanałów IPC.
 
 const { contextBridge, ipcRenderer } = require('electron');
@@ -14,8 +14,9 @@ const INVOKE = new Set([
   'device:clear',
   'panel:action',
   'tab:hover',
+  'overlay:action',
 ]);
-const EVENTS = new Set(['panel:state', 'agent:status']);
+const EVENTS = new Set(['panel:state', 'agent:status', 'overlay:page']);
 
 contextBridge.exposeInMainWorld('nexus', {
   invoke(channel, ...args) {

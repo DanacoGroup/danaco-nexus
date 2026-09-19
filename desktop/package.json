@@ -1,7 +1,7 @@
 {
   "name": "nexus-desktop",
   "productName": "Nexus Desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Danaco Nexus dla Windows: wysuwany panel asystenta i lokalny agent komputera",
   "author": "Danaco Group",
   "license": "UNLICENSED",

@@ -1,7 +1,9 @@
 'use strict';
-// Nexus Desktop – proces główny: okno Nexusa, zasobnik, wysuwany panel, skróty,
-// lokalny agent komputera (narzędzia pc_*) i tryb testu uruchomienia (--smoke-test).
+// Nexus Desktop – proces główny: jedno okno Nexusa (ustawienia, zgody i strony Nexusa jako
+// warstwy w tym oknie), zasobnik, wysuwany panel, skróty, lokalny agent komputera
+// (narzędzia pc_*) i tryb testu uruchomienia (--smoke-test).
 
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const electron = require('electron');
@@ -10,6 +12,7 @@ const { Logger } = require('./logger');
 const { WindowHelper } = require('./powershell');
 const { PanelController } = require('./panel');
 const { ConfirmManager } = require('./confirm');
+const { OverlayHost } = require('./overlay');
 const { PcTools } = require('./agent/tools');
 const { AgentConnection } = require('./agent/connection');
 
@@ -23,9 +26,11 @@ const ICON = path.join(ASSETS, 'icon.png');
 const UI_PRELOAD = path.join(__dirname, 'preload', 'ui.js');
 const PANEL_PRELOAD = path.join(__dirname, 'preload', 'panel.js');
 const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-sanitized-write', 'fullscreen', 'speaker-selection']);
+// Pliki pobierane z Nexusa, których nie otwieramy automatycznie (tylko pokazujemy w folderze).
+const RISKY_EXTENSIONS = new Set(['.exe', '.msi', '.bat', '.cmd', '.ps1', '.vbs', '.js', '.jse', '.wsf', '.scr', '.lnk', '.hta', '.com', '.reg']);
 
 // Test uruchomienia działa na świeżym, pustym profilu (bez kluczy i sesji użytkownika).
-if (SMOKE) app.setPath('userData', require('node:fs').mkdtempSync(path.join(os.tmpdir(), 'nexus-desktop-test-')));
+if (SMOKE) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-desktop-test-')));
 app.setAppUserModelId('pl.danaco.nexus.desktop');
 
 const state = {
@@ -39,7 +44,7 @@ const state = {
   agent: null,
   tray: null,
   mainWindow: null,
-  settingsWindow: null,
+  overlay: null,
   trayHintShown: false,
 };
 
@@ -72,19 +77,47 @@ function guardContents(contents) {
     }
   });
   contents.setWindowOpenHandler(({ url }) => {
-    if (sameSite(url)) {
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          icon: ICON,
-          autoHideMenuBar: true,
-          backgroundColor: '#212121',
-          webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true },
-        },
-      };
-    }
-    openExternal(url);
+    // Nic nie otwiera nowych okien: pliki trafiają do Pobranych, strony Nexusa – do warstwy okna.
+    if (sameSite(url)) openInApp(url);
+    else openExternal(url);
     return { action: 'deny' };
+  });
+}
+
+/** Adres z Nexusa otwierany „w nowej karcie”: plik (API) albo strona (np. chmura). */
+function openInApp(url) {
+  const { pathname } = new URL(url);
+  if (/^\/(api|pobierz)\//.test(pathname)) {
+    showMain();
+    state.mainWindow.webContents.downloadURL(url);
+    return;
+  }
+  showMain();
+  state.overlay.openUrl(url);
+}
+
+function uniquePath(directory, name) {
+  const safe = (name || 'plik').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+  const { name: stem, ext } = path.parse(safe);
+  let candidate = path.join(directory, safe);
+  for (let index = 1; fs.existsSync(candidate); index += 1) candidate = path.join(directory, `${stem} (${index})${ext}`);
+  return candidate;
+}
+
+/** Pobrane pliki: zapis w folderze Pobrane bez pytania, potem otwarcie w domyślnym programie. */
+function handleDownloads(nexusSession) {
+  nexusSession.on('will-download', (_event, item) => {
+    const target = uniquePath(app.getPath('downloads'), item.getFilename());
+    item.setSavePath(target);
+    item.once('done', (_doneEvent, result) => {
+      if (result !== 'completed') {
+        if (result !== 'cancelled' && Notification.isSupported()) new Notification({ title: 'Nexus', body: `Nie udało się pobrać: ${path.basename(target)}` }).show();
+        return;
+      }
+      state.log.info('Pobrano plik', { name: path.basename(target) });
+      if (RISKY_EXTENSIONS.has(path.extname(target).toLowerCase())) shell.showItemInFolder(target);
+      else shell.openPath(target).then((error) => error && shell.showItemInFolder(target));
+    });
   });
 }
 
@@ -94,6 +127,7 @@ function configureSession() {
     callback(ALLOWED_PERMISSIONS.has(permission) && sameSite(details.requestingUrl || contents.getURL()));
   });
   nexusSession.setPermissionCheckHandler((_contents, permission, origin) => ALLOWED_PERMISSIONS.has(permission) && sameSite(origin));
+  handleDownloads(nexusSession);
   return nexusSession;
 }
 
@@ -138,6 +172,12 @@ function createMainWindow(show) {
   window.on('move', remember);
   window.on('maximize', remember);
   window.on('unmaximize', remember);
+  // Przycisk „wstecz” myszy / klawiatury: najpierw warstwa strony, potem Nexus.
+  window.on('app-command', (_event, command) => {
+    if (command !== 'browser-backward') return;
+    if (state.overlay.kind === 'strona') state.overlay.navigate('back');
+    else if (window.webContents.navigationHistory.canGoBack()) window.webContents.navigationHistory.goBack();
+  });
   window.on('close', (event) => {
     if (state.quitting) return;
     event.preventDefault();
@@ -164,30 +204,44 @@ function showMain() {
   window.focus();
 }
 
-// --- ustawienia ---
+// --- warstwy okna: ustawienia i zgoda ---
 
+/** Ustawienia w oknie Nexusa (warstwa); null, gdy okno czeka na zgodę na polecenie. */
 function openSettings() {
-  if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
-    state.settingsWindow.show();
-    state.settingsWindow.focus();
-    return state.settingsWindow;
+  showMain();
+  if (state.overlay.kind === 'ustawienia') {
+    state.overlay.webContents.focus();
+    return state.overlay.current.view;
   }
-  const window = new BrowserWindow({
-    width: 620,
-    height: 760,
-    minWidth: 460,
-    title: 'Nexus Desktop – ustawienia',
-    icon: ICON,
-    backgroundColor: '#212121',
-    autoHideMenuBar: true,
-    show: false,
-    webPreferences: { preload: UI_PRELOAD, contextIsolation: true, sandbox: true },
-  });
-  window.setMenu(null);
-  window.once('ready-to-show', () => window.show());
-  window.loadFile(path.join(__dirname, 'ui', 'settings.html'));
-  state.settingsWindow = window;
-  return window;
+  return state.overlay.openPage('ustawienia', 'settings.html');
+}
+
+/** Zgoda na polecenie: okno Nexusa na wierzch (także nad panelem) z warstwą zgody. */
+function showConfirm() {
+  showMain();
+  const window = state.mainWindow;
+  window.setAlwaysOnTop(true, 'floating');
+  window.flashFrame(true);
+  const view = state.overlay.openPage('zgoda', 'confirm.html');
+  return view ? view.webContents : null;
+}
+
+function closeConfirm(contents) {
+  if (state.overlay.webContents === contents) state.overlay.close('zgoda');
+  else if (!contents.isDestroyed()) contents.close();
+  if (state.mainWindow && !state.mainWindow.isDestroyed()) {
+    state.mainWindow.setAlwaysOnTop(false);
+    state.mainWindow.flashFrame(false);
+  }
+}
+
+function overlayAction(event, action) {
+  const overlay = state.overlay;
+  const own = overlay.owns(event.sender, 'ustawienia') || overlay.owns(event.sender, 'strona');
+  if (!own) return;
+  if (action === 'close') overlay.close();
+  else if (action === 'external' && overlay.kind === 'strona') openExternal(overlay.webContents.getURL());
+  else overlay.navigate(action);
 }
 
 function applyAutostart(enabled) {
@@ -341,6 +395,7 @@ function registerIpc() {
     };
     if (actions[action]) await actions[action]();
   });
+  handle('overlay:action', (event, action) => overlayAction(event, action));
   handle('confirm:get', (event) => state.confirm.details(event.sender.id));
   handle('confirm:answer', (event, accepted) => state.confirm.answer(event.sender.id, accepted === true));
   handle('settings:get', () => {
@@ -394,7 +449,17 @@ function initialize() {
   state.helper = new WindowHelper(state.log);
   state.helper.start().catch((error) => state.log.warn('Proces pomocniczy', { message: error.message }));
   configureSession();
-  state.confirm = new ConfirmManager({ electron, preload: UI_PRELOAD, icon: ICON });
+  state.overlay = new OverlayHost({
+    electron,
+    window: () => {
+      if (!state.mainWindow || state.mainWindow.isDestroyed()) createMainWindow(true);
+      return state.mainWindow;
+    },
+    preload: UI_PRELOAD,
+    partition: PARTITION,
+    guardContents,
+  });
+  state.confirm = new ConfirmManager({ host: { show: showConfirm, close: closeConfirm } });
   state.panel = new PanelController({
     electron,
     config: state.config,
@@ -427,7 +492,7 @@ function initialize() {
   });
   state.agent.on('status', (status) => {
     updateTray();
-    if (state.settingsWindow && !state.settingsWindow.isDestroyed()) state.settingsWindow.webContents.send('agent:status', status);
+    if (state.overlay.kind === 'ustawienia') state.overlay.webContents.send('agent:status', status);
   });
   registerIpc();
 }

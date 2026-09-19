@@ -1,17 +1,15 @@
 'use strict';
-// Okno zgody na polecenie PowerShell zmieniające system: pełne polecenie, opis od asystenta,
-// powody i ostrzeżenia. Domyślna odpowiedź to odmowa (także po czasie i po zamknięciu okna).
-
-const path = require('node:path');
+// Zgoda na polecenie PowerShell zmieniające system – warstwa w oknie Nexusa: pełne polecenie,
+// opis od asystenta, powody i ostrzeżenia. Domyślna odpowiedź to odmowa (także po czasie
+// i po zamknięciu warstwy).
 
 const DEFAULT_TIMEOUT_MS = 240000;
 
 class ConfirmManager {
   /**
    * @param {object} options
-   * @param {typeof import('electron')} options.electron
-   * @param {string} options.preload
-   * @param {string} options.icon
+   * @param {{show: () => import('electron').WebContents | null, close: (contents: import('electron').WebContents) => void}} options.host
+   *   pokazuje stronę zgody w oknie Nexusa i ją zamyka
    * @param {number} [options.timeoutMs]
    */
   constructor(options) {
@@ -39,39 +37,22 @@ class ConfirmManager {
     const item = this.queue.shift();
     if (item.done) return this.next();
     this.current = item;
-    const { BrowserWindow } = this.options.electron;
-    const window = new BrowserWindow({
-      width: 680,
-      height: 560,
-      minWidth: 480,
-      minHeight: 400,
-      show: false,
-      alwaysOnTop: true,
-      minimizable: false,
-      maximizable: false,
-      title: 'Nexus – zatwierdź polecenie',
-      icon: this.options.icon,
-      backgroundColor: '#212121',
-      autoHideMenuBar: true,
-      webPreferences: { preload: this.options.preload, contextIsolation: true, sandbox: true, nodeIntegration: false },
-    });
-    item.window = window;
-    const contentsId = window.webContents.id;
+    const contents = this.options.host.show();
+    if (!contents) {
+      this.finish(item, false);
+      return;
+    }
+    item.contents = contents;
+    const contentsId = contents.id;
     this.byWebContents.set(contentsId, item);
     item.timer = setTimeout(() => this.finish(item, false), this.options.timeoutMs || DEFAULT_TIMEOUT_MS);
-    window.on('closed', () => {
+    contents.once('destroyed', () => {
       this.byWebContents.delete(contentsId);
       this.finish(item, false);
     });
-    window.once('ready-to-show', () => {
-      window.show();
-      window.focus();
-      window.flashFrame(true);
-    });
-    window.loadFile(path.join(__dirname, 'ui', 'confirm.html'));
   }
 
-  /** Dane okna zgody dla strony (wywołanie z preload). */
+  /** Dane zgody dla strony (wywołanie z preload). */
   details(webContentsId) {
     const item = this.byWebContents.get(webContentsId);
     if (!item) return null;
@@ -96,7 +77,7 @@ class ConfirmManager {
     item.done = true;
     clearTimeout(item.timer);
     item.resolve(accepted);
-    if (item.window && !item.window.isDestroyed()) item.window.destroy();
+    if (item.contents && !item.contents.isDestroyed()) this.options.host.close(item.contents);
     if (this.current === item) {
       this.current = null;
       this.next();

@@ -90,6 +90,9 @@ async function run({ app, state, initialize, createMainWindow, openSettings, reg
     report.windows.pasekPanelu = await toolbarLoad;
     report.windows.panel = await panelLoad;
     report.windows.ustawienia = await settingsLoad;
+    report.windows.ustawienia.wOknieGlownym = main.contentView.children.includes(settings);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const settingsShot = await capture(settings.webContents, path.join(directory, 'ustawienia.png'));
 
     await step(report, 'pokazaniePanelu', async () => {
       await state.panel.show();
@@ -101,12 +104,19 @@ async function run({ app, state, initialize, createMainWindow, openSettings, reg
         { command: 'Remove-Item C:\\nexus-test -Recurse', description: 'Test okna zgody (odrzucane automatycznie).', reasons: ['Test.'], warnings: ['Rekurencyjne usuwanie plików i katalogów.'] },
         controller.signal,
       );
-      const window = state.confirm.current.window;
-      const loaded = await waitLoad(window.webContents);
+      const contents = state.confirm.current.contents;
+      const loaded = await waitLoad(contents);
       await new Promise((resolve) => setTimeout(resolve, 400));
-      const shot = await capture(window.webContents, path.join(directory, 'okno-zgody.png'));
+      const shot = await capture(contents, path.join(directory, 'okno-zgody.png'));
+      const inMain = state.overlay.kind === 'zgoda';
       controller.abort();
-      return { zaladowano: loaded.state, odrzuconePoAnulowaniu: (await answer) === false, zrzut: shot };
+      return {
+        zaladowano: loaded.state,
+        wOknieGlownym: inMain,
+        odrzuconePoAnulowaniu: (await answer) === false,
+        warstwaZamknieta: state.overlay.kind === null,
+        zrzut: shot,
+      };
     });
     await step(report, 'aktywneOkno', async () => {
       const info = await state.helper.foreground();
@@ -142,13 +152,16 @@ async function run({ app, state, initialize, createMainWindow, openSettings, reg
       glowne: await capture(main.webContents, path.join(directory, 'okno-glowne.png')),
       panel: await capture(state.panel.content.webContents, path.join(directory, 'panel.png')),
       pasekPanelu: await capture(state.panel.toolbar.webContents, path.join(directory, 'pasek-panelu.png')),
-      ustawienia: await capture(settings.webContents, path.join(directory, 'ustawienia.png')),
+      ustawienia: settingsShot,
     };
     const local = [report.windows.jezyczek, report.windows.pasekPanelu, report.windows.ustawienia];
     report.ok =
       local.every((item) => item.state === 'zaladowano') &&
       report.checks.pokazaniePanelu.widoczny === true &&
+      report.windows.ustawienia.wOknieGlownym === true &&
+      report.checks.oknoZgody.wOknieGlownym === true &&
       report.checks.oknoZgody.odrzuconePoAnulowaniu === true &&
+      report.checks.oknoZgody.warstwaZamknieta === true &&
       report.errors.length === 0;
   } catch (error) {
     report.errors.push(error.stack || String(error));

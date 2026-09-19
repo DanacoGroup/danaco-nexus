@@ -59,5 +59,9 @@ $('save').addEventListener('click', () =>
   }),
 );
 window.nexus.on('agent:status', showStatus);
+$('close').addEventListener('click', () => window.nexus.invoke('overlay:action', 'close'));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !event.target.closest('input')) window.nexus.invoke('overlay:action', 'close');
+});
 
 load();

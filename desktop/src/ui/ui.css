@@ -320,3 +320,56 @@ kbd {
 .lead {
   margin: 4px 0 0;
 }
+
+/* Pasek warstwy strony w oknie głównym (chmura, strony Nexusa) oraz nagłówek ustawień. */
+body.pagebar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  background: var(--side);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  user-select: none;
+}
+
+.tool {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--hover, rgba(255, 255, 255, 0.08));
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-title {
+  overflow: hidden;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-head h1 {
+  margin: 0;
+}

@@ -1,14 +1,11 @@
 'use strict';
-// Okno zgody: treść wyłącznie przez textContent (polecenie i opis pochodzą od modelu).
+// Zgoda na polecenie (warstwa w oknie Nexusa): treść wyłącznie przez textContent (polecenie i opis pochodzą od modelu).
 
 const $ = (id) => document.getElementById(id);
 
 async function init() {
   const details = await window.nexus.invoke('confirm:get');
-  if (!details) {
-    window.close();
-    return;
-  }
+  if (!details) return;
   $('description').textContent = details.description || '(asystent nie podał opisu)';
   $('command').textContent = details.command;
   for (const reason of details.reasons) {
