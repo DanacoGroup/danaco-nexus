@@ -2,6 +2,7 @@
 
 package pl.danaco.nexus.config
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -22,11 +23,14 @@ class DeviceKeyStore private constructor(private val prefs: SharedPreferences?) 
 
     val available: Boolean get() = prefs != null
 
+    // Zapis synchroniczny: klucz musi być dostępny od razu dla usług uruchamianych zaraz po nim.
+    @SuppressLint("ApplySharedPref")
     fun save(token: String, id: String?): Boolean {
         if (!isValidToken(token)) return false
         return prefs?.edit()?.putString(KEY_TOKEN, token)?.putString(KEY_ID, id)?.commit() ?: false
     }
 
+    @SuppressLint("ApplySharedPref")
     fun clear() {
         prefs?.edit()?.clear()?.commit()
     }

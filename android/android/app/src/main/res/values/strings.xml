@@ -44,5 +44,6 @@
     <string name="sms_insert">Wstaw</string>
     <string name="sms_copy">Kopiuj</string>
     <string name="sms_open">Otwórz w Wiadomościach</string>
+    <string name="sms_own_message">Ja: %1$s</string>
     <string name="sms_never_sends">Nexus nie wysyła wiadomości. „Wstaw” wpisuje szkic w pole aplikacji, a wysłanie zawsze zatwierdzasz sam.</string>
 </resources>

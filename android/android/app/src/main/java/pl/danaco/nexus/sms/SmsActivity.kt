@@ -206,8 +206,8 @@ class SmsActivity : AppCompatActivity() {
             val thread = items[position]
             view.findViewById<TextView>(R.id.thread_address).text = thread.address
             view.findViewById<TextView>(R.id.thread_time).text = DateUtils.getRelativeTimeSpanString(thread.latest.date)
-            val prefix = if (thread.latest.incoming) "" else "Ja: "
-            view.findViewById<TextView>(R.id.thread_body).text = prefix + thread.latest.body
+            view.findViewById<TextView>(R.id.thread_body).text =
+                if (thread.latest.incoming) thread.latest.body else getString(R.string.sms_own_message, thread.latest.body)
             return view
         }
     }

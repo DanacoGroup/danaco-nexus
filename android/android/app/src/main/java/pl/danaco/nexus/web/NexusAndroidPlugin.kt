@@ -55,6 +55,8 @@ class NexusAndroidPlugin : Plugin() {
         WebViewCompat.addDocumentStartJavaScript(webView, script(context, "nexus/most.js"), origins)
     }
 
+    // Wywoływane tylko przez słuchacza zarejestrowanego po sprawdzeniu WEB_MESSAGE_LISTENER.
+    @SuppressLint("RequiresFeature")
     private fun handle(message: BridgeMessage?, reply: JavaScriptReplyProxy) {
         val keys = DeviceKeyStore.get(context)
         when (message) {

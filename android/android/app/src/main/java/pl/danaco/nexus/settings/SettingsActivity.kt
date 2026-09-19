@@ -173,7 +173,7 @@ class SettingsActivity : AppCompatActivity() {
 
         section("Powiadomienia")
         switch("Powiadom o zakończonych zadaniach", settings.runNotifications && notificationsAllowed()) { enabled ->
-            if (enabled && !notificationsAllowed() && Build.VERSION.SDK_INT >= 33) {
+            if (enabled && !notificationsAllowed()) {
                 notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             } else {
                 settings.runNotifications = enabled

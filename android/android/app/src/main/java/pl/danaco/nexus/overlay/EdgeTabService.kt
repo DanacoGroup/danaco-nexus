@@ -65,7 +65,7 @@ class EdgeTabService : Service(), PanelView.Host {
             return START_NOT_STICKY
         }
         try {
-            ServiceCompat.startForeground(this, Notifications.ID_OVERLAY, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            ServiceCompat.startForeground(this, Notifications.ID_OVERLAY, notification(), overlayType())
         } catch (error: Exception) {
             Log.w(TAG, "Nie można uruchomić języczka", error)
             stopSelf()
@@ -235,7 +235,7 @@ class EdgeTabService : Service(), PanelView.Host {
                 this,
                 Notifications.ID_OVERLAY,
                 notification(),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
+                overlayType() or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
             )
             val projection = getSystemService(MediaProjectionManager::class.java).getMediaProjection(code, data)
             if (projection == null) {
@@ -243,7 +243,7 @@ class EdgeTabService : Service(), PanelView.Host {
                 return
             }
             ScreenCapture(projection, realMetrics()).capture { bitmap ->
-                ServiceCompat.startForeground(this, Notifications.ID_OVERLAY, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                ServiceCompat.startForeground(this, Notifications.ID_OVERLAY, notification(), overlayType())
                 sendScreen(bitmap?.let { ScreenContent.dataUrl(it).also { _ -> it.recycle() } })
             }
         } catch (error: Exception) {
@@ -265,6 +265,10 @@ class EdgeTabService : Service(), PanelView.Host {
     }
 
     // --- pomocnicze ------------------------------------------------------------------------
+
+    /** Typ usługi języczka: specialUse istnieje od Androida 14 (wcześniej bez typu). */
+    private fun overlayType(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
 
     private fun screenHeight(): Int = resources.displayMetrics.heightPixels
 

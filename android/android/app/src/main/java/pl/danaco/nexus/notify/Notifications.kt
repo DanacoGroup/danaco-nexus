@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -43,9 +44,12 @@ object Notifications {
         )
     }
 
-    fun canPost(context: Context): Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED && NotificationManagerCompat.from(context).areNotificationsEnabled()
+    fun canPost(context: Context): Boolean {
+        // Zgoda POST_NOTIFICATIONS istnieje od Androida 13; wcześniej wystarczy włączenie w ustawieniach.
+        val permitted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        return permitted && NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
 
     /** Otwiera aplikację (opcjonalnie na rozmowie o podanym identyfikatorze). */
     fun openAppIntent(context: Context, conversationId: String? = null): PendingIntent {

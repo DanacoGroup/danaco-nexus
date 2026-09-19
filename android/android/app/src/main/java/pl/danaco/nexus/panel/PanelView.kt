@@ -2,8 +2,6 @@ package pl.danaco.nexus.panel
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +10,8 @@ import android.net.Uri
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -32,6 +32,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import pl.danaco.nexus.MainActivity
 import pl.danaco.nexus.R
+import pl.danaco.nexus.access.TextInsert
 import pl.danaco.nexus.config.AppSettings
 import pl.danaco.nexus.config.DeviceKeyStore
 import pl.danaco.nexus.config.NexusConfig
@@ -145,6 +146,31 @@ class PanelView(
                     ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                 if (allowed) request.grant(request.resources) else request.deny()
             }
+
+            // Panel żyje w oknie usługi (bez aktywności) – systemowe okna dialogowe JS nie mają tu
+            // tokenu okna, więc komunikaty są krótkie, a potwierdzenia odsyłane do pełnej aplikacji.
+            override fun onJsAlert(view: WebView, url: String, message: String, result: JsResult): Boolean {
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                result.confirm()
+                return true
+            }
+
+            override fun onJsConfirm(view: WebView, url: String, message: String, result: JsResult): Boolean {
+                Toast.makeText(context, "Tę czynność potwierdź w aplikacji Nexus.", Toast.LENGTH_LONG).show()
+                result.cancel()
+                return true
+            }
+
+            override fun onJsPrompt(
+                view: WebView,
+                url: String,
+                message: String,
+                defaultValue: String?,
+                result: JsPromptResult,
+            ): Boolean {
+                result.cancel()
+                return true
+            }
         }
         web.setDownloadListener { url, agent, disposition, mime, _ -> Downloads.enqueue(context, url, agent, disposition, mime) }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) &&
@@ -170,7 +196,7 @@ class PanelView(
                 pending.clear()
             }
             is PanelEvent.Insert -> host.insertText(event.text)
-            is PanelEvent.Copy -> copy(context, event.text)
+            is PanelEvent.Copy -> TextInsert.copy(context, event.text)
             null -> Unit
         }
     }
@@ -203,13 +229,7 @@ class PanelView(
         web.destroy()
     }
 
-    companion object {
-        private const val TAG = "NexusPanel"
-
-        fun copy(context: Context, text: String) {
-            val clipboard = context.getSystemService(ClipboardManager::class.java)
-            clipboard.setPrimaryClip(ClipData.newPlainText("Nexus", text))
-            Toast.makeText(context, "Skopiowano do schowka.", Toast.LENGTH_SHORT).show()
-        }
+    private companion object {
+        const val TAG = "NexusPanel"
     }
 }

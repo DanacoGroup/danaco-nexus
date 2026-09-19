@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
@@ -141,7 +142,7 @@ class VoiceService : Service() {
                     this,
                     Notifications.ID_VOICE,
                     notification(),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                    foregroundType(),
                 )
             } catch (error: Exception) {
                 // Android nie pozwala uruchomić mikrofonu w tle bez widocznego okna aplikacji.
@@ -156,6 +157,14 @@ class VoiceService : Service() {
             update(state.value.phase)
         }
     }
+
+    /** Mikrofon jako typ usługi istnieje od Androida 11; na Androidzie 10 wystarcza odtwarzanie. */
+    private fun foregroundType(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        } else {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        }
 
     private suspend fun run() {
         if (!recorder.start()) {

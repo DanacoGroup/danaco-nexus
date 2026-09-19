@@ -10,8 +10,6 @@
     <color name="nexus_muted">#A1A1AA</color>
     <color name="nexus_accent">#8B7CF6</color>
     <color name="nexus_accent_soft">#2C2748</color>
-    <color name="nexus_danger">#FB923C</color>
-    <color name="nexus_success">#4ADE80</color>
     <color name="nexus_scrim">#99000000</color>
     <color name="colorPrimary">#8B7CF6</color>
     <color name="colorPrimaryDark">#171717</color>
