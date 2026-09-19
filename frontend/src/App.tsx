@@ -131,16 +131,29 @@ export default function App() {
     [follow, handleError],
   );
 
+  const loadMe = useCallback(
+    () =>
+      api
+        .me()
+        .then((me) => {
+          setCloudUrl(me.cloud_url ?? "");
+          setUser(me.username);
+        })
+        .catch(() => setUser(null)),
+    [],
+  );
+
   useEffect(() => {
-    api
-      .me()
-      .then((me) => {
-        setUser(me.username);
-        setCloudUrl(me.cloud_url ?? "");
-      })
-      .catch(() => setUser(null));
+    loadMe();
     return () => unsubscribe.current?.();
-  }, []);
+  }, [loadMe]);
+
+  // Wejście z chmury bez sesji (?next=cloud): po zalogowaniu powrót do chmury.
+  useEffect(() => {
+    if (user && cloudUrl && new URLSearchParams(window.location.search).get("next") === "cloud") {
+      window.location.replace(cloudUrl);
+    }
+  }, [user, cloudUrl]);
 
   useEffect(() => {
     if (!user) return;
@@ -193,7 +206,7 @@ export default function App() {
   };
 
   if (user === undefined) return <div className="boot" />;
-  if (user === null) return <Login onLoggedIn={(name) => setUser(name)} />;
+  if (user === null) return <Login onLoggedIn={() => loadMe()} />;
 
   const turns = detail?.turns ?? [];
   return (

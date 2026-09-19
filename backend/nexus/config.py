@@ -52,6 +52,8 @@ class Settings(BaseSettings):
 
     session_days: int = 30
     cookie_secure: bool = True
+    cookie_domain: str = ""
+    public_url: str = ""
     login_attempts_per_15_min: int = 8
 
     @property

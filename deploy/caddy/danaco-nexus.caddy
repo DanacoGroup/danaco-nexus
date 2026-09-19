@@ -23,6 +23,9 @@ danaco-nexus.pl {
 			roll_keep 10
 		}
 	}
+	# Krótkie przejście z domeny głównej do chmury (sesja przechodzi dzięki SSO).
+	redir /cloud https://cloud.danaco-nexus.pl/ 302
+	redir /chmura https://cloud.danaco-nexus.pl/ 302
 	reverse_proxy 127.0.0.1:8930 {
 		# Strumień zdarzeń zadań (SSE) wymaga natychmiastowego przekazywania danych.
 		flush_interval -1
@@ -48,13 +51,24 @@ cloud.danaco-nexus.pl {
 			roll_keep 10
 		}
 	}
-	reverse_proxy 127.0.0.1:8940 {
-		# Duże pliki synchronizacji: bez buforowania i z długimi limitami czasu.
-		flush_interval -1
-		request_buffers 0
-		transport http {
-			read_timeout 2h
-			write_timeout 2h
+	route {
+		# Tożsamość dla chmury nadaje wyłącznie Nexus – nagłówek od klienta jest usuwany.
+		request_header -X-Nexus-User
+		# Logowanie jednokrotne: sesja Nexusa (ciasteczko domeny danaco-nexus.pl) → konto Nextcloud.
+		# Pomijane są ścieżki klientów synchronizacji i udostępnień (własne uwierzytelnianie).
+		@przegladarka not path /remote.php/* /public.php/* /ocs/* /status.php /.well-known/* /index.php/login/v2/poll* /login/v2/poll*
+		forward_auth @przegladarka 127.0.0.1:8930 {
+			uri /api/auth/sso
+			copy_headers X-Nexus-User
+		}
+		reverse_proxy 127.0.0.1:8940 {
+			# Duże pliki synchronizacji: bez buforowania i z długimi limitami czasu.
+			flush_interval -1
+			request_buffers 0
+			transport http {
+				read_timeout 2h
+				write_timeout 2h
+			}
 		}
 	}
 }

@@ -103,6 +103,32 @@ def test_session_cookie_and_csrf(client: TestClient, settings: Settings) -> None
     assert client.get("/api/auth/me").status_code == 401
 
 
+def test_cloud_single_sign_on(settings: Settings) -> None:
+    settings.public_url = "https://nexus.example.pl"
+    settings.cookie_domain = "testserver.local"
+    set_password(settings)
+    with TestClient(create_app(settings), base_url="http://app.testserver.local") as client:
+        anonymous = client.get("/api/auth/sso", headers={"X-Forwarded-Uri": "/apps/files/"})
+        assert anonymous.status_code == 204 and "x-nexus-user" not in anonymous.headers
+        to_login = client.get(
+            "/api/auth/sso",
+            headers={"X-Forwarded-Uri": "/login?redirect_url=/apps/files"},
+            follow_redirects=False,
+        )
+        assert to_login.status_code == 302
+        assert to_login.headers["location"] == "https://nexus.example.pl/?next=cloud"
+        direct = client.get("/api/auth/sso", headers={"X-Forwarded-Uri": "/login?direct=1"})
+        assert direct.status_code == 204
+        response = client.post(
+            "/api/auth/login", json={"username": "admin", "password": PASSWORD}, headers=HEADERS
+        )
+        assert "domain=testserver.local" in response.headers["set-cookie"].lower()
+        signed = client.get("/api/auth/sso", headers={"X-Forwarded-Uri": "/login"})
+        assert signed.status_code == 204 and signed.headers["x-nexus-user"] == "admin"
+        client.post("/api/auth/logout", headers=HEADERS)
+        assert "x-nexus-user" not in client.get("/api/auth/sso").headers
+
+
 def test_conversation_message_run_and_events(client: TestClient, settings: Settings, tmp_path: Path) -> None:
     set_password(settings)
     login(client)

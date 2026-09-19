@@ -12,6 +12,7 @@ import secrets
 import time
 from collections import defaultdict, deque
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
@@ -130,8 +131,7 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
     if not password_hash:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Hasło administratora nie jest ustawione. Na serwerze uruchom: "
-            "deploy/nexus-cli.sh set-password",
+            "Hasło administratora nie jest ustawione. Na serwerze uruchom: deploy/nexus-cli.sh set-password",
         )
     username_ok = secrets.compare_digest(
         payload.username.strip().lower(), stored.get(USERNAME_KEY, DEFAULT_USERNAME).lower()
@@ -167,6 +167,8 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
         secure=settings.cookie_secure,
         samesite="lax",
         path="/",
+        # Z domeną nadrzędną ciasteczko trafia też do chmury (logowanie jednokrotne).
+        domain=settings.cookie_domain or None,
     )
     return {"username": stored.get(USERNAME_KEY, DEFAULT_USERNAME)}
 
@@ -180,8 +182,46 @@ async def logout(
     database: Database = request.app.state.database
     async with database.session() as session:
         await session.execute(delete(UserSession).where(UserSession.token_hash == token_hash(token)))
-    response.delete_cookie(COOKIE_NAME, path="/")
+    response.delete_cookie(COOKIE_NAME, path="/", domain=request.app.state.settings.cookie_domain or None)
     return {"ok": True}
+
+
+SSO_USER_HEADER = "X-Nexus-User"
+CLOUD_LOGIN_PATHS = frozenset({"/login", "/index.php/login"})
+
+
+async def _valid_session(request: Request) -> bool:
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        return False
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        record = await session.get(UserSession, token_hash(token))
+    return record is not None and record.expires_at >= utcnow()
+
+
+@router.get("/sso", include_in_schema=False)
+async def sso(request: Request) -> Response:
+    """Logowanie jednokrotne do chmury osobistej (wywoływane przez ``forward_auth`` Caddy).
+
+    Przy ważnej sesji Nexusa odpowiedź niesie nagłówek ``X-Nexus-User`` z kontem
+    Nextcloud – Caddy przekazuje go do chmury, która loguje użytkownika bez hasła.
+    Bez sesji: strona logowania chmury przekierowuje do logowania Nexusa (powrót do
+    chmury po zalogowaniu), pozostałe adresy (udostępnienia, zasoby) przechodzą dalej.
+    """
+    settings = request.app.state.settings
+    if await _valid_session(request):
+        return Response(
+            status_code=status.HTTP_204_NO_CONTENT, headers={SSO_USER_HEADER: settings.chmura_user}
+        )
+    original = urlsplit(request.headers.get("x-forwarded-uri", "/"))
+    direct = "direct=1" in original.query.split("&")
+    if original.path in CLOUD_LOGIN_PATHS and not direct and settings.public_url:
+        return Response(
+            status_code=status.HTTP_302_FOUND,
+            headers={"Location": f"{settings.public_url.rstrip('/')}/?next=cloud"},
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me")

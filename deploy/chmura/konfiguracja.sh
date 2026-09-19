@@ -78,6 +78,21 @@ occ maintenance:repair --include-expensive >/dev/null
 occ db:add-missing-indices >/dev/null
 occ maintenance:update:htaccess >/dev/null || true
 
+echo "== Logowanie jednokrotne z Nexusa (user_saml, zmienna środowiskowa)"
+# Caddy hosta pyta Nexusa (forward_auth /api/auth/sso) o sesję i przy ważnej sesji
+# dodaje nagłówek X-Nexus-User; Nextcloud loguje wskazane, istniejące konto.
+# Awaryjne logowanie hasłem Nextcloud: https://$DOMENA_CHMURY/login?direct=1
+occ app:list --output=json | grep -q '"user_saml"' || occ app:install user_saml
+occ app:enable user_saml >/dev/null
+occ config:app:set user_saml type --value=environment-variable
+occ config:app:set user_saml general-require_provisioned_account --value=1
+occ config:app:set user_saml general-allow_multiple_user_back_ends --value=1
+if ! occ saml:config:get --output=json 2>/dev/null | grep -q '"1"'; then
+    occ saml:config:create >/dev/null
+fi
+occ saml:config:set --general-uid_mapping=HTTP_X_NEXUS_USER 1
+occ saml:config:set --general-idp0_display_name="Danaco Nexus" 1
+
 echo "== Hasło aplikacji dla Nexusa (WebDAV)"
 TOKEN="$PROJEKT/dane/app/chmura-token"
 if [ ! -s "$TOKEN" ]; then
