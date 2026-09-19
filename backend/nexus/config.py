@@ -66,6 +66,21 @@ class Settings(BaseSettings):
     public_url: str = ""
     login_attempts_per_15_min: int = 8
 
+    # --- moduł research ---
+    # Pobieranie stron (web_fetch_page, zapis strony w bazie wiedzy): limity i czas oczekiwania.
+    research_page_max_mb: int = 8
+    research_page_max_chars: int = 200_000
+    research_fetch_timeout_s: int = 30
+    # Adres kontaktowy dla OpenAlex/Crossref („polite pool”, szybsza obsługa); pusty = brak.
+    research_contact_email: str = ""
+    # Własna instancja SearXNG (np. http://127.0.0.1:8888) dla web_search; pusty = DuckDuckGo.
+    research_searxng_url: str = ""
+    # Opcjonalny klucz API Semantic Scholar (wyższy limit zapytań); zapisuje go
+    # deploy/zapisz-klucz-semantic-scholar.sh. Brak pliku = zapytania bez klucza.
+    research_semantic_scholar_key_file: Path = Path(
+        "/danaco/projekty/danaco-nexus/dane/app/semantic-scholar-key"
+    )
+
     @property
     def files_dir(self) -> Path:
         """Katalog przechowywanych plików."""
