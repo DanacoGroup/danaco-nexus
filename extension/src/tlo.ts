@@ -57,16 +57,25 @@ try {
   // brak zdarzeń cyklu życia
 }
 
+/** Zapamiętuje akcję dla karty i otwiera w niej panel (panel pobierze akcję z tła). */
+async function zlecAkcje(kartaId: number, akcja: AkcjaMenu): Promise<void> {
+  oczekujace.set(kartaId, { ...akcja, tekst: akcja.tekst.slice(0, 24000) });
+  await doKarty(kartaId, { type: "nexus-ext:otworz" });
+}
+
+// Dostępne tylko w kontekście tła rozszerzenia – dla testów end-to-end (menu kontekstowe
+// przeglądarki nie da się kliknąć z Playwrighta).
+(globalThis as unknown as { nexusZlecAkcje?: typeof zlecAkcje }).nexusZlecAkcje = zlecAkcje;
+
 try {
   chrome.contextMenus?.onClicked.addListener((info, karta) => {
     if (karta?.id === undefined || karta.id < 0) return;
-    oczekujace.set(karta.id, {
+    void zlecAkcje(karta.id, {
       akcja: info.menuItemId as AkcjaMenu["akcja"],
-      tekst: (info.selectionText ?? "").slice(0, 24000),
+      tekst: info.selectionText ?? "",
       tytul: karta.title ?? "",
       adres: info.pageUrl ?? karta.url ?? "",
     });
-    void doKarty(karta.id, { type: "nexus-ext:otworz" });
   });
 } catch {
   // brak menu kontekstowego
