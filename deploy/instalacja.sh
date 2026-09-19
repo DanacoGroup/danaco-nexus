@@ -24,6 +24,8 @@ NODE_BIN=/danaco/programy/node/bin
 PG_BIN=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin
 PG_LIB=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
 QDRANT_WERSJA=v1.19.1
+FRANKENPHP_WERSJA=v1.12.7
+NEXTCLOUD_WERSJA=34.0.4
 PG_PORT=5433
 
 cd "$PROJEKT"
@@ -56,6 +58,29 @@ if [ ! -x programy/qdrant/qdrant ] || [ "$(cat programy/qdrant/WERSJA 2>/dev/nul
 fi
 programy/qdrant/qdrant --version
 
+krok "FrankenPHP $FRANKENPHP_WERSJA (programy/frankenphp) – serwer PHP chmury"
+if [ ! -x programy/frankenphp/frankenphp ] || [ "$(cat programy/frankenphp/WERSJA 2>/dev/null)" != "$FRANKENPHP_WERSJA" ]; then
+    mkdir -p programy/frankenphp
+    curl -fsSL --retry 3 -o programy/frankenphp/frankenphp.nowy \
+        "https://github.com/php/frankenphp/releases/download/$FRANKENPHP_WERSJA/frankenphp-linux-x86_64"
+    chmod 755 programy/frankenphp/frankenphp.nowy
+    mv -f programy/frankenphp/frankenphp.nowy programy/frankenphp/frankenphp
+    echo "$FRANKENPHP_WERSJA" > programy/frankenphp/WERSJA
+fi
+
+krok "Nextcloud $NEXTCLOUD_WERSJA (dane/nextcloud/nextcloud) – chmura osobista"
+if [ ! -f dane/nextcloud/nextcloud/version.php ]; then
+    archiwum="$PROJEKT/.cache/nextcloud-$NEXTCLOUD_WERSJA.tar.bz2"
+    if [ ! -f "$archiwum" ]; then
+        curl -fsSL --retry 3 -o "$archiwum" "https://download.nextcloud.com/server/releases/nextcloud-$NEXTCLOUD_WERSJA.tar.bz2"
+    fi
+    oczekiwana="$(curl -fsSL "https://download.nextcloud.com/server/releases/nextcloud-$NEXTCLOUD_WERSJA.tar.bz2.sha256" | head -1 | cut -d' ' -f1)"
+    [ "$(sha256sum "$archiwum" | cut -d' ' -f1)" = "$oczekiwana" ] || { echo "Błędna suma kontrolna Nextcloud" >&2; exit 1; }
+    sudo -u "$USLUGA_UZYTKOWNIK" mkdir -p dane/nextcloud
+    sudo -u "$USLUGA_UZYTKOWNIK" tar -xjf "$archiwum" -C dane/nextcloud
+fi
+# Aktualizacje Nextcloud wykonuje jego własny mechanizm (occ upgrade / aktualizator).
+
 krok "Klaster PostgreSQL (dane/postgres, port $PG_PORT)"
 if [ ! -f dane/postgres/PG_VERSION ]; then
     sudo -u "$USLUGA_UZYTKOWNIK" env LD_LIBRARY_PATH="$PG_LIB" "$PG_BIN/initdb" \
@@ -64,7 +89,7 @@ if [ ! -f dane/postgres/PG_VERSION ]; then
 fi
 
 krok "Usługi systemd"
-for jednostka in deploy/systemd/*.service deploy/systemd/*.target; do
+for jednostka in deploy/systemd/*.service deploy/systemd/*.target deploy/systemd/*.timer; do
     nazwa="$(basename "$jednostka")"
     if [ ! -e "/etc/systemd/system/$nazwa" ]; then
         sudo systemctl link "$PROJEKT/$jednostka"
@@ -82,6 +107,12 @@ if ! sudo -u "$USLUGA_UZYTKOWNIK" env LD_LIBRARY_PATH="$PG_LIB" "$PG_BIN/psql" -
         -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'nexus'" | grep -q 1; then
     sudo -u "$USLUGA_UZYTKOWNIK" env LD_LIBRARY_PATH="$PG_LIB" "$PG_BIN/createdb" -h "$PROJEKT/dane/run" -p "$PG_PORT" nexus
 fi
+
+krok "Chmura osobista (Nextcloud)"
+sudo -u "$USLUGA_UZYTKOWNIK" "$PROJEKT/deploy/chmura/konfiguracja.sh"
+sudo systemctl enable danaco-nexus-chmura.service danaco-nexus-chmura-cron.timer
+sudo systemctl restart danaco-nexus-chmura.service
+sudo systemctl start danaco-nexus-chmura-cron.timer
 
 krok "Aplikacja"
 sudo systemctl enable danaco-nexus.target danaco-nexus-api.service danaco-nexus-worker.service

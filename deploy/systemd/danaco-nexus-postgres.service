@@ -11,7 +11,10 @@ User=danaco-serwis
 Group=danaco-user
 Environment=PGDATA=/danaco/projekty/danaco-nexus/dane/postgres
 Environment=LD_LIBRARY_PATH=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
-ExecStart=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin/postgres -D ${PGDATA}     -c port=5433 -c listen_addresses= -c unix_socket_directories=/danaco/projekty/danaco-nexus/dane/run     -c shared_buffers=512MB -c max_connections=60
+ExecStart=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin/postgres -D ${PGDATA} \
+    -c port=5433 -c listen_addresses= -c unix_socket_directories=/danaco/projekty/danaco-nexus/dane/run \
+    -c hba_file=/danaco/projekty/danaco-nexus/deploy/postgres/pg_hba.conf \
+    -c shared_buffers=512MB -c max_connections=80
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=mixed
 KillSignal=SIGINT

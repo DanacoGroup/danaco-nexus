@@ -1,0 +1,10 @@
+[Unit]
+Description=Danaco Nexus — zadania w tle chmury Nextcloud co 5 minut
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

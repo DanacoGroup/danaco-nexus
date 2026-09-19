@@ -1,0 +1,61 @@
+# Nextcloud (chmura osobista Danaco Nexus) na FrankenPHP.
+# Nasłuch tylko na pętli zwrotnej; HTTPS i domenę zapewnia Caddy hosta
+# (deploy/caddy/danaco-nexus.caddy → 127.0.0.1:8940).
+{
+	admin off
+	auto_https off
+	persist_config off
+	frankenphp
+	servers {
+		trusted_proxies static 127.0.0.1/32 ::1
+		timeouts {
+			read_body 0
+			read_header 30s
+			write 0
+			idle 5m
+		}
+	}
+	log {
+		output file /danaco/projekty/danaco-nexus/dane/nextcloud/serwer.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+		level WARN
+	}
+}
+
+http://127.0.0.1:8940, http://localhost:8940 {
+	root * /danaco/projekty/danaco-nexus/dane/nextcloud/nextcloud
+	encode zstd gzip
+
+	request_body {
+		max_size 20GB
+	}
+
+	header {
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-Permitted-Cross-Domain-Policies none
+		X-Robots-Tag "noindex, nofollow"
+		-X-Powered-By
+	}
+
+	# Odkrywanie usług (CalDAV/CardDAV, klienci synchronizacji).
+	redir /.well-known/carddav /remote.php/dav/ 301
+	redir /.well-known/caldav /remote.php/dav/ 301
+	@wellknown path /.well-known/* not /.well-known/acme-challenge/* /.well-known/pki-validation/*
+	rewrite @wellknown /index.php{uri}
+
+	# Katalogi wewnętrzne Nextcloud nie są dostępne z sieci.
+	@zakazane path /build/* /tests/* /config/* /lib/* /3rdparty/* /templates/* /data/* /.* /autotest* /occ* /issue* /indie* /db_* /console*
+	respond @zakazane 404
+
+	# Zasoby statyczne z długim buforowaniem.
+	@statyczne path *.css *.js *.mjs *.svg *.gif *.png *.jpg *.ico *.wasm *.tflite *.map *.ogg *.flac *.woff2 *.otf
+	header @statyczne Cache-Control "max-age=15778463, immutable"
+
+	php_server {
+		env front_controller_active true
+	}
+}
