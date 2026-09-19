@@ -81,6 +81,24 @@ class Settings(BaseSettings):
         """Katalog roboczy narzędzi (pliki tymczasowe zadań)."""
         return self.data_dir / "work"
 
+    # --- moduł start ---
+    # Powiadomienia Web Push: klucz VAPID (PEM, plik 600) tworzony przy pierwszym starcie API.
+    push_enabled: bool = True
+    push_vapid_file: Path | None = None
+    push_contact: str = ""
+    # Kto może osadzać kompaktowy panel (/?widok=panel) w ramce: rozszerzenie, Nexus Desktop.
+    panel_frame_ancestors: str = "*"
+
+    @property
+    def vapid_file(self) -> Path:
+        """Plik klucza prywatnego VAPID (domyślnie ``<data_dir>/vapid``)."""
+        return self.push_vapid_file or self.data_dir / "vapid"
+
+    @property
+    def downloads_dir(self) -> Path:
+        """Katalog instalatorów udostępnianych pod ``/pobierz/<plik>``."""
+        return self.data_dir / "pobieranie"
+
 
 @lru_cache
 def get_settings() -> Settings:
