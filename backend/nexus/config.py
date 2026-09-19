@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     public_url: str = ""
     login_attempts_per_15_min: int = 8
 
+    # --- moduł pulpit ---
+    # Limit czasu narzędzi pc_* (odpowiedź komputera) i dodatkowy czas na zgodę użytkownika
+    # przy poleceniach PowerShell zmieniających system.
+    pulpit_timeout_s: int = 90
+    pulpit_confirm_timeout_s: int = 300
+
     @property
     def files_dir(self) -> Path:
         """Katalog przechowywanych plików."""
