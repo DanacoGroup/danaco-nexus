@@ -85,8 +85,7 @@ export default defineConfig({
         globIgnores: ["screenshots/**"],
         navigateFallback: "/index.html",
         // Instalatory i panel osadzany (inne nagłówki ramki) zawsze z sieci, nie z pamięci podręcznej.
-        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/, /^\/pobierz(\/|$)/, /[?&]widok=panel/],
-        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/, /^\/s\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/, /^\/pobierz(\/|$)/, /[?&]widok=panel/, /^\/s\//],
         importScripts: ["/share-target.js"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,

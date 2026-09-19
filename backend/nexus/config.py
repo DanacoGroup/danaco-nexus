@@ -125,6 +125,7 @@ class Settings(BaseSettings):
     def kod_dir(self) -> Path:
         """Katalog przestrzeni projektów modułu Kod."""
         return self.data_dir / "kod"
+
     # --- moduł start ---
     # Powiadomienia Web Push: klucz VAPID (PEM, plik 600) tworzony przy pierwszym starcie API.
     push_enabled: bool = True
@@ -143,6 +144,7 @@ class Settings(BaseSettings):
     def downloads_dir(self) -> Path:
         """Katalog instalatorów udostępnianych pod ``/pobierz/<plik>``."""
         return self.data_dir / "pobieranie"
+
     # --- moduł tworczy ---
     # Strony WWW (Twórca stron): limit rozmiaru jednej strony.
     tworczy_site_max_mb: int = 200
