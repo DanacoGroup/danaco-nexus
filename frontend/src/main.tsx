@@ -6,7 +6,8 @@ import { applyTheme, storedTheme } from "./theme";
 import "./styles.css";
 
 applyTheme(storedTheme());
-setupPwa();
+// Panel osadzony (?widok=panel) nie rejestruje service workera – działa w ramce cudzej strony.
+if (new URLSearchParams(window.location.search).get("widok") !== "panel") setupPwa();
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>

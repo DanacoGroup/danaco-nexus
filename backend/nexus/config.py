@@ -97,6 +97,24 @@ class Settings(BaseSettings):
     def kod_dir(self) -> Path:
         """Katalog przestrzeni projektów modułu Kod."""
         return self.data_dir / "kod"
+    # --- moduł start ---
+    # Powiadomienia Web Push: klucz VAPID (PEM, plik 600) tworzony przy pierwszym starcie API.
+    push_enabled: bool = True
+    push_vapid_file: Path | None = None
+    push_contact: str = ""
+    # Kto może osadzać kompaktowy panel (/?widok=panel) w ramce: strony (panel wstrzykiwany przez
+    # rozszerzenie), strony rozszerzeń i Nexus Desktop. „*” nie obejmuje schematów innych niż http(s).
+    panel_frame_ancestors: str = "* chrome-extension: moz-extension: safari-web-extension: file:"
+
+    @property
+    def vapid_file(self) -> Path:
+        """Plik klucza prywatnego VAPID (domyślnie ``<data_dir>/vapid``)."""
+        return self.push_vapid_file or self.data_dir / "vapid"
+
+    @property
+    def downloads_dir(self) -> Path:
+        """Katalog instalatorów udostępnianych pod ``/pobierz/<plik>``."""
+        return self.data_dir / "pobieranie"
 
 
 @lru_cache

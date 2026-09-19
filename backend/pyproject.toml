@@ -30,6 +30,7 @@ dependencies = [
     "numpy>=2.3,<3",
     "qdrant-client>=1.19,<2",
     "fastembed>=0.8,<1",
+    "pywebpush>=2.0,<3",
 ]
 
 [project.optional-dependencies]

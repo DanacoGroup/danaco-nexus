@@ -91,8 +91,12 @@ export function Sidebar(props: Props) {
         aria-label="Panel boczny"
       >
         <div className="titlebar-drag flex items-center gap-2.5 px-4 pt-3 pb-2">
-          <Logo size={28} />
-          <span className="flex-1 text-[15px] font-semibold tracking-tight">Danaco Nexus</span>
+          {/* Na komputerze logo jest na pasku modułów obok. */}
+          <Logo size={28} className="md:hidden" />
+          <span className="flex-1 text-[15px] font-semibold tracking-tight">
+            <span className="md:hidden">Danaco Nexus</span>
+            <span className="hidden md:inline">Rozmowy</span>
+          </span>
           <button type="button" className="icon-btn md:hidden" onClick={props.onClose} aria-label="Zamknij panel">
             <CloseIcon size={18} />
           </button>

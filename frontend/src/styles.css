@@ -185,6 +185,73 @@
   }
 }
 
+/* Strona startowa (publiczna). */
+html:has(.landing) {
+  scroll-behavior: smooth;
+  background: #0d0d10;
+}
+@layer components {
+  /* Siatka w pseudoelemencie – maska wygasza tylko tło, nie treść sekcji. */
+  .landing-grid {
+    isolation: isolate;
+  }
+  .landing-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+  .landing-glow {
+    background:
+      radial-gradient(40% 50% at 30% 30%, rgb(139 124 246 / 0.35), transparent 70%),
+      radial-gradient(35% 45% at 75% 40%, rgb(79 70 229 / 0.3), transparent 70%);
+    filter: blur(40px);
+  }
+  .landing-gradient-text {
+    background: linear-gradient(100deg, #c4b8ff 0%, #8b7cf6 45%, #5b8cff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .landing-card {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
+    border: 1px solid rgb(255 255 255 / 0.08);
+    transition:
+      border-color 0.2s,
+      transform 0.2s;
+  }
+  .landing-card:hover {
+    border-color: rgb(139 124 246 / 0.35);
+  }
+  .landing-code {
+    @apply rounded bg-code px-1 py-0.5 font-mono text-[0.85em] text-fg;
+  }
+  .landing-cta {
+    background:
+      radial-gradient(60% 80% at 50% 0%, rgb(139 124 246 / 0.28), transparent 70%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.01));
+    border: 1px solid rgb(255 255 255 / 0.09);
+  }
+  .voice-orb {
+    background: radial-gradient(circle at 35% 30%, #b3a8ff, #6d5dfc 55%, #3b2fb8);
+    box-shadow:
+      0 0 0 10px rgb(139 124 246 / 0.12),
+      0 0 40px rgb(139 124 246 / 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.landing) {
+    scroll-behavior: auto;
+  }
+}
+
 /* Aplikacja zainstalowana na Windows z nakładką przycisków okna. */
 @media (display-mode: window-controls-overlay) {
   .titlebar-drag {
