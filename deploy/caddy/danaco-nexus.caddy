@@ -1,14 +1,21 @@
-# Danaco Nexus — prywatny asystent AI (API i interfejs: 127.0.0.1:8930).
-# Instalacja: zamienić NEXUS.DOMENA.PL na docelową domenę i skopiować do /etc/caddy/witryny/.
-NEXUS.DOMENA.PL {
-	encode zstd gzip
-	request_body {
-		max_size 2GB
-	}
+# Danaco Nexus — prywatny asystent AI i chmura osobista.
+#   danaco-nexus.pl         → API i interfejs (127.0.0.1:8930)
+#   chmura.danaco-nexus.pl  → Nextcloud na FrankenPHP (127.0.0.1:8940)
+# Instalacja: skopiować do /etc/caddy/witryny/ i przeładować Caddy hosta.
+
+(danaco-nexus-naglowki) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Robots-Tag "noindex, nofollow"
 		-Server
+	}
+}
+
+danaco-nexus.pl {
+	import danaco-nexus-naglowki
+	encode zstd gzip
+	request_body {
+		max_size 2GB
 	}
 	log {
 		output file /var/log/caddy/danaco-nexus.access.log {
@@ -22,6 +29,32 @@ NEXUS.DOMENA.PL {
 		transport http {
 			read_timeout 30m
 			write_timeout 30m
+		}
+	}
+}
+
+www.danaco-nexus.pl {
+	redir https://danaco-nexus.pl{uri} permanent
+}
+
+chmura.danaco-nexus.pl {
+	import danaco-nexus-naglowki
+	request_body {
+		max_size 20GB
+	}
+	log {
+		output file /var/log/caddy/danaco-nexus-chmura.access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+	reverse_proxy 127.0.0.1:8940 {
+		# Duże pliki synchronizacji: bez buforowania i z długimi limitami czasu.
+		flush_interval -1
+		request_buffers 0
+		transport http {
+			read_timeout 2h
+			write_timeout 2h
 		}
 	}
 }
