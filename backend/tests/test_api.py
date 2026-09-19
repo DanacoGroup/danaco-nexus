@@ -47,6 +47,7 @@ def settings(tmp_path: Path) -> Settings:
         voice_warm_up=False,
         voice_stt_model_dir=tmp_path / "brak-modelu",
         voice_tts_dir=tmp_path / "brak-glosow",
+        voice_google_key_file=tmp_path / "brak-klucza-google",
         login_attempts_per_15_min=3,
         qdrant_url="http://127.0.0.1:1",
     )
@@ -251,12 +252,15 @@ def test_device_tokens(client: TestClient, settings: Settings) -> None:
     token = created.json()["token"]
     assert token.startswith("nxd_")
     assert "token" not in client.get("/api/urzadzenia").json()[0]
-    device = TestClient(client.app)
+    browser_cookies = dict(client.cookies)
+    client.cookies.clear()
     bearer = {"Authorization": f"Bearer {token}"}
-    assert device.get("/api/conversations", headers=bearer).status_code == 200
+    assert client.get("/api/conversations", headers=bearer).status_code == 200
     # Urządzenie nie potrzebuje nagłówka CSRF, ale nie może wydawać nowych kluczy.
-    assert device.post("/api/conversations", json={}, headers=bearer).status_code == 201
-    assert device.post("/api/urzadzenia", json={"name": "x"}, headers=bearer).status_code == 403
-    assert device.get("/api/conversations", headers={"Authorization": "Bearer nxd_zly"}).status_code == 401
+    assert client.post("/api/conversations", json={}, headers=bearer).status_code == 201
+    assert client.post("/api/urzadzenia", json={"name": "x"}, headers=bearer).status_code == 403
+    assert client.get("/api/conversations", headers={"Authorization": "Bearer nxd_zly"}).status_code == 401
+    client.cookies.update(browser_cookies)
     client.delete(f"/api/urzadzenia/{created.json()['id']}", headers=HEADERS)
-    assert device.get("/api/conversations", headers=bearer).status_code == 401
+    client.cookies.clear()
+    assert client.get("/api/conversations", headers=bearer).status_code == 401
