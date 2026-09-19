@@ -93,7 +93,14 @@ sudo ./deploy/przeniesienie-containerd.sh   # jednorazowo, patrz „Wymagania”
 ./deploy/build.sh
 docker compose up -d
 docker compose exec api python -m nexus.cli set-password   # login: admin
+docker compose exec worker python -m nexus.cli doctor --online
 ```
+
+Polecenie `doctor` sprawdza bazę, katalog danych, czcionkę warstwy tekstowej,
+programy narzędziowe (Tesseract z językami, LibreOffice, FFmpeg, ImageMagick,
+unpaper, Inkscape), Real-ESRGAN (test na małym obrazie), usługi Qdrant, Tika
+i LanguageTool oraz klucz API Claude (odczyt metadanych modelu, bez
+generowania tokenów).
 
 Publikacja pod domeną (plik witryny Caddy, zgodnie z konwencją serwera):
 
