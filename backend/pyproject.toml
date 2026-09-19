@@ -32,6 +32,8 @@ dependencies = [
     "qdrant-client>=1.19,<2",
     "fastembed>=0.8,<1",
     "pywebpush>=2.0,<3",
+    "icalendar>=6.3,<8",
+    "segno>=1.6,<2",
 ]
 
 [project.optional-dependencies]

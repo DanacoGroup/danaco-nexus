@@ -80,6 +80,14 @@ class Settings(BaseSettings):
     research_semantic_scholar_key_file: Path = Path(
         "/danaco/projekty/danaco-nexus/dane/app/semantic-scholar-key"
     )
+    # --- moduł biuro ---
+    # Poczta: plik z loginem, hasłem i serwerami (deploy/zapisz-poczte.sh; ścieżka względna = w data_dir).
+    poczta_config_file: Path = Path("poczta.json")
+    poczta_timeout_s: int = 30
+    poczta_attachments_limit_mb: int = 25
+    # Kalendarz (CalDAV Nextcloud, konto chmura_user): kalendarz domyślny i strefa czasowa.
+    kalendarz_default: str = "personal"
+    kalendarz_timezone: str = "Europe/Warsaw"
 
     @property
     def files_dir(self) -> Path:
