@@ -165,6 +165,7 @@ class EdgeTabService : Service(), PanelView.Host {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.END
+            @Suppress("DEPRECATION")
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             windowAnimations = android.R.style.Animation_InputMethod
         }
