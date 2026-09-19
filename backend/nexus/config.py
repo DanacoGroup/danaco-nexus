@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     chmura_user: str = "admin"
     chmura_token_file: Path = Path("dane/app/chmura-token")
     realesrgan_dir: Path = Path("/danaco/programy/realesrgan")
+    whisper_python: str = "/danaco/programy/srodowiska/mowa/bin/python"
+    whisper_model_dir: Path = Path("/danaco/programy/modele/mowa")
 
     session_days: int = 30
     cookie_secure: bool = True
