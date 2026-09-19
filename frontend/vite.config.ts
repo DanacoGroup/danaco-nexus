@@ -36,6 +36,23 @@ export default defineConfig({
           { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
           { src: "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
+        // Zrzuty ekranu w oknie instalacji (Android, Chrome/Edge na komputerze).
+        screenshots: [
+          {
+            src: "/screenshots/wide.png",
+            sizes: "1280x800",
+            type: "image/png",
+            form_factor: "wide",
+            label: "Danaco Nexus – rozmowa z asystentem na komputerze",
+          },
+          {
+            src: "/screenshots/narrow.png",
+            sizes: "780x1688",
+            type: "image/png",
+            form_factor: "narrow",
+            label: "Danaco Nexus na telefonie",
+          },
+        ],
         // Udostępnianie plików do Nexusa z innych aplikacji (Android, Windows).
         share_target: {
           action: "/share-target",
@@ -65,6 +82,7 @@ export default defineConfig({
       workbox: {
         // Powłoka aplikacji działa offline; API, pliki i strumień zadań zawsze z sieci.
         globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
+        globIgnores: ["screenshots/**"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/share-target/],
         importScripts: ["/share-target.js"],
