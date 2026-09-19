@@ -84,7 +84,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
         globIgnores: ["screenshots/**"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/],
+        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/, /^\/s\//],
         importScripts: ["/share-target.js"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
