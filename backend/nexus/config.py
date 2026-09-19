@@ -81,6 +81,10 @@ class Settings(BaseSettings):
         """Katalog roboczy narzędzi (pliki tymczasowe zadań)."""
         return self.data_dir / "work"
 
+    # --- moduł rozszerzenie ---
+    # Najstarsza wersja rozszerzenia przeglądarki zgodna z serwerem (zwracana klientowi).
+    rozszerzenie_wersja_minimalna: str = "0.1.0"
+
 
 @lru_cache
 def get_settings() -> Settings:
