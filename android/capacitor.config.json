@@ -1,0 +1,25 @@
+{
+  "appId": "pl.danaco.nexus",
+  "appName": "Nexus",
+  "webDir": "www",
+  "server": {
+    "url": "https://danaco-nexus.pl",
+    "androidScheme": "https",
+    "allowNavigation": ["danaco-nexus.pl", "www.danaco-nexus.pl", "cloud.danaco-nexus.pl", "api.danaco-nexus.pl"],
+    "errorPath": "blad.html"
+  },
+  "android": {
+    "backgroundColor": "#171717",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false,
+    "resolveServiceWorkerRequests": false,
+    "appendUserAgent": "NexusAndroid/1"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "css"
+    }
+  }
+}

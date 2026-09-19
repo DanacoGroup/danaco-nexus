@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/nexus_app"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/nexus_side"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="8dp">
+
+        <ImageButton
+            android:id="@+id/sms_back"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/back"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:id="@+id/sms_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/sms_title"
+            android:textColor="@color/nexus_fg"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/sms_refresh"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/refresh"
+            android:src="@drawable/ic_refresh" />
+    </LinearLayout>
+
+    <!-- Zgoda na odczyt SMS: wyjaśnienie przed prośbą systemową. -->
+    <LinearLayout
+        android:id="@+id/sms_consent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <TextView
+            style="@style/NexusSectionTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sms_consent_title" />
+
+        <TextView
+            style="@style/NexusBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/sms_consent_body" />
+
+        <Button
+            android:id="@+id/sms_grant"
+            style="@style/NexusButton.Accent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/sms_grant" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/sms_threads"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@color/nexus_line"
+        android:dividerHeight="1dp" />
+
+    <TextView
+        android:id="@+id/sms_empty"
+        style="@style/NexusBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="24dp"
+        android:text="@string/sms_empty"
+        android:visibility="gone" />
+
+    <ScrollView
+        android:id="@+id/sms_detail"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/sms_conversation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_background"
+                android:padding="12dp"
+                android:textColor="@color/nexus_fg"
+                android:textIsSelectable="true"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/sms_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:autofillHints=""
+                android:background="@drawable/card_background"
+                android:hint="@string/sms_hint"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minHeight="48dp"
+                android:padding="12dp"
+                android:textColor="@color/nexus_fg"
+                android:textColorHint="@color/nexus_muted" />
+
+            <Button
+                android:id="@+id/sms_draft"
+                style="@style/NexusButton.Accent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/sms_draft" />
+
+            <TextView
+                android:id="@+id/sms_status"
+                style="@style/NexusBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <EditText
+                android:id="@+id/sms_reply"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:autofillHints=""
+                android:background="@drawable/card_background"
+                android:gravity="top|start"
+                android:hint="@string/sms_reply_hint"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minHeight="120dp"
+                android:padding="12dp"
+                android:textColor="@color/nexus_fg"
+                android:textColorHint="@color/nexus_muted" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/sms_insert"
+                    style="@style/NexusButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/sms_insert" />
+
+                <Button
+                    android:id="@+id/sms_copy"
+                    style="@style/NexusButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/sms_copy" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/sms_open"
+                style="@style/NexusButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/sms_open" />
+
+            <TextView
+                style="@style/NexusBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/sms_never_sends"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

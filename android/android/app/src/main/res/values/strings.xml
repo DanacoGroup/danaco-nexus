@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nexus</string>
+    <string name="title_activity_main">Nexus</string>
+    <string name="package_name">pl.danaco.nexus</string>
+    <string name="custom_url_scheme">pl.danaco.nexus</string>
+
+    <string name="back">Wstecz</string>
+    <string name="refresh">Odśwież</string>
+    <string name="settings_title">Ustawienia Nexusa</string>
+
+    <string name="panel_status_idle">Asystent</string>
+    <string name="panel_voice">Rozmowa głosowa</string>
+    <string name="panel_screen">Dołącz ekran</string>
+    <string name="panel_sms">Szkice SMS</string>
+    <string name="panel_open">Otwórz aplikację Nexus</string>
+    <string name="panel_close">Zamknij panel</string>
+    <string name="edge_tab_description">Otwórz panel Nexusa</string>
+
+    <string name="assistant_label">Nexus</string>
+    <string name="recognition_label">Nexus – rozpoznawanie mowy</string>
+    <string name="accessibility_label">Nexus – wstawianie tekstu</string>
+    <string name="accessibility_description">Na Twoje polecenie z panelu Nexusa odczytuje tekst aplikacji na ekranie i wstawia przygotowaną odpowiedź w aktywne pole. Nie działa w tle, nie wysyła wiadomości i nie klika przycisków.</string>
+    <string name="tile_voice">Nexus – rozmowa</string>
+    <string name="voice_start_label">Rozmowa z Nexusem</string>
+
+    <string name="shortcut_voice_short">Rozmowa</string>
+    <string name="shortcut_voice_long">Rozmowa głosowa z Nexusem</string>
+    <string name="shortcut_new_short">Nowa rozmowa</string>
+    <string name="shortcut_new_long">Nowa rozmowa w Nexusie</string>
+    <string name="shortcut_sms_short">SMS</string>
+    <string name="shortcut_sms_long">Szkice odpowiedzi SMS</string>
+    <string name="shortcut_settings_short">Ustawienia</string>
+    <string name="shortcut_settings_long">Ustawienia aplikacji Nexus</string>
+
+    <string name="sms_title">Szkice odpowiedzi SMS</string>
+    <string name="sms_consent_title">Zgoda na odczyt SMS</string>
+    <string name="sms_consent_body">Nexus odczyta ostatnie wiadomości z telefonu, abyś mógł wybrać wątek. Treść wybranego wątku trafi do Twojego serwera Nexusa wyłącznie po naciśnięciu „Przygotuj szkic”. Nexus nigdy nie wysyła SMS-ów sam.</string>
+    <string name="sms_grant">Zezwól na odczyt SMS</string>
+    <string name="sms_empty">Brak wiadomości do wyświetlenia.</string>
+    <string name="sms_hint">Wskazówka (opcjonalnie), np. „odmów grzecznie”, „potwierdź na jutro 10:00”</string>
+    <string name="sms_draft">Przygotuj szkic</string>
+    <string name="sms_reply_hint">Tu pojawi się szkic odpowiedzi – możesz go poprawić.</string>
+    <string name="sms_insert">Wstaw</string>
+    <string name="sms_copy">Kopiuj</string>
+    <string name="sms_open">Otwórz w Wiadomościach</string>
+    <string name="sms_own_message">Ja: %1$s</string>
+    <string name="sms_never_sends">Nexus nie wysyła wiadomości. „Wstaw” wpisuje szkic w pole aplikacji, a wysłanie zawsze zatwierdzasz sam.</string>
+</resources>
