@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tło panelu Nexusa: zaokrąglone górne rogi, kolor panelu bocznego aplikacji. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/nexus_side" />
+    <corners
+        android:topLeftRadius="20dp"
+        android:topRightRadius="20dp" />
+</shape>

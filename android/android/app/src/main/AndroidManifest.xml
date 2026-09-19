@@ -1,28 +1,206 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Sieć i pobieranie plików -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Rozmowa głosowa (także w tle – usługa pierwszoplanowa) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Języczek przy krawędzi i zrzut ekranu -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Powiadomienia o zakończonych zadaniach -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Szkice odpowiedzi na SMS: tylko odczyt, bez wysyłania -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
+    <!-- Nazwy aplikacji na ekranie (kontekst asystenta i języczka). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+    </queries>
 
     <application
-        android:allowBackup="true"
+        android:name=".NexusApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        tools:targetApi="36">
 
         <activity
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:exported="true"
             android:label="@string/title_activity_main"
-            android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true">
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:windowSoftInputMode="adjustResize">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="pl.danaco.nexus.NOWA_ROZMOWA" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <!-- Odnośniki do Nexusa otwierane w aplikacji (bez weryfikacji App Links – wybór użytkownika). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="danaco-nexus.pl" />
+                <data android:pathPrefix="/c/" />
+            </intent-filter>
 
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="true"
+            android:label="@string/settings_title"
+            android:theme="@style/NexusScreen">
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".sms.SmsActivity"
+            android:exported="false"
+            android:label="@string/sms_title"
+            android:taskAffinity="pl.danaco.nexus.sms"
+            android:excludeFromRecents="true"
+            android:theme="@style/NexusScreen" />
+
+        <activity
+            android:name=".voice.VoiceStartActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/voice_start_label"
+            android:taskAffinity="pl.danaco.nexus.glos"
+            android:theme="@style/NexusTranslucent" />
+
+        <activity
+            android:name=".overlay.ScreenCaptureActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="pl.danaco.nexus.zrzut"
+            android:theme="@style/NexusTranslucent" />
+
+        <!-- Rozmowa głosowa w tle -->
+        <service
+            android:name=".voice.VoiceService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|mediaPlayback" />
+
+        <service
+            android:name=".voice.VoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_wave"
+            android:label="@string/tile_voice"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Asystent cyfrowy -->
+        <service
+            android:name=".assist.NexusInteractionService"
+            android:exported="true"
+            android:label="@string/assistant_label"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/interaction_service" />
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".assist.NexusSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <service
+            android:name=".assist.NexusRecognitionService"
+            android:exported="true"
+            android:label="@string/recognition_label"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech"
+                android:resource="@xml/recognition_service" />
+        </service>
+
+        <!-- Języczek przy krawędzi -->
+        <service
+            android:name=".overlay.EdgeTabService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|mediaProjection">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Uchwyt asystenta przy krawędzi ekranu (nakładka) otwierający panel Nexusa na żądanie użytkownika." />
+        </service>
+
+        <!-- Odczyt tekstu i wstawianie odpowiedzi (opcjonalne, włączane ręcznie) -->
+        <service
+            android:name=".access.NexusAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service" />
+        </service>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -31,11 +209,7 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"></meta-data>
+                android:resource="@xml/file_paths" />
         </provider>
     </application>
-
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

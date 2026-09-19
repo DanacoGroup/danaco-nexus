@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tokeny kolorów ciemnego motywu z frontend/src/styles.css (.dark). -->
+<resources>
+    <color name="nexus_side">#171717</color>
+    <color name="nexus_app">#212121</color>
+    <color name="nexus_raised">#2A2A2A</color>
+    <color name="nexus_hover">#333336</color>
+    <color name="nexus_line">#363638</color>
+    <color name="nexus_fg">#ECECEC</color>
+    <color name="nexus_muted">#A1A1AA</color>
+    <color name="nexus_accent">#8B7CF6</color>
+    <color name="nexus_accent_soft">#2C2748</color>
+    <color name="nexus_danger">#FB923C</color>
+    <color name="nexus_success">#4ADE80</color>
+    <color name="nexus_scrim">#99000000</color>
+    <color name="colorPrimary">#8B7CF6</color>
+    <color name="colorPrimaryDark">#171717</color>
+    <color name="colorAccent">#8B7CF6</color>
+</resources>

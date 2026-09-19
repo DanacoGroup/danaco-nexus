@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Języczek przy prawej krawędzi: półprzezroczysty akcent z zaokrąglonymi lewymi rogami. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#CC8B7CF6" />
+    <corners
+        android:bottomLeftRadius="10dp"
+        android:topLeftRadius="10dp" />
+</shape>

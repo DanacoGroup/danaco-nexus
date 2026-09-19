@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel Nexusa: pasek narzędzi i kompaktowy czat (WebView dodawany w kodzie do panel_web). -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.LinearLayout"
+    tools:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="@color/nexus_side"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="4dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:contentDescription="@null"
+            android:src="@drawable/splash_icon"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/nexus_fg"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/panel_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/panel_status_idle"
+                android:textColor="@color/nexus_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/panel_voice"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/panel_voice"
+            android:src="@drawable/ic_wave" />
+
+        <ImageButton
+            android:id="@+id/panel_screen"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/panel_screen"
+            android:src="@drawable/ic_screen" />
+
+        <ImageButton
+            android:id="@+id/panel_sms"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/panel_sms"
+            android:src="@drawable/ic_sms" />
+
+        <ImageButton
+            android:id="@+id/panel_open"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/panel_open"
+            android:src="@drawable/ic_open" />
+
+        <ImageButton
+            android:id="@+id/panel_close"
+            style="@style/NexusIconButton"
+            android:contentDescription="@string/panel_close"
+            android:src="@drawable/ic_close" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/nexus_line" />
+
+    <FrameLayout
+        android:id="@+id/panel_web"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/nexus_app" />
+</merge>

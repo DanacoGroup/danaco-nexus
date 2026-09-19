@@ -42,11 +42,13 @@ done
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$PROJEKT/.cache/gradle}"
 export npm_config_cache="${npm_config_cache:-$PROJEKT/.cache/npm}"
 export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
+# Dane użytkownika narzędzi Android (AGP, Android CLI) w katalogu projektu, nie w $HOME.
+export ANDROID_USER_HOME="${ANDROID_USER_HOME:-$PROJEKT/.cache/android-user}"
 export JAVA_HOME="$JDK"
 export PATH="$JDK/bin:$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$NODE_BIN:$PATH"
 # Pliki tymczasowe poza małą partycją systemową.
 export TMPDIR="$PROJEKT/.tmp/android/tmp"
-mkdir -p "$TMPDIR" "$GRADLE_USER_HOME" "$npm_config_cache" "$PROGRAMY"
+mkdir -p "$TMPDIR" "$GRADLE_USER_HOME" "$npm_config_cache" "$PROGRAMY" "$ANDROID_USER_HOME"
 
 krok() { printf '\n==> %s\n' "$*"; }
 
@@ -84,8 +86,9 @@ zainstaluj_sdk() {
     if [ ! -d "$SDK/platforms/android-36" ] || [ ! -d "$SDK/build-tools/36.0.0" ] || [ ! -d "$SDK/platform-tools" ]; then
         krok "Instalacja pakietów SDK ($PLATFORMA, $BUILD_TOOLS, platform-tools)"
         # Licencja Android SDK (akceptacja wymagana przez sdkmanager i AGP do budowy).
-        yes | sdkmanager --sdk_root="$SDK" --licenses > /dev/null || true
-        sdkmanager --sdk_root="$SDK" "$PLATFORMA" "$BUILD_TOOLS" "platform-tools" > /dev/null
+        # Nowy sdkmanager deleguje do „Android CLI”, które rozpakowuje się w $HOME – stąd HOME w projekcie.
+        yes | HOME="$ANDROID_USER_HOME" sdkmanager --sdk_root="$SDK" --licenses > /dev/null || true
+        HOME="$ANDROID_USER_HOME" sdkmanager --sdk_root="$SDK" "$PLATFORMA" "$BUILD_TOOLS" "platform-tools" > /dev/null
     fi
 }
 

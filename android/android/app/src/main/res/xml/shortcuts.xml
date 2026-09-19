@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Skróty na ikonie aplikacji (przytrzymanie ikony). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_voice"
+        android:shortcutId="rozmowa"
+        android:shortcutLongLabel="@string/shortcut_voice_long"
+        android:shortcutShortLabel="@string/shortcut_voice_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="pl.danaco.nexus.voice.VoiceStartActivity"
+            android:targetPackage="pl.danaco.nexus" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_new"
+        android:shortcutId="nowa"
+        android:shortcutLongLabel="@string/shortcut_new_long"
+        android:shortcutShortLabel="@string/shortcut_new_short">
+        <intent
+            android:action="pl.danaco.nexus.NOWA_ROZMOWA"
+            android:targetClass="pl.danaco.nexus.MainActivity"
+            android:targetPackage="pl.danaco.nexus" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_sms"
+        android:shortcutId="sms"
+        android:shortcutLongLabel="@string/shortcut_sms_long"
+        android:shortcutShortLabel="@string/shortcut_sms_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="pl.danaco.nexus.sms.SmsActivity"
+            android:targetPackage="pl.danaco.nexus" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_settings"
+        android:shortcutId="ustawienia"
+        android:shortcutLongLabel="@string/shortcut_settings_long"
+        android:shortcutShortLabel="@string/shortcut_settings_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="pl.danaco.nexus.settings.SettingsActivity"
+            android:targetPackage="pl.danaco.nexus" />
+    </shortcut>
+</shortcuts>

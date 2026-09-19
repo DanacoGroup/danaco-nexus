@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nexus jako asystent cyfrowy: sesja z panelem, rozpoznawanie mowy przez serwer Nexusa. -->
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:recognitionService="pl.danaco.nexus.assist.NexusRecognitionService"
+    android:sessionService="pl.danaco.nexus.assist.NexusSessionService"
+    android:settingsActivity="pl.danaco.nexus.settings.SettingsActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="false"
+    android:supportsLocalInteraction="false" />

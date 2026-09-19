@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikona powiadomień: znak Nexusa (biały, bez tła). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:pathData="M164,352V160l184,192V160"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="46"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M130,352a34,34 0,1 0,68,0a34,34 0,1 0,-68,0z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M314,160a34,34 0,1 0,68,0a34,34 0,1 0,-68,0z" />
+</vector>

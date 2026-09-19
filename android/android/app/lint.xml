@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lint aplikacji: błędy przerywają budowę; poniżej świadome wyjątki z uzasadnieniem. -->
+<lint>
+    <!-- Wersje zależności są przypięte do zestawu Capacitor 8 (odtwarzalna budowa), aktualizacje ręcznie. -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- Aplikacja instalowana z pliku APK (nie przez Google Play) – zasady sklepu nie dotyczą odczytu SMS. -->
+    <issue id="ProtectedPermissions" severity="warning" />
+</lint>

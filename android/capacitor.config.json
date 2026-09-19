@@ -13,6 +13,13 @@
     "allowMixedContent": false,
     "captureInput": false,
     "webContentsDebuggingEnabled": false,
-    "adjustMarginsForEdgeToEdge": "force"
+    "resolveServiceWorkerRequests": false,
+    "appendUserAgent": "NexusAndroid/1"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "css"
+    }
   }
 }
