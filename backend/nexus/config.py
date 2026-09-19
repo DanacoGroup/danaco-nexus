@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     public_url: str = ""
     login_attempts_per_15_min: int = 8
 
+    # --- moduł biuro ---
+    # Poczta: plik z loginem, hasłem i serwerami (deploy/zapisz-poczte.sh), limit czasu połączeń.
+    poczta_config_file: Path = Path("dane/app/poczta.json")
+    poczta_timeout_s: int = 30
+    poczta_attachments_limit_mb: int = 25
+    # Kalendarz (CalDAV Nextcloud, konto chmura_user): kalendarz domyślny i strefa czasowa.
+    kalendarz_default: str = "personal"
+    kalendarz_timezone: str = "Europe/Warsaw"
+
     @property
     def files_dir(self) -> Path:
         """Katalog przechowywanych plików."""
