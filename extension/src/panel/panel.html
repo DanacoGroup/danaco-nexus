@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Danaco Nexus</title>
+    <link rel="stylesheet" href="styl.css" />
+  </head>
+  <body>
+    <div class="uklad">
+      <header class="naglowek">
+        <span class="znak" id="znak"></span>
+        <span class="nazwa">Nexus</span>
+        <span class="pole-info" id="pole-info" title="Tu trafi tekst z przycisku „Wstaw”"></span>
+        <button type="button" class="ikona" id="nowa-karta" title="Otwórz Nexusa w nowej karcie" aria-label="Otwórz Nexusa w nowej karcie"></button>
+        <button type="button" class="ikona" id="ustawienia" title="Ustawienia" aria-label="Ustawienia"></button>
+        <button type="button" class="ikona" id="zamknij" title="Zamknij (Esc)" aria-label="Zamknij panel"></button>
+      </header>
+      <nav class="akcje" id="akcje" aria-label="Szybkie akcje">
+        <button type="button" data-akcja="stresc" title="Streść bieżącą stronę">Streść</button>
+        <button type="button" data-akcja="odpowiedz" title="Odpowiedz na opinię, komentarz lub wiadomość">Odpowiedz</button>
+        <button type="button" data-akcja="popraw" title="Popraw tekst z aktywnego pola lub zaznaczenie">Popraw</button>
+        <button type="button" data-akcja="przetlumacz" title="Przetłumacz zaznaczenie lub stronę">Przetłumacz</button>
+        <button type="button" data-akcja="zapytaj" title="Zadaj pytanie o tę stronę">Zapytaj</button>
+      </nav>
+      <div class="opcje-akcji">
+        <label class="przelacznik" id="zrzut-etykieta" title="Dołącz zrzut widocznej części strony">
+          <input type="checkbox" id="zrzut" /> <span id="zrzut-ikona"></span> Zrzut
+        </label>
+        <label class="jezyk" title="Język tłumaczenia">
+          na: <select id="jezyk" aria-label="Język tłumaczenia"></select>
+        </label>
+        <button type="button" class="link" id="ukryj-przycisk" hidden></button>
+      </div>
+      <section class="opinie" id="opinie" hidden aria-label="Wybór opinii"></section>
+      <main class="glowna" id="glowna"></main>
+      <div class="komunikat" id="komunikat" role="status" aria-live="polite"></div>
+    </div>
+    <script src="panel.js"></script>
+  </body>
+</html>

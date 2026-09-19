@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Danaco Nexus – ustawienia rozszerzenia</title>
+    <link rel="stylesheet" href="styl.css" />
+  </head>
+  <body>
+    <div class="opcje">
+      <h1><span id="znak"></span> Danaco Nexus</h1>
+      <p class="pomoc" id="wersja"></p>
+
+      <h2>Połączenie</h2>
+      <div class="karta" id="polaczenie"></div>
+
+      <h2>Panel</h2>
+      <div class="karta">
+        <label class="wiersz"><input type="checkbox" id="przycisk" /> Pokazuj przycisk Nexusa przy prawej krawędzi strony</label>
+        <div id="ukryte"></div>
+        <p class="pomoc">
+          Panel otworzysz też skrótem <kbd>Alt</kbd>+<kbd>N</kbd> lub <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Spacja</kbd>,
+          ikoną na pasku narzędzi oraz z menu kontekstowego (prawy przycisk myszy na zaznaczeniu).
+          Skróty przeglądarki zmienisz na stronie chrome://extensions/shortcuts (w Edge: edge://extensions/shortcuts).
+        </p>
+      </div>
+
+      <h2>Dostępność funkcji w tej przeglądarce</h2>
+      <div class="karta">
+        <ul id="funkcje"></ul>
+        <p class="ograniczenia">
+          Danaco Lynx i inne przeglądarki na Electronie obsługują tylko część API rozszerzeń. Panel, kontekst strony,
+          szybkie akcje i wstawianie działają wszędzie; zrzut karty, menu kontekstowe i skróty przeglądarki – tylko tam,
+          gdzie przeglądarka je udostępnia.
+        </p>
+      </div>
+    </div>
+    <script src="opcje.js"></script>
+  </body>
+</html>

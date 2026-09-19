@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Danaco Nexus",
+  "short_name": "Nexus",
+  "version": "0.1.0",
+  "description": "Asystent Danaco Nexus na każdej stronie: streszczenia, odpowiedzi na opinie, poprawianie i tłumaczenie tekstu, wstawianie odpowiedzi w pola.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "ikony/nexus-32.png",
+    "32": "ikony/nexus-32.png",
+    "48": "ikony/nexus-192.png",
+    "128": "ikony/nexus-192.png"
+  },
+  "action": {
+    "default_title": "Danaco Nexus (Alt+N)",
+    "default_icon": {
+      "16": "ikony/nexus-32.png",
+      "32": "ikony/nexus-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "tlo.js"
+  },
+  "options_ui": {
+    "page": "opcje.html",
+    "open_in_tab": true
+  },
+  "permissions": ["storage", "contextMenus", "scripting", "clipboardWrite"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["tresc.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["panel.html"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+  "commands": {
+    "przelacz-panel": {
+      "suggested_key": { "default": "Alt+N" },
+      "description": "Pokaż lub ukryj panel Nexusa"
+    },
+    "przelacz-panel-2": {
+      "suggested_key": { "default": "Ctrl+Shift+Space" },
+      "description": "Pokaż lub ukryj panel Nexusa (drugi skrót)"
+    }
+  }
+}
