@@ -16,6 +16,9 @@ async function init() {
     item.textContent = reason;
     $('reasons').append(item);
   }
+  if (details.admin) {
+    $('title').textContent = 'Asystent chce wykonać polecenie jako administrator';
+  }
   for (const warning of details.warnings) {
     const box = document.createElement('div');
     box.className = 'warning';

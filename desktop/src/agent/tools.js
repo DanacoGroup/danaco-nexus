@@ -15,7 +15,7 @@ const {
   resolveFolders,
   shouldSkipDir,
 } = require('./paths');
-const { runPowerShell, runPowerShellJson } = require('../powershell');
+const { runElevated, runPowerShell, runPowerShellJson } = require('../powershell');
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
@@ -346,10 +346,12 @@ ConvertTo-Json -InputObject @($found) -Compress`;
     const description = String(args.description || '').slice(0, 500);
     const timeoutMs = Math.min(600, Math.max(5, Number(args.timeout_s) || 60)) * 1000;
     const classification = classifyPowerShell(command);
+    const admin = args.as_admin === true;
+    const reasons = admin ? ['Uprawnienia administratora – Windows dodatkowo zapyta o zgodę (UAC).', ...classification.reasons] : classification.reasons;
     let confirmed = false;
-    if (!classification.readOnly) {
-      log.info('PowerShell: prośba o zgodę', { command, description, reasons: classification.reasons });
-      const accepted = await confirm.ask({ command, description, reasons: classification.reasons, warnings: classification.warnings }, signal);
+    if (!classification.readOnly || admin) {
+      log.info('PowerShell: prośba o zgodę', { command, description, admin, reasons });
+      const accepted = await confirm.ask({ command, description, admin, reasons, warnings: classification.warnings }, signal);
       log.info(`PowerShell: ${accepted ? 'zatwierdzone' : 'odrzucone'} przez użytkownika`, { command });
       if (!accepted) throw new Error('Użytkownik odrzucił wykonanie polecenia (albo nie odpowiedział na czas). Nie ponawiaj bez pytania.');
       confirmed = true;
@@ -357,7 +359,7 @@ ConvertTo-Json -InputObject @($found) -Compress`;
       log.info('PowerShell: tylko odczyt – wykonanie bez pytania', { command });
     }
     checkAborted(signal);
-    const result = await runPowerShell(command, { timeoutMs, signal });
+    const result = admin ? await runElevated(command, { timeoutMs, signal }) : await runPowerShell(command, { timeoutMs, signal });
     log.info('PowerShell: zakończone', { exitCode: result.exitCode, ms: result.durationMs });
     return {
       text: result.output || '(brak wyjścia)',
@@ -365,6 +367,7 @@ ConvertTo-Json -InputObject @($found) -Compress`;
         exit_code: result.exitCode,
         confirmed,
         read_only: classification.readOnly,
+        admin,
         duration_ms: result.durationMs,
         truncated: result.truncated,
       },

@@ -101,6 +101,13 @@ class PcPowershellInput(PcInput):
         description="Po polsku: co polecenie robi i po co (widzi to użytkownik w oknie zgody).",
     )
     timeout_s: int = Field(60, ge=5, le=600, description="Limit czasu wykonania polecenia w sekundach.")
+    as_admin: bool = Field(
+        False,
+        description=(
+            "Uruchom jako administrator (np. sfc, DISM, czyszczenie C:\\Windows\\Temp, usługi). "
+            "Zawsze wymaga zgody w oknie Nexusa i w monicie UAC Windows."
+        ),
+    )
 
 
 class PcScreenshotInput(PcInput):
@@ -221,7 +228,8 @@ diagnoza i naprawy (miejsce na dysku, pamięć, usługi, sieć, dziennik zdarze�
 Polecenia tylko do odczytu z białej listy (Get-Process, Get-CimInstance, Get-ChildItem…)
 wykonują się od razu; każde inne wymaga zatwierdzenia przez użytkownika w oknie na komputerze
 (pokazuje pełne polecenie i opis) – odmowa lub brak odpowiedzi kończy się błędem. Opisz uczciwie,
-co polecenie zmienia. Wynik: tekst wyjścia i kod zakończenia.""",
+co polecenie zmienia. Polecenia wymagające uprawnień administratora uruchamiaj z as_admin=true.
+Wynik: tekst wyjścia i kod zakończenia.""",
     PcPowershellInput,
 )
 def pc_powershell(ctx: ToolContext, args: PcPowershellInput) -> ToolResult:

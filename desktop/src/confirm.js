@@ -75,9 +75,10 @@ class ConfirmManager {
   details(webContentsId) {
     const item = this.byWebContents.get(webContentsId);
     if (!item) return null;
-    const { command, description, reasons, warnings } = item.request;
+    const { command, description, reasons, warnings, admin } = item.request;
     return {
       command,
+      admin: Boolean(admin),
       description,
       reasons: reasons || [],
       warnings: warnings || [],

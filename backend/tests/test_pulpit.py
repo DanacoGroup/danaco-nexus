@@ -209,6 +209,25 @@ def test_rejects_invalid_and_non_desktop_keys(client: TestClient, settings: Sett
     assert client.get("/api/pulpit/komputery").status_code == 401
 
 
+def test_revoked_key_disconnects_on_ping(
+    client: TestClient, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("nexus.api.modules.pulpit.REVALIDATE_SECONDS", 0.0)
+    token = _device_key(client)
+    device_id = client.get("/api/urzadzenia").json()[0]["id"]
+    with client.websocket_connect("/api/pulpit/ws") as socket:
+        socket.send_json({"type": "auth", "token": token})
+        assert socket.receive_json()["type"] == "ready"
+        socket.send_json({"type": "ping"})
+        assert socket.receive_json() == {"type": "pong"}
+        assert client.delete(f"/api/urzadzenia/{device_id}", headers=HEADERS).status_code == 200
+        socket.send_json({"type": "ping"})
+        assert "cofnięty" in socket.receive_json()["message"]
+        with pytest.raises(WebSocketDisconnect) as closed:
+            socket.receive_json()
+        assert closed.value.code == 4401
+
+
 def test_new_connection_replaces_previous(client: TestClient, settings: Settings) -> None:
     token = _device_key(client)
     with client.websocket_connect("/api/pulpit/ws") as first:

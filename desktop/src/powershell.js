@@ -6,6 +6,8 @@
 // Wybrane zamiast @nut-tree/robotjs, bo te wymagają kompilacji lub płatnych paczek.
 
 const { spawn, execFile } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const readline = require('node:readline');
 
@@ -101,6 +103,39 @@ function cleanClixml(text) {
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&');
   return `${text.slice(0, marker)}${errors}`;
+}
+
+/**
+ * Polecenie z uprawnieniami administratora: Windows pokazuje monit UAC, wynik wraca przez
+ * plik tymczasowy (procesu podniesionego nie da się odczytać ani przerwać z konta zwykłego).
+ */
+async function runElevated(script, options = {}) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-admin-'));
+  const outputFile = path.join(directory, 'wynik.txt');
+  const quoted = (value) => `'${value.replace(/'/g, "''")}'`;
+  const inner =
+    "$ProgressPreference='SilentlyContinue'\n" +
+    `& {\n${script}\n} 2>&1 | Out-String -Width 250 | Set-Content -LiteralPath ${quoted(outputFile)} -Encoding UTF8\n` +
+    'exit $LASTEXITCODE';
+  const outer =
+    `$arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand','${encode(inner)}')\n` +
+    `$process = Start-Process -FilePath ${quoted(POWERSHELL)} -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ArgumentList $arguments\n` +
+    'exit $process.ExitCode';
+  try {
+    const result = await runPowerShell(outer, { ...options, mergeErrors: false });
+    let output = '';
+    try {
+      output = fs.readFileSync(outputFile, 'utf8').replace(/^\uFEFF/, '');
+    } catch {
+      output = result.output.includes('canceled by the user') || result.output.includes('anulowana')
+        ? 'Użytkownik nie zgodził się na uprawnienia administratora (monit UAC).'
+        : result.output;
+    }
+    const maxOutput = options.maxOutput || MAX_OUTPUT;
+    return { ...result, output: output.slice(0, maxOutput), truncated: output.length > maxOutput };
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 }
 
 /** Skrypt PowerShell zwracający JSON → obiekt JS (skrypt sam wycisza błędy poleceń). */
@@ -278,4 +313,4 @@ class WindowHelper {
   }
 }
 
-module.exports = { runPowerShell, runPowerShellJson, WindowHelper, POWERSHELL };
+module.exports = { runPowerShell, runPowerShellJson, runElevated, WindowHelper, POWERSHELL };
