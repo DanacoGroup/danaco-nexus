@@ -197,7 +197,8 @@ class FakeIMAP:
                     label = "BODY[HEADER.FIELDS (FROM TO)]"
                 else:
                     data, label = mail.raw, "BODY[]"
-                prefix = f"{index} (UID {mail.uid} FLAGS ({flags}) RFC822.SIZE {len(mail.raw)} {label} {{{len(data)}}}"
+                size = len(mail.raw)
+                prefix = f"{index} (UID {mail.uid} FLAGS ({flags}) RFC822.SIZE {size} {label} {{{len(data)}}}"
                 result.extend([(prefix.encode(), data), b")"])
             return "OK", result
         if command == "STORE":
@@ -264,7 +265,9 @@ class FakeSMTP:
             raise smtplib.SMTPAuthenticationError(535, b"Bad credentials")
         self.logged_in = True
 
-    def send_message(self, message: Any, from_addr: str | None = None, to_addrs: list[str] | None = None) -> None:
+    def send_message(
+        self, message: Any, from_addr: str | None = None, to_addrs: list[str] | None = None
+    ) -> None:
         import smtplib
 
         assert self.logged_in
@@ -369,7 +372,8 @@ class FakeCalDAV:
                 f"<d:response><d:href>{self.ROOT}{name}/</d:href><d:propstat><d:prop>"
                 "<d:resourcetype><d:collection/><cal:calendar/></d:resourcetype>"
                 f"<d:displayname>{display}</d:displayname><x1:calendar-color>{color}FF</x1:calendar-color>"
-                '<cal:supported-calendar-component-set><cal:comp name="VEVENT"/></cal:supported-calendar-component-set>'
+                '<cal:supported-calendar-component-set><cal:comp name="VEVENT"/>'
+                "</cal:supported-calendar-component-set>"
                 f"<d:current-user-privilege-set>{privileges}</d:current-user-privilege-set>"
                 "</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
             )

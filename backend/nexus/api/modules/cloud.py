@@ -210,7 +210,7 @@ async def _stream(request: Request, path: str, inline: bool, version: str | None
     if response.headers.get("content-length"):
         headers["Content-Length"] = response.headers["content-length"]
     return StreamingResponse(
-        response.aiter_raw(),
+        response.aiter_bytes(),
         media_type=mime if show_inline else "application/octet-stream",
         headers=headers,
         background=BackgroundTask(cleanup),

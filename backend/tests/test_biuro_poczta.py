@@ -109,7 +109,9 @@ def load_config_from(data: dict[str, object], tmp: Path | None = None) -> object
 
 
 def test_load_config_errors(tmp_path: Path) -> None:
-    settings = Settings(poczta_config_file=tmp_path / "brak.json", database_url="sqlite+aiosqlite:///:memory:")
+    settings = Settings(
+        poczta_config_file=tmp_path / "brak.json", database_url="sqlite+aiosqlite:///:memory:"
+    )
     with pytest.raises(MailNotConfigured, match="zapisz-poczte"):
         load_config(settings)
     with pytest.raises(MailNotConfigured, match="loginu i hasła"):
@@ -223,12 +225,16 @@ def test_api_read_and_attachment(api: TestClient, mail_server: MailServer) -> No
     assert download.content == b"%PDF"
     assert download.headers["content-type"] == "application/octet-stream"
     assert "umowa.pdf" in download.headers["content-disposition"]
-    inline = api.get("/api/poczta/zalacznik", params={"folder": "INBOX", "uid": uid, "index": index, "inline": 1})
+    inline = api.get(
+        "/api/poczta/zalacznik", params={"folder": "INBOX", "uid": uid, "index": index, "inline": 1}
+    )
     assert inline.headers["content-type"] == "application/pdf"
     flag = api.post("/api/poczta/flaga", json={"folder": "INBOX", "uid": uid, "flag": "seen", "value": False})
     assert flag.status_code == 403, "zmiana stanu wymaga nagłówka CSRF"
     flag = api.post(
-        "/api/poczta/flaga", json={"folder": "INBOX", "uid": uid, "flag": "seen", "value": False}, headers=HEADERS
+        "/api/poczta/flaga",
+        json={"folder": "INBOX", "uid": uid, "flag": "seen", "value": False},
+        headers=HEADERS,
     )
     assert flag.status_code == 200 and "\\Seen" not in mail_server.boxes["INBOX"][0].flags
 
@@ -289,7 +295,9 @@ def test_api_pending_cancel_and_drafts(api: TestClient, mail_server: MailServer)
     draft = api.post(f"/api/poczta/oczekujace/{pending['id']}/szkic", headers=HEADERS)
     assert draft.json() == {"ok": True, "folder": "Drafts"}
     assert len(mail_server.boxes["Drafts"]) == 1
-    assert api.delete(f"/api/poczta/oczekujace/{pending['id']}", headers=HEADERS).json()["status"] == "cancelled"
+    assert (
+        api.delete(f"/api/poczta/oczekujace/{pending['id']}", headers=HEADERS).json()["status"] == "cancelled"
+    )
     assert api.post(f"/api/poczta/wyslij/{pending['id']}", headers=HEADERS).status_code == 409
     assert api.post(f"/api/poczta/wyslij/{uuid.uuid4()}", headers=HEADERS).status_code == 404
     assert mail_server.sent == []
@@ -321,7 +329,10 @@ def test_remote_image_proxy(api: TestClient, monkeypatch: pytest.MonkeyPatch) ->
     assert api.get("/api/poczta/obraz", params={"url": "http://127.0.0.1/logo.png"}).status_code == 400
     assert api.get("/api/poczta/obraz", params={"url": "file:///etc/passwd"}).status_code == 400
     monkeypatch.setattr(poczta_api, "_public_host", lambda host, port: host == "obrazy.example.pl")
-    assert api.get("/api/poczta/obraz", params={"url": "https://obrazy.example.pl:8443/x.png"}).status_code == 400
+    assert (
+        api.get("/api/poczta/obraz", params={"url": "https://obrazy.example.pl:8443/x.png"}).status_code
+        == 400
+    )
     image = api.get("/api/poczta/obraz", params={"url": "https://obrazy.example.pl/przekierowanie"})
     assert image.status_code == 200 and image.content == b"\x89PNG"
     assert image.headers["content-type"] == "image/png"
