@@ -27,5 +27,5 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   z synchronizacją na komputer i telefon oraz narzędzia agenta `cloud_browse`,
   `cloud_import` i `cloud_save`; odnośnik do chmury w interfejsie.
 - Skrypt rekordów DNS w strefie OVH i witryna Caddy dla `danaco-nexus.pl`
-  i `chmura.danaco-nexus.pl`.
+  i `cloud.danaco-nexus.pl`.
 - Polecenie diagnostyczne `doctor` (programy, usługi, Claude Code CLI, serwer MCP).

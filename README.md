@@ -141,7 +141,7 @@ LanguageTool, Claude Code CLI z tokenem oraz serwer MCP (lista narzędzi).
 Z `--online` wykonuje jedno krótkie zapytanie przez CLI.
 
 Publikacja pod domeną: rekordy DNS w strefie OVH ustawia `deploy/dns/ustaw-dns.py`
-(`danaco-nexus.pl`, `www`, `chmura` → serwer), a witrynę Caddy hosta opisuje
+(`danaco-nexus.pl`, `www`, `cloud` → serwer), a witrynę Caddy hosta opisuje
 `deploy/caddy/danaco-nexus.caddy`:
 
 ```bash
@@ -158,7 +158,7 @@ pliki w `dane/app/logs/` (`worker.log`, `api.log`, `mcp.log`).
 
 ## Chmura osobista
 
-Częścią Nexusa jest chmura osobista **Nextcloud** pod adresem `chmura.danaco-nexus.pl`:
+Częścią Nexusa jest chmura osobista **Nextcloud** pod adresem `cloud.danaco-nexus.pl`:
 przechowywanie plików, synchronizacja z komputerem i telefonem (aplikacje Nextcloud
 na Windows, Android i iOS), udostępnianie, podgląd i wyszukiwanie. Nextcloud działa
 w katalogu projektu na **FrankenPHP** (pojedynczy program PHP, bez instalowania PHP

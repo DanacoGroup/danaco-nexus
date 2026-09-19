@@ -17,7 +17,7 @@ FRANKENPHP="$PROJEKT/programy/frankenphp/frankenphp"
 PG_BIN=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin
 PG_GNIAZDO="$PROJEKT/dane/run"
 PG_PORT=5433
-DOMENA_CHMURY="${NEXUS_CHMURA_DOMENA:-chmura.danaco-nexus.pl}"
+DOMENA_CHMURY="${NEXUS_CHMURA_DOMENA:-cloud.danaco-nexus.pl}"
 ADMIN=admin
 
 export LD_LIBRARY_PATH=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
