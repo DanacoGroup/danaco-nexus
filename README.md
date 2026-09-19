@@ -16,6 +16,7 @@ wykonuje operacje na plikach i zwraca gotowe wyniki do pobrania.
 5. [Konfiguracja](#konfiguracja)
 6. [Rozwój i testy](#rozwój-i-testy)
 7. [Bezpieczeństwo](#bezpieczeństwo)
+8. [Chmura osobista](#chmura-osobista)
 
 ## Architektura
 
@@ -117,6 +118,8 @@ zakłada klaster PostgreSQL i bazę `nexus`, podłącza jednostki systemd z
 | `danaco-nexus-languagetool` | sprawdzanie tekstu (127.0.0.1:8010) |
 | `danaco-nexus-api` | API i interfejs (127.0.0.1:8930) |
 | `danaco-nexus-worker` | proces roboczy agenta |
+| `danaco-nexus-chmura` | chmura osobista Nextcloud (127.0.0.1:8940) |
+| `danaco-nexus-chmura-cron.timer` | zadania w tle Nextcloud co 5 minut |
 | `danaco-nexus.target` | wszystkie powyższe razem |
 
 Usługi działają jako `danaco-serwis:danaco-user` z zabezpieczeniami systemd
@@ -137,18 +140,53 @@ unpaper, Inkscape), Real-ESRGAN (test na małym obrazie), Qdrant, Tika,
 LanguageTool, Claude Code CLI z tokenem oraz serwer MCP (lista narzędzi).
 Z `--online` wykonuje jedno krótkie zapytanie przez CLI.
 
-Publikacja pod domeną (plik witryny Caddy, zgodnie z konwencją serwera):
+Publikacja pod domeną: rekordy DNS w strefie OVH ustawia `deploy/dns/ustaw-dns.py`
+(`danaco-nexus.pl`, `www`, `chmura` → serwer), a witrynę Caddy hosta opisuje
+`deploy/caddy/danaco-nexus.caddy`:
 
 ```bash
-sed 's/NEXUS.DOMENA.PL/nexus.twoja-domena.pl/' deploy/caddy/danaco-nexus.caddy \
-    > /etc/caddy/witryny/danaco-nexus.caddy
-caddy validate --config /etc/caddy/Caddyfile && caddy reload --config /etc/caddy/Caddyfile
+deploy/dns/ustaw-dns.py
+cp deploy/caddy/danaco-nexus.caddy /etc/caddy/witryny/danaco-nexus.caddy
+/danaco/programy/caddy/caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload danaco-caddy
 ```
 
 Aktualizacja: `git pull && deploy/instalacja.sh`.
 
 Dziennik zdarzeń: `journalctl -u danaco-nexus-worker -u danaco-nexus-api -f` oraz
 pliki w `dane/app/logs/` (`worker.log`, `api.log`, `mcp.log`).
+
+## Chmura osobista
+
+Częścią Nexusa jest chmura osobista **Nextcloud** pod adresem `chmura.danaco-nexus.pl`:
+przechowywanie plików, synchronizacja z komputerem i telefonem (aplikacje Nextcloud
+na Windows, Android i iOS), udostępnianie, podgląd i wyszukiwanie. Nextcloud działa
+w katalogu projektu na **FrankenPHP** (pojedynczy program PHP, bez instalowania PHP
+w systemie) jako usługa `danaco-nexus-chmura` na `127.0.0.1:8940`, z bazą `nextcloud`
+we własnym klastrze PostgreSQL projektu. Zadania w tle wykonuje co 5 minut
+`danaco-nexus-chmura-cron.timer`.
+
+| Ścieżka | Zawartość |
+|---|---|
+| `programy/frankenphp/` | serwer PHP (FrankenPHP) |
+| `dane/nextcloud/nextcloud/` | kod Nextcloud i jego `config/config.php` |
+| `dane/nextcloud/dane/` | pliki użytkownika w chmurze |
+| `deploy/chmura/` | konfiguracja serwera (`Caddyfile`), PHP i skrypt instalacji |
+
+Asystent korzysta z chmury przez WebDAV (hasło aplikacji w `dane/app/chmura-token`):
+
+| Narzędzie | Działanie |
+|---|---|
+| `cloud_browse` | przeglądanie katalogów chmury |
+| `cloud_import` | pobranie plików lub całego katalogu z chmury do rozmowy |
+| `cloud_save` | zapis wyników (np. PDF po OCR) we wskazanym katalogu chmury |
+
+Przykład: „Zrób OCR wszystkich skanów z katalogu Faktury 2026 w chmurze i zapisz
+przeszukiwalne PDF-y w Faktury 2026/OCR”. W interfejsie Nexusa odnośnik
+„Chmura osobista” otwiera Nextcloud.
+
+Administracja: `deploy/chmura/occ.sh` (np. `deploy/chmura/occ.sh user:resetpassword admin`
+ustawia hasło logowania do chmury – hasło początkowe instalacji jest losowe).
 
 ## Konfiguracja
 

@@ -23,4 +23,9 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 - Logowanie administratora (Argon2, sesje w bazie, ochrona CSRF, limit prób).
 - Wdrożenie bez Dockera: skrypt instalacji, własny klaster PostgreSQL 18, Qdrant
   i LanguageTool w katalogu projektu, usługi systemd, szablon witryny Caddy.
+- Chmura osobista Nextcloud (FrankenPHP, baza w klastrze projektu, zadania w tle co 5 minut)
+  z synchronizacją na komputer i telefon oraz narzędzia agenta `cloud_browse`,
+  `cloud_import` i `cloud_save`; odnośnik do chmury w interfejsie.
+- Skrypt rekordów DNS w strefie OVH i witryna Caddy dla `danaco-nexus.pl`
+  i `chmura.danaco-nexus.pl`.
 - Polecenie diagnostyczne `doctor` (programy, usługi, Claude Code CLI, serwer MCP).
