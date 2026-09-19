@@ -367,12 +367,36 @@ def test_scholar_search_merges_sources_by_doi() -> None:
     assert arxiv.doi == "10.48550/arxiv.2401.01234"
 
 
-def test_scholar_search_reports_unavailable_source() -> None:
+def test_scholar_search_reports_unavailable_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(scholar, "S2_RETRY_SECONDS", 0.01)
+    s2_calls: list[httpx.Request] = []
+    handler = scholar_handler(429)
+
+    def counting(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.semanticscholar.org":
+            s2_calls.append(request)
+        return handler(request)
+
     found = scholar.search(
-        scholar.Query("heat pumps", 2020, 2025, "inżynieria"), client=mock_client(scholar_handler(429))
+        scholar.Query("heat pumps", 2020, 2025, "inżynieria", s2_api_key="klucz-testowy"),
+        client=mock_client(counting),
     )
     assert "limit" in found["errors"]["semantic_scholar"]
     assert found["papers"]
+    assert len(s2_calls) == 2  # jedna ponowna próba po odpowiedzi 429
+    assert s2_calls[0].headers["x-api-key"] == "klucz-testowy"
+
+
+def test_scholar_search_without_key_sends_no_key_header() -> None:
+    seen: list[httpx.Request] = []
+    handler = scholar_handler()
+
+    def recording(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return handler(request)
+
+    scholar.search(scholar.Query("heat pumps", 2020, 2025, "inżynieria"), client=mock_client(recording))
+    assert all("x-api-key" not in request.headers for request in seen)
 
 
 def test_apa_citation() -> None:

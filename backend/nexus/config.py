@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     research_contact_email: str = ""
     # Własna instancja SearXNG (np. http://127.0.0.1:8888) dla web_search; pusty = DuckDuckGo.
     research_searxng_url: str = ""
+    # Opcjonalny klucz API Semantic Scholar (wyższy limit zapytań); zapisuje go
+    # deploy/zapisz-klucz-semantic-scholar.sh. Brak pliku = zapytania bez klucza.
+    research_semantic_scholar_key_file: Path = Path(
+        "/danaco/projekty/danaco-nexus/dane/app/semantic-scholar-key"
+    )
 
     @property
     def files_dir(self) -> Path:

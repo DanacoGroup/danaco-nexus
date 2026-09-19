@@ -32,6 +32,14 @@ def _with_database[T](ctx: ToolContext, action: Callable[[Database], Awaitable[T
     return asyncio.run(run())
 
 
+def _s2_key(ctx: ToolContext) -> str:
+    """Klucz API Semantic Scholar z pliku (pusty, gdy nie zapisano)."""
+    try:
+        return ctx.settings.research_semantic_scholar_key_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 def _fetch(ctx: ToolContext, url: str) -> Any:
     settings = ctx.settings
     try:
@@ -134,6 +142,7 @@ def scholar_search(ctx: ToolContext, args: ScholarSearchInput) -> ToolResult:
         args.field,
         args.limit,
         ctx.settings.research_contact_email,
+        _s2_key(ctx),
     )
     found = scholar.search(query, list(args.sources) if args.sources else None)
     papers = [paper.as_dict(abstract_chars=1200) for paper in found["papers"]]
@@ -162,7 +171,9 @@ liczba odwołań, TL;DR, dziedziny, słowa kluczowe, link do PDF w otwartym dost
 def scholar_paper(ctx: ToolContext, args: ScholarPaperInput) -> ToolResult:
     ctx.progress(f"Szczegóły pracy: {args.identifier[:100]}")
     try:
-        paper = scholar.paper_details(args.identifier, contact_email=ctx.settings.research_contact_email)
+        paper = scholar.paper_details(
+            args.identifier, contact_email=ctx.settings.research_contact_email, s2_api_key=_s2_key(ctx)
+        )
     except scholar.ScholarError as error:
         raise ToolError(str(error)) from error
     return ToolResult(paper, f"{paper['title'][:90]} ({paper.get('year') or 'b.d.'})")

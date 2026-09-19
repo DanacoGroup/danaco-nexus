@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import math
 import re
+import time
 import unicodedata
+import urllib.request
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import httpx
 
@@ -29,6 +31,8 @@ CROSSREF = "https://api.crossref.org/works"
 ATOM = "{http://www.w3.org/2005/Atom}"
 ARXIV_NS = "{http://arxiv.org/schemas/atom}"
 SOURCES = ("openalex", "semantic_scholar", "arxiv", "crossref")
+# Semantic Scholar bez klucza ma wspólny limit zapytań – jedna ponowna próba po przerwie.
+S2_RETRY_SECONDS = 1.5
 S2_FIELDS = "title,authors,year,venue,abstract,citationCount,externalIds,openAccessPdf,url,publicationDate"
 S2_DETAIL_FIELDS = (
     S2_FIELDS + ",referenceCount,influentialCitationCount,tldr,fieldsOfStudy,publicationTypes,journal"
@@ -307,6 +311,7 @@ class Query:
     field: str = ""
     limit: int = 10
     contact_email: str = ""
+    s2_api_key: str = ""
 
     @property
     def s2_field(self) -> str:
@@ -325,9 +330,18 @@ class Query:
         return f"{self.text} {self.field}".strip() if self.field and not self.s2_field else self.text
 
 
-def _get(client: httpx.Client, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+def _get(
+    client: httpx.Client,
+    url: str,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    retry_after_limit: float = 0,
+) -> httpx.Response:
     try:
-        response = client.get(url, params=params)
+        response = client.get(url, params=params, headers=headers)
+        if response.status_code == 429 and retry_after_limit:
+            time.sleep(retry_after_limit)
+            response = client.get(url, params=params, headers=headers)
     except httpx.HTTPError as error:
         raise ScholarError(f"brak połączenia ({error.__class__.__name__})") from error
     if response.status_code == 429:
@@ -369,6 +383,28 @@ def _year_range(query: Query) -> str:
     return ""
 
 
+def _s2_headers(api_key: str) -> dict[str, str] | None:
+    return {"x-api-key": api_key} if api_key else None
+
+
+def _arxiv_text(client: httpx.Client, params: dict[str, Any]) -> str:
+    try:
+        return _get(client, ARXIV, params).text
+    except ScholarError as error:
+        if "406" not in str(error):
+            raise
+    # Brama arXiv odrzuca kodem 406 część zapytań wyszukiwania wysłanych przez httpx (te same
+    # zapytania z urllib i curl przechodzą) – zapasowo biblioteka standardowa.
+    request = urllib.request.Request(
+        f"{ARXIV}?{urlencode(params, safe=':[]')}", headers={"User-Agent": USER_AGENT}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=25) as response:
+            return response.read().decode("utf-8", errors="replace")
+    except OSError as error:
+        raise ScholarError(f"błąd połączenia z arXiv ({error})") from error
+
+
 def search_semantic_scholar(client: httpx.Client, query: Query) -> list[Paper]:
     """Wyszukiwanie w Semantic Scholar (bez klucza – wspólny limit zapytań)."""
     params: dict[str, Any] = {"query": query.text, "limit": query.limit, "fields": S2_FIELDS}
@@ -376,7 +412,13 @@ def search_semantic_scholar(client: httpx.Client, query: Query) -> list[Paper]:
         params["year"] = _year_range(query)
     if query.s2_field:
         params["fieldsOfStudy"] = query.s2_field
-    data = _get(client, f"{SEMANTIC_SCHOLAR}/paper/search", params).json()
+    data = _get(
+        client,
+        f"{SEMANTIC_SCHOLAR}/paper/search",
+        params,
+        headers=_s2_headers(query.s2_api_key),
+        retry_after_limit=S2_RETRY_SECONDS,
+    ).json()
     return [parse_semantic_scholar(item) for item in data.get("data") or []]
 
 
@@ -399,7 +441,7 @@ def search_arxiv(client: httpx.Client, query: Query) -> list[Paper]:
         "max_results": query.limit,
         "sortBy": "relevance",
     }
-    return parse_arxiv(_get(client, ARXIV, params).text)
+    return parse_arxiv(_arxiv_text(client, params))
 
 
 def search_crossref(client: httpx.Client, query: Query) -> list[Paper]:
@@ -526,7 +568,7 @@ def classify_identifier(identifier: str) -> tuple[str, str]:
 
 
 def paper_details(
-    identifier: str, client: httpx.Client | None = None, contact_email: str = ""
+    identifier: str, client: httpx.Client | None = None, contact_email: str = "", s2_api_key: str = ""
 ) -> dict[str, Any]:
     """Szczegóły pracy (OpenAlex + Semantic Scholar, dla arXiv także arXiv)."""
     kind, value = classify_identifier(identifier)
@@ -567,6 +609,8 @@ def paper_details(
                     client,
                     f"{SEMANTIC_SCHOLAR}/paper/{quote(s2_id, safe=':/')}",
                     {"fields": S2_DETAIL_FIELDS},
+                    headers=_s2_headers(s2_api_key),
+                    retry_after_limit=S2_RETRY_SECONDS,
                 ).json()
                 groups["semantic_scholar"] = [parse_semantic_scholar(item)]
                 extra.update(
@@ -582,7 +626,7 @@ def paper_details(
                 errors["semantic_scholar"] = str(error)
         if kind == "arxiv":
             try:
-                papers = parse_arxiv(_get(client, ARXIV, {"id_list": value}).text)
+                papers = parse_arxiv(_arxiv_text(client, {"id_list": value}))
                 if papers:
                     groups["arxiv"] = papers
             except ScholarError as error:
