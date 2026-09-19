@@ -127,11 +127,14 @@ def _unpaper(ctx: ToolContext, image: np.ndarray) -> np.ndarray:
     """Czyszczenie artefaktów skanu programem unpaper (PGM/PPM)."""
     source = ctx.output_path("unpaper_in.pgm" if image.ndim == 2 else "unpaper_in.ppm")
     target = source.with_name("unpaper_out" + source.suffix)
-    cv2.imwrite(str(source), image)
+    ok, encoded = cv2.imencode(source.suffix, image)
+    if not ok:
+        raise ToolError("Nie można przygotować obrazu dla unpaper.")
+    source.write_bytes(encoded.tobytes())
     ctx.run_command(
         ["unpaper", "--overwrite", "--no-deskew", "--no-layout", str(source), str(target)], timeout=300
     )
-    result = cv2.imread(str(target), cv2.IMREAD_UNCHANGED)
+    result = cv2.imdecode(np.frombuffer(target.read_bytes(), np.uint8), cv2.IMREAD_UNCHANGED)
     if result is None:
         raise ToolError("unpaper nie zwrócił obrazu.")
     return result

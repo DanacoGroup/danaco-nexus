@@ -23,6 +23,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    TypeDecorator,
     Uuid,
     text,
 )
@@ -40,6 +41,18 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+class UtcDateTime(TypeDecorator[datetime]):
+    """Znacznik czasu zawsze ze strefą UTC (SQLite zwraca wartości bez strefy)."""
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+
 class Base(DeclarativeBase):
     """Klasa bazowa modeli."""
 
@@ -51,7 +64,7 @@ class Setting(Base):
 
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 
 class UserSession(Base):
@@ -60,9 +73,9 @@ class UserSession(Base):
     __tablename__ = "sessions"
 
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime())
+    last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     ip_address: Mapped[str] = mapped_column(String(64), default="")
     user_agent: Mapped[str] = mapped_column(String(300), default="")
 
@@ -74,8 +87,8 @@ class Conversation(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(200), default="Nowa rozmowa")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 
 class Message(Base):
@@ -97,7 +110,7 @@ class Message(Base):
     kind: Mapped[str] = mapped_column(String(20))
     content: Mapped[list[dict[str, Any]]] = mapped_column(JsonType)
     meta: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 
 class StoredFile(Base):
@@ -118,7 +131,7 @@ class StoredFile(Base):
     storage_path: Mapped[str] = mapped_column(String(300))
     meta: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     indexed: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 
 class Run(Base):
@@ -135,10 +148,10 @@ class Run(Base):
     worker_id: Mapped[str] = mapped_column(String(100), default="")
     error: Mapped[str] = mapped_column(Text, default="")
     usage: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
 
 
 class RunEvent(Base):
@@ -151,7 +164,7 @@ class RunEvent(Base):
     run_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("runs.id", ondelete="CASCADE"))
     type: Mapped[str] = mapped_column(String(40))
     data: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
 
 class ToolCall(Base):
@@ -167,7 +180,7 @@ class ToolCall(Base):
     status: Mapped[str] = mapped_column(String(20), default="running")
     summary: Mapped[str] = mapped_column(Text, default="")
     output_file_ids: Mapped[list[str]] = mapped_column(JsonType, default=list)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
 
 

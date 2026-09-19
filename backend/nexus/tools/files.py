@@ -254,7 +254,7 @@ def extract_text(ctx: ToolContext, args: ExtractTextInput) -> ToolResult:
         raise ToolError("Obraz nie ma warstwy tekstowej – użyj ocr_documents.")
     else:
         text = _tika_text(ctx, file)
-    text, truncated = truncate_text(text)
+    text, truncated = truncate_text(text.replace(" ", " "))
     data: dict[str, Any] = {"file": file.name, "chars": len(text), "text": text}
     if truncated:
         data["truncated"] = (

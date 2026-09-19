@@ -52,7 +52,7 @@ TITLE_KEYWORDS = (
 )
 PAGE_OF = re.compile(r"(?:strona|str\.?|page)\s*(\d{1,3})\s*(?:z|/|of)\s*(\d{1,3})", re.IGNORECASE)
 PAGE_SLASH = re.compile(r"(?<![\d/.])(\d{1,3})\s*/\s*(\d{1,3})(?![\d/.])")
-BLANK_INK_RATIO = 0.002
+BLANK_INK_RATIO = 0.0005
 
 
 class Segment(BaseModel):
@@ -244,7 +244,7 @@ def detect_document_boundaries(ctx: ToolContext, args: BoundariesInput) -> ToolR
             ctx.check_cancelled()
             ctx.progress(f"Analiza stron: {index + 1}/{document.page_count}")
             header, footer, ink = _band_text(page, args.ocr_language, tesseract)
-            blank = ink < BLANK_INK_RATIO
+            blank = ink < BLANK_INK_RATIO and not header
             combined = f"{header} {footer}"
             marker = PAGE_OF.search(combined) or PAGE_SLASH.search(footer)
             page_number = (int(marker.group(1)), int(marker.group(2))) if marker else None

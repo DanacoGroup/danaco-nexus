@@ -44,7 +44,8 @@ def guess_mime(name: str) -> str:
 
 def safe_filename(name: str, default: str = "plik") -> str:
     """Bezpieczna nazwa pliku (bez ścieżek i znaków sterujących), z polskimi literami."""
-    name = unicodedata.normalize("NFC", Path(name.replace("\\", "/")).name)
+    # Ukośniki (np. „FV 1/2026”) zamieniane są na „_” – nazwa nigdy nie wskazuje katalogu.
+    name = unicodedata.normalize("NFC", name.replace("/", "_").replace("\\", "_"))
     name = re.sub(r"[\x00-\x1f<>:\"/\\|?*]+", "_", name).strip(" .")
     if not name:
         return default
