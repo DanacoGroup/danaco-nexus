@@ -16,6 +16,10 @@ const BLOKOWE = new Set([
   "H1", "H2", "H3", "H4", "H5", "H6", "HR", "LI", "MAIN", "OL", "P", "PRE", "SECTION", "TABLE",
   "TBODY", "THEAD", "TFOOT", "TR", "UL", "DETAILS", "SUMMARY",
 ]);
+const AKAPITOWE = new Set([
+  "P", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE", "TABLE", "UL", "OL", "DL", "FIGURE", "HR",
+  "ARTICLE", "SECTION",
+]);
 const PLUS = /article|body|content|entry|hentry|main|page|post|text|blog|story|tresc|artykul|review|opini/i;
 const MINUS =
   /comment|meta|footer|footnote|sidebar|sponsor|advert|\bads?\b|share|social|nav|menu|cookie|consent|banner|promo|related|popup|modal|breadcrumb|newsletter|stopka|reklam/i;
@@ -49,12 +53,29 @@ function pominiety(el: Element, wObudowie: boolean): boolean {
 
 /** Tekst z zachowaniem struktury (nagłówki, akapity, listy, tabele). */
 export function tekstElementu(korzen: Element, zachowajObudowe = false): string {
-  const czesci: string[] = [];
-  const nowaLinia = () => czesci.push("\n");
+  // Przerwy: 1 = nowa linia (div, wiersz tabeli, punkt listy), 2 = pusta linia (akapit).
+  // Sąsiednie przerwy łączą się w silniejszą, więc zagnieżdżone bloki nie mnożą pustych linii.
+  const wynik: string[] = [];
+  let przerwa = 0;
+  let poczatek = true;
+  const dodajPrzerwe = (sila: number) => {
+    przerwa = Math.max(przerwa, sila);
+  };
+  const dodajTekst = (tekst: string) => {
+    if (!tekst) return;
+    if (!tekst.trim()) {
+      if (!przerwa && !poczatek) wynik.push(" ");
+      return;
+    }
+    if (przerwa && !poczatek) wynik.push(przerwa === 2 ? "\n\n" : "\n");
+    przerwa = 0;
+    poczatek = false;
+    wynik.push(tekst);
+  };
 
   const idz = (wezel: Node): void => {
     if (wezel.nodeType === 3) {
-      czesci.push((wezel.textContent ?? "").replace(/\s+/g, " "));
+      dodajTekst((wezel.textContent ?? "").replace(/\s+/g, " "));
       return;
     }
     if (wezel.nodeType !== 1) return;
@@ -62,29 +83,29 @@ export function tekstElementu(korzen: Element, zachowajObudowe = false): string 
     if (el !== korzen && pominiety(el, zachowajObudowe)) return;
     const tag = el.tagName.toUpperCase();
     if (tag === "BR") {
-      nowaLinia();
+      dodajPrzerwe(1);
       return;
     }
+    const sila = AKAPITOWE.has(tag) ? 2 : BLOKOWE.has(tag) ? 1 : 0;
+    dodajPrzerwe(sila);
     const naglowek = /^H([1-6])$/.exec(tag);
-    const blok = BLOKOWE.has(tag);
-    if (blok) nowaLinia();
-    if (naglowek) czesci.push(`${"#".repeat(Number(naglowek[1]))} `);
-    if (tag === "LI") czesci.push("- ");
+    if (naglowek) dodajTekst(`${"#".repeat(Number(naglowek[1]))} `);
+    if (tag === "LI") dodajTekst("- ");
     if (tag === "IMG") {
       const alt = el.getAttribute("alt")?.trim();
-      if (alt) czesci.push(` [obraz: ${alt}] `);
+      if (alt) dodajTekst(`[obraz: ${alt}]`);
     }
+    const przed = wynik.length;
     for (const dziecko of Array.from(el.childNodes)) idz(dziecko);
-    if (tag === "TD" || tag === "TH") czesci.push(" | ");
-    if (blok) nowaLinia();
+    if ((tag === "TD" || tag === "TH") && wynik.length > przed && el.nextElementSibling) dodajTekst(" | ");
+    dodajPrzerwe(sila);
   };
   idz(korzen);
-  return czesci
+  return wynik
     .join("")
     .split("\n")
-    .map((linia) => linia.replace(/[ \t]+/g, " ").replace(/\s*\|\s*$/, "").trim())
+    .map((linia) => linia.replace(/[ \t]+/g, " ").trim())
     .join("\n")
-    .replace(/\n(?:- |#+ )?\n/g, "\n\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

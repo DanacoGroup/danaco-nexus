@@ -217,8 +217,6 @@ function wstawDoEdytora(korzen: HTMLElement, tekst: string, opcje: OpcjeWstawian
     zakres.selectNodeContents(korzen);
   } else if (opcje.zakres && korzen.contains(opcje.zakres.commonAncestorContainer)) {
     zakres = opcje.zakres;
-  } else if (zaznaczenie && zaznaczenie.rangeCount > 0 && korzen.contains(zaznaczenie.getRangeAt(0).commonAncestorContainer)) {
-    zakres = zaznaczenie.getRangeAt(0);
   } else {
     zakres = doc.createRange();
     zakres.selectNodeContents(korzen);
@@ -254,14 +252,20 @@ function wstawDoEdytora(korzen: HTMLElement, tekst: string, opcje: OpcjeWstawian
 
 /** Wstawia tekst w pole formularza lub edytor contenteditable. */
 export function wstawTekst(pole: HTMLElement, tekst: string, opcje: OpcjeWstawiania = {}): boolean {
+  const pojedyncze = pole.tagName === "TEXTAREA" || pole.tagName === "INPUT";
+  const korzen = pojedyncze ? null : edytowalnyKorzen(pole);
+  // Kursor sprzed focus(): fokus edytora przenosi zaznaczenie na jego początek.
+  let zakres = opcje.zakres ?? null;
+  const zaznaczenie = pole.ownerDocument.getSelection();
+  if (!zakres && korzen && zaznaczenie && zaznaczenie.rangeCount > 0) {
+    const biezacy = zaznaczenie.getRangeAt(0);
+    if (korzen.contains(biezacy.commonAncestorContainer)) zakres = biezacy.cloneRange();
+  }
   try {
     pole.focus({ preventScroll: true });
   } catch {
     pole.focus();
   }
-  if (pole.tagName === "TEXTAREA" || pole.tagName === "INPUT") {
-    return wstawDoPola(pole as HTMLTextAreaElement, tekst, !!opcje.calosc);
-  }
-  const korzen = edytowalnyKorzen(pole);
-  return korzen ? wstawDoEdytora(korzen, tekst, opcje) : false;
+  if (pojedyncze) return wstawDoPola(pole as HTMLTextAreaElement, tekst, !!opcje.calosc);
+  return korzen ? wstawDoEdytora(korzen, tekst, { ...opcje, zakres }) : false;
 }

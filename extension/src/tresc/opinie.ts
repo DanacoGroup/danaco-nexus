@@ -193,10 +193,12 @@ function tekstKarty(karta: Element, regula: Regula): string {
 }
 
 /** Pole odpowiedzi w karcie opinii lub tuż obok (do trzech poziomów wyżej). */
-function poleOdpowiedzi(karta: Element): HTMLElement | null {
+function poleOdpowiedzi(karta: Element, karty: Element[]): HTMLElement | null {
   const selektor = 'textarea, [contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]';
   let zakres: Element | null = karta;
   for (let poziom = 0; zakres && poziom < 3; poziom += 1, zakres = zakres.parentElement) {
+    // Przodek obejmujący inną kartę to już lista opinii – pole należałoby do innej opinii.
+    if (zakres !== karta && karty.some((inna) => inna !== karta && zakres!.contains(inna))) break;
     const pola = Array.from(zakres.querySelectorAll<HTMLElement>(selektor)).filter(
       (pole) => !(pole as HTMLTextAreaElement).disabled && !(pole as HTMLTextAreaElement).readOnly,
     );
@@ -253,7 +255,7 @@ export function znajdzOpinie(doc: Document, adres = doc.location?.href ?? ""): Z
         const tekst = tekstKarty(karta, regula);
         if (tekst.length < 20) continue;
         zajete.push(karta);
-        const pole = poleOdpowiedzi(karta);
+        const pole = poleOdpowiedzi(karta, karty);
         wynik.push({
           id: `op-${wynik.length + 1}`,
           rodzaj: regula.rodzaj,
