@@ -3,6 +3,7 @@ package pl.danaco.nexus
 import android.app.Application
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.PackageInfo
 import android.view.View
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
@@ -16,6 +17,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowWebView
 import pl.danaco.nexus.config.AppSettings
 import pl.danaco.nexus.overlay.EdgeTabService
 import pl.danaco.nexus.panel.PanelView
@@ -44,6 +46,12 @@ class AndroidSmokeTest {
 
     @Test
     fun `okno glowne laduje nexusa z wtyczka mostka`() {
+        ShadowWebView.setCurrentWebViewPackage(
+            PackageInfo().apply {
+                packageName = "com.google.android.webview"
+                versionName = "140.0.7339.0"
+            },
+        )
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         val webView = activity.bridge.webView
         assertEquals("https://danaco-nexus.pl", activity.bridge.serverUrl)
