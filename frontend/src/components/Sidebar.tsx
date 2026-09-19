@@ -1,13 +1,14 @@
-// Panel historii rozmów: nowa rozmowa, lista, zmiana nazwy, usuwanie, wylogowanie.
+// Panel historii rozmów: nowa rozmowa, lista, zmiana nazwy, usuwanie, chmura osobista, wylogowanie.
 
 import { useState } from "react";
 import type { ConversationSummary } from "../api";
-import { EditIcon, LogoutIcon, PlusIcon, TrashIcon } from "./icons";
+import { CloudIcon, EditIcon, LogoutIcon, PlusIcon, TrashIcon } from "./icons";
 
 interface Props {
   conversations: ConversationSummary[];
   currentId: string | null;
   username: string;
+  cloudUrl: string;
   open: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -107,6 +108,11 @@ export function Sidebar(props: Props) {
           ))}
           {props.conversations.length === 0 && <div className="history-empty">Brak rozmów</div>}
         </nav>
+        {props.cloudUrl && (
+          <a className="cloud-link" href={props.cloudUrl} target="_blank" rel="noopener noreferrer">
+            <CloudIcon size={18} /> Chmura osobista
+          </a>
+        )}
         <div className="account">
           <span className="account-avatar">{props.username.slice(0, 1).toUpperCase()}</span>
           <span className="account-name">{props.username}</span>

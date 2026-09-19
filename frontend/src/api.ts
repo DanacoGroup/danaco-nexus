@@ -94,7 +94,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 }
 
 export const api = {
-  me: () => request<{ username: string }>("GET", "/api/auth/me"),
+  me: () => request<{ username: string; cloud_url?: string }>("GET", "/api/auth/me"),
   login: (username: string, password: string) =>
     request<{ username: string }>("POST", "/api/auth/login", { username, password }),
   logout: () => request<{ ok: boolean }>("POST", "/api/auth/logout"),

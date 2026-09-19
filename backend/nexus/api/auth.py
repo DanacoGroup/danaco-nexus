@@ -131,7 +131,7 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "Hasło administratora nie jest ustawione. Na serwerze uruchom: "
-            "docker compose exec api python -m nexus.cli set-password",
+            "deploy/nexus-cli.sh set-password",
         )
     username_ok = secrets.compare_digest(
         payload.username.strip().lower(), stored.get(USERNAME_KEY, DEFAULT_USERNAME).lower()
@@ -186,8 +186,11 @@ async def logout(
 
 @router.get("/me")
 async def me(request: Request, _: UserSession = Depends(require_session)) -> dict[str, str]:
-    """Dane zalogowanego użytkownika."""
+    """Dane zalogowanego użytkownika i adres chmury osobistej (pusty, gdy brak)."""
     database: Database = request.app.state.database
     async with database.session() as session:
         record = await session.get(Setting, USERNAME_KEY)
-    return {"username": record.value if record else DEFAULT_USERNAME}
+    return {
+        "username": record.value if record else DEFAULT_USERNAME,
+        "cloud_url": request.app.state.settings.chmura_public_url,
+    }

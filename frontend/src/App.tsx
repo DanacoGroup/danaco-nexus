@@ -33,6 +33,7 @@ function conversationFromPath(): string | null {
 
 export default function App() {
   const [user, setUser] = useState<string | null | undefined>(undefined);
+  const [cloudUrl, setCloudUrl] = useState("");
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(conversationFromPath());
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
@@ -133,7 +134,10 @@ export default function App() {
   useEffect(() => {
     api
       .me()
-      .then((me) => setUser(me.username))
+      .then((me) => {
+        setUser(me.username);
+        setCloudUrl(me.cloud_url ?? "");
+      })
       .catch(() => setUser(null));
     return () => unsubscribe.current?.();
   }, []);
@@ -198,6 +202,7 @@ export default function App() {
         conversations={conversations}
         currentId={currentId}
         username={user}
+        cloudUrl={cloudUrl}
         open={sidebarOpen}
         onSelect={open}
         onNew={() => open(null)}
