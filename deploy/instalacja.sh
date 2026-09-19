@@ -82,7 +82,7 @@ fi
 # Aktualizacje Nextcloud wykonuje jego własny mechanizm (occ upgrade / aktualizator).
 
 krok "Klaster PostgreSQL (dane/postgres, port $PG_PORT)"
-if [ ! -f dane/postgres/PG_VERSION ]; then
+if ! sudo -u "$USLUGA_UZYTKOWNIK" test -f dane/postgres/PG_VERSION; then
     sudo -u "$USLUGA_UZYTKOWNIK" env LD_LIBRARY_PATH="$PG_LIB" "$PG_BIN/initdb" \
         -D "$PROJEKT/dane/postgres" --encoding=UTF8 --locale=C.UTF-8 \
         --auth-local=peer --auth-host=reject --username="$USLUGA_UZYTKOWNIK"

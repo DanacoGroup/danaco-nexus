@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     tika_app_jar: Path = Path("/danaco/programy/tika/tika-app-4.0.0.jar")
     java_bin: str = "/danaco/programy/java/bin/java"
     languagetool_url: str = "http://127.0.0.1:8010"
+    chmura_url: str = "http://127.0.0.1:8940"
+    chmura_public_url: str = ""
+    chmura_user: str = "admin"
+    chmura_token_file: Path = Path("dane/app/chmura-token")
     realesrgan_dir: Path = Path("/danaco/programy/realesrgan")
 
     session_days: int = 30
