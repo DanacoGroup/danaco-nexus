@@ -25,6 +25,7 @@ from mcp.server.stdio import stdio_server
 from nexus import __version__
 from nexus.config import get_settings
 from nexus.db import Database, RunEvent
+from nexus.events import EventBus
 from nexus.file_service import FileService
 from nexus.logging_setup import configure_logging
 from nexus.storage import FileStorage
@@ -58,10 +59,12 @@ class ToolServer:
         conversation = os.environ.get("NEXUS_CONVERSATION_ID", "")
         self._conversation_id = uuid.UUID(conversation) if conversation else None
         self._cancel = threading.Event()
+        self._events = EventBus(self._settings.redis_url)
 
     async def emit(self, event_type: str, data: dict[str, Any]) -> None:
         async with self._database.session() as session:
             session.add(RunEvent(run_id=self._run_id, type=event_type, data=data))
+        await self._events.notify(self._run_id)
 
     async def list_tools(self, _ctx: Any, _params: Any) -> types.ListToolsResult:
         return types.ListToolsResult(
@@ -144,6 +147,7 @@ class ToolServer:
         finally:
             self._cancel.set()
             self._executor.shutdown(wait=False, cancel_futures=True)
+            await self._events.close()
             await self._database.close()
 
 

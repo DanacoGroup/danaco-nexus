@@ -15,6 +15,7 @@ from nexus import __version__
 from nexus.api import auth, conversations, files, runs
 from nexus.config import Settings, get_settings
 from nexus.db import Database
+from nexus.events import EventBus
 from nexus.knowledge import KnowledgeBase
 from nexus.logging_setup import configure_logging
 from nexus.storage import FileStorage
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.database = database
         app.state.storage = FileStorage(settings.files_dir)
         app.state.login_throttle = auth.LoginThrottle(settings.login_attempts_per_15_min)
+        app.state.events = EventBus(settings.redis_url)
         app.state.knowledge = KnowledgeBase(
             settings.qdrant_url,
             settings.qdrant_collection,
@@ -62,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.cache_dir / "fastembed",
         )
         yield
+        await app.state.events.close()
         await database.close()
 
     app = FastAPI(

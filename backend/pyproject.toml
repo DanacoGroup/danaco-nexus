@@ -9,6 +9,7 @@ description = "Danaco Nexus - Personal AI Workspace for Documents, Images and Au
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=2.2,<3",
+    "redis>=5.2,<8",
     "fastapi>=0.141,<1",
     "uvicorn[standard]>=0.53,<1",
     "sqlalchemy[asyncio]>=2.0.54,<2.1",

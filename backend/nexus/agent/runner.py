@@ -32,6 +32,7 @@ from sqlalchemy import select, update
 from nexus.agent.prompt import SYSTEM_PROMPT
 from nexus.config import Settings
 from nexus.db import Conversation, Database, Message, Run, RunEvent, ToolCall, utcnow
+from nexus.events import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -283,9 +284,10 @@ class _RunState:
 class AgentRunner:
     """Wykonuje przebiegi agenta przez Claude Code CLI."""
 
-    def __init__(self, settings: Settings, database: Database) -> None:
+    def __init__(self, settings: Settings, database: Database, events: EventBus | None = None) -> None:
         self._settings = settings
         self._db = database
+        self._events = events or EventBus(settings.redis_url)
 
     # --- zdarzenia i zapis -----------------------------------------------------------------
 
@@ -293,6 +295,7 @@ class AgentRunner:
         """Zapisuje zdarzenie przebiegu (odczytywane strumieniowo przez API)."""
         async with self._db.session() as session:
             session.add(RunEvent(run_id=run_id, type=event_type, data=data))
+        await self._events.notify(run_id)
 
     async def _flush(self, run_id: uuid.UUID, buffer: _Buffer, force: bool = False) -> None:
         if not buffer.parts:

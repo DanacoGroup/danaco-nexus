@@ -1,0 +1,24 @@
+[Unit]
+Description=Danaco Nexus — Valkey/Redis (zdarzenia zadań, pamięć podręczna i blokady chmury; gniazdo dane/run)
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+After=network.target
+RequiresMountsFor=/danaco/projekty/danaco-nexus
+PartOf=danaco-nexus.target
+
+[Service]
+Type=notify
+User=danaco-serwis
+Group=danaco-user
+UMask=0007
+ExecStart=/danaco/projekty/danaco-nexus/programy/valkey/bin/valkey-server /danaco/projekty/danaco-nexus/deploy/valkey/valkey.conf
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane/valkey /danaco/projekty/danaco-nexus/dane/run
+
+[Install]
+WantedBy=danaco-nexus.target

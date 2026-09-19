@@ -24,6 +24,7 @@ NODE_BIN=/danaco/programy/node/bin
 PG_BIN=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin
 PG_LIB=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
 QDRANT_WERSJA=v1.19.1
+VALKEY_WERSJA=9.1.2
 FRANKENPHP_WERSJA=v1.12.7
 NEXTCLOUD_WERSJA=34.0.4
 PG_PORT=5433
@@ -34,7 +35,7 @@ krok() { printf '\n== %s\n' "$*"; }
 
 krok "Katalogi projektu"
 umask 002
-mkdir -p dane/app dane/run dane/qdrant dane/tmp dane/.cache programy .cache
+mkdir -p dane/app dane/run dane/qdrant dane/valkey dane/tmp dane/.cache programy .cache
 if [ ! -d dane/claude-profil ]; then
     sudo -u "$USLUGA_UZYTKOWNIK" mkdir -m 700 dane/claude-profil
 fi
@@ -57,6 +58,19 @@ if [ ! -x programy/qdrant/qdrant ] || [ "$(cat programy/qdrant/WERSJA 2>/dev/nul
     echo "$QDRANT_WERSJA" > programy/qdrant/WERSJA
 fi
 programy/qdrant/qdrant --version
+
+krok "Valkey $VALKEY_WERSJA (programy/valkey) – Redis projektu"
+if [ ! -x programy/valkey/bin/valkey-server ] || [ "$(cat programy/valkey/WERSJA 2>/dev/null)" != "$VALKEY_WERSJA" ]; then
+    archiwum="$PROJEKT/.cache/valkey-$VALKEY_WERSJA-noble-x86_64.tar.gz"
+    adres="https://download.valkey.io/releases/valkey-$VALKEY_WERSJA-noble-x86_64.tar.gz"
+    curl -fsSL --retry 3 -o "$archiwum" "$adres"
+    oczekiwana="$(curl -fsSL "$adres.sha256" | cut -d' ' -f1)"
+    [ "$(sha256sum "$archiwum" | cut -d' ' -f1)" = "$oczekiwana" ] || { echo "Błędna suma kontrolna Valkey" >&2; exit 1; }
+    mkdir -p programy/valkey
+    tar -xzf "$archiwum" -C programy/valkey --strip-components=1
+    echo "$VALKEY_WERSJA" > programy/valkey/WERSJA
+fi
+programy/valkey/bin/valkey-server --version
 
 krok "FrankenPHP $FRANKENPHP_WERSJA (programy/frankenphp) – serwer PHP chmury"
 if [ ! -x programy/frankenphp/frankenphp ] || [ "$(cat programy/frankenphp/WERSJA 2>/dev/null)" != "$FRANKENPHP_WERSJA" ]; then
@@ -96,7 +110,8 @@ for jednostka in deploy/systemd/*.service deploy/systemd/*.target deploy/systemd
     fi
 done
 sudo systemctl daemon-reload
-sudo systemctl enable --now danaco-nexus-postgres.service danaco-nexus-qdrant.service danaco-nexus-languagetool.service
+sudo systemctl enable --now danaco-nexus-postgres.service danaco-nexus-valkey.service \
+    danaco-nexus-qdrant.service danaco-nexus-languagetool.service
 
 krok "Baza danych nexus"
 for _ in $(seq 1 30); do

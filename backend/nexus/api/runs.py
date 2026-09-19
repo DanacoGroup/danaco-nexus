@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import time
 import uuid
@@ -15,11 +14,13 @@ from sqlalchemy import select, update
 
 from nexus.api.auth import require_session
 from nexus.db import Database, Run, RunEvent
+from nexus.events import EventBus
 
 router = APIRouter(prefix="/api/runs", tags=["runs"], dependencies=[Depends(require_session)])
 
 FINAL_EVENTS = frozenset({"run.completed", "run.failed", "run.cancelled"})
-POLL_SECONDS = 0.25
+# Z Redisem strumień czeka na powiadomienie; baza jest i tak odczytywana co kilka sekund.
+WAIT_SECONDS = 5.0
 KEEPALIVE_SECONDS = 15.0
 
 
@@ -60,6 +61,8 @@ async def cancel_run(run_id: uuid.UUID, request: Request) -> dict[str, str]:
         current = await session.scalar(select(Run.status).where(Run.id == run_id))
         if current == "cancelled":
             session.add(RunEvent(run_id=run_id, type="run.cancelled", data={"error": "Zadanie anulowane."}))
+    if current == "cancelled":
+        await request.app.state.events.notify(run_id)
     return {"status": current or "unknown"}
 
 
@@ -75,36 +78,39 @@ async def run_events(
     """Strumień zdarzeń zadania; wznowienie od ``Last-Event-ID`` lub parametru ``after``."""
     await _run(request, run_id)
     database: Database = request.app.state.database
+    bus: EventBus = request.app.state.events
     start = max(after, int(last_event_id) if last_event_id and last_event_id.isdigit() else 0)
 
     async def stream() -> AsyncIterator[str]:
         cursor = start
         last_sent = time.monotonic()
         yield "retry: 2000\n\n"
-        while True:
-            if await request.is_disconnected():
-                return
-            async with database.session() as session:
-                events = (
-                    await session.scalars(
-                        select(RunEvent)
-                        .where(RunEvent.run_id == run_id, RunEvent.id > cursor)
-                        .order_by(RunEvent.id)
-                        .limit(500)
-                    )
-                ).all()
-            for event in events:
-                cursor = event.id
-                yield _sse(event.id, event.type, event.data or {})
-                if event.type in FINAL_EVENTS:
+        # Subskrypcja przed pierwszym odczytem bazy – żadne powiadomienie nie ginie.
+        async with bus.listener(run_id) as wait:
+            while True:
+                if await request.is_disconnected():
                     return
-            if events:
-                last_sent = time.monotonic()
-                continue
-            if time.monotonic() - last_sent > KEEPALIVE_SECONDS:
-                last_sent = time.monotonic()
-                yield ": keepalive\n\n"
-            await asyncio.sleep(POLL_SECONDS)
+                async with database.session() as session:
+                    events = (
+                        await session.scalars(
+                            select(RunEvent)
+                            .where(RunEvent.run_id == run_id, RunEvent.id > cursor)
+                            .order_by(RunEvent.id)
+                            .limit(500)
+                        )
+                    ).all()
+                for event in events:
+                    cursor = event.id
+                    yield _sse(event.id, event.type, event.data or {})
+                    if event.type in FINAL_EVENTS:
+                        return
+                if events:
+                    last_sent = time.monotonic()
+                    continue
+                if time.monotonic() - last_sent > KEEPALIVE_SECONDS:
+                    last_sent = time.monotonic()
+                    yield ": keepalive\n\n"
+                await wait(WAIT_SECONDS)
 
     return StreamingResponse(
         stream(),

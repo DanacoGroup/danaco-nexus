@@ -1,7 +1,7 @@
 [Unit]
 Description=Danaco Nexus — prywatny asystent AI (wszystkie usługi)
 Documentation=file:///danaco/projekty/danaco-nexus/README.md
-Wants=danaco-nexus-postgres.service danaco-nexus-qdrant.service danaco-nexus-languagetool.service danaco-nexus-api.service danaco-nexus-worker.service danaco-nexus-chmura.service danaco-nexus-chmura-cron.timer
+Wants=danaco-nexus-postgres.service danaco-nexus-valkey.service danaco-nexus-qdrant.service danaco-nexus-languagetool.service danaco-nexus-api.service danaco-nexus-worker.service danaco-nexus-chmura.service danaco-nexus-chmura-cron.timer
 
 [Install]
 WantedBy=multi-user.target

@@ -62,6 +62,15 @@ occ config:system:set overwrite.cli.url --value="https://$DOMENA_CHMURY"
 occ config:system:set overwriteprotocol --value=https
 occ config:system:set overwritecondaddr --value='^127\.0\.0\.1$'
 occ config:system:set memcache.local --value='\OC\Memcache\APCu'
+# Valkey (Redis) projektu: pamięć rozproszona i blokady plików (baza 1; baza 0 należy do Nexusa).
+if [ -S "$PROJEKT/dane/run/valkey.sock" ]; then
+    occ config:system:set redis host --value="$PROJEKT/dane/run/valkey.sock"
+    occ config:system:set redis port --type=integer --value=0
+    occ config:system:set redis dbindex --type=integer --value=1
+    occ config:system:set redis timeout --type=float --value=1.5
+    occ config:system:set memcache.distributed --value='\OC\Memcache\Redis'
+    occ config:system:set memcache.locking --value='\OC\Memcache\Redis'
+fi
 occ config:system:set default_language --value=pl
 occ config:system:set default_locale --value=pl_PL
 occ config:system:set default_phone_region --value=PL

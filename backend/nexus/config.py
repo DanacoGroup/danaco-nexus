@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     tool_threads: int = 8
     upload_limit_mb: int = 2048
 
+    redis_url: str = ""
     qdrant_url: str = "http://127.0.0.1:6335"
     qdrant_collection: str = "nexus_documents"
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
