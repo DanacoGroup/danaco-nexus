@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <title>Nexus Desktop – ustawienia</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <main class="page">
+      <h1>Nexus Desktop</h1>
+      <p class="muted lead" id="version"></p>
+
+      <h2>Połączenie komputera</h2>
+      <div class="card stack">
+        <div class="status" id="agent-status" data-state="wylaczony">…</div>
+        <p class="muted lead" id="key-state"></p>
+        <div class="row">
+          <button class="btn btn-primary" id="connect">Połącz komputer</button>
+          <button class="btn" id="disconnect">Odłącz</button>
+        </div>
+        <p class="muted lead">
+          „Połącz komputer” tworzy klucz urządzenia z sesji okna Nexusa (musisz być zalogowany). Klucz jest
+          zapisany zaszyfrowany (DPAPI) i nie jest nigdzie wyświetlany.
+        </p>
+        <details>
+          <summary class="muted">Wklej klucz ręcznie</summary>
+          <div class="row">
+            <input type="password" id="manual-key" autocomplete="off" spellcheck="false" placeholder="nxd_…" aria-label="Klucz urządzenia" />
+            <button class="btn" id="save-key">Zapisz</button>
+          </div>
+        </details>
+        <div class="message" id="device-message" role="status"></div>
+      </div>
+
+      <h2>Asystent na tym komputerze</h2>
+      <div class="card">
+        <div class="row"><label for="agentEnabled">Lokalny agent (narzędzia pc_* dla asystenta)</label><input type="checkbox" id="agentEnabled" /></div>
+        <div class="row"><label for="allowFiles">Wyszukiwanie i podgląd plików</label><input type="checkbox" id="allowFiles" /></div>
+        <div class="row"><label for="allowScreenshots">Zrzuty ekranu na prośbę asystenta</label><input type="checkbox" id="allowScreenshots" /></div>
+        <div class="row"><label for="allowPowershell">Polecenia PowerShell (zmiany zawsze za Twoją zgodą)</label><input type="checkbox" id="allowPowershell" /></div>
+      </div>
+
+      <h2>Panel i uruchamianie</h2>
+      <div class="card stack">
+        <div>
+          <label for="shortcut">Skrót panelu (np. Control+Space, Alt+N)</label>
+          <input type="text" id="shortcut" spellcheck="false" />
+        </div>
+        <div>
+          <label for="screenShortcut">Skrót „panel + zobacz ekran”</label>
+          <input type="text" id="screenShortcut" spellcheck="false" />
+        </div>
+        <div class="row"><label for="autostart">Uruchamiaj z systemem Windows (w zasobniku)</label><input type="checkbox" id="autostart" /></div>
+        <div class="row"><label for="panelUsesDeviceKey">Panel loguje się kluczem urządzenia zamiast sesji okna</label><input type="checkbox" id="panelUsesDeviceKey" /></div>
+        <div>
+          <label for="serverUrl">Adres Nexusa</label>
+          <input type="url" id="serverUrl" spellcheck="false" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="message" id="save-message" role="status"></span>
+        <button class="btn btn-primary" id="save">Zapisz ustawienia</button>
+      </div>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <title>Nexus – pasek panelu</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <div class="toolbar" role="toolbar" aria-label="Panel Nexusa">
+      <div class="brand"><span class="brand-dot"></span>Nexus</div>
+      <button class="icon-btn" data-action="see-window" title="Zobacz ekran – dołącz zrzut aktywnego okna do rozmowy">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+        <span>Zobacz ekran</span>
+      </button>
+      <button class="icon-btn" data-action="see-screen" title="Dołącz zrzut całego ekranu" aria-label="Cały ekran">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
+      </button>
+      <button class="icon-btn" data-action="pin" aria-pressed="false" title="Przypnij panel (nie chowaj po kliknięciu obok)" aria-label="Przypnij">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z" /></svg>
+      </button>
+      <button class="icon-btn" data-action="main" title="Otwórz pełne okno Nexusa" aria-label="Pełne okno">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M10 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4" /></svg>
+      </button>
+      <button class="icon-btn" data-action="reload" title="Odśwież panel" aria-label="Odśwież">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+      </button>
+      <button class="icon-btn" data-action="settings" title="Ustawienia Nexus Desktop" aria-label="Ustawienia">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>
+      </button>
+      <button class="icon-btn" data-action="hide" title="Schowaj panel (Esc)" aria-label="Schowaj">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+      </button>
+    </div>
+    <script src="toolbar.js"></script>
+  </body>
+</html>

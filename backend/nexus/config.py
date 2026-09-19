@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     # Kalendarz (CalDAV Nextcloud, konto chmura_user): kalendarz domyślny i strefa czasowa.
     kalendarz_default: str = "personal"
     kalendarz_timezone: str = "Europe/Warsaw"
+    # --- moduł pulpit ---
+    # Limit czasu narzędzi pc_* (odpowiedź komputera) i dodatkowy czas na zgodę użytkownika
+    # przy poleceniach PowerShell zmieniających system.
+    pulpit_timeout_s: int = 90
+    pulpit_confirm_timeout_s: int = 300
 
     @property
     def files_dir(self) -> Path:

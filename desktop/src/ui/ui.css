@@ -1,0 +1,322 @@
+/* Nexus Desktop – style lokalnych okien (tokeny kolorów jak w motywie ciemnym Nexusa). */
+:root {
+  --app: #212121;
+  --side: #171717;
+  --raised: #2a2a2a;
+  --hover: #333336;
+  --line: #363638;
+  --line-strong: #4a4a4e;
+  --fg: #ececec;
+  --muted: #a1a1aa;
+  --accent: #8b7cf6;
+  --accent-hover: #9d90f8;
+  --accent-soft: #2c2748;
+  --on-accent: #ffffff;
+  --danger: #fb923c;
+  --danger-soft: #3a2418;
+  --success: #4ade80;
+  --code: #1a1a1a;
+  color-scheme: dark;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--app);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--raised);
+  border-radius: 10px;
+  padding: 8px 14px;
+  transition: background 0.12s;
+}
+
+.btn:hover {
+  background: var(--hover);
+}
+
+.btn:focus-visible,
+.icon-btn:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.icon-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+svg.icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="url"] {
+  width: 100%;
+  background: var(--side);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: var(--fg);
+  padding: 9px 12px;
+  font: inherit;
+}
+
+pre,
+code {
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+
+/* Pasek narzędzi panelu (przeciągany jak belka okna). */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 0 6px 0 12px;
+  background: var(--side);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.toolbar button {
+  -webkit-app-region: no-drag;
+}
+
+.toolbar .brand {
+  font-weight: 600;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* Języczek przy krawędzi ekranu. */
+body.tab {
+  background: transparent;
+  overflow: hidden;
+}
+
+.tab-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 7px;
+  border-radius: 8px 0 0 8px;
+  background: var(--accent);
+  opacity: 0.55;
+  transition: opacity 0.15s, width 0.15s;
+  cursor: pointer;
+}
+
+.tab-handle:hover {
+  opacity: 1;
+  width: 10px;
+}
+
+/* Ustawienia i okno zgody. */
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 22px 28px;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 14px;
+  margin: 22px 0 8px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: var(--side);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.row label {
+  flex: 1;
+}
+
+.stack > * + * {
+  margin-top: 10px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.status[data-state="polaczony"]::before {
+  background: var(--success);
+}
+
+.status[data-state="blad"]::before,
+.status[data-state="brak-klucza"]::before {
+  background: var(--danger);
+}
+
+.message {
+  min-height: 20px;
+  font-size: 13px;
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.message.ok {
+  color: var(--success);
+}
+
+.command {
+  background: var(--code);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 12px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  margin: 0;
+}
+
+.warning {
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+ul.reasons {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 12px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: var(--raised);
+}
+
+.lead {
+  margin: 4px 0 0;
+}

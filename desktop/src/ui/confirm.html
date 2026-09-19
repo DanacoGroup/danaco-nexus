@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <title>Nexus – zatwierdź polecenie</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <main class="page stack">
+      <div>
+        <h1 id="title">Asystent chce wykonać polecenie na tym komputerze</h1>
+        <p class="muted lead">
+          To polecenie może zmienić system lub pliki. Wykonaj je tylko wtedy, gdy rozumiesz, co robi.
+        </p>
+      </div>
+      <div id="warnings"></div>
+      <div>
+        <h2>Opis od asystenta</h2>
+        <div class="card" id="description"></div>
+      </div>
+      <div>
+        <h2>Pełne polecenie PowerShell</h2>
+        <pre class="command" id="command"></pre>
+      </div>
+      <div>
+        <h2>Dlaczego wymaga zgody</h2>
+        <ul class="reasons" id="reasons"></ul>
+      </div>
+      <p class="muted" id="timeout"></p>
+      <div class="actions">
+        <button class="btn" id="reject" autofocus>Odrzuć</button>
+        <button class="btn btn-primary" id="accept">Wykonaj</button>
+      </div>
+    </main>
+    <script src="confirm.js"></script>
+  </body>
+</html>
