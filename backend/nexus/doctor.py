@@ -188,6 +188,33 @@ def check_whisper(settings: Settings) -> Check:
     )
 
 
+def check_google_speech(settings: Settings) -> Check:
+    """Mowa Google Cloud: lista głosów, synteza i rozpoznanie próbki (gdy zapisano klucz)."""
+    from nexus.voice_google import GoogleSpeech, GoogleSpeechError
+
+    google = GoogleSpeech(settings.voice_google_key_file)
+    if not google.available():
+        return Check("mowa google", True, "brak klucza – rozmowa głosowa używa modeli lokalnych")
+    try:
+        voices = google.voices()
+        if not voices:
+            return Check(
+                "mowa google", False, "brak polskich głosów – sprawdź, czy Text-to-Speech API jest włączone"
+            )
+        audio = google.speak("Dzień dobry, tu Nexus.", voices[0]["id"])
+        with tempfile.NamedTemporaryFile(suffix=".mp3") as sample:
+            sample.write(audio)
+            sample.flush()
+            text, _ = google.transcribe(Path(sample.name))
+    except (GoogleSpeechError, ValueError) as error:
+        return Check("mowa google", False, str(error)[:300])
+    finally:
+        google.close()
+    return Check(
+        "mowa google", bool(text), f"{len(voices)} głosów ({voices[0]['name']}…), rozpoznano: „{text}”"
+    )
+
+
 def check_http(name: str, url: str) -> Check:
     """Dostępność usługi HTTP."""
     try:
@@ -314,6 +341,7 @@ def run_checks(settings: Settings, online: bool = False) -> list[Check]:
         lambda: check_http("languagetool", f"{settings.languagetool_url}/v2/languages"),
         lambda: check_redis(settings),
         lambda: check_whisper(settings),
+        lambda: check_google_speech(settings),
         lambda: check_chmura(settings),
         lambda: check_claude_cli(settings),
         check_mcp_server,

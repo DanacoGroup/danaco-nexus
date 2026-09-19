@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from nexus.config import Settings
+from nexus.voice_google import GoogleSpeech, GoogleSpeechError
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,9 @@ class VoiceEngine:
         self._voices: dict[str, Any] = {}
         self._stt_lock = threading.Lock()
         self._tts_lock = threading.Lock()
+        # Google Cloud (gdy zapisano klucz): naturalne głosy i szybsze rozpoznawanie; lokalne modele
+        # pozostają zapasem przy błędzie usługi.
+        self.google = GoogleSpeech(settings.voice_google_key_file)
 
     # --- rozpoznawanie mowy ---------------------------------------------------------------
 
@@ -70,7 +74,7 @@ class VoiceEngine:
         return self._settings.voice_stt_model_dir
 
     def stt_available(self) -> bool:
-        return (self.stt_model_dir / "model.bin").is_file()
+        return (self.stt_model_dir / "model.bin").is_file() or self.google.available()
 
     def _load_stt(self) -> Any:
         if self._stt is None:
@@ -89,6 +93,17 @@ class VoiceEngine:
 
     def transcribe(self, audio: Path, language: str = "pl") -> Transcript:
         """Rozpoznaje wypowiedź z pliku audio (webm/opus, mp4/aac, wav…)."""
+        if self.google.available():
+            try:
+                text, duration = self.google.transcribe(audio, language)
+                return Transcript(text=text, language=language, duration=round(duration, 2))
+            except GoogleSpeechError as error:
+                logger.warning("Rozpoznawanie Google niedostępne, używam modelu lokalnego: %s", error)
+        return self._transcribe_local(audio, language)
+
+    def _transcribe_local(self, audio: Path, language: str) -> Transcript:
+        if not (self.stt_model_dir / "model.bin").is_file():
+            raise VoiceUnavailable(f"Brak modelu rozpoznawania mowy w {self.stt_model_dir}.")
         with self._stt_lock:
             model = self._load_stt()
             segments, info = model.transcribe(
@@ -105,13 +120,19 @@ class VoiceEngine:
 
     # --- synteza mowy ---------------------------------------------------------------------
 
-    def voices(self) -> list[dict[str, str]]:
+    def local_voices(self) -> list[dict[str, str]]:
         directory = self._settings.voice_tts_dir
         found = []
         for model in sorted(directory.glob("*.onnx")) if directory.is_dir() else []:
             if model.with_suffix(".onnx.json").is_file():
-                found.append({"id": model.stem, "name": VOICE_NAMES.get(model.stem, model.stem)})
+                found.append(
+                    {"id": model.stem, "name": f"{VOICE_NAMES.get(model.stem, model.stem)} (lokalny)"}
+                )
         return found
+
+    def voices(self) -> list[dict[str, str]]:
+        cloud = self.google.voices() if self.google.available() else []
+        return cloud + self.local_voices()
 
     def default_voice(self) -> str:
         available = [voice["id"] for voice in self.voices()]
@@ -136,18 +157,30 @@ class VoiceEngine:
                 with self._stt_lock:
                     self._load_stt()
             voice_id = self.default_voice()
-            if voice_id:
+            if voice_id and not voice_id.startswith("google:"):
                 with self._tts_lock:
                     self._load_voice(voice_id)
         except Exception:  # noqa: BLE001 - rozgrzewanie jest tylko przyspieszeniem
             logger.exception("Nie udało się wczytać modeli mowy z góry")
 
-    def speak(self, text: str, voice_id: str = "", speed: float = 1.0) -> bytes:
-        """Syntezuje tekst do pliku WAV (mono, częstotliwość modelu głosu)."""
+    def speak(self, text: str, voice_id: str = "", speed: float = 1.0) -> tuple[bytes, str]:
+        """Syntezuje tekst; zwraca dźwięk i jego typ (MP3 z Google albo WAV lokalnie)."""
         text = spoken_text(text)
         if not text:
             raise ValueError("Brak tekstu do przeczytania.")
         voice_id = voice_id or self.default_voice()
+        if voice_id.startswith("google:"):
+            try:
+                return self.google.speak(text, voice_id, speed), "audio/mpeg"
+            except GoogleSpeechError as error:
+                logger.warning("Synteza Google niedostępna, używam głosu lokalnego: %s", error)
+                local = self.local_voices()
+                if not local:
+                    raise VoiceUnavailable(str(error)) from error
+                voice_id = local[0]["id"]
+        return self._speak_local(text, voice_id, speed), "audio/wav"
+
+    def _speak_local(self, text: str, voice_id: str, speed: float) -> bytes:
         with self._tts_lock:
             voice = self._load_voice(voice_id)
             buffer = io.BytesIO()

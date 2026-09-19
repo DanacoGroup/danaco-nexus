@@ -117,7 +117,7 @@ export async function transcribeAudio(audio: Blob, signal?: AbortSignal): Promis
 }
 
 /** Synteza mowy (WAV) wybranym głosem. */
-export async function speakText(text: string, voice: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+export async function speakText(text: string, voice: string, signal?: AbortSignal): Promise<Blob> {
   const response = await fetch("/api/voice/speak", {
     method: "POST",
     credentials: "same-origin",
@@ -126,7 +126,7 @@ export async function speakText(text: string, voice: string, signal?: AbortSigna
     signal,
   });
   if (!response.ok) throw new ApiError(response.status, `Synteza mowy nie powiodła się (${response.status})`);
-  return response.arrayBuffer();
+  return response.blob();
 }
 
 export const api = {

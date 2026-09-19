@@ -29,11 +29,11 @@ export function unlockAudio(): void {
   void player.play().catch(() => undefined);
 }
 
-/** Odtwarza plik WAV; kończy się po odtworzeniu, błędzie albo przerwaniu. */
-export function playWav(data: ArrayBuffer, signal: AbortSignal): Promise<void> {
+/** Odtwarza dźwięk (MP3/WAV); kończy się po odtworzeniu, błędzie albo przerwaniu. */
+export function playAudio(data: Blob, signal: AbortSignal): Promise<void> {
   const player = audio();
   if (currentUrl) URL.revokeObjectURL(currentUrl);
-  currentUrl = URL.createObjectURL(new Blob([data], { type: "audio/wav" }));
+  currentUrl = URL.createObjectURL(data);
   player.src = currentUrl;
   return new Promise<void>((resolve, reject) => {
     const finish = (error?: unknown) => {

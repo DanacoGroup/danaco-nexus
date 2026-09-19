@@ -76,11 +76,13 @@ async def transcribe(
 
 @router.post("/speak")
 async def speak(payload: SpeakRequest, request: Request) -> Response:
-    """Czyta tekst wybranym głosem (WAV)."""
+    """Czyta tekst wybranym głosem (MP3 z Google Cloud albo WAV z głosu lokalnego)."""
     try:
-        audio = await asyncio.to_thread(_engine(request).speak, payload.text, payload.voice, payload.speed)
+        audio, media_type = await asyncio.to_thread(
+            _engine(request).speak, payload.text, payload.voice, payload.speed
+        )
     except VoiceUnavailable as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
     except ValueError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
-    return Response(audio, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+    return Response(audio, media_type=media_type, headers={"Cache-Control": "no-store"})

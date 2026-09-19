@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { speakText, transcribeAudio, type VoiceConfig } from "../api";
 import { CloseIcon } from "../components/icons";
-import { playWav, stopAudio } from "./player";
+import { playAudio, stopAudio } from "./player";
 import { speakable, takeSentences } from "./sentences";
 
 type Phase = "starting" | "listening" | "hearing" | "transcribing" | "thinking" | "speaking" | "paused" | "error";
@@ -77,7 +77,7 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
   const listenStart = useRef(0);
   const queue = useRef<string[]>([]);
   const cursor = useRef(0);
-  const inflight = useRef<Promise<ArrayBuffer>[]>([]);
+  const inflight = useRef<Promise<Blob>[]>([]);
   const speechAbort = useRef(new AbortController());
   const player = useRef(false);
   const abort = useRef<AbortController | null>(null);
@@ -173,11 +173,11 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
     try {
       fill();
       while (inflight.current.length) {
-        const data = await (inflight.current.shift() as Promise<ArrayBuffer>);
+        const data = await (inflight.current.shift() as Promise<Blob>);
         fill();
         if (phaseRef.current !== "speaking" && phaseRef.current !== "thinking") break;
         go("speaking");
-        await playWav(data, speechAbort.current.signal);
+        await playAudio(data, speechAbort.current.signal);
       }
     } catch (failure) {
       if ((failure as Error).name !== "AbortError") {
