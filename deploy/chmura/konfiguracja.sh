@@ -81,8 +81,9 @@ occ maintenance:update:htaccess >/dev/null || true
 echo "== Hasło aplikacji dla Nexusa (WebDAV)"
 TOKEN="$PROJEKT/dane/app/chmura-token"
 if [ ! -s "$TOKEN" ]; then
-    wynik="$(occ user:auth-tokens:add "$ADMIN" 2>&1 || true)"
-    haslo_aplikacji="$(printf '%s\n' "$wynik" | grep -oE '[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}' | tail -1)"
+    # Bez hasła logowania (tryb nieinteraktywny) – hasło aplikacji wyłącznie dla WebDAV Nexusa.
+    wynik="$(occ user:auth-tokens:add --name="Danaco Nexus" "$ADMIN" 2>&1 || true)"
+    haslo_aplikacji="$(printf '%s\n' "$wynik" | grep -E '^[A-Za-z0-9-]{20,}$' | tail -1 || true)"
     if [ -n "$haslo_aplikacji" ]; then
         printf '%s\n' "$haslo_aplikacji" > "$TOKEN"
         echo "Zapisano $TOKEN"
