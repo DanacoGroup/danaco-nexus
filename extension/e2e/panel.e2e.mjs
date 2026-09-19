@@ -145,6 +145,11 @@ try {
   const liczbaOpinii = await panel.locator(".opinia").count();
   sprawdz("Odpowiedz: rozpoznano 2 opinie z panelu partnera Booking", liczbaOpinii === 2, String(liczbaOpinii));
   sprawdz("Odpowiedz: przy opinii znaleziono pole odpowiedzi", (await panel.locator(".opinia-pole").count()) === 2);
+  if (process.env.NEXUS_E2E_ZRZUTY) {
+    await panel.locator(".opinia").first().hover();
+    await new Promise((r) => setTimeout(r, 500));
+    await strona.screenshot({ path: join(process.env.NEXUS_E2E_ZRZUTY, "panel-opinie.png") });
+  }
   const { kontekst: kontekst2, polecenie: polecenie2 } = await poAkcji(() => panel.locator(".opinia").first().click());
   sprawdz(
     "Odpowiedz: kontekst zawiera autora, ocenę i treść opinii",
