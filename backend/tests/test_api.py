@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -12,18 +13,32 @@ from fastapi.testclient import TestClient
 from nexus.api.app import create_app
 from nexus.api.auth import set_admin_credentials
 from nexus.config import Settings
-from nexus.db import Database
+from nexus.db import Base, Database
 
 PASSWORD = "bardzo-tajne-haslo-2026"
 HEADERS = {"X-Nexus-Request": "1"}
 
 
+def _reset_postgres(url: str) -> None:
+    async def run() -> None:
+        database = Database(url)
+        async with database.engine.begin() as connection:
+            await connection.run_sync(Base.metadata.drop_all)
+        await database.close()
+
+    asyncio.run(run())
+
+
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
+    """Ustawienia testowe: SQLite albo PostgreSQL (gdy ustawiono NEXUS_TEST_POSTGRES_URL)."""
+    postgres = os.environ.get("NEXUS_TEST_POSTGRES_URL", "")
+    if postgres:
+        _reset_postgres(postgres)
     return Settings(
         data_dir=tmp_path / "data",
         static_dir=tmp_path / "static",
-        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'nexus.db').as_posix()}",
+        database_url=postgres or f"sqlite+aiosqlite:///{(tmp_path / 'nexus.db').as_posix()}",
         cookie_secure=False,
         login_attempts_per_15_min=3,
         qdrant_url="http://127.0.0.1:1",
