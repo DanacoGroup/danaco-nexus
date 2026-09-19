@@ -91,7 +91,8 @@ def render_text_image(
 
 def write_image(path: Path, image: np.ndarray, quality: int = 92) -> Path:
     """Zapisuje obraz (obsługuje ścieżki ze znakami spoza ASCII)."""
-    ok, data = cv2.imencode(path.suffix, image, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    params = [cv2.IMWRITE_JPEG_QUALITY, quality] if path.suffix.lower() in {".jpg", ".jpeg"} else []
+    ok, data = cv2.imencode(path.suffix, image, params)
     assert ok
     path.write_bytes(data.tobytes())
     return path

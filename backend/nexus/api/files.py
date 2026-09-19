@@ -59,7 +59,7 @@ async def upload(
             storage.save_stream, file.file, name, settings.upload_limit_mb * 1024 * 1024
         )
     except ValueError as error:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(error)) from error
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, str(error)) from error
     finally:
         await file.close()
     record = StoredFile(

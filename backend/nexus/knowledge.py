@@ -62,7 +62,7 @@ class KnowledgeBase:
     _models: dict[str, Any] = {}
 
     def __init__(self, url: str, collection: str, model_name: str, cache_dir: Path) -> None:
-        self._client = QdrantClient(url=url, timeout=60)
+        self._client = QdrantClient(url=url, timeout=60, check_compatibility=False)
         self._collection = collection
         self._model_name = model_name
         self._cache_dir = cache_dir
