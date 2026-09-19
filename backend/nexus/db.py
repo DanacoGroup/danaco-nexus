@@ -25,6 +25,7 @@ from sqlalchemy import (
     Text,
     TypeDecorator,
     Uuid,
+    event,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -34,6 +35,13 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 JsonType = JSON().with_variant(JSONB(), "postgresql")
 IdType = BigInteger().with_variant(Integer(), "sqlite")
 SCHEMA_LOCK_ID = 7_314_225
+
+
+def _sqlite_pragmas(connection: Any, _record: Any) -> None:
+    cursor = connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.close()
 
 
 def utcnow() -> datetime:
@@ -189,7 +197,13 @@ class Database:
     """Silnik i fabryka sesji bazy danych."""
 
     def __init__(self, url: str) -> None:
-        self.engine: AsyncEngine = create_async_engine(url, pool_pre_ping=True)
+        sqlite = url.startswith("sqlite")
+        # SQLite (testy, rozwój): kilka procesów pisze naraz – czekanie na blokadę i dziennik WAL.
+        self.engine: AsyncEngine = create_async_engine(
+            url, pool_pre_ping=True, connect_args={"timeout": 30} if sqlite else {}
+        )
+        if sqlite:
+            event.listen(self.engine.sync_engine, "connect", _sqlite_pragmas)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def create_schema(self) -> None:
