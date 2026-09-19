@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from nexus.db import Database
 from nexus.ocr.pdf_processor import PdfProcessingError, find_text_layer_font
 
 REQUIRED_TESSERACT_LANGUAGES = ("pol", "eng", "osd")
+TOKEN_PATTERN = re.compile(r"sk-ant-oat01-[A-Za-z0-9_-]{60,}")
 PROGRAMS = ("soffice", "ffmpeg", "ffprobe", "magick", "unpaper", "inkscape")
 
 
@@ -217,14 +219,18 @@ def check_claude_cli(settings: Settings) -> list[Check]:
     version = _run([executable, "--version"], timeout=30).stdout.strip()
     profile = settings.claude_profile_dir
     token = read_oauth_token(profile)
-    return [
-        Check("claude cli", bool(version), f"{executable} ({version or 'brak wersji'})"),
-        Check(
+    if not token:
+        token_check = Check("token claude", False, f"{profile / 'oauth-token'} – brak (claude setup-token)")
+    elif not TOKEN_PATTERN.fullmatch(token):
+        token_check = Check(
             "token claude",
-            bool(token),
-            f"{profile / 'oauth-token'}" + ("" if token else " – brak (claude setup-token)"),
-        ),
-    ]
+            False,
+            f"{profile / 'oauth-token'} – nieprawidłowy format (oczekiwano sk-ant-oat01-…); "
+            "zapisz token ponownie: deploy/zapisz-token.sh",
+        )
+    else:
+        token_check = Check("token claude", True, f"{profile / 'oauth-token'} ({len(token)} znaków)")
+    return [Check("claude cli", bool(version), f"{executable} ({version or 'brak wersji'})"), token_check]
 
 
 async def _list_mcp_tools() -> list[str]:
