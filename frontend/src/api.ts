@@ -41,6 +41,7 @@ export interface UserTurn {
   files: FileInfo[];
   run_id?: string | null;
   created_at: string;
+  voice?: boolean;
 }
 
 export interface AssistantTurn {

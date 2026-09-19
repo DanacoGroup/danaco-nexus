@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { AssistantTurn, FileInfo, TurnItem, UserTurn } from "../api";
 import { toolLabel } from "../runState";
 import { FileCard } from "./FileCard";
-import { AlertIcon, CheckIcon, ChevronIcon, Logo, ToolIcon } from "./icons";
+import { AlertIcon, CheckIcon, ChevronIcon, Logo, MicIcon, ToolIcon } from "./icons";
 import { Markdown } from "./Markdown";
 
 type Preview = (file: FileInfo) => void;
@@ -20,7 +20,12 @@ export function UserMessage({ turn, onPreview }: { turn: UserTurn; onPreview: Pr
         </div>
       )}
       {turn.text && (
-        <div className="max-w-[85%] rounded-3xl bg-bubble px-4 py-2.5 break-words whitespace-pre-wrap">{turn.text}</div>
+        <div className="max-w-[85%] rounded-3xl bg-bubble px-4 py-2.5 break-words whitespace-pre-wrap">
+          {turn.voice && (
+            <MicIcon size={14} className="mr-1.5 inline align-[-2px] text-muted" aria-label="Wypowiedź głosowa" />
+          )}
+          {turn.text}
+        </div>
       )}
     </div>
   );

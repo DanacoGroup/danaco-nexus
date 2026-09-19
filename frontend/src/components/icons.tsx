@@ -172,3 +172,9 @@ export const WaveIcon = (p: IconProps) => (
     <path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />
   </Icon>
 );
+export const MicIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+  </Icon>
+);

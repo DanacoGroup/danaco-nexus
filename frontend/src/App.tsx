@@ -46,6 +46,8 @@ export default function App() {
   const [currentId, setCurrentId] = useState<string | null>(conversationFromPath());
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [activeRun, setActiveRun] = useState<string | null>(null);
+  const activeRunRef = useRef<string | null>(null);
+  activeRunRef.current = activeRun;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [preview, setPreview] = useState<FileInfo | null>(null);
   const [error, setError] = useState("");
@@ -208,6 +210,15 @@ export default function App() {
     if (element && stickToBottom.current) element.scrollTop = element.scrollHeight;
   }, [detail]);
 
+  // Wypowiedź w trakcie trwającego zadania (np. rozpoczętego na czacie) czeka na jego koniec –
+  // rozmowa jest jedna, a zadania w niej wykonują się po kolei.
+  const waitForIdle = async () => {
+    const deadline = Date.now() + 15 * 60 * 1000;
+    while (activeRunRef.current && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  };
+
   const send = async (text: string, files: FileInfo[], voice = false): Promise<boolean> => {
     try {
       let conversationId = currentId;
@@ -218,9 +229,18 @@ export default function App() {
         window.history.replaceState(null, "", `/c/${created.id}`);
         setDetail({ id: created.id, title: created.title, turns: [], files: [], active_run: null });
       }
+      if (voice) await waitForIdle();
       const { run_id } = await api.sendMessage(conversationId, text, files.map((file) => file.id), voice);
       if (voice) setVoiceRunId(run_id);
-      const userTurn: Turn = { type: "user", id: `local-${run_id}`, text, files, run_id, created_at: new Date().toISOString() };
+      const userTurn: Turn = {
+        type: "user",
+        id: `local-${run_id}`,
+        text,
+        files,
+        run_id,
+        voice,
+        created_at: new Date().toISOString(),
+      };
       const assistantTurn: AssistantTurn = emptyAssistantTurn(run_id);
       const id = conversationId;
       setDetail((current) =>

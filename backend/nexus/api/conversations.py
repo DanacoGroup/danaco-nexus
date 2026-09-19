@@ -156,6 +156,7 @@ def build_turns(
                     "type": "user",
                     "id": message.id,
                     "text": meta.get("text", ""),
+                    "voice": bool(meta.get("voice")),
                     "run_id": str(message.run_id) if message.run_id else None,
                     "files": [files[fid] for fid in meta.get("file_ids", []) if fid in files],
                     "created_at": message.created_at.isoformat(),
