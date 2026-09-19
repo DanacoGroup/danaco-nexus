@@ -1,0 +1,32 @@
+[Unit]
+Description=Danaco Nexus — proces roboczy (agent Claude Code CLI + narzędzia MCP)
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+After=network-online.target danaco-nexus-postgres.service danaco-nexus-qdrant.service
+Wants=network-online.target danaco-nexus-qdrant.service danaco-nexus-languagetool.service
+Requires=danaco-nexus-postgres.service
+RequiresMountsFor=/danaco/projekty/danaco-nexus
+PartOf=danaco-nexus.target
+
+[Service]
+Type=simple
+User=danaco-serwis
+Group=danaco-user
+UMask=0007
+WorkingDirectory=/danaco/projekty/danaco-nexus/backend
+EnvironmentFile=/danaco/projekty/danaco-nexus/.env
+Environment=HOME=/danaco/projekty/danaco-nexus/dane
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/danaco/projekty/danaco-nexus/.venv/bin/python -m nexus.worker
+# Bieżące zadania są dokańczane po SIGTERM; CLI i narzędzia działają w grupach procesów.
+KillMode=mixed
+TimeoutStopSec=120
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane
+
+[Install]
+WantedBy=danaco-nexus.target

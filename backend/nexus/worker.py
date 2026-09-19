@@ -13,17 +13,14 @@ import os
 import signal
 import socket
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
-import anthropic
 from sqlalchemy import text, update
 
 from nexus.agent.runner import AgentRunner
 from nexus.config import Settings, get_settings
 from nexus.db import Database, Run, utcnow
 from nexus.logging_setup import configure_logging
-from nexus.storage import FileStorage
 from nexus.tools import registry
 
 logger = logging.getLogger("nexus.worker")
@@ -71,17 +68,7 @@ class Worker:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._database = Database(settings.database_url)
-        self._executor = ThreadPoolExecutor(
-            max_workers=max(4, settings.tool_threads), thread_name_prefix="tool"
-        )
-        self._runner = AgentRunner(
-            settings,
-            self._database,
-            FileStorage(settings.files_dir),
-            anthropic.AsyncAnthropic(max_retries=4),
-            registry,
-            self._executor,
-        )
+        self._runner = AgentRunner(settings, self._database)
         self._worker_id = f"{socket.gethostname()}:{os.getpid()}"
         self._slots = asyncio.Semaphore(max(1, settings.worker_concurrency))
         self._stopping = asyncio.Event()
@@ -98,8 +85,10 @@ class Worker:
         if recovered:
             logger.warning("Oznaczono %d przerwanych zadań.", recovered)
         logger.info(
-            "Proces roboczy %s gotowy (równoległe przebiegi: %d, narzędzia: %d: %s)",
+            "Proces roboczy %s gotowy (CLI: %s, model: %s, równoległe przebiegi: %d, narzędzia: %d: %s)",
             self._worker_id,
+            self._settings.claude_bin,
+            self._settings.claude_model,
             self._settings.worker_concurrency,
             len(registry.names()),
             ", ".join(registry.names()),
@@ -124,7 +113,6 @@ class Worker:
         if self._tasks:
             logger.info("Oczekiwanie na zakończenie %d zadań…", len(self._tasks))
             await asyncio.gather(*self._tasks, return_exceptions=True)
-        self._executor.shutdown(wait=True, cancel_futures=True)
         await self._database.close()
 
     async def _execute(self, run_id: uuid.UUID) -> None:

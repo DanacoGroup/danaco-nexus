@@ -5,20 +5,17 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 from sqlalchemy import select, text, update
-from test_agent import FakeClient, reply
+from test_agent import prepare
 
 from nexus.agent.runner import AgentRunner
-from nexus.config import Settings
 from nexus.db import Base, Conversation, Database, Message, Run, RunEvent, utcnow
-from nexus.storage import FileStorage
-from nexus.tools import registry
 from nexus.worker import claim_next, recover_stale_runs
 
 POSTGRES_URL = os.environ.get("NEXUS_TEST_POSTGRES_URL", "")
@@ -92,37 +89,16 @@ async def test_stale_running_runs_are_recovered(database: Database) -> None:
     assert run is not None and run.status == "failed"
 
 
-async def test_full_worker_run_on_postgres(database: Database, tmp_path: Path) -> None:
-    conversation_id, (run_id,) = await add_conversation(database, 1)
-    settings = Settings(data_dir=tmp_path / "data", database_url=POSTGRES_URL)
-    client = FakeClient(
-        [
-            reply(
-                [
-                    {"type": "thinking", "thinking": "Plan: odpowiedz.", "signature": "s"},
-                    {
-                        "type": "tool_use",
-                        "id": "tu_1",
-                        "name": "search_documents",
-                        "input": {"query": "umowa najmu"},
-                    },
-                ],
-                "tool_use",
-            ),
-            reply([{"type": "text", "text": "Nie znalazłem dokumentów w bazie wiedzy."}], "end_turn"),
-        ]
+@pytest.mark.skipif(sys.platform == "win32", reason="atrapa CLI wymaga POSIX")
+async def test_full_worker_run_on_postgres(
+    database: Database, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings, _db, conversation_id, run_id, _file_id, _log = await prepare(
+        tmp_path, monkeypatch, "tool", database_url=POSTGRES_URL
     )
+    await _db.close()
     assert await claim_next(database, "test") == run_id
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        runner = AgentRunner(
-            settings,
-            database,
-            FileStorage(settings.files_dir),
-            client,  # type: ignore[arg-type]
-            registry,
-            executor,
-        )
-        await runner.execute(run_id)
+    await AgentRunner(settings, database).execute(run_id)
     async with database.session() as session:
         run = await session.get(Run, run_id)
         kinds = (
@@ -135,6 +111,6 @@ async def test_full_worker_run_on_postgres(database: Database, tmp_path: Path) -
         )
         jsonb = await session.scalar(text("SELECT jsonb_typeof(content) FROM messages LIMIT 1"))
     assert run is not None and run.status == "done", run.error if run else ""
-    assert list(kinds) == ["user", "assistant", "tool_results", "assistant"]
+    assert list(kinds) == ["user", "assistant", "assistant", "assistant", "tool_results", "assistant"]
     assert final == "run.completed"
     assert jsonb == "array"

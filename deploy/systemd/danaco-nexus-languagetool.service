@@ -1,0 +1,21 @@
+[Unit]
+Description=Danaco Nexus — LanguageTool (sprawdzanie tekstu, 127.0.0.1:8010)
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+After=network.target
+PartOf=danaco-nexus.target
+
+[Service]
+Type=simple
+User=danaco-serwis
+Group=danaco-user
+WorkingDirectory=/danaco/programy/languagetool
+ExecStart=/danaco/programy/java/bin/java -Xms256m -Xmx1536m -cp /danaco/programy/languagetool/languagetool-server.jar     org.languagetool.server.HTTPServer --port 8010
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=danaco-nexus.target

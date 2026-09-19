@@ -28,11 +28,11 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     set_password = commands.add_parser("set-password", help="Ustaw login i hasło administratora")
     set_password.add_argument("--username", default=DEFAULT_USERNAME)
-    doctor = commands.add_parser("doctor", help="Sprawdź bazę, usługi, narzędzia i klucz API")
+    doctor = commands.add_parser("doctor", help="Sprawdź bazę, usługi, narzędzia i Claude Code CLI")
     doctor.add_argument(
         "--online",
         action="store_true",
-        help="Sprawdź klucz API odczytem metadanych modelu (bez generowania tokenów)",
+        help="Wykonaj krótkie zapytanie testowe przez Claude Code CLI",
     )
     arguments = parser.parse_args(argv)
 

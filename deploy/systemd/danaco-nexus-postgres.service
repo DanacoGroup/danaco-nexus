@@ -1,0 +1,30 @@
+[Unit]
+Description=Danaco Nexus — PostgreSQL 18 (klaster projektu, gniazdo dane/run, port 5433)
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+After=network.target
+RequiresMountsFor=/danaco/projekty/danaco-nexus
+PartOf=danaco-nexus.target
+
+[Service]
+Type=notify
+User=danaco-serwis
+Group=danaco-user
+Environment=PGDATA=/danaco/projekty/danaco-nexus/dane/postgres
+Environment=LD_LIBRARY_PATH=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
+ExecStart=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin/postgres -D ${PGDATA}     -c port=5433 -c listen_addresses= -c unix_socket_directories=/danaco/projekty/danaco-nexus/dane/run     -c shared_buffers=512MB -c max_connections=60
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStartSec=300
+TimeoutStopSec=300
+Restart=on-failure
+RestartSec=5
+OOMPolicy=continue
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane/postgres /danaco/projekty/danaco-nexus/dane/run
+
+[Install]
+WantedBy=danaco-nexus.target

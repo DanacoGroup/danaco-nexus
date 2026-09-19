@@ -1,7 +1,8 @@
 """Konfiguracja aplikacji odczytywana ze zmiennych środowiskowych ``NEXUS_*``.
 
-Klucz API Anthropic SDK odczytuje samodzielnie ze zmiennej
-``ANTHROPIC_API_KEY``.
+Agent działa przez Claude Code CLI z własnym profilem projektu
+(``NEXUS_CLAUDE_PROFILE_DIR``); token OAuth konta leży w pliku
+``<profil>/oauth-token``.
 """
 
 from __future__ import annotations
@@ -17,26 +18,33 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="NEXUS_", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://nexus:nexus@postgres:5432/nexus"
-    data_dir: Path = Path("/data")
-    static_dir: Path = Path("/app/static")
+    database_url: str = "postgresql+asyncpg://nexus@127.0.0.1:5433/nexus"
+    data_dir: Path = Path("dane/app")
+    static_dir: Path = Path("frontend/dist")
 
-    anthropic_model: str = "claude-opus-5"
-    anthropic_effort: str = ""
-    max_output_tokens: int = 64000
-    max_agent_steps: int = 60
-    server_side_fallbacks: bool = True
+    claude_bin: str = "claude"
+    claude_profile_dir: Path = Path("dane/claude-profil")
+    claude_model: str = "claude-opus-5"
+    claude_fallback_model: str = "claude-sonnet-5"
+    claude_effort: str = ""
+    max_output_tokens: int = 0
+    max_tool_output_tokens: int = 60000
+    run_timeout_minutes: int = 120
+    tool_timeout_minutes: int = 90
+    mcp_startup_timeout_s: int = 60
 
     worker_concurrency: int = 2
     tool_threads: int = 8
     upload_limit_mb: int = 2048
 
-    qdrant_url: str = "http://qdrant:6333"
+    qdrant_url: str = "http://127.0.0.1:6335"
     qdrant_collection: str = "nexus_documents"
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    tika_url: str = "http://tika:9998"
-    languagetool_url: str = "http://languagetool:8010"
-    realesrgan_dir: Path = Path("/opt/realesrgan")
+    tika_url: str = ""
+    tika_app_jar: Path = Path("/danaco/programy/tika/tika-app-4.0.0.jar")
+    java_bin: str = "/danaco/programy/java/bin/java"
+    languagetool_url: str = "http://127.0.0.1:8010"
+    realesrgan_dir: Path = Path("/danaco/programy/realesrgan")
 
     session_days: int = 30
     cookie_secure: bool = True

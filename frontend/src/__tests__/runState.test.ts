@@ -37,6 +37,18 @@ describe("applyRunEvent", () => {
     }
   });
 
+  it("matches MCP progress events by tool name", () => {
+    let turn = emptyAssistantTurn("r1");
+    turn = applyRunEvent(turn, event("tool.started", { tool_use_id: "t1", name: "ocr_documents", input: {} }));
+    turn = applyRunEvent(turn, event("tool.finished", { tool_use_id: "t1", status: "done", summary: "OK", files: [], duration_ms: 1 }));
+    turn = applyRunEvent(turn, event("tool.started", { tool_use_id: "t2", name: "ocr_documents", input: {} }));
+    turn = applyRunEvent(turn, event("tool.progress", { name: "ocr_documents", text: "strona 2/5" }));
+    const [first, second] = turn.items;
+    expect(first.kind === "tool" && first.progress).toBeFalsy();
+    expect(second.kind === "tool" && second.progress).toBe("strona 2/5");
+    expect(applyRunEvent(turn, event("tool.progress", { name: "pdf_split", text: "x" }))).toBe(turn);
+  });
+
   it("zapisuje błąd i anulowanie zadania", () => {
     const failed = applyRunEvent(emptyAssistantTurn("r1"), event("run.failed", { error: "Brak klucza API" }));
     expect(failed).toMatchObject({ status: "failed", error: "Brak klucza API" });

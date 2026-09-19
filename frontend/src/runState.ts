@@ -47,8 +47,21 @@ export function applyRunEvent(turn: AssistantTurn, event: RunEvent): AssistantTu
           },
         ],
       };
-    case "tool.progress":
-      return { ...turn, items: updateTool(turn.items, String(data.tool_use_id), { progress: String(data.text ?? "") }) };
+    case "tool.progress": {
+      // Postęp z serwera MCP nie zna identyfikatora wywołania – dotyczy ostatniego
+      // trwającego wywołania narzędzia o tej nazwie.
+      let toolUseId = data.tool_use_id !== undefined ? String(data.tool_use_id) : undefined;
+      if (toolUseId === undefined) {
+        for (const item of [...turn.items].reverse()) {
+          if (item.kind === "tool" && item.status === "running" && item.name === data.name) {
+            toolUseId = item.tool_use_id;
+            break;
+          }
+        }
+      }
+      if (!toolUseId) return turn;
+      return { ...turn, items: updateTool(turn.items, toolUseId, { progress: String(data.text ?? "") }) };
+    }
     case "tool.finished":
       return {
         ...turn,

@@ -215,10 +215,28 @@ def view_pages(ctx: ToolContext, args: ViewInput) -> ToolResult:
 
 
 def _tika_text(ctx: ToolContext, file: FileRef) -> str:
+    """Tekst dokumentu przez Apache Tika: serwer (``tika_url``) albo tika-app w trybie wsadowym."""
+    settings = ctx.settings
+    if not settings.tika_url:
+        if not settings.tika_app_jar.is_file():
+            raise ToolError(f"Brak Apache Tika ({settings.tika_app_jar}).")
+        completed = ctx.run_command(
+            [
+                settings.java_bin,
+                "-Xmx2g",
+                "-jar",
+                str(settings.tika_app_jar),
+                "--text",
+                "--encoding=UTF-8",
+                str(file.path),
+            ],
+            timeout=600,
+        )
+        return completed.stdout
     with file.path.open("rb") as handle:
         try:
             response = httpx.put(
-                f"{ctx.settings.tika_url}/tika",
+                f"{settings.tika_url}/tika",
                 content=handle.read(),
                 headers={"Accept": "text/plain; charset=UTF-8"},
                 timeout=300,

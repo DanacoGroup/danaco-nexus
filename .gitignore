@@ -14,12 +14,14 @@ __pycache__/
 node_modules/
 frontend/dist/
 
-# Dane uruchomieniowe
+# Dane uruchomieniowe i programy instalowane w katalogu projektu
+dane/
 data/
 logs/
+programy/
+.cache/
 
 # Logi budowy i uruchomień lokalnych
 .logs/
 .tmp/
-.venv/
 *.egg-info/

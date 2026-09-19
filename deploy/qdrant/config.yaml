@@ -1,0 +1,15 @@
+# Qdrant projektu Danaco Nexus (tylko pętla zwrotna, porty 6335/6336).
+log_level: WARN
+
+storage:
+  storage_path: /danaco/projekty/danaco-nexus/dane/qdrant/storage
+  snapshots_path: /danaco/projekty/danaco-nexus/dane/qdrant/snapshots
+  temp_path: /danaco/projekty/danaco-nexus/dane/qdrant/tmp
+
+service:
+  host: 127.0.0.1
+  http_port: 6335
+  grpc_port: 6336
+  enable_cors: false
+
+telemetry_disabled: true

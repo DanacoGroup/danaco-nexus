@@ -8,7 +8,6 @@ narzędzie nigdy nie przyjmuje ścieżek z zewnątrz.
 
 from __future__ import annotations
 
-import base64
 import io
 import logging
 import shutil
@@ -151,6 +150,7 @@ class ToolContext:
             text=True,
             cwd=cwd,
             env=env,
+            encoding="utf-8",
             errors="replace",
         )
         waited = 0.0
@@ -190,12 +190,11 @@ class Tool:
     handler: ToolHandler
 
     def definition(self) -> dict[str, Any]:
-        """Definicja narzędzia dla Messages API."""
+        """Definicja narzędzia (nazwa, opis, schemat JSON parametrów)."""
         return {
             "name": self.name,
             "description": self.description,
             "input_schema": clean_schema(self.input_model.model_json_schema()),
-            "eager_input_streaming": True,
         }
 
     def parse(self, raw: Any) -> ToolInput:
@@ -267,19 +266,6 @@ def image_preview(image: Image.Image, max_side: int = PREVIEW_MAX_SIDE) -> bytes
     buffer = io.BytesIO()
     preview.save(buffer, format="JPEG", quality=82, optimize=True)
     return buffer.getvalue()
-
-
-def image_block(data: bytes) -> dict[str, Any]:
-    """Blok obrazu Messages API z bajtów JPEG/PNG."""
-    media_type = "image/png" if data[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
-    return {
-        "type": "image",
-        "source": {
-            "type": "base64",
-            "media_type": media_type,
-            "data": base64.standard_b64encode(data).decode("ascii"),
-        },
-    }
 
 
 def truncate_text(text: str, limit: int = MAX_TEXT_RESULT) -> tuple[str, bool]:

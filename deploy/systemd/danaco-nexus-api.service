@@ -1,0 +1,28 @@
+[Unit]
+Description=Danaco Nexus — API i interfejs WWW (127.0.0.1:8930)
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+After=network.target danaco-nexus-postgres.service
+Requires=danaco-nexus-postgres.service
+RequiresMountsFor=/danaco/projekty/danaco-nexus
+PartOf=danaco-nexus.target
+
+[Service]
+Type=simple
+User=danaco-serwis
+Group=danaco-user
+UMask=0007
+WorkingDirectory=/danaco/projekty/danaco-nexus/backend
+EnvironmentFile=/danaco/projekty/danaco-nexus/.env
+Environment=HOME=/danaco/projekty/danaco-nexus/dane
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/danaco/projekty/danaco-nexus/.venv/bin/python -m uvicorn nexus.api.app:app --host 127.0.0.1 --port 8930     --proxy-headers --forwarded-allow-ips 127.0.0.1 --timeout-keep-alive 75 --no-server-header
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane
+
+[Install]
+WantedBy=danaco-nexus.target

@@ -13,8 +13,6 @@ from sqlalchemy import delete, func, select, update
 from nexus.api.auth import require_session
 from nexus.db import Conversation, Database, Message, Run, StoredFile, ToolCall, utcnow
 from nexus.storage import FileStorage
-from nexus.tools.base import image_block, image_preview
-from nexus.tools.common import open_image
 
 router = APIRouter(
     prefix="/api/conversations", tags=["conversations"], dependencies=[Depends(require_session)]
@@ -22,8 +20,6 @@ router = APIRouter(
 
 DEFAULT_TITLE = "Nowa rozmowa"
 ACTIVE_STATUSES = ("queued", "running")
-MAX_ATTACHED_IMAGE_PREVIEWS = 4
-IMAGE_MIME_PREFIX = "image/"
 
 
 class CreateConversation(BaseModel):
@@ -282,23 +278,10 @@ def _attachment_manifest(records: list[StoredFile]) -> str:
     return "\n".join(lines)
 
 
-def _image_previews(storage: FileStorage, records: list[StoredFile]) -> list[dict[str, Any]]:
-    blocks = []
-    for record in records:
-        if len(blocks) >= MAX_ATTACHED_IMAGE_PREVIEWS or not record.mime.startswith(IMAGE_MIME_PREFIX):
-            continue
-        try:
-            blocks.append(image_block(image_preview(open_image(storage.path_of(record)), 1024)))
-        except Exception:  # noqa: BLE001 - brak podglądu nie blokuje wiadomości
-            continue
-    return blocks
-
-
 @router.post("/{conversation_id}/messages", status_code=status.HTTP_202_ACCEPTED)
 async def send_message(conversation_id: uuid.UUID, payload: SendMessage, request: Request) -> dict[str, Any]:
     """Zapisuje wiadomość użytkownika i zleca jej obsługę agentowi (kolejka)."""
     database = _database(request)
-    storage: FileStorage = request.app.state.storage
     conversation = await _conversation(database, conversation_id)
     text = payload.text.strip()
     if not text and not payload.file_ids:
@@ -320,9 +303,8 @@ async def send_message(conversation_id: uuid.UUID, payload: SendMessage, request
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono części załączonych plików.")
     order = {file_id: position for position, file_id in enumerate(payload.file_ids)}
     records = sorted(records, key=lambda record: order[record.id])
-    previews = await asyncio.to_thread(_image_previews, storage, records)
     body = (text or "Przeanalizuj załączone pliki.") + (_attachment_manifest(records) if records else "")
-    content = [*previews, {"type": "text", "text": body}]
+    content = [{"type": "text", "text": body}]
     run = Run(conversation_id=conversation_id)
     async with database.session() as session:
         for record in records:

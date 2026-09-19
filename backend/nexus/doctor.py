@@ -1,16 +1,19 @@
-"""Diagnostyka środowiska: baza, usługi pomocnicze, programy narzędziowe, klucz API.
+"""Diagnostyka środowiska: baza, usługi pomocnicze, programy narzędziowe, Claude Code CLI.
 
-Każda kontrola zwraca wynik z opisem; żadna nie generuje tokenów modelu
-(klucz API sprawdzany jest odczytem metadanych modelu).
+Każda kontrola zwraca wynik z opisem. Bez ``--online`` żadna nie korzysta
+z modelu; z ``--online`` CLI wykonuje jedno krótkie zapytanie testowe.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -119,6 +122,15 @@ def check_data_dir(settings: Settings) -> Check:
         return Check("katalog danych", False, f"{settings.data_dir}: {error}")
 
 
+def check_tika_app(settings: Settings) -> Check:
+    """Apache Tika w trybie wsadowym (tika-app)."""
+    if not settings.tika_app_jar.is_file():
+        return Check("tika", False, f"brak {settings.tika_app_jar}")
+    completed = _run([settings.java_bin, "-jar", str(settings.tika_app_jar), "--version"], timeout=120)
+    version = completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else ""
+    return Check("tika", completed.returncode == 0, version or completed.stderr.strip()[-300:])
+
+
 def check_http(name: str, url: str) -> Check:
     """Dostępność usługi HTTP."""
     try:
@@ -140,19 +152,88 @@ async def check_database(settings: Settings) -> Check:
         await database.close()
 
 
-def check_anthropic(settings: Settings, online: bool) -> Check:
-    """Obecność klucza API; z ``online`` – odczyt metadanych modelu (bez generowania)."""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return Check("klucz API Claude", False, "brak ANTHROPIC_API_KEY")
-    if not online:
-        return Check("klucz API Claude", True, "ustawiony (bez sprawdzenia online)")
-    import anthropic
+def check_claude_cli(settings: Settings) -> list[Check]:
+    """Claude Code CLI: program, profil projektu i plik tokenu OAuth."""
+    from nexus.agent.runner import read_oauth_token
+
+    executable = shutil.which(settings.claude_bin)
+    if not executable:
+        return [Check("claude cli", False, f"brak programu {settings.claude_bin}")]
+    version = _run([executable, "--version"], timeout=30).stdout.strip()
+    profile = settings.claude_profile_dir
+    token = read_oauth_token(profile)
+    return [
+        Check("claude cli", bool(version), f"{executable} ({version or 'brak wersji'})"),
+        Check(
+            "token claude",
+            bool(token),
+            f"{profile / 'oauth-token'}" + ("" if token else " – brak (claude setup-token)"),
+        ),
+    ]
+
+
+async def _list_mcp_tools() -> list[str]:
+    from mcp import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+
+    parameters = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "nexus.mcp_server"],
+        env={**os.environ, "NEXUS_RUN_ID": str(uuid.uuid4()), "NEXUS_CONVERSATION_ID": ""},
+    )
+    async with stdio_client(parameters) as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            result = await session.list_tools()
+    return [tool.name for tool in result.tools]
+
+
+def check_mcp_server() -> Check:
+    """Serwer MCP narzędzi: uruchomienie i lista narzędzi."""
+    from nexus.tools import registry
 
     try:
-        model = anthropic.Anthropic(max_retries=1).models.retrieve(settings.anthropic_model)
-        return Check("klucz API Claude", True, f"model {model.id} dostępny")
-    except anthropic.APIError as error:
-        return Check("klucz API Claude", False, str(error)[:300])
+        names = asyncio.run(asyncio.wait_for(_list_mcp_tools(), 120))
+    except Exception as error:  # noqa: BLE001 - wynik diagnostyki
+        return Check("serwer MCP", False, f"{error.__class__.__name__}: {error}"[:300])
+    expected = set(registry.names())
+    missing = sorted(expected - set(names))
+    return Check(
+        "serwer MCP",
+        not missing,
+        f"{len(names)} narzędzi" + (f"; brak: {missing}" if missing else ""),
+    )
+
+
+def check_claude_online(settings: Settings) -> Check:
+    """Krótkie zapytanie testowe przez CLI (weryfikuje token i dostęp do modelu)."""
+    from nexus.agent.runner import cli_environment, friendly_error
+
+    with tempfile.TemporaryDirectory() as directory:
+        completed = _run(
+            [
+                settings.claude_bin,
+                "-p",
+                "Odpowiedz jednym słowem: OK",
+                "--model",
+                settings.claude_model,
+                "--output-format",
+                "json",
+                "--no-session-persistence",
+                "--strict-mcp-config",
+                "--allowed-tools",
+                "ToolSearch",
+            ],
+            timeout=180,
+            env=cli_environment(settings, Path(directory)),
+        )
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        payload = {}
+    if completed.returncode == 0 and not payload.get("is_error"):
+        return Check("claude online", True, f"model {settings.claude_model} odpowiada")
+    return Check("claude online", False, friendly_error(completed.stdout + completed.stderr))
 
 
 def run_checks(settings: Settings, online: bool = False) -> list[Check]:
@@ -164,10 +245,17 @@ def run_checks(settings: Settings, online: bool = False) -> list[Check]:
         check_programs,
         lambda: check_realesrgan(settings),
         lambda: check_http("qdrant", f"{settings.qdrant_url}/readyz"),
-        lambda: check_http("tika", f"{settings.tika_url}/version"),
+        lambda: (
+            check_http("tika", f"{settings.tika_url}/version")
+            if settings.tika_url
+            else check_tika_app(settings)
+        ),
         lambda: check_http("languagetool", f"{settings.languagetool_url}/v2/languages"),
-        lambda: check_anthropic(settings, online),
+        lambda: check_claude_cli(settings),
+        check_mcp_server,
     ]
+    if online:
+        steps.append(lambda: check_claude_online(settings))
     results: list[Check] = []
     for step in steps:
         outcome = step()

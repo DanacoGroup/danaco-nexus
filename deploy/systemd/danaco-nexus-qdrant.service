@@ -1,0 +1,24 @@
+[Unit]
+Description=Danaco Nexus — Qdrant (baza wiedzy, 127.0.0.1:6335)
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+After=network.target
+RequiresMountsFor=/danaco/projekty/danaco-nexus
+PartOf=danaco-nexus.target
+
+[Service]
+Type=simple
+User=danaco-serwis
+Group=danaco-user
+WorkingDirectory=/danaco/projekty/danaco-nexus/dane/qdrant
+ExecStart=/danaco/projekty/danaco-nexus/programy/qdrant/qdrant --config-path /danaco/projekty/danaco-nexus/deploy/qdrant/config.yaml
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane/qdrant
+
+[Install]
+WantedBy=danaco-nexus.target
