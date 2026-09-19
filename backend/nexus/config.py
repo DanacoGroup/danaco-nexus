@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     claude_model: str = "claude-opus-5"
     claude_fallback_model: str = "claude-sonnet-5"
     claude_effort: str = ""
+    claude_voice_effort: str = "low"
     max_output_tokens: int = 0
     max_tool_output_tokens: int = 60000
     run_timeout_minutes: int = 120

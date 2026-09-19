@@ -161,7 +161,9 @@ def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
-def build_command(settings: Settings, mcp_config_path: Path, session_id: str, resume: bool) -> list[str]:
+def build_command(
+    settings: Settings, mcp_config_path: Path, session_id: str, resume: bool, voice: bool = False
+) -> list[str]:
     """Polecenie ``claude -p`` (treść zadania przekazywana na stdin)."""
     command = [
         settings.claude_bin,
@@ -184,8 +186,12 @@ def build_command(settings: Settings, mcp_config_path: Path, session_id: str, re
     ]
     if settings.claude_fallback_model and settings.claude_fallback_model != settings.claude_model:
         command += ["--fallback-model", settings.claude_fallback_model]
-    if settings.claude_effort:
-        command += ["--effort", settings.claude_effort]
+    # Rozmowa głosowa: krótszy namysł – odpowiedź ma przyjść szybko.
+    effort = (
+        settings.claude_voice_effort if voice and settings.claude_voice_effort else settings.claude_effort
+    )
+    if effort:
+        command += ["--effort", effort]
     command += ["--resume", session_id] if resume else ["--session-id", session_id]
     return command
 
@@ -284,6 +290,7 @@ class _RunState:
     session_id: str = ""
     result: dict[str, Any] | None = None
     model: str = ""
+    voice: bool = False
 
 
 class AgentRunner:
@@ -339,6 +346,7 @@ class AgentRunner:
                 select(Message).where(Message.run_id == run_id, Message.kind == "user").order_by(Message.id)
             )
         state = _RunState(run_id, run.conversation_id)
+        state.voice = bool(prompt_message is not None and (prompt_message.meta or {}).get("voice"))
         usage: dict[str, Any] = {}
         status, error_text = "done", ""
         await self.emit(run_id, "run.started", {})
@@ -440,7 +448,7 @@ class AgentRunner:
         cwd.mkdir(parents=True, exist_ok=True)
         config_path = run_dir / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(state.run_id, state.conversation_id)), encoding="utf-8")
-        command = build_command(settings, config_path, session_id, resume)
+        command = build_command(settings, config_path, session_id, resume, voice=state.voice)
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=cwd,

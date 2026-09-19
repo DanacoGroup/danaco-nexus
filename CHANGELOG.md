@@ -31,6 +31,8 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 - Aplikacja PWA: instalacja na Androidzie, iPhonie i Windows, własna ikona, tryb
   pełnoekranowy, powłoka offline, powiadomienie o nowej wersji.
 - Nowy interfejs na Tailwind CSS 4: motyw ciemny domyślnie, jasny i systemowy.
+- Rozmowa głosowa: mówisz i słuchasz odpowiedzi (Whisper large-v3-turbo, głosy Piper),
+  odpowiedź czytana zdanie po zdaniu, przerywanie głosem.
 - Transkrypcja mowy z audio i wideo (`transcribe_audio`, faster-whisper).
 - Valkey (Redis) projektu: powiadomienia o zdarzeniach zadań i pamięć podręczna chmury.
 - Logowanie jednokrotne do chmury z sesji Nexusa; adresy `api.` i `cloud.danaco-nexus.pl`.

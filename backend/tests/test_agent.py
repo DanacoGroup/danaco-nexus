@@ -264,6 +264,8 @@ def test_command_uses_whitelist_and_resume(tmp_path: Path) -> None:
     assert command[command.index("--resume") + 1] == "abc"
     assert command[command.index("--fallback-model") + 1] == "claude-sonnet-5"
     assert command[command.index("--effort") + 1] == "high"
+    voice = build_command(settings, tmp_path / "mcp.json", "abc", resume=True, voice=True)
+    assert voice[voice.index("--effort") + 1] == "low"
     assert "-p" in command and "stream-json" in command
 
 

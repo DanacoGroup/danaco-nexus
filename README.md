@@ -17,6 +17,7 @@ wykonuje operacje na plikach i zwraca gotowe wyniki do pobrania.
 6. [Rozwój i testy](#rozwój-i-testy)
 7. [Bezpieczeństwo](#bezpieczeństwo)
 8. [Aplikacja (PWA)](#aplikacja-pwa)
+9. [Rozmowa głosowa](#rozmowa-głosowa)
 9. [Adresy](#adresy)
 10. [Chmura osobista](#chmura-osobista)
 
@@ -183,6 +184,26 @@ powłoką aplikacji dostępną offline i komunikatem o nowej wersji. API, pliki
 i strumień zadań nigdy nie są buforowane. Interfejs: Tailwind CSS 4, motyw ciemny
 domyślnie (jasny i systemowy do wyboru), układ w stylu Claude/ChatGPT, obsługa
 wycięć ekranu (safe area) na telefonach.
+
+## Rozmowa głosowa
+
+Przycisk z falą dźwięku obok pola wiadomości otwiera tryb rozmowy: Nexus słucha,
+sam wykrywa koniec wypowiedzi, rozpoznaje mowę na serwerze, przekazuje ją Claude
+(z dostępem do wszystkich narzędzi i plików rozmowy) i czyta odpowiedź zdanie po
+zdaniu, zanim cała zostanie wygenerowana. Potem słucha dalej. Odpowiedź można
+przerwać głosem albo dotknięciem kuli; mikrofon można wyciszyć, a głos zmienić
+(Gosia, Magda, Marek). W trakcie rozmowy ekran się nie wygasza.
+
+| Element | Technologia | Położenie |
+|---|---|---|
+| Rozpoznawanie mowy | Whisper large-v3-turbo (faster-whisper, CTranslate2, int8, CPU) | `programy/modele/whisper-large-v3-turbo` |
+| Synteza mowy | Piper, polskie głosy gosia, mc_speech, darkman | `programy/modele/piper` |
+| API | `/api/voice/config`, `/api/voice/transcribe`, `/api/voice/speak` | proces API (modele w pamięci) |
+
+Wypowiedzi z rozmowy głosowej trafiają do tej samej rozmowy co tekst; Claude
+dostaje wtedy wskazówkę, by odpowiadać zwięźle i bez formatowania, oraz niższy
+poziom wysiłku (`NEXUS_CLAUDE_VOICE_EFFORT`, domyślnie `low`), żeby odpowiedź
+przychodziła szybciej.
 
 ## Adresy
 
