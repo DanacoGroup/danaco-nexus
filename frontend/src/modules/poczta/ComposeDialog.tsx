@@ -6,20 +6,25 @@ import { useState } from "react";
 import { describe } from "../_biuro/http";
 import { SendMailIcon } from "../_biuro/icons";
 import { buttonClass, ErrorBanner, Field, inputClass, Modal, useConfirm } from "../_biuro/ui";
-import { mailApi, parseAddresses, type DraftPayload, type PendingMail } from "./api";
+import { mailApi, parseAddresses, type DraftPayload, type MailAccount, type PendingMail } from "./api";
 
 export function ComposeDialog({
   initial,
   pending,
+  accounts,
   onClose,
   onDone,
 }: {
   initial: DraftPayload;
+  /** Konta pocztowe (pierwsze – domyślne). */
+  accounts: MailAccount[];
   /** Istniejąca oczekująca wiadomość (np. od Nexusa) – zmiany zapisywane są w niej. */
   pending?: PendingMail;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
+  const [account, setAccount] = useState(initial.account || accounts[0]?.id || "");
+  const [signature, setSignature] = useState(initial.signature !== false);
   const [to, setTo] = useState(initial.to.join(", "));
   const [cc, setCc] = useState(initial.cc.join(", "));
   const [bcc, setBcc] = useState(initial.bcc.join(", "));
@@ -30,8 +35,12 @@ export function ComposeDialog({
   const [busy, setBusy] = useState<"" | "send" | "save" | "draft">("");
   const [confirm, confirmDialog] = useConfirm();
 
+  const sender = accounts.find((item) => item.id === account.toLowerCase()) ?? accounts[0];
+
   const draft = (): DraftPayload => ({
     ...initial,
+    account,
+    signature,
     to: parseAddresses(to),
     cc: parseAddresses(cc),
     bcc: parseAddresses(bcc),
@@ -63,8 +72,8 @@ export function ComposeDialog({
         title: "Wysłać wiadomość?",
         message: (
           <>
-            Wiadomość <strong>„{value.subject || "(bez tematu)"}”</strong> zostanie wysłana do:{" "}
-            <strong>{recipients.join(", ")}</strong>.
+            Wiadomość <strong>„{value.subject || "(bez tematu)"}”</strong> zostanie wysłana z konta{" "}
+            <strong>{sender?.address ?? account}</strong> do: <strong>{recipients.join(", ")}</strong>.
           </>
         ),
         confirmLabel: "Wyślij",
@@ -116,6 +125,17 @@ export function ComposeDialog({
             Treść przygotował asystent. Sprawdź adresatów i treść – nic nie zostanie wysłane bez Twojego kliknięcia.
           </p>
         )}
+        {accounts.length > 1 ? (
+          <Field label="Od">
+            <select className={inputClass} value={sender?.id ?? ""} onChange={(event) => setAccount(event.target.value)}>
+              {accounts.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name ? `${item.name} <${item.address}>` : item.address}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Do">
           <input className={inputClass} value={to} onChange={(event) => setTo(event.target.value)} placeholder="adres@firma.pl, …" />
         </Field>
@@ -143,6 +163,12 @@ export function ComposeDialog({
             onChange={(event) => setBody(event.target.value)}
           />
         </Field>
+        {sender?.signature && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={signature} onChange={(event) => setSignature(event.target.checked)} />
+            Dołącz podpis konta {sender.address}
+          </label>
+        )}
         {(initial.file_ids?.length ?? 0) > 0 && (
           <p className="text-xs text-muted">Załączniki z rozmowy: {initial.file_ids?.length}</p>
         )}

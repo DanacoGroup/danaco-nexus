@@ -119,6 +119,7 @@ class MailServer:
         self.boxes: dict[str, list[StoredMail]] = {"INBOX": [], "Drafts": [], "Wysłane": []}
         self.sent: list[tuple[list[str], bytes]] = []
         self.smtp_fail = False
+        self.logins: list[str] = []
 
     def add(self, box: str, raw: bytes, flags: set[str] | None = None) -> int:
         messages = self.boxes[box]
@@ -153,6 +154,7 @@ class FakeIMAP:
     def login(self, user: str, password: str) -> tuple[str, list[bytes]]:
         if password != self.server.password:
             raise imaplib.IMAP4.error("AUTHENTICATIONFAILED")
+        self.server.logins.append(f"imap:{user}")
         return "OK", [b"zalogowano"]
 
     def enable(self, capability: str) -> tuple[str, list[bytes]]:
@@ -263,6 +265,7 @@ class FakeSMTP:
 
         if password != self.server.password:
             raise smtplib.SMTPAuthenticationError(535, b"Bad credentials")
+        self.server.logins.append(f"smtp:{user}")
         self.logged_in = True
 
     def send_message(

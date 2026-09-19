@@ -33,9 +33,11 @@ from nexus.mail import (
     MailClient,
     MailError,
     MailNotConfigured,
+    UnknownAccount,
     attachment_part,
     build_message,
     is_configured,
+    load_accounts,
     load_config,
     send_message,
     valid_addresses,
@@ -53,12 +55,12 @@ def _settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
-async def _mail[T](request: Request, work: Callable[[MailClient], T]) -> T:
-    """Wykonuje operację IMAP w wątku; błędy poczty zamienia na odpowiedzi HTTP."""
+async def _mail[T](request: Request, work: Callable[[MailClient], T], account: str = "") -> T:
+    """Wykonuje operację IMAP na koncie ``account`` w wątku; błędy poczty zamienia na odpowiedzi HTTP."""
     settings = _settings(request)
 
     def run() -> T:
-        config = load_config(settings)
+        config = load_config(settings, account)
         with MailClient(config, settings.poczta_timeout_s) as client:
             return work(client)
 
@@ -66,11 +68,17 @@ async def _mail[T](request: Request, work: Callable[[MailClient], T]) -> T:
         return await asyncio.to_thread(run)
     except MailNotConfigured as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    except UnknownAccount as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
     except MailError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
 
 
+ACCOUNT = Query("", max_length=200, description="Konto (adres); puste – domyślne.")
+
+
 class FlagBody(BaseModel):
+    konto: str = Field("", max_length=200)
     folder: str = Field(max_length=500)
     uid: int = Field(ge=1)
     flag: str = Field(pattern="^(seen|flagged)$")
@@ -83,6 +91,8 @@ class ReplyRef(BaseModel):
 
 
 class Draft(BaseModel):
+    account: str = Field("", max_length=200)
+    signature: bool = True
     to: list[str] = Field(default_factory=list, max_length=50)
     cc: list[str] = Field(default_factory=list, max_length=50)
     bcc: list[str] = Field(default_factory=list, max_length=50)
@@ -95,6 +105,8 @@ class Draft(BaseModel):
 
 
 class DraftUpdate(BaseModel):
+    account: str | None = Field(None, max_length=200)
+    signature: bool | None = None
     to: list[str] | None = Field(None, max_length=50)
     cc: list[str] | None = Field(None, max_length=50)
     bcc: list[str] | None = Field(None, max_length=50)
@@ -104,6 +116,7 @@ class DraftUpdate(BaseModel):
 
 
 class NexusReply(BaseModel):
+    konto: str = Field("", max_length=200)
     folder: str = Field("INBOX", max_length=500)
     uid: int = Field(ge=1)
     instruction: str = Field("", max_length=5000)
@@ -120,7 +133,9 @@ def _validate(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _summary(data: dict[str, Any]) -> str:
-    return f"Do: {', '.join(data.get('to') or ['(brak adresata)'])} – {data.get('subject') or '(bez tematu)'}"
+    sender = f"Od: {data['account']} · " if data.get("account") else ""
+    recipients_text = ", ".join(data.get("to") or ["(brak adresata)"])
+    return f"{sender}Do: {recipients_text} – {data.get('subject') or '(bez tematu)'}"
 
 
 # --- skrzynka ---
@@ -128,21 +143,53 @@ def _summary(data: dict[str, Any]) -> str:
 
 @router.get("/stan")
 async def mail_state(request: Request) -> dict[str, Any]:
-    """Czy poczta jest skonfigurowana (bez łączenia z serwerem) i adres konta."""
+    """Czy poczta jest skonfigurowana (bez łączenia z serwerem) i lista kont (pierwsze – domyślne)."""
     settings = _settings(request)
     if not is_configured(settings):
-        return {"configured": False, "address": "", "setup": "sudo -u danaco-serwis deploy/zapisz-poczte.sh"}
+        return {
+            "configured": False,
+            "address": "",
+            "accounts": [],
+            "setup": "sudo -u danaco-serwis deploy/zapisz-poczte.sh",
+        }
     try:
-        config = await asyncio.to_thread(load_config, settings)
+        accounts = await asyncio.to_thread(load_accounts, settings)
     except MailError as error:
-        return {"configured": False, "address": "", "error": str(error)}
-    return {"configured": True, "address": config.address, "name": config.name}
+        return {"configured": False, "address": "", "accounts": [], "error": str(error)}
+    return {
+        "configured": True,
+        "address": accounts[0].address,
+        "name": accounts[0].name,
+        "accounts": [
+            {
+                "id": config.id,
+                "address": config.address,
+                "name": config.name,
+                "label": config.label,
+                "signature": bool(config.signature_html),
+            }
+            for config in accounts
+        ],
+    }
+
+
+@router.get("/podpis")
+async def signature(request: Request, konto: str = ACCOUNT) -> Response:
+    """Podgląd podpisu konta (HTML oczyszcza interfejs)."""
+    settings = _settings(request)
+    try:
+        config = await asyncio.to_thread(load_config, settings, konto)
+    except UnknownAccount as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+    except MailError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    return Response(config.signature_html, media_type="text/plain; charset=utf-8")
 
 
 @router.get("/foldery")
-async def folders(request: Request) -> list[dict[str, Any]]:
+async def folders(request: Request, konto: str = ACCOUNT) -> list[dict[str, Any]]:
     """Foldery z liczbą wiadomości i nieprzeczytanych."""
-    return await _mail(request, lambda client: client.folders(with_counts=True))
+    return await _mail(request, lambda client: client.folders(with_counts=True), konto)
 
 
 @router.get("/wiadomosci")
@@ -152,9 +199,10 @@ async def messages(
     before_uid: int | None = Query(None, ge=1),
     limit: int = Query(40, ge=1, le=200),
     unread: bool = False,
+    konto: str = ACCOUNT,
 ) -> dict[str, Any]:
     """Najnowsze wiadomości folderu (kolejna strona: ``before_uid``)."""
-    return await _mail(request, lambda client: client.list_messages(folder, limit, before_uid, unread))
+    return await _mail(request, lambda client: client.list_messages(folder, limit, before_uid, unread), konto)
 
 
 @router.get("/szukaj")
@@ -166,26 +214,34 @@ async def search(
     since: date | None = None,
     before: date | None = None,
     unread: bool = False,
+    konto: str = ACCOUNT,
 ) -> dict[str, Any]:
     """Wyszukiwanie wiadomości."""
-    return await _mail(request, lambda client: client.search(folder, q, sender, since, before, unread, 100))
+    return await _mail(
+        request, lambda client: client.search(folder, q, sender, since, before, unread, 100), konto
+    )
 
 
 @router.get("/wiadomosc")
 async def read_message(
-    request: Request, folder: str, uid: int = Query(ge=1), mark_seen: bool = True
+    request: Request, folder: str, uid: int = Query(ge=1), mark_seen: bool = True, konto: str = ACCOUNT
 ) -> dict[str, Any]:
     """Wiadomość z treścią tekstową i HTML (HTML oczyszcza interfejs) oraz listą załączników."""
-    return await _mail(request, lambda client: client.read(folder, uid, mark_seen))
+    return await _mail(request, lambda client: client.read(folder, uid, mark_seen), konto)
 
 
 @router.get("/zalacznik")
 async def attachment(
-    request: Request, folder: str, uid: int = Query(ge=1), index: int = Query(ge=0), inline: bool = False
+    request: Request,
+    folder: str,
+    uid: int = Query(ge=1),
+    index: int = Query(ge=0),
+    inline: bool = False,
+    konto: str = ACCOUNT,
 ) -> Response:
     """Załącznik (``inline=1`` – obraz osadzony w treści, PDF, tekst)."""
     name, mime, data = await _mail(
-        request, lambda client: attachment_part(client.fetch_raw(folder, uid), index)
+        request, lambda client: attachment_part(client.fetch_raw(folder, uid), index), konto
     )
     show_inline = inline and mime in SAFE_INLINE
     return Response(
@@ -203,7 +259,11 @@ async def attachment(
 async def set_flag(payload: FlagBody, request: Request) -> dict[str, bool]:
     """Oznacza wiadomość jako przeczytaną/nieprzeczytaną albo ważną."""
     flag = "\\Seen" if payload.flag == "seen" else "\\Flagged"
-    await _mail(request, lambda client: client.set_flag(payload.folder, payload.uid, flag, payload.value))
+    await _mail(
+        request,
+        lambda client: client.set_flag(payload.folder, payload.uid, flag, payload.value),
+        payload.konto,
+    )
     return {"ok": True}
 
 
@@ -347,7 +407,7 @@ async def _attachments(request: Request, file_ids: list[str]) -> list[Attachment
 
 
 def _message(settings: Settings, data: dict[str, Any], attachments: list[Attachment]) -> Any:
-    config = load_config(settings)
+    config = load_config(settings, data.get("account") or "")
     return config, build_message(
         config,
         data.get("to") or [],
@@ -357,6 +417,7 @@ def _message(settings: Settings, data: dict[str, Any], attachments: list[Attachm
         data.get("in_reply_to") or "",
         data.get("references") or "",
         attachments,
+        signature=data.get("signature", True) is not False,
     )
 
 
@@ -372,7 +433,7 @@ async def pending_to_drafts(action_id: uuid.UUID, request: Request) -> dict[str,
         _config, message = _message(settings, data, attachments)
         return client.append("\\Drafts", message, "(\\Draft \\Seen)")
 
-    folder = await _mail(request, work)
+    folder = await _mail(request, work, data.get("account") or "")
     return {"ok": True, "folder": folder}
 
 
@@ -418,7 +479,7 @@ async def send(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
                 pass
 
     try:
-        await _mail(request, archive)
+        await _mail(request, archive, data.get("account") or "")
     except HTTPException:
         pass
     return oczekujace.payload(updated)
@@ -430,14 +491,16 @@ async def send(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
 @router.post("/odpowiedz-z-nexusem")
 async def reply_with_nexus(payload: NexusReply, request: Request) -> dict[str, Any]:
     """Zleca asystentowi szkic odpowiedzi (trafia do „Oczekujących” do sprawdzenia i wysłania)."""
-    header = await _mail(request, lambda client: client.read(payload.folder, payload.uid))
+    header = await _mail(request, lambda client: client.read(payload.folder, payload.uid), payload.konto)
+    account = f"konto {payload.konto}, " if payload.konto else ""
     sender = (header.get("from") or [{}])[0]
     who = sender.get("name") or sender.get("email") or "nadawcy"
     text = (
         f"Przygotuj odpowiedź na e-mail od {who} „{header.get('subject') or '(bez tematu)'}” "
-        f"(folder {payload.folder}, UID {payload.uid}). Przeczytaj go narzędziem mail_read, a gotową "
-        "odpowiedź przekaż narzędziem mail_send z reply_to_uid – trafi do „Oczekujących” w module Poczta, "
-        "gdzie ją sprawdzę i sam wyślę. Pisz po polsku, rzeczowo, w tonie dopasowanym do wiadomości."
+        f"({account}folder {payload.folder}, UID {payload.uid}). Przeczytaj go narzędziem mail_read, "
+        "a gotową odpowiedź przekaż narzędziem mail_send z reply_to_uid i tym samym account – trafi "
+        "do „Oczekujących” w module Poczta, gdzie ją sprawdzę i sam wyślę. Pisz po polsku, rzeczowo, "
+        "w tonie dopasowanym do wiadomości. Nie wpisuj podpisu – podpis konta dołącza się sam."
     )
     if payload.instruction.strip():
         text += f"\n\nMoje wskazówki do odpowiedzi: {payload.instruction.strip()}"

@@ -20,8 +20,10 @@ from nexus.mail import (
     MailClient,
     MailError,
     MailNotConfigured,
+    UnknownAccount,
     build_message,
     html_to_text,
+    load_accounts,
     load_config,
     parse_message,
     reply_headers,
@@ -212,7 +214,9 @@ def test_api_read_and_attachment(api: TestClient, mail_server: MailServer) -> No
         raw_message("Z obrazem", html='<p>Hej</p><img src="cid:logo">', attachment=("umowa.pdf", b"%PDF")),
     )
     state = api.get("/api/poczta/stan").json()
-    assert state == {"configured": True, "address": "biuro@danaco-group.pl", "name": "Biuro Danaco"}
+    assert state["configured"] is True
+    assert (state["address"], state["name"]) == ("biuro@danaco-group.pl", "Biuro Danaco")
+    assert [account["address"] for account in state["accounts"]] == ["biuro@danaco-group.pl"]
     folders = api.get("/api/poczta/foldery").json()
     assert folders[0]["unseen"] == 1
     listing = api.get("/api/poczta/wiadomosci", params={"folder": "INBOX"}).json()
@@ -345,3 +349,105 @@ def test_public_host_blocks_private_addresses() -> None:
     assert poczta_api._public_host("10.1.2.3", 443) is False
     assert poczta_api._public_host("169.254.169.254", 80) is False
     assert poczta_api._public_host("nie-istnieje.invalid", 80) is False
+
+
+# --- wiele kont i podpisy ---
+
+SIGNATURE = "<table><tr><td><b>Dariusz Naharnowicz</b><br>Danaco Group</td></tr></table>"
+
+
+def write_accounts(settings: Settings, password: str) -> None:
+    """Plik z dwoma kontami (drugie domyślne, pierwsze z podpisem)."""
+    common = {"password": password, "imap_host": "mail.test", "smtp_host": "mail.test"}
+    Path(settings.poczta_config_file).write_text(
+        json.dumps(
+            {
+                "default": "support@danaco-group.pl",
+                "accounts": [
+                    {"login": "dn@danaco-group.pl", "name": "Dariusz", "signature_html": SIGNATURE, **common},
+                    {"login": "support@danaco-group.pl", "name": "Wsparcie", **common},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_load_accounts_default_and_lookup(biuro_settings: Settings) -> None:  # noqa: F811
+    write_accounts(biuro_settings, "x")
+    accounts = load_accounts(biuro_settings)
+    assert [a.address for a in accounts] == ["support@danaco-group.pl", "dn@danaco-group.pl"]
+    assert load_config(biuro_settings).address == "support@danaco-group.pl"
+    assert load_config(biuro_settings, "DN@danaco-group.pl").name == "Dariusz"
+    with pytest.raises(UnknownAccount, match="Dostępne konta"):
+        load_config(biuro_settings, "nieznane@danaco-group.pl")
+    assert SIGNATURE not in repr(accounts[1])
+
+
+def test_signature_goes_before_quote(biuro_settings: Settings) -> None:  # noqa: F811
+    write_accounts(biuro_settings, "x")
+    config = load_config(biuro_settings, "dn@danaco-group.pl")
+    body = "Dzień dobry,\ndziękuję.\n\n2026-09-19 Jan napisał(a):\n> Pytanie"
+    message = build_message(config, ["jan@example.pl"], "Re: Pytanie", body)
+    text = message.get_body(preferencelist=("plain",)).get_content()
+    html = message.get_body(preferencelist=("html",)).get_content()
+    assert text.index("-- \nDariusz Naharnowicz") < text.index("> Pytanie")
+    assert html.index(SIGNATURE) < html.index("&gt; Pytanie")
+    assert "Dzień dobry,<br>" in html
+    plain = build_message(config, ["jan@example.pl"], "S", "Treść", signature=False)
+    assert plain.get_content_type() == "text/plain"
+
+
+def test_mail_tools_multiple_accounts(
+    mail_server: MailServer,  # noqa: F811
+    tool_harness: ToolHarness,
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    write_accounts(biuro_settings, mail_server.password)
+    uid = mail_server.add("INBOX", raw_message("Zapytanie"))
+    everything = call(tool_harness, "mail_list", account="wszystkie")
+    assert [box["account"] for box in everything.data["accounts"]] == [
+        "support@danaco-group.pl",
+        "dn@danaco-group.pl",
+    ]
+    single = call(tool_harness, "mail_list", account="dn@danaco-group.pl")
+    assert single.data["account"] == "dn@danaco-group.pl"
+    assert [a["account"] for a in single.data["accounts"]][0] == "support@danaco-group.pl"
+    mail_server.logins.clear()
+    pending = call(
+        tool_harness, "mail_send", account="dn@danaco-group.pl", reply_to_uid=uid, body="Odpowiedź"
+    )
+    assert pending.data["account"] == "dn@danaco-group.pl"
+    assert mail_server.logins == ["imap:dn@danaco-group.pl"]
+    with pytest.raises(ToolError, match="Nie ma konta"):
+        call(tool_harness, "mail_list", account="obce@example.pl")
+
+
+def test_api_multiple_accounts_send_with_signature(
+    api: TestClient,  # noqa: F811
+    mail_server: MailServer,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    write_accounts(biuro_settings, mail_server.password)
+    state = api.get("/api/poczta/stan").json()
+    assert [(a["address"], a["signature"]) for a in state["accounts"]] == [
+        ("support@danaco-group.pl", False),
+        ("dn@danaco-group.pl", True),
+    ]
+    assert api.get("/api/poczta/podpis", params={"konto": "dn@danaco-group.pl"}).text == SIGNATURE
+    assert api.get("/api/poczta/foldery", params={"konto": "obce@example.pl"}).status_code == 404
+    mail_server.logins.clear()
+    api.get("/api/poczta/wiadomosci", params={"konto": "dn@danaco-group.pl"})
+    assert mail_server.logins == ["imap:dn@danaco-group.pl"]
+    pending = api.post(
+        "/api/poczta/oczekujace",
+        json={"account": "dn@danaco-group.pl", "to": ["a@example.pl"], "subject": "S", "body": "Treść"},
+        headers=HEADERS,
+    ).json()
+    assert pending["summary"].startswith("Od: dn@danaco-group.pl")
+    sent = api.post(f"/api/poczta/wyslij/{pending['id']}", headers=HEADERS)
+    assert sent.status_code == 200, sent.text
+    assert "smtp:dn@danaco-group.pl" in mail_server.logins
+    message = email.message_from_bytes(mail_server.sent[0][1], policy=default_policy)
+    assert message["From"] == "Dariusz <dn@danaco-group.pl>"
+    assert SIGNATURE in message.get_body(preferencelist=("html",)).get_content()

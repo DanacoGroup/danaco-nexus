@@ -45,6 +45,8 @@ export interface MailAttachment {
 }
 
 export interface MailMessage {
+  /** Konto, z którego pochodzi wiadomość (uzupełnia interfejs). */
+  account?: string;
   uid: number;
   folder: string;
   subject: string;
@@ -61,6 +63,10 @@ export interface MailMessage {
 }
 
 export interface DraftPayload {
+  /** Konto nadawcy (adres); puste – domyślne. */
+  account?: string;
+  /** Czy dołączyć podpis konta (domyślnie tak). */
+  signature?: boolean;
   to: string[];
   cc: string[];
   bcc: string[];
@@ -84,9 +90,18 @@ export interface PendingMail {
   updated_at: string;
 }
 
+export interface MailAccount {
+  id: string;
+  address: string;
+  name: string;
+  label: string;
+  signature: boolean;
+}
+
 export interface MailState {
   configured: boolean;
   address: string;
+  accounts: MailAccount[];
   name?: string;
   setup?: string;
   error?: string;
@@ -94,13 +109,17 @@ export interface MailState {
 
 export const mailApi = {
   state: () => call<MailState>("GET", "/api/poczta/stan"),
-  folders: () => call<MailFolder[]>("GET", "/api/poczta/foldery"),
-  messages: (folder: string, beforeUid?: number, unread = false) =>
-    call<MailListing>("GET", `/api/poczta/wiadomosci${qs({ folder, before_uid: beforeUid, unread })}`),
-  search: (folder: string, q: string) => call<MailListing>("GET", `/api/poczta/szukaj${qs({ folder, q })}`),
-  read: (folder: string, uid: number) => call<MailMessage>("GET", `/api/poczta/wiadomosc${qs({ folder, uid })}`),
-  flag: (folder: string, uid: number, flag: "seen" | "flagged", value: boolean) =>
-    call<{ ok: boolean }>("POST", "/api/poczta/flaga", { folder, uid, flag, value }),
+  folders: (konto: string) => call<MailFolder[]>("GET", `/api/poczta/foldery${qs({ konto })}`),
+  messages: (konto: string, folder: string, beforeUid?: number, unread = false) =>
+    call<MailListing>("GET", `/api/poczta/wiadomosci${qs({ konto, folder, before_uid: beforeUid, unread })}`),
+  search: (konto: string, folder: string, q: string) =>
+    call<MailListing>("GET", `/api/poczta/szukaj${qs({ konto, folder, q })}`),
+  read: async (konto: string, folder: string, uid: number) => ({
+    ...(await call<MailMessage>("GET", `/api/poczta/wiadomosc${qs({ konto, folder, uid })}`)),
+    account: konto,
+  }),
+  flag: (konto: string, folder: string, uid: number, flag: "seen" | "flagged", value: boolean) =>
+    call<{ ok: boolean }>("POST", "/api/poczta/flaga", { konto, folder, uid, flag, value }),
   pending: (all = false) => call<PendingMail[]>("GET", `/api/poczta/oczekujace${qs({ all })}`),
   createPending: (draft: DraftPayload) => call<PendingMail>("POST", "/api/poczta/oczekujace", draft),
   updatePending: (id: string, draft: Partial<DraftPayload>) =>
@@ -108,16 +127,17 @@ export const mailApi = {
   cancelPending: (id: string) => call<PendingMail>("DELETE", `/api/poczta/oczekujace/${id}`),
   saveDraft: (id: string) => call<{ folder: string }>("POST", `/api/poczta/oczekujace/${id}/szkic`),
   send: (id: string) => call<PendingMail>("POST", `/api/poczta/wyslij/${id}`),
-  replyWithNexus: (folder: string, uid: number, instruction: string) =>
+  replyWithNexus: (konto: string, folder: string, uid: number, instruction: string) =>
     call<{ conversation_id: string; run_id: string }>("POST", "/api/poczta/odpowiedz-z-nexusem", {
+      konto,
       folder,
       uid,
       instruction,
     }),
 };
 
-export function attachmentUrl(folder: string, uid: number, index: number, inline = false): string {
-  return `/api/poczta/zalacznik${qs({ folder, uid, index, inline })}`;
+export function attachmentUrl(konto: string, folder: string, uid: number, index: number, inline = false): string {
+  return `/api/poczta/zalacznik${qs({ konto, folder, uid, index, inline })}`;
 }
 
 export function imageProxyUrl(url: string): string {
@@ -154,6 +174,7 @@ export function replyDraft(message: MailMessage): DraftPayload {
     .map((line) => `> ${line}`)
     .join("\n");
   return {
+    account: message.account ?? "",
     to: sender ? [formatAddress(sender)] : [],
     cc: [],
     bcc: [],

@@ -44,6 +44,7 @@ function NotConfigured({ state }: { state: MailState }) {
 
 export function PocztaPage({ openConversation }: ModulePageProps) {
   const [state, setState] = useState<MailState | null>(null);
+  const [account, setAccount] = useState("");
   const [folders, setFolders] = useState<MailFolder[]>([]);
   const [folder, setFolder] = useState("INBOX");
   const [messages, setMessages] = useState<MailHeader[] | null>(null);
@@ -61,11 +62,12 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
   const [toast, toastNode] = useToast();
 
   const loadFolders = useCallback(() => {
+    if (!account) return;
     mailApi
-      .folders()
+      .folders(account)
       .then(setFolders)
       .catch((failure) => setError(describe(failure)));
-  }, []);
+  }, [account]);
   const loadPending = useCallback(() => {
     mailApi
       .pending()
@@ -78,11 +80,16 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
       .state()
       .then((value) => {
         setState(value);
-        if (value.configured) loadFolders();
+        if (value.configured) setAccount(value.accounts[0]?.id ?? value.address);
       })
       .catch((failure) => setError(describe(failure)));
     loadPending();
-  }, [loadFolders, loadPending]);
+  }, [loadPending]);
+
+  useEffect(() => {
+    setFolders([]);
+    loadFolders();
+  }, [loadFolders]);
 
   // Wiadomości przygotowane przez asystenta pojawiają się w tle – lista oczekujących jest odświeżana.
   useEffect(() => {
@@ -92,11 +99,13 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
 
   const loadMessages = useCallback(
     async (append = false) => {
-      if (folder === PENDING) return;
+      if (folder === PENDING || !account) return;
       setError("");
       try {
         const before = append && messages?.length ? messages[messages.length - 1].uid : undefined;
-        const listing = searching ? await mailApi.search(folder, searching) : await mailApi.messages(folder, before);
+        const listing = searching
+          ? await mailApi.search(account, folder, searching)
+          : await mailApi.messages(account, folder, before);
         setMessages((current) => (append && current ? [...current, ...listing.messages] : listing.messages));
         setMore(!searching && listing.more);
         setTotal(listing.total);
@@ -105,21 +114,30 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
         setMessages([]);
       }
     },
-    [folder, searching, messages],
+    [account, folder, searching, messages],
   );
 
   useEffect(() => {
-    if (!state?.configured) return;
+    if (!state?.configured || !account) return;
     setMessages(null);
     setOpen(null);
     loadMessages(false);
-  }, [folder, searching, state?.configured]);
+  }, [account, folder, searching, state?.configured]);
+
+  const switchAccount = (id: string) => {
+    if (id === account) return;
+    setQuery("");
+    setSearching("");
+    setOpen(null);
+    setFolder("INBOX");
+    setAccount(id);
+  };
 
   const read = async (header: MailHeader) => {
     setOpening(header.uid);
     setError("");
     try {
-      const message = await mailApi.read(folder, header.uid);
+      const message = await mailApi.read(account, folder, header.uid);
       setOpen(message);
       if (!header.seen) {
         setMessages((items) => items?.map((item) => (item.uid === header.uid ? { ...item, seen: true } : item)) ?? null);
@@ -136,7 +154,7 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
 
   const setFlag = async (uid: number, flag: "seen" | "flagged", value: boolean) => {
     try {
-      await mailApi.flag(folder, uid, flag, value);
+      await mailApi.flag(account, folder, uid, flag, value);
       setMessages((items) =>
         items?.map((item) => (item.uid === uid ? { ...item, [flag === "seen" ? "seen" : "flagged"]: value } : item)) ?? null,
       );
@@ -169,6 +187,8 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
   if (!state.configured) return <NotConfigured state={state} />;
 
   const current = folders.find((item) => item.name === folder);
+  const accounts = state.accounts ?? [];
+  const newDraft = (): DraftPayload => ({ ...EMPTY_DRAFT, account });
   const openHeader = open ? messages?.find((item) => item.uid === open.uid) : undefined;
 
   return (
@@ -177,10 +197,31 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
       <nav className="hidden w-56 shrink-0 flex-col border-r border-line bg-side md:flex">
         <div className="px-3 pt-4 pb-2">
           <h1 className="px-2 text-lg font-semibold">Poczta</h1>
-          <p className="truncate px-2 text-xs text-muted" title={state.address}>
-            {state.address}
-          </p>
-          <button type="button" className={`${buttonClass.primary} mt-3 w-full`} onClick={() => setCompose({ initial: EMPTY_DRAFT })}>
+          {accounts.length > 1 ? (
+            <div className="mt-2 space-y-0.5" role="radiogroup" aria-label="Konto pocztowe">
+              {accounts.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={item.id === account}
+                  title={item.address}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs ${
+                    item.id === account ? "bg-accent-soft font-medium text-fg" : "text-muted hover:bg-hover"
+                  }`}
+                  onClick={() => switchAccount(item.id)}
+                >
+                  <MailIcon size={14} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{item.address}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="truncate px-2 text-xs text-muted" title={state.address}>
+              {state.address}
+            </p>
+          )}
+          <button type="button" className={`${buttonClass.primary} mt-3 w-full`} onClick={() => setCompose({ initial: newDraft() })}>
             <PlusIcon size={18} /> Nowa wiadomość
           </button>
         </div>
@@ -230,6 +271,22 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
         <>
           {/* Lista wiadomości */}
           <section className={`min-h-0 w-full flex-col border-r border-line lg:flex lg:w-96 ${open ? "hidden" : "flex"}`}>
+            {accounts.length > 1 && (
+              <div className="border-b border-line px-3 py-2 md:hidden">
+                <select
+                  className="w-full rounded-xl border border-line bg-raised px-2 py-1.5 text-sm"
+                  value={account}
+                  onChange={(event) => switchAccount(event.target.value)}
+                  aria-label="Konto pocztowe"
+                >
+                  {accounts.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.address}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <form
               className="flex items-center gap-2 border-b border-line px-3 py-2.5"
               onSubmit={(event) => {
@@ -263,7 +320,7 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
                   </option>
                 ))}
               </select>
-              <button type="button" className="icon-btn md:hidden" aria-label="Nowa wiadomość" onClick={() => setCompose({ initial: EMPTY_DRAFT })}>
+              <button type="button" className="icon-btn md:hidden" aria-label="Nowa wiadomość" onClick={() => setCompose({ initial: newDraft() })}>
                 <PlusIcon />
               </button>
             </form>
@@ -339,6 +396,7 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
         <ComposeDialog
           initial={compose.initial}
           pending={compose.pending}
+          accounts={accounts}
           onClose={() => setCompose(null)}
           onDone={(message) => {
             toast(message);
@@ -397,7 +455,10 @@ function PendingList({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.payload.subject || "(bez tematu)"}</p>
-                    <p className="truncate text-xs text-muted">Do: {item.payload.to.join(", ") || "(brak adresata)"}</p>
+                    <p className="truncate text-xs text-muted">
+                      {item.payload.account ? `Od: ${item.payload.account} · ` : ""}Do:{" "}
+                      {item.payload.to.join(", ") || "(brak adresata)"}
+                    </p>
                     <p className="mt-1 line-clamp-2 text-sm text-muted">{item.payload.body}</p>
                     {item.error && <p className="mt-1 text-xs text-danger">Ostatnia próba: {item.error}</p>}
                     <p className="mt-1 text-xs text-muted">
@@ -439,7 +500,7 @@ function NexusReplyDialog({
     setBusy(true);
     setError("");
     try {
-      const result = await mailApi.replyWithNexus(message.folder, message.uid, instruction);
+      const result = await mailApi.replyWithNexus(message.account ?? "", message.folder, message.uid, instruction);
       onStarted(result.conversation_id);
     } catch (failure) {
       setError(describe(failure));

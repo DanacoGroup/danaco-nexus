@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Zapisuje konto pocztowe modułu Poczta (dane/app/poczta.json): login, hasło, nadawcę i serwery.
+# Dodaje (albo zastępuje) konto pocztowe modułu Poczta w dane/app/poczta.json – pozostałe konta
+# i ich podpisy zostają bez zmian. Zapisuje login, hasło, nadawcę i serwery.
 #
 # Serwer mail.danaco-group.pl: IMAP 993 (TLS), SMTP 465 (TLS) albo 587 (STARTTLS).
 # Użycie:  sudo -u danaco-serwis deploy/zapisz-poczte.sh
@@ -48,18 +49,32 @@ umask 077
 # Dane trafiają do Pythona przez standardowe wejście (hasło nie pojawia się w argumentach procesu).
 printf '%s\n%s\n%s\n%s\n%s\n%s\n' "$login" "$nazwa" "$serwer" "$port" "$bezpieczenstwo" "$haslo" \
     | "$PYTHON" -c '
-import json, sys
+import json, os, sys
 login, name, host, port, security, password = sys.stdin.read().split("\n")[:6]
-data = {
-    "login": login, "address": login, "name": name.strip(), "password": password,
+account = {
+    "id": login.lower(), "login": login, "address": login, "name": name.strip(), "password": password,
     "imap_host": host, "imap_port": 993, "smtp_host": host, "smtp_port": int(port), "smtp_security": security,
 }
+data = {"default": account["id"], "accounts": []}
+if os.path.exists(sys.argv[2]):
+    with open(sys.argv[2], encoding="utf-8") as handle:
+        old = json.load(handle)
+    if isinstance(old.get("accounts"), list):
+        data = old
+    elif old.get("login"):
+        data = {"default": old["login"].lower(), "accounts": [old]}
+key = lambda a: (a.get("id") or a.get("address") or a.get("login") or "").lower()
+same = [a for a in data["accounts"] if key(a) == account["id"]]
+if same:
+    account["signature_html"] = same[0].get("signature_html", "")
+    account["label"] = same[0].get("label", "")
+data["accounts"] = [a for a in data["accounts"] if key(a) != account["id"]] + [account]
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(data, handle, ensure_ascii=False, indent=2)
-' "$PLIK.nowy"
+' "$PLIK.nowy" "$PLIK"
 mv -f "$PLIK.nowy" "$PLIK"
 unset haslo
-echo "Zapisano konto w $PLIK. Sprawdzanie logowania…"
+echo "Zapisano konto w $PLIK. Sprawdzanie logowania wszystkich kont…"
 
 cd "$PROJEKT"
 if NEXUS_POCZTA_CONFIG_FILE="$PLIK" "$PYTHON" -m nexus.mail sprawdz; then

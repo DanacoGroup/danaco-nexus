@@ -1,7 +1,9 @@
 """Poczta e-mail: IMAP (odczyt, wyszukiwanie, szkice) i SMTP (wysyłanie).
 
 Poświadczenia leżą w pliku ``poczta_config_file`` (JSON zapisywany przez
-``deploy/zapisz-poczte.sh``, prawa 600). Operacje są synchroniczne (imaplib,
+``deploy/zapisz-poczte.sh``, prawa 600): lista kont ``{"default": id, "accounts": [...]}``
+albo – w starszym formacie – jedno konto. Każde konto może mieć podpis HTML
+(``signature_html``) dołączany do wysyłanych wiadomości. Operacje są synchroniczne (imaplib,
 smtplib) – API wywołuje je w wątku (``asyncio.to_thread``), narzędzia agenta
 działają w wątku puli. Połączenia wyłącznie szyfrowane (TLS / STARTTLS),
 z weryfikacją certyfikatu.
@@ -13,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import email
+import html as html_lib
 import imaplib
 import json
 import re
@@ -63,6 +66,10 @@ class MailNotConfigured(MailError):
     """Brak pliku z poświadczeniami poczty."""
 
 
+class UnknownAccount(MailError):
+    """Nie ma konta o podanym adresie."""
+
+
 @dataclass(slots=True)
 class MailConfig:
     """Konto pocztowe."""
@@ -76,6 +83,9 @@ class MailConfig:
     smtp_host: str = "mail.danaco-group.pl"
     smtp_port: int = 465
     smtp_security: str = "ssl"
+    id: str = ""
+    label: str = ""
+    signature_html: str = field(default="", repr=False)
 
     @property
     def sender(self) -> str:
@@ -89,35 +99,70 @@ def config_path(settings: Settings) -> Path:
     return path if path.is_absolute() else settings.data_dir / path
 
 
-def load_config(settings: Settings) -> MailConfig:
-    """Wczytuje konto z pliku; brak lub błąd pliku zgłasza ``MailNotConfigured``."""
-    path = config_path(settings)
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as error:
-        raise MailNotConfigured(
-            "Poczta nie jest skonfigurowana. Na serwerze uruchom: "
-            "sudo -u danaco-serwis deploy/zapisz-poczte.sh"
-        ) from error
-    except (OSError, ValueError) as error:
-        raise MailNotConfigured(f"Nie można odczytać konfiguracji poczty: {error}") from error
+SETUP_HINT = (
+    "Poczta nie jest skonfigurowana. Na serwerze uruchom: sudo -u danaco-serwis deploy/zapisz-poczte.sh"
+)
+
+
+def _account(raw: Any) -> MailConfig:
+    """Konto z wpisu pliku konfiguracji."""
     if not isinstance(raw, dict) or not raw.get("login") or not raw.get("password"):
         raise MailNotConfigured("Plik konfiguracji poczty nie zawiera loginu i hasła.")
     security = str(raw.get("smtp_security") or "ssl").lower()
     if security not in ("ssl", "starttls"):
         raise MailNotConfigured("smtp_security musi mieć wartość 'ssl' albo 'starttls'.")
     login = str(raw["login"])
+    address = str(raw.get("address") or login)
     return MailConfig(
         login=login,
         password=str(raw["password"]),
-        address=str(raw.get("address") or login),
+        address=address,
         name=str(raw.get("name") or ""),
         imap_host=str(raw.get("imap_host") or "mail.danaco-group.pl"),
         imap_port=int(raw.get("imap_port") or 993),
         smtp_host=str(raw.get("smtp_host") or raw.get("imap_host") or "mail.danaco-group.pl"),
         smtp_port=int(raw.get("smtp_port") or (465 if security == "ssl" else 587)),
         smtp_security=security,
+        id=str(raw.get("id") or address).lower(),
+        label=str(raw.get("label") or address),
+        signature_html=str(raw.get("signature_html") or ""),
     )
+
+
+def load_accounts(settings: Settings) -> list[MailConfig]:
+    """Wszystkie konta z pliku (pierwsze – domyślne); brak lub błąd pliku: ``MailNotConfigured``."""
+    path = config_path(settings)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as error:
+        raise MailNotConfigured(SETUP_HINT) from error
+    except (OSError, ValueError) as error:
+        raise MailNotConfigured(f"Nie można odczytać konfiguracji poczty: {error}") from error
+    if isinstance(raw, dict) and isinstance(raw.get("accounts"), list):
+        accounts = [_account(entry) for entry in raw["accounts"]]
+        if not accounts:
+            raise MailNotConfigured(SETUP_HINT)
+        default = str(raw.get("default") or "").lower()
+        accounts.sort(key=lambda account: account.id != default)
+        return accounts
+    return [_account(raw)]
+
+
+def find_account(accounts: list[MailConfig], account: str | None) -> MailConfig:
+    """Konto o identyfikatorze lub adresie ``account`` (puste – domyślne)."""
+    wanted = (account or "").strip().lower()
+    if not wanted:
+        return accounts[0]
+    for config in accounts:
+        if wanted in (config.id, config.address.lower(), config.login.lower()):
+            return config
+    names = ", ".join(config.address for config in accounts)
+    raise UnknownAccount(f"Nie ma konta {account}. Dostępne konta: {names}.")
+
+
+def load_config(settings: Settings, account: str | None = None) -> MailConfig:
+    """Konto ``account`` (identyfikator lub adres; puste – domyślne)."""
+    return find_account(load_accounts(settings), account)
 
 
 def is_configured(settings: Settings) -> bool:
@@ -652,8 +697,13 @@ def build_message(
     in_reply_to: str = "",
     references: str = "",
     attachments: list[Attachment] | None = None,
+    signature: bool = True,
 ) -> EmailMessage:
-    """Wiadomość gotowa do wysłania lub zapisania jako szkic."""
+    """Wiadomość gotowa do wysłania lub zapisania jako szkic.
+
+    Gdy konto ma podpis (i ``signature``), wiadomość dostaje część HTML z podpisem,
+    a część tekstowa – jego wersję tekstową; podpis stoi przed cytatem odpowiedzi.
+    """
     message = EmailMessage()
     message["From"] = config.sender
     if to:
@@ -667,13 +717,53 @@ def build_message(
     if in_reply_to:
         message["In-Reply-To"] = in_reply_to
         message["References"] = f"{references} {in_reply_to}".strip()
-    message.set_content(body)
+    if signature and config.signature_html:
+        text, html = with_signature(body, config.signature_html)
+        message.set_content(text)
+        message.add_alternative(html, subtype="html")
+    else:
+        message.set_content(body)
     for attachment in attachments or []:
         maintype, _, subtype = (attachment.mime or "application/octet-stream").partition("/")
         message.add_attachment(
             attachment.data, maintype=maintype, subtype=subtype or "octet-stream", filename=attachment.name
         )
     return message
+
+
+QUOTE_START = re.compile(r"\n\n[^\n]*napisał\(a\):\n>")
+
+
+def split_quote(body: str) -> tuple[str, str]:
+    """Treść i cytat oryginału (dopisany przez ``quote_body`` lub interfejs)."""
+    matches = list(QUOTE_START.finditer(body))
+    if not matches:
+        return body, ""
+    start = matches[-1].start()
+    return body[:start], body[start:]
+
+
+def _html_text(text: str) -> str:
+    return html_lib.escape(text).replace("\n", "<br>\n")
+
+
+def with_signature(body: str, signature_html: str) -> tuple[str, str]:
+    """Treść tekstowa i HTML z podpisem wstawionym przed cytatem odpowiedzi."""
+    own, quote = split_quote(body)
+    own = own.rstrip()
+    text = f"{own}\n\n-- \n{html_to_text(signature_html)}{quote}"
+    quote_html = ""
+    if quote.strip():
+        quote_html = (
+            '<blockquote style="margin:16px 0 0;padding-left:12px;border-left:3px solid #ccc;color:#555">'
+            f"{_html_text(quote.strip())}</blockquote>"
+        )
+    html = (
+        "<!DOCTYPE html><html><body>"
+        '<div style="font-family:Aptos,Segoe UI,Arial,sans-serif;font-size:14px">'
+        f"{_html_text(own)}</div>{signature_html}{quote_html}</body></html>"
+    )
+    return text, html
 
 
 def recipients(message: EmailMessage, bcc: list[str] | None = None) -> list[str]:
@@ -734,35 +824,38 @@ def quote_body(original: dict[str, Any]) -> str:
 
 
 def check(settings: Settings) -> int:
-    """Sprawdza logowanie IMAP i SMTP (bez wysyłania); zwraca kod wyjścia."""
+    """Sprawdza logowanie IMAP i SMTP każdego konta (bez wysyłania); zwraca kod wyjścia."""
     try:
-        config = load_config(settings)
+        accounts = load_accounts(settings)
     except MailNotConfigured as error:
         print(error, file=sys.stderr)
         return 1
-    try:
-        with MailClient(config, settings.poczta_timeout_s) as client:
-            folders = client.folders()
-        print(f"IMAP {config.imap_host}:{config.imap_port}: zalogowano, folderów: {len(folders)}")
-    except MailError as error:
-        print(f"IMAP: {error}", file=sys.stderr)
-        return 1
-    try:
-        context = ssl.create_default_context()
-        if config.smtp_security == "ssl":
-            smtp: smtplib.SMTP = smtplib.SMTP_SSL(
-                config.smtp_host, config.smtp_port, context=context, timeout=30
-            )
-        else:
-            smtp = smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=30)
-            smtp.starttls(context=context)
-        with smtp:
-            smtp.login(config.login, config.password)
-        print(f"SMTP {config.smtp_host}:{config.smtp_port} ({config.smtp_security}): zalogowano")
-    except (smtplib.SMTPException, OSError) as error:
-        print(f"SMTP: {error}", file=sys.stderr)
-        return 1
-    return 0
+    failed = 0
+    for config in accounts:
+        try:
+            with MailClient(config, settings.poczta_timeout_s) as client:
+                folders = client.folders()
+            print(f"{config.address}: IMAP zalogowano, folderów: {len(folders)}")
+        except MailError as error:
+            print(f"{config.address}: IMAP: {error}", file=sys.stderr)
+            failed += 1
+            continue
+        try:
+            context = ssl.create_default_context()
+            if config.smtp_security == "ssl":
+                smtp: smtplib.SMTP = smtplib.SMTP_SSL(
+                    config.smtp_host, config.smtp_port, context=context, timeout=30
+                )
+            else:
+                smtp = smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=30)
+                smtp.starttls(context=context)
+            with smtp:
+                smtp.login(config.login, config.password)
+            print(f"{config.address}: SMTP {config.smtp_host}:{config.smtp_port} zalogowano")
+        except (smtplib.SMTPException, OSError) as error:
+            print(f"{config.address}: SMTP: {error}", file=sys.stderr)
+            failed += 1
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

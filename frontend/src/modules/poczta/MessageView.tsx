@@ -48,7 +48,7 @@ export function MessageView({
       showImages,
       cidUrl: (cid) => {
         const index = byCid.get(cid);
-        return index === undefined ? null : attachmentUrl(message.folder, message.uid, index, true);
+        return index === undefined ? null : attachmentUrl(message.account ?? "", message.folder, message.uid, index, true);
       },
       proxyUrl: imageProxyUrl,
     });
@@ -96,7 +96,7 @@ export function MessageView({
             {files.map((item) => (
               <li key={item.index}>
                 <a
-                  href={attachmentUrl(message.folder, message.uid, item.index)}
+                  href={attachmentUrl(message.account ?? "", message.folder, message.uid, item.index)}
                   className="flex max-w-64 items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm hover:bg-hover"
                 >
                   <FileIcon size={18} className="shrink-0 text-muted" />
