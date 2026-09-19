@@ -81,6 +81,17 @@ class Settings(BaseSettings):
         """Katalog roboczy narzędzi (pliki tymczasowe zadań)."""
         return self.data_dir / "work"
 
+    # --- moduł tworczy ---
+    # Strony WWW (Twórca stron): limit rozmiaru jednej strony.
+    tworczy_site_max_mb: int = 200
+    # Usuwanie tła obrazów: uruchamiacz rembg i model (pusty = domyślny model rembg).
+    tworczy_rembg_bin: str = "/danaco/programy/bin/rembg"
+    tworczy_rembg_model: str = ""
+    # Tłumacz: model Claude (przez Claude Code CLI), limit czasu partii, rozmiar partii w znakach.
+    tworczy_translate_model: str = "claude-sonnet-5"
+    tworczy_translate_timeout_s: int = 300
+    tworczy_translate_batch_chars: int = 6000
+
 
 @lru_cache
 def get_settings() -> Settings:
