@@ -18,6 +18,7 @@ import { PreviewModal } from "./components/PreviewModal";
 import { Sidebar } from "./components/Sidebar";
 import { AssistantMessage, UserMessage } from "./components/Turns";
 import { applyRunEvent, emptyAssistantTurn } from "./runState";
+import { takeSharedContent } from "./share";
 import { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 
 const SUGGESTIONS = [
@@ -167,6 +168,19 @@ export default function App() {
       window.location.replace(cloudUrl);
     }
   }, [user, cloudUrl]);
+
+  // Pliki udostępnione z innej aplikacji trafiają do nowej wiadomości.
+  useEffect(() => {
+    if (!user) return;
+    takeSharedContent()
+      .then((shared) => {
+        if (!shared) return;
+        open(null);
+        if (shared.files.length) setDropped(shared.files);
+        if (shared.text) setPrefill(shared.text);
+      })
+      .catch(handleError);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;

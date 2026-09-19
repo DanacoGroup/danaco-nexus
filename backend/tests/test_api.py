@@ -219,3 +219,5 @@ def test_pwa_files_served_with_cache_rules(settings: Settings) -> None:
         spa = client.get("/c/00000000-0000-0000-0000-000000000000")
         assert spa.status_code == 200 and "Nexus" in spa.text
         assert "worker-src 'self'" in spa.headers["content-security-policy"]
+        shared = client.post("/share-target", follow_redirects=False)
+        assert shared.status_code == 303 and shared.headers["location"] == "/"

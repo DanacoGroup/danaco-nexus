@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
@@ -33,7 +33,9 @@ SECURITY_HEADERS = {
     ),
 }
 # Pliki PWA, które przeglądarka musi zawsze sprawdzać (aktualizacje aplikacji).
-NO_CACHE_FILES = frozenset({"sw.js", "registerSW.js", "manifest.webmanifest", "index.html"})
+NO_CACHE_FILES = frozenset(
+    {"sw.js", "registerSW.js", "share-target.js", "manifest.webmanifest", "index.html"}
+)
 IMMUTABLE = "public, max-age=31536000, immutable"
 MEDIA_TYPES = {".webmanifest": "application/manifest+json", ".js": "text/javascript"}
 
@@ -101,6 +103,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if (static / "index.html").is_file():
         if (static / "assets").is_dir():
             app.mount("/assets", ImmutableStatic(directory=static / "assets"), name="assets")
+
+        @app.post("/share-target", include_in_schema=False)
+        async def share_target() -> Response:
+            # Udostępnianie obsługuje service worker; bez niego (pierwsze uruchomienie)
+            # wracamy do aplikacji zamiast błędu.
+            return RedirectResponse("/", status_code=303)
 
         @app.get("/{path:path}", include_in_schema=False)
         async def spa(path: str) -> Response:

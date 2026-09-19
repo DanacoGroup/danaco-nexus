@@ -13,7 +13,7 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: ["favicon.svg", "apple-touch-icon.png", "icons/*.png"],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "icons/*.png", "share-target.js"],
       manifest: {
         id: "/",
         name: "Danaco Nexus",
@@ -36,6 +36,23 @@ export default defineConfig({
           { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
           { src: "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
+        // Udostępnianie plików do Nexusa z innych aplikacji (Android, Windows).
+        share_target: {
+          action: "/share-target",
+          method: "POST",
+          enctype: "multipart/form-data",
+          params: {
+            title: "title",
+            text: "text",
+            url: "url",
+            files: [
+              {
+                name: "files",
+                accept: ["image/*", "application/pdf", "audio/*", "video/*", "text/*", "application/*"],
+              },
+            ],
+          },
+        },
         shortcuts: [
           {
             name: "Nowa rozmowa",
@@ -49,7 +66,8 @@ export default defineConfig({
         // Powłoka aplikacji działa offline; API, pliki i strumień zadań zawsze z sieci.
         globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/],
+        importScripts: ["/share-target.js"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         runtimeCaching: [],
