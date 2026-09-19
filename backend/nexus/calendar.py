@@ -289,10 +289,12 @@ class CalendarClient:
 
     def _get(self, event_id: str) -> tuple[Calendar, str]:
         calendar_id, name = split_event_id(event_id)
-        response = self.http.get(self._url(calendar_id, name))
+        # Bez kompresji: serwer dopisuje wtedy do ETag przyrostek „-gzip”, którego If-Match nie uzna.
+        response = self.http.get(self._url(calendar_id, name), headers={"Accept-Encoding": "identity"})
         self._check(response, "odczyt wydarzenia")
+        etag = response.headers.get("etag", "").replace("-gzip", "")
         try:
-            return Calendar.from_ical(response.text), response.headers.get("etag", "")
+            return Calendar.from_ical(response.text), etag
         except ValueError as error:
             raise CalendarError("Nie można odczytać wydarzenia (uszkodzony iCalendar).") from error
 
