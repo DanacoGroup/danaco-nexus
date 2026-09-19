@@ -178,28 +178,25 @@ class PageContent:
 
 SKIP_TAGS = frozenset(
     {"script", "style", "noscript", "svg", "template", "iframe", "nav", "footer", "aside", "form", "button"}
-    | {"select", "canvas", "object", "dialog", "math"}
+    | {"select", "canvas", "object", "dialog", "math", "head"}
+)
+SKIP_ROLES = frozenset({"navigation", "banner", "contentinfo", "complementary", "search", "menu", "dialog"})
+# Klasy i identyfikatory elementów pomocniczych (menu, stopki, listy języków, spisy treści, reklamy).
+BOILERPLATE = re.compile(
+    r"^(nav|navbar|navigation|menu|menubar|sidebar|breadcrumbs?|cookies?|cookie[-_].*|consent.*|footer|"
+    r"site-header|lang|languages?|interlanguage.*|share|sharing|social.*|related|advert.*|ads?|banner|"
+    r"popup|modal|newsletter|subscribe|comments?|toc|noprint|navbox|catlinks|printfooter|mw-editsection|"
+    r"mw-jump-link|mw-portlet.*|vector-dropdown|vector-toc|vector-menu.*|vector-header.*|"
+    r"vector-page-toolbar|vector-sticky-header|sr-only|visually-hidden|screen-reader-text|skip-link)$",
+    re.IGNORECASE,
 )
 BLOCK_TAGS = frozenset(
-    {"p", "div", "section", "article", "main", "header", "br", "tr", "table", "ul", "ol", "dl", "dt", "dd"}
-    | {
-        "blockquote",
-        "pre",
-        "figure",
-        "figcaption",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "li",
-        "hr",
-        "td",
-        "th",
-    }
+    {"p", "div", "section", "article", "main", "header", "tr", "table", "ul", "ol", "dl", "dt", "dd"}
+    | {"blockquote", "pre", "figure", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "li", "td", "th"}
 )
-VOID_TAGS = frozenset({"br", "hr", "img", "meta", "link", "input", "source", "wbr", "area", "base", "col"})
+VOID_TAGS = frozenset(
+    {"br", "hr", "img", "meta", "link", "input", "source", "wbr", "area", "base", "col", "embed", "track"}
+)
 META_KEYS = {
     "description": "description",
     "og:description": "description",
@@ -217,12 +214,26 @@ META_KEYS = {
 }
 
 
+def _is_boilerplate(tag: str, attributes: dict[str, str]) -> bool:
+    if tag in SKIP_TAGS or attributes.get("aria-hidden") == "true" or "hidden" in attributes:
+        return True
+    if attributes.get("role", "").lower() in SKIP_ROLES:
+        return True
+    tokens = attributes.get("class", "").split() + attributes.get("id", "").split()
+    return any(BOILERPLATE.match(token) for token in tokens)
+
+
 class _HtmlExtractor(HTMLParser):
-    """Parser HTML zbierający tekst głównej treści, metadane i odnośniki."""
+    """Parser HTML zbierający tekst głównej treści, metadane i odnośniki.
+
+    Otwarte elementy są na stosie, więc brakujące znaczniki zamykające (częste w HTML)
+    nie psują pomijania menu, stopek i innych elementów pomocniczych.
+    """
 
     def __init__(self, base_url: str) -> None:
         super().__init__(convert_charrefs=True)
         self.base_url = base_url
+        self.stack: list[tuple[str, bool]] = []
         self.skip_depth = 0
         self.in_title = False
         self.title = ""
@@ -242,8 +253,7 @@ class _HtmlExtractor(HTMLParser):
             if self.depth[zone]:
                 self.parts[zone].append(text)
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attributes = {key.lower(): (value or "") for key, value in attrs}
+    def _head_element(self, tag: str, attributes: dict[str, str]) -> bool:
         if tag == "html" and attributes.get("lang"):
             self.language = attributes["lang"][:20]
         if tag == "meta":
@@ -252,16 +262,28 @@ class _HtmlExtractor(HTMLParser):
             content = " ".join(attributes.get("content", "").split())
             if target and content and target not in self.meta:
                 self.meta[target] = content[:1000]
+            return True
+        if tag == "link":
+            if "canonical" in attributes.get("rel", "").lower().split():
+                self.canonical = urljoin(self.base_url, attributes.get("href", ""))
+            return True
+        if tag == "title":
+            self.in_title = not self.title
+            return True
+        return False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = {key.lower(): (value or "") for key, value in attrs}
+        if self._head_element(tag, attributes):
             return
-        if tag == "link" and "canonical" in attributes.get("rel", "").lower().split():
-            self.canonical = urljoin(self.base_url, attributes.get("href", ""))
+        if tag in VOID_TAGS:
+            if tag in {"br", "hr"} and not self.skip_depth:
+                self._emit("\n")
             return
-        if tag == "title" and not self.title:
-            self.in_title = True
-            return
-        if tag in SKIP_TAGS:
+        skip = _is_boilerplate(tag, attributes)
+        self.stack.append((tag, skip))
+        if skip:
             self.skip_depth += 1
-            return
         if self.skip_depth:
             return
         if tag in self.depth:
@@ -279,14 +301,11 @@ class _HtmlExtractor(HTMLParser):
         elif tag in {"td", "th"}:
             self._emit(" | ")
 
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "title":
-            self.in_title = False
+    def _close(self, tag: str, skip: bool) -> None:
+        if skip:
+            self.skip_depth -= 1
             return
-        if tag in SKIP_TAGS:
-            self.skip_depth = max(0, self.skip_depth - 1)
-            return
-        if self.skip_depth or tag in VOID_TAGS:
+        if self.skip_depth:
             return
         if tag == "a" and self._link_href is not None:
             text = " ".join("".join(self._link_text).split())
@@ -300,6 +319,18 @@ class _HtmlExtractor(HTMLParser):
         if tag in BLOCK_TAGS:
             self._emit("\n")
 
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "title":
+            self.in_title = False
+            return
+        if tag in VOID_TAGS or all(name != tag for name, _skip in self.stack):
+            return
+        while self.stack:
+            name, skip = self.stack.pop()
+            self._close(name, skip)
+            if name == tag:
+                break
+
     def handle_data(self, data: str) -> None:
         if self.in_title:
             self.title += data
@@ -311,15 +342,22 @@ class _HtmlExtractor(HTMLParser):
         self._emit(data)
 
 
+LIST_LINE = re.compile(r"^(- |\| )")
+
+
 def normalize_text(text: str) -> str:
-    """Porządkuje białe znaki: pojedyncze spacje w wierszach, najwyżej jeden pusty wiersz."""
+    """Porządkuje białe znaki: pojedyncze spacje w wierszach, najwyżej jeden pusty wiersz,
+    bez pustych wierszy między kolejnymi punktami listy."""
     lines = [" ".join(line.split()) for line in text.replace("\r", "\n").split("\n")]
+    lines = [line for line in lines if line not in {"#", "##", "###", "####", "-", "|"}]
     cleaned: list[str] = []
-    for line in lines:
-        if line in {"#", "##", "###", "####", "-", "|"}:
-            continue
-        if not line and (not cleaned or not cleaned[-1]):
-            continue
+    for index, line in enumerate(lines):
+        if not line:
+            if not cleaned or not cleaned[-1]:
+                continue
+            following = next((item for item in lines[index + 1 :] if item), "")
+            if LIST_LINE.match(cleaned[-1]) and LIST_LINE.match(following):
+                continue
         cleaned.append(line)
     return "\n".join(cleaned).strip()
 

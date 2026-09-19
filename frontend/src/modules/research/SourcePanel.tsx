@@ -14,6 +14,15 @@ interface Props {
   onSaved: () => void;
 }
 
+/** Czy pozycja listy źródeł zawiera coś poza tytułem i adresem (np. autorów, datę, cytowanie). */
+function hasDetails(citation: Citation): boolean {
+  const rest = citation.text
+    .replace(citation.url, "")
+    .replace(citation.title, "")
+    .replace(/[\s–—\-:,.()[\]<>]+/g, "");
+  return rest.length > 0;
+}
+
 export function SourcePanel({ citation, collections, defaultCollection, onClose, onSaved }: Props) {
   const [preview, setPreview] = useState<PagePreview | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,9 +84,7 @@ export function SourcePanel({ citation, collections, defaultCollection, onClose,
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <h3 className="text-[15px] leading-snug font-semibold">{citation.title || citation.url}</h3>
-        {citation.text !== citation.title && (
-          <p className="mt-2 text-sm break-words text-muted">{citation.text}</p>
-        )}
+        {hasDetails(citation) && <p className="mt-2 text-sm break-words text-muted">{citation.text}</p>}
         {citation.url && (
           <div className="mt-4 flex flex-wrap gap-2">
             <a

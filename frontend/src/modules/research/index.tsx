@@ -180,11 +180,13 @@ function NewResearch({
             className="w-full rounded-xl border border-line bg-app px-3 py-2 text-sm"
           >
             <option value="">Kolekcja „Research” (domyślna)</option>
-            {collections.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
+            {collections
+              .filter((item) => item.name !== "Research")
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             <option value={NO_SAVE}>Nie zapisuj źródeł</option>
           </select>
         </label>

@@ -219,6 +219,22 @@ def test_fetch_page_reads_pdf_and_rejects_binary() -> None:
         fetch_page("https://example.com/brak", client=mock_client(handler), resolve=fake_resolver())
 
 
+def test_extract_html_skips_boilerplate_with_unclosed_tags() -> None:
+    html = (
+        "<html><body><div class='vector-dropdown mw-portlet-lang'><ul><li>Deutsch<li>Polski</ul></div>"
+        "<div role='navigation'><p>Menu boczne</div>"
+        "<div id='cookie-banner' hidden>Akceptuj ciasteczka</div>"
+        "<p>Pierwszy akapit bez zamknięcia<p>Drugi akapit<ul><li>Punkt A<li>Punkt B</ul>"
+        "<span aria-hidden='true'>ukryte</span><p>Koniec treści</body></html>"
+    )
+    data = web.extract_html(html, "https://example.com/")
+    text = data["text"]
+    assert "Deutsch" not in text and "Menu boczne" not in text and "ciasteczka" not in text
+    assert "ukryte" not in text
+    assert "Pierwszy akapit bez zamknięcia" in text and "Koniec treści" in text
+    assert "- Punkt A\n- Punkt B" in text
+
+
 def test_decode_uses_meta_charset() -> None:
     body = '<html><head><meta charset="iso-8859-2"><title>Łódź</title></head></html>'.encode("iso-8859-2")
     assert "Łódź" in web.decode_body(body, "text/html")
