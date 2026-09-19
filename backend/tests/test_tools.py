@@ -45,7 +45,7 @@ def test_every_tool_has_valid_definition() -> None:
     for definition in definitions:
         assert definition["description"]
         assert definition["input_schema"]["type"] == "object"
-        assert definition["eager_input_streaming"] is True
+        assert set(definition) == {"name", "description", "input_schema"}
         json.dumps(definition)
 
 

@@ -11,9 +11,9 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 - Asystent AI z interfejsem czatu: historia rozmów, przesyłanie plików (przycisk,
   przeciąganie, wklejanie), strumieniowanie odpowiedzi i działań narzędzi, podgląd
   i pobieranie wyników, anulowanie zadań, układ dla komputerów, tabletów i telefonów.
-- Pętla agenta Claude (`claude-opus-5`) z myśleniem adaptacyjnym, pamięcią podręczną
-  promptu i server-side fallbacks; zadania w kolejce PostgreSQL wykonywane przez
-  proces roboczy.
+- Agent działający przez Claude Code CLI (`claude-opus-5`, zapasowo `claude-sonnet-5`)
+  na subskrypcji konta Claude, z sesją CLI utrzymującą kontekst rozmowy; narzędzia
+  udostępnia serwer MCP projektu. Zadania w kolejce PostgreSQL wykonuje proces roboczy.
 - 22 narzędzia agenta: OCR z przeszukiwalnym PDF (Tesseract), poprawa skanów
   (OpenCV, unpaper), korekta zdjęć, retusz portretów, powiększanie Real-ESRGAN,
   ImageMagick, konwersje obrazów i dokumentów (LibreOffice, Inkscape), tworzenie
@@ -21,5 +21,6 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   wykrywanie granic dokumentów, audio i wideo (FFmpeg), archiwa ZIP, baza wiedzy
   z wyszukiwaniem semantycznym (Qdrant).
 - Logowanie administratora (Argon2, sesje w bazie, ochrona CSRF, limit prób).
-- Docker Compose, skrypt budowy obrazów, szablon witryny Caddy i procedura
-  przeniesienia magazynu obrazów containerd na partycję danych.
+- Wdrożenie bez Dockera: skrypt instalacji, własny klaster PostgreSQL 18, Qdrant
+  i LanguageTool w katalogu projektu, usługi systemd, szablon witryny Caddy.
+- Polecenie diagnostyczne `doctor` (programy, usługi, Claude Code CLI, serwer MCP).

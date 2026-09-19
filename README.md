@@ -24,19 +24,29 @@ przeglądarka (Windows, Android, iPhone, tablet)
         │ HTTPS
       Caddy (host) ── NEXUS.DOMENA.PL → 127.0.0.1:8930
         │
-  api (FastAPI + interfejs React) ──────────┐
-        │ kolejka zadań (PostgreSQL)        │ strumień zdarzeń (SSE)
-  worker (agent Claude + narzędzia) ────────┘
+  danaco-nexus-api (FastAPI + interfejs React) ──────────┐
+        │ kolejka zadań (PostgreSQL)                     │ strumień zdarzeń (SSE)
+  danaco-nexus-worker ──► claude -p (Claude Code CLI) ───┤
+                               │ MCP (stdio)             │
+                          nexus.mcp_server (narzędzia) ──┘
         │
-  PostgreSQL · Qdrant · Apache Tika · LanguageTool · Real-ESRGAN (host)
+  PostgreSQL 5433 · Qdrant 6335 · LanguageTool 8010 · Tika · Real-ESRGAN · LibreOffice …
 ```
+
+Agent nie korzysta z API Anthropic. Każde zadanie uruchamia Claude Code CLI
+(`claude -p --output-format stream-json`) na subskrypcji konta Claude (token OAuth
+w profilu projektu). Narzędzia Nexusa dostarcza serwer MCP uruchamiany przez CLI
+na czas zadania; wbudowane narzędzia CLI (Bash, Read, Write, WebFetch…) są
+wyłączone. Kontekst rozmowy utrzymuje sesja CLI – pierwsze zadanie ją tworzy
+(`--session-id`), kolejne wznawiają (`--resume`).
 
 | Składnik | Rola |
 |---|---|
 | `frontend/` | Aplikacja WWW (React, TypeScript, Vite): historia rozmów, czat, załączniki (przycisk, przeciąganie, wklejanie), podgląd i pobieranie wyników, strumieniowanie odpowiedzi. |
 | `backend/nexus/api` | API: logowanie administratora, rozmowy, pliki, zadania i strumień zdarzeń SSE. |
-| `backend/nexus/worker.py` | Proces roboczy: pobiera zadania z kolejki (`FOR UPDATE SKIP LOCKED`) i prowadzi pętlę agenta. |
-| `backend/nexus/agent` | Pętla agenta: `claude-opus-5`, myślenie adaptacyjne, strumieniowanie, pamięć podręczna promptu, server-side fallbacks, zapis każdego kroku. |
+| `backend/nexus/worker.py` | Proces roboczy: pobiera zadania z kolejki (`FOR UPDATE SKIP LOCKED`) i uruchamia dla nich agenta. |
+| `backend/nexus/agent` | Przebieg agenta przez Claude Code CLI: `claude-opus-5` (zapasowy `claude-sonnet-5`), strumień `stream-json` tłumaczony na zdarzenia interfejsu, historię i rejestr wywołań narzędzi; anulowanie kończy całą grupę procesów. |
+| `backend/nexus/mcp_server.py` | Serwer MCP (stdio) z narzędziami Nexusa; pliki wynikowe zapisuje w magazynie, postęp w zdarzeniach zadania. |
 | `backend/nexus/tools` | Narzędzia wywoływane przez Claude (tabela niżej). |
 | `backend/nexus/ocr` | Rdzeń OCR: przygotowanie obrazu, Tesseract, niewidoczna warstwa tekstowa PDF, eksport TXT/DOCX. |
 | PostgreSQL | Pamięć: rozmowy, wiadomości, pliki, zadania, wywołania narzędzi, zdarzenia. |
@@ -69,38 +79,63 @@ Claude sam decyduje, których narzędzi użyć i z jakimi parametrami.
 
 ## Wymagania
 
-- serwer z Dockerem i Docker Compose (magazyn obrazów na partycji z ok. 10 GB wolnego miejsca),
-- klucz API Anthropic (`ANTHROPIC_API_KEY`),
-- Caddy na hoście z domeną wskazującą serwer (rekord DNS A),
-- Real-ESRGAN (`realesrgan-ncnn-vulkan` z modelami) w katalogu hosta montowanym do procesu roboczego.
+Instalacja działa bez Dockera. Wszystko, co należy wyłącznie do projektu,
+znajduje się w katalogu projektu (`/danaco/projekty/danaco-nexus`):
 
-Serwer `danaco-server` ma dwie cechy, które uwzględnia konfiguracja stosu:
+| Katalog | Zawartość |
+|---|---|
+| `.venv/` | środowisko Pythona 3.12 (backend) |
+| `programy/qdrant/` | program Qdrant (pobierany przez skrypt instalacji) |
+| `dane/postgres/` | własny klaster PostgreSQL 18 (tylko gniazdo uniksowe w `dane/run`, port 5433) |
+| `dane/qdrant/` | magazyn Qdrant (127.0.0.1:6335) |
+| `dane/app/` | pliki rozmów, pamięć podręczna, logi aplikacji |
+| `dane/claude-profil/` | profil Claude Code CLI projektu (sesje, token OAuth) |
+| `.cache/` | pamięć podręczna pip/uv/npm (poza partycją systemową) |
 
-- **zapora hosta blokuje ruch wychodzący kontenerów w sieci mostkowej** (`FORWARD DROP`) –
-  proces roboczy działa w sieci hosta, a usługi pomocnicze nasłuchują tylko na `127.0.0.1`;
-  obrazy buduje skrypt `deploy/build.sh` z opcją `--network host`,
-- **Docker przechowuje obrazy w magazynie containerd na partycji systemowej** (9,6 GB) –
-  przed pierwszą budową trzeba przenieść magazyn na `/danaco` skryptem
-  `deploy/przeniesienie-containerd.sh` (wymaga uprawnień root i krótkiego restartu Dockera).
+Współdzielone programy serwera są tylko używane: PostgreSQL 18, Java 17,
+LanguageTool, Apache Tika (tika-app), Tesseract (pol, eng, osd), unpaper,
+ImageMagick, LibreOffice, Inkscape, GIMP, FFmpeg, Real-ESRGAN, Node.js
+i Claude Code CLI (`/danaco/programy/node/bin/claude`). Magazyn Dockera
+i usługi innych projektów pozostają nietknięte.
 
 ## Wdrożenie na serwerze
 
 ```bash
 cd /danaco/projekty/danaco-nexus
-cp .env.example .env            # uzupełnić ANTHROPIC_API_KEY i POSTGRES_PASSWORD
-mkdir -p data/app data/postgres data/qdrant
-sudo ./deploy/przeniesienie-containerd.sh   # jednorazowo, patrz „Wymagania”
-./deploy/build.sh
-docker compose up -d
-docker compose exec api python -m nexus.cli set-password   # login: admin
-docker compose exec worker python -m nexus.cli doctor --online
+deploy/instalacja.sh
+```
+
+Skrypt jest idempotentny (służy też do aktualizacji). Tworzy `.env` z
+`.env.example`, instaluje zależności Pythona i buduje interfejs, pobiera Qdrant,
+zakłada klaster PostgreSQL i bazę `nexus`, podłącza jednostki systemd z
+`deploy/systemd/` (`systemctl link`) i uruchamia usługi:
+
+| Usługa | Rola |
+|---|---|
+| `danaco-nexus-postgres` | baza (gniazdo `dane/run`, port 5433, uwierzytelnianie peer) |
+| `danaco-nexus-qdrant` | baza wiedzy (127.0.0.1:6335/6336) |
+| `danaco-nexus-languagetool` | sprawdzanie tekstu (127.0.0.1:8010) |
+| `danaco-nexus-api` | API i interfejs (127.0.0.1:8930) |
+| `danaco-nexus-worker` | proces roboczy agenta |
+| `danaco-nexus.target` | wszystkie powyższe razem |
+
+Usługi działają jako `danaco-serwis:danaco-user` z zabezpieczeniami systemd
+(`ProtectSystem=strict`, `ProtectHome`, `NoNewPrivileges`, zapis tylko do `dane/`).
+
+Kroki administratora po instalacji:
+
+```bash
+claude setup-token                                   # na koncie Claude właściciela
+sudo -u danaco-serwis deploy/zapisz-token.sh         # wklejenie tokenu (bez echa)
+deploy/nexus-cli.sh set-password                     # login: admin
+deploy/nexus-cli.sh doctor --online
 ```
 
 Polecenie `doctor` sprawdza bazę, katalog danych, czcionkę warstwy tekstowej,
 programy narzędziowe (Tesseract z językami, LibreOffice, FFmpeg, ImageMagick,
-unpaper, Inkscape), Real-ESRGAN (test na małym obrazie), usługi Qdrant, Tika
-i LanguageTool oraz klucz API Claude (odczyt metadanych modelu, bez
-generowania tokenów).
+unpaper, Inkscape), Real-ESRGAN (test na małym obrazie), Qdrant, Tika,
+LanguageTool, Claude Code CLI z tokenem oraz serwer MCP (lista narzędzi).
+Z `--online` wykonuje jedno krótkie zapytanie przez CLI.
 
 Publikacja pod domeną (plik witryny Caddy, zgodnie z konwencją serwera):
 
@@ -110,9 +145,10 @@ sed 's/NEXUS.DOMENA.PL/nexus.twoja-domena.pl/' deploy/caddy/danaco-nexus.caddy \
 caddy validate --config /etc/caddy/Caddyfile && caddy reload --config /etc/caddy/Caddyfile
 ```
 
-Aktualizacja: `git pull && ./deploy/build.sh && docker compose up -d`.
+Aktualizacja: `git pull && deploy/instalacja.sh`.
 
-Dziennik zdarzeń: `docker compose logs -f worker api` oraz pliki w `data/app/logs/`.
+Dziennik zdarzeń: `journalctl -u danaco-nexus-worker -u danaco-nexus-api -f` oraz
+pliki w `dane/app/logs/` (`worker.log`, `api.log`, `mcp.log`).
 
 ## Konfiguracja
 
@@ -120,14 +156,18 @@ Ustawienia z pliku `.env` (pełna lista z opisami w `.env.example`):
 
 | Zmienna | Znaczenie | Domyślnie |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Klucz API Claude | – (wymagany) |
-| `POSTGRES_PASSWORD` | Hasło bazy stosu | – (wymagany) |
-| `NEXUS_ANTHROPIC_MODEL` | Model agenta | `claude-opus-5` |
-| `NEXUS_ANTHROPIC_EFFORT` | Poziom wysiłku (`low`…`max`); puste = `high` | puste |
-| `NEXUS_PORT` | Port API na `127.0.0.1` | `8930` |
-| `NEXUS_DATA_DIR` | Katalog danych | `./data` |
+| `NEXUS_DATABASE_URL` | Baza PostgreSQL (gniazdo projektu) | `…@/nexus?host=…/dane/run&port=5433` |
+| `NEXUS_CLAUDE_BIN` | Program Claude Code CLI | `/danaco/programy/node/bin/claude` |
+| `NEXUS_CLAUDE_PROFILE_DIR` | Profil CLI projektu (token w `oauth-token`) | `dane/claude-profil` |
+| `NEXUS_CLAUDE_MODEL` | Model agenta | `claude-opus-5` |
+| `NEXUS_CLAUDE_FALLBACK_MODEL` | Model zapasowy przy przeciążeniu | `claude-sonnet-5` |
+| `NEXUS_CLAUDE_EFFORT` | Poziom wysiłku (`low`…`max`); puste = domyślny CLI | puste |
+| `NEXUS_RUN_TIMEOUT_MINUTES` | Limit czasu jednego zadania | `120` |
+| `NEXUS_TOOL_TIMEOUT_MINUTES` | Limit czasu jednego wywołania narzędzia | `90` |
+| `NEXUS_DATA_DIR` | Katalog danych aplikacji | `dane/app` |
 | `NEXUS_WORKER_CONCURRENCY` | Równolegle obsługiwane zadania | `2` |
 | `NEXUS_TOOL_THREADS` | Wątki narzędzi (OCR) na zadanie | `8` |
+| `NEXUS_TIKA_URL` | Serwer Tika; puste = tika-app w trybie wsadowym | puste |
 | `NEXUS_UPLOAD_LIMIT_MB` | Limit rozmiaru przesyłanego pliku | `2048` |
 
 ## Rozwój i testy
@@ -144,8 +184,11 @@ npm ci && npm test && npm run build
 
 Testy obejmują rdzeń OCR (dokładność rozpoznawania polskiego tekstu, położenie
 warstwy tekstowej na stronach obróconych), wszystkie narzędzia, API (logowanie,
-CSRF, limity, kolejka, SSE) i pętlę agenta z atrapą klienta Claude. Testy
-wymagające programów narzędziowych są pomijane, gdy programu brak.
+CSRF, limity, kolejka, SSE) i przebieg agenta z atrapą Claude Code CLI
+(`tests/fake_claude.py`), która wypisuje strumień `stream-json` i wywołuje
+narzędzie przez prawdziwy serwer MCP. Testy wymagające programów narzędziowych
+są pomijane, gdy programu brak; testy PostgreSQL wymagają zmiennej
+`NEXUS_TEST_POSTGRES_URL` (pusta baza testowa).
 
 ## Bezpieczeństwo
 
@@ -157,4 +200,9 @@ wymagające programów narzędziowych są pomijane, gdy programu brak.
 - narzędzia otrzymują wyłącznie identyfikatory plików; programy zewnętrzne są
   uruchamiane bez powłoki, z limitem czasu i możliwością anulowania,
 - treść plików traktowana jest przez agenta jako dane, a nie polecenia,
-- API i usługi pomocnicze nasłuchują wyłącznie na pętli zwrotnej hosta.
+- agent działa przez Claude Code CLI z białą listą narzędzi (tylko serwer MCP Nexusa
+  i ToolSearch); wbudowane narzędzia CLI (powłoka, pliki, sieć) są zakazane, a klucz
+  API nie jest przekazywany do procesu CLI,
+- token OAuth leży w profilu projektu z prawami `600` (właściciel `danaco-serwis`),
+- API i usługi pomocnicze nasłuchują wyłącznie na pętli zwrotnej hosta; PostgreSQL
+  tylko na gnieździe uniksowym z uwierzytelnianiem peer.
