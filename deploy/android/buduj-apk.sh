@@ -130,6 +130,10 @@ krok "Zależności Capacitor (npm ci) i synchronizacja projektu"
 cd "$REPO/android"
 npm ci --no-audit --no-fund
 npx cap sync android
+if [ "$TESTY" = 1 ]; then
+    krok "Testy skryptów mostka WebView (Node)"
+    node scripts/test-mostek.mjs
+fi
 
 krok "Budowa Gradle"
 cd "$REPO/android/android"
