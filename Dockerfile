@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 # Obrazy Danaco Nexus: "api" (FastAPI + interfejs WWW) i "worker" (agent + narzędzia).
 
 FROM node:22-bookworm-slim AS frontend
