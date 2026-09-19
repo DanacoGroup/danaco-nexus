@@ -20,6 +20,7 @@ import { Sidebar } from "./components/Sidebar";
 import { AssistantMessage, UserMessage } from "./components/Turns";
 import { applyRunEvent, emptyAssistantTurn } from "./runState";
 import { takeSharedContent } from "./share";
+import { unlockAudio } from "./voice/player";
 import { VoiceMode } from "./voice/VoiceMode";
 import { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 
@@ -373,7 +374,14 @@ export default function App() {
             onDroppedConsumed={() => setDropped([])}
             prefill={prefill}
             onPrefillConsumed={() => setPrefill("")}
-            onVoice={voiceConfig?.available ? () => setVoiceOpen(true) : undefined}
+            onVoice={
+              voiceConfig?.available
+                ? () => {
+                    unlockAudio();
+                    setVoiceOpen(true);
+                  }
+                : undefined
+            }
           />
           <div className="py-1.5 text-center text-xs text-muted">
             Danaco Nexus korzysta z Claude. Wyniki warto sprawdzić przed użyciem.

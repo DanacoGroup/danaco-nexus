@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,8 @@ from pydantic import BaseModel, Field
 
 from nexus.api.auth import require_session
 from nexus.voice import VoiceEngine, VoiceUnavailable
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/voice", tags=["voice"], dependencies=[Depends(require_session)])
 
@@ -65,6 +68,9 @@ async def transcribe(
             result = await asyncio.to_thread(_engine(request).transcribe, Path(handle.name), language)
         except VoiceUnavailable as error:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+        except Exception:  # noqa: BLE001 - zbyt krótkie albo uszkodzone nagranie to „brak mowy”
+            logger.warning("Nie udało się odczytać nagrania (%d B)", size, exc_info=True)
+            return {"text": "", "language": language, "duration": 0.0}
     return {"text": result.text, "language": result.language, "duration": result.duration}
 
 

@@ -31,6 +31,9 @@ MARKDOWN = re.compile(
 )
 
 
+VOLUME = 0.8
+
+
 class VoiceUnavailable(RuntimeError):
     """Brak modelu rozpoznawania lub syntezy mowy."""
 
@@ -159,6 +162,7 @@ def _synthesize(voice: Any, text: str, wav: wave.Wave_write, speed: float) -> No
     if hasattr(voice, "synthesize_wav"):
         from piper import SynthesisConfig
 
-        voice.synthesize_wav(text, wav, syn_config=SynthesisConfig(length_scale=length_scale))
+        # Głośność poniżej pełnej skali – bez przesterowań na głośnikach telefonów.
+        voice.synthesize_wav(text, wav, syn_config=SynthesisConfig(length_scale=length_scale, volume=VOLUME))
     else:
         voice.synthesize(text, wav, length_scale=length_scale)

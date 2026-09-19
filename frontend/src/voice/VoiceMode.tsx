@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { speakText, transcribeAudio, type VoiceConfig } from "../api";
 import { CloseIcon } from "../components/icons";
+import { playWav, stopAudio } from "./player";
 import { speakable, takeSentences } from "./sentences";
 
 type Phase = "starting" | "listening" | "hearing" | "transcribing" | "thinking" | "speaking" | "paused" | "error";
@@ -78,7 +79,6 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
   const cursor = useRef(0);
   const inflight = useRef<Promise<ArrayBuffer>[]>([]);
   const speechAbort = useRef(new AbortController());
-  const playing = useRef<AudioBufferSourceNode | null>(null);
   const player = useRef(false);
   const abort = useRef<AbortController | null>(null);
   const awaitingReply = useRef(false);
@@ -157,12 +157,7 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
     inflight.current = [];
     speechAbort.current.abort();
     speechAbort.current = new AbortController();
-    try {
-      playing.current?.stop();
-    } catch {
-      // Źródło już zakończone.
-    }
-    playing.current = null;
+    stopAudio();
   }, []);
 
   // Synteza najwyżej dwóch zdań naprzód – kolejne gra bez przerwy po poprzednim.
@@ -172,29 +167,17 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
     }
   };
 
-  const play = (buffer: AudioBuffer) =>
-    new Promise<void>((resolve) => {
-      const source = (context.current as AudioContext).createBufferSource();
-      source.buffer = buffer;
-      source.connect((context.current as AudioContext).destination);
-      source.onended = () => resolve();
-      playing.current = source;
-      source.start();
-    });
-
   const playQueue = useCallback(async () => {
-    if (player.current || !context.current) return;
+    if (player.current) return;
     player.current = true;
     try {
       fill();
       while (inflight.current.length) {
         const data = await (inflight.current.shift() as Promise<ArrayBuffer>);
         fill();
-        const buffer = await context.current.decodeAudioData(data);
         if (phaseRef.current !== "speaking" && phaseRef.current !== "thinking") break;
         go("speaking");
-        await play(buffer);
-        playing.current = null;
+        await playWav(data, speechAbort.current.signal);
       }
     } catch (failure) {
       if ((failure as Error).name !== "AbortError") {
@@ -290,9 +273,6 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
     let cancelled = false;
     (async () => {
       try {
-        const audioContext = new AudioContext();
-        await audioContext.resume();
-        context.current = audioContext;
         const media = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
@@ -301,6 +281,9 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
           return;
         }
         stream.current = media;
+        const audioContext = new AudioContext();
+        await audioContext.resume();
+        context.current = audioContext;
         const node = audioContext.createAnalyser();
         node.fftSize = 1024;
         audioContext.createMediaStreamSource(media).connect(node);
@@ -358,12 +341,12 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
 
   const tapOrb = () => {
     const current = phaseRef.current;
-    if (current === "speaking" || current === "thinking") {
+    if (current === "speaking") {
       stopSpeaking();
       awaitingReply.current = false;
       cursor.current = Number.MAX_SAFE_INTEGER;
       listen();
-    } else if (current === "hearing") {
+    } else if (current === "hearing" && performance.now() - speechStart.current > MIN_SPEECH_MS) {
       void finishUtterance();
     } else if (current === "paused") {
       toggleMute();
@@ -430,6 +413,13 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
           <div className={`text-lg font-medium ${phase === "thinking" ? "shimmer-text" : ""}`}>
             {error && phase === "error" ? error : PHASE_LABELS[phase]}
           </div>
+          <p className="mt-1 text-xs text-muted">
+            {phase === "speaking"
+              ? "Dotknij kuli lub zacznij mówić, aby przerwać"
+              : phase === "listening" || phase === "hearing"
+                ? "Mów naturalnie – po chwili ciszy odpowiem"
+                : ""}
+          </p>
           {heard && <p className="mt-3 line-clamp-2 text-sm text-muted">„{heard}”</p>}
           {error && phase !== "error" && <p className="mt-2 text-xs text-danger">{error}</p>}
         </div>
