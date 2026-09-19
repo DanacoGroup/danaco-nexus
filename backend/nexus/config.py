@@ -154,6 +154,9 @@ class Settings(BaseSettings):
     tworczy_translate_model: str = "claude-sonnet-5"
     tworczy_translate_timeout_s: int = 300
     tworczy_translate_batch_chars: int = 6000
+    # --- moduł rozszerzenie ---
+    # Najstarsza wersja rozszerzenia przeglądarki zgodna z serwerem (zwracana klientowi).
+    rozszerzenie_wersja_minimalna: str = "0.1.0"
 
 
 @lru_cache

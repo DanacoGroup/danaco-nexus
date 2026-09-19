@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Atrapa Nexusa (?widok=panel)</title>
+  </head>
+  <body>
+    <!-- Atrapa trybu osadzonego Nexusa wg umowy postMessage (testy e2e rozszerzenia). -->
+    <h1>Atrapa Nexusa</h1>
+    <button id="wstaw" type="button">Wstaw</button>
+    <button id="kopiuj" type="button">Kopiuj</button>
+    <pre id="log"></pre>
+    <script>
+      window.__odebrane = [];
+      window.__odrzucone = [];
+      window.addEventListener("message", (e) => {
+        // Panel przyjmuje polecenia wyłącznie od rodzica z pochodzenia rozszerzenia.
+        if (e.source !== window.parent || !/^chrome-extension:\/\//.test(e.origin)) {
+          window.__odrzucone.push({ origin: e.origin, data: e.data });
+          return;
+        }
+        window.__odebrane.push({ origin: e.origin, data: e.data });
+        document.getElementById("log").textContent += JSON.stringify(e.data).slice(0, 200) + "\n";
+      });
+      document.getElementById("wstaw").addEventListener("click", () => {
+        parent.postMessage({ type: "nexus:insert", text: window.__doWstawienia || "Dziękujemy za opinię!" }, "*");
+      });
+      document.getElementById("kopiuj").addEventListener("click", () => {
+        parent.postMessage({ type: "nexus:copy", text: "Tekst do schowka" }, "*");
+      });
+      parent.postMessage({ type: "nexus:ready" }, "*");
+    </script>
+  </body>
+</html>

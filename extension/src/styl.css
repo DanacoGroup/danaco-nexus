@@ -1,0 +1,478 @@
+/* Danaco Nexus – rozszerzenie: panel i opcje. Kolory = tokeny aplikacji (frontend/src/styles.css). */
+
+:root {
+  --app: #212121;
+  --side: #171717;
+  --raised: #2a2a2a;
+  --hover: #333336;
+  --line: #363638;
+  --line-strong: #4a4a4e;
+  --fg: #ececec;
+  --muted: #a1a1aa;
+  --accent: #8b7cf6;
+  --accent-hover: #9d90f8;
+  --accent-soft: #2c2748;
+  --on-accent: #ffffff;
+  --danger: #fb923c;
+  --danger-soft: #3a2418;
+  --success: #4ade80;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --app: #ffffff;
+    --side: #f7f7f8;
+    --raised: #f4f4f5;
+    --hover: #ececef;
+    --line: #e4e4e7;
+    --line-strong: #d4d4d8;
+    --fg: #111113;
+    --muted: #6b6b73;
+    --accent: #6d5dfc;
+    --accent-hover: #5b4ae8;
+    --accent-soft: #efedff;
+    --danger: #c2410c;
+    --danger-soft: #fff1ea;
+    --success: #15803d;
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--app);
+  color: var(--fg);
+  font: 14px/1.5 "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---------- panel ---------- */
+
+.uklad {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.naglowek {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 6px 12px;
+  background: var(--side);
+  border-bottom: 1px solid var(--line);
+}
+
+.znak {
+  display: inline-flex;
+}
+
+.nazwa {
+  font-weight: 600;
+}
+
+.pole-info {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  padding-right: 4px;
+}
+
+.ikona {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.ikona:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.akcje {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px 4px;
+  background: var(--side);
+}
+
+.akcje button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--raised);
+  font-size: 13px;
+}
+
+.akcje button:hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+}
+
+.akcje button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.akcje button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.opcje-akcji {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 12px 8px;
+  background: var(--side);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.przelacznik,
+.jezyk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.przelacznik[hidden] {
+  display: none;
+}
+
+.przelacznik input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.jezyk select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+  padding: 1px 4px;
+  font-size: 12px;
+}
+
+.link {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.link:hover {
+  color: var(--fg);
+}
+
+.opinie {
+  max-height: 45%;
+  overflow: auto;
+  border-bottom: 1px solid var(--line);
+  background: var(--app);
+}
+
+.opinie-naglowek {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.opinie ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+}
+
+.opinia {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+.opinia:hover,
+.opinia:focus-visible {
+  border-color: var(--accent);
+}
+
+.opinia-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.opinia-meta strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.opinia-tekst {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.opinia-pole {
+  color: var(--success);
+  font-size: 11px;
+}
+
+.pusto {
+  padding: 4px 12px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.glowna {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.glowna iframe {
+  border: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--app);
+}
+
+.nakladka {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: var(--app);
+  color: var(--muted);
+}
+
+.nakladka strong {
+  color: var(--fg);
+}
+
+.komunikat {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: all 0.18s ease;
+  pointer-events: none;
+}
+
+.komunikat.widoczny {
+  opacity: 1;
+  transform: none;
+}
+
+.komunikat.blad {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* ---------- formularz połączenia (panel i opcje) ---------- */
+
+.formularz {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 460px;
+  text-align: left;
+}
+
+.formularz label {
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 6px;
+  color: var(--fg);
+}
+
+.formularz input[type="url"],
+.formularz input[type="password"],
+.formularz input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.pomoc {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.przyciski {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.glowny,
+.drugorzedny {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.glowny {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.glowny:hover {
+  background: var(--accent-hover);
+}
+
+.glowny:disabled {
+  opacity: 0.6;
+}
+
+.drugorzedny {
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+.drugorzedny:hover {
+  background: var(--hover);
+}
+
+.stan {
+  min-height: 1.5em;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--success);
+}
+
+.stan.blad {
+  color: var(--danger);
+}
+
+/* ---------- strona opcji ---------- */
+
+.opcje {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.opcje h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.opcje h2 {
+  font-size: 15px;
+  margin: 28px 0 8px;
+}
+
+.opcje .karta {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--side);
+  padding: 16px;
+}
+
+.opcje .wiersz {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.opcje .wiersz input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.opcje ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.opcje kbd {
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 12px;
+  background: var(--raised);
+}
+
+.opcje .ograniczenia {
+  color: var(--muted);
+  font-size: 13px;
+}
