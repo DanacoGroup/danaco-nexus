@@ -28,6 +28,7 @@ MAX_MASK_BYTES = 20 * 1024 * 1024
 
 class ImageRequest(BaseModel):
     file_id: str
+    fast: bool = False
 
 
 class BackgroundRequest(BaseModel):
@@ -39,6 +40,7 @@ class BackgroundRequest(BaseModel):
     background_file_id: str | None = None
     original_file_id: str | None = None
     blur_radius: float = Field(18, ge=1, le=120)
+    fast: bool = False
 
 
 class EraseRequest(BaseModel):
@@ -67,9 +69,8 @@ async def capabilities(request: Request) -> dict[str, bool]:
 @router.post("/usun-tlo", status_code=status.HTTP_202_ACCEPTED)
 async def remove_background(payload: ImageRequest, request: Request) -> dict[str, Any]:
     """Usuwa tło (PNG z przezroczystością)."""
-    job = await start_tool_job(
-        request, "remove_background", {"file_ids": [payload.file_id]}, [payload.file_id]
-    )
+    arguments = {"file_ids": [payload.file_id], "fast": payload.fast}
+    job = await start_tool_job(request, "remove_background", arguments, [payload.file_id])
     return job.payload()
 
 

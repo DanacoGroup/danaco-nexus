@@ -41,7 +41,7 @@ def _load(ctx: ToolContext, file_id: str) -> tuple[str, Image.Image]:
     return file.name, image
 
 
-def cutout_of(ctx: ToolContext, name: str, image: Image.Image) -> Image.Image:
+def cutout_of(ctx: ToolContext, name: str, image: Image.Image, fast: bool = False) -> Image.Image:
     """Wycinek obiektu: obraz z przezroczystym tłem albo wynik rembg."""
     if has_transparency(image):
         return image.convert("RGBA")
@@ -55,7 +55,7 @@ def cutout_of(ctx: ToolContext, name: str, image: Image.Image) -> Image.Image:
         return remove_background(
             lambda command: ctx.run_command(command, timeout=900),
             rembg,
-            ctx.settings.tworczy_rembg_model,
+            ctx.settings.tworczy_rembg_fast_model if fast else ctx.settings.tworczy_rembg_model,
             staged,
             staged.with_name("wycinek.png"),
         )
@@ -91,6 +91,7 @@ def _preview(image: Image.Image) -> bytes:
 
 class RemoveBackgroundInput(ToolInput):
     file_ids: list[str] = Field(min_length=1, max_length=20, description="Obrazy (zdjęcia produktów, osób…).")
+    fast: bool = Field(False, description="Szybszy, mniej dokładny model wycinania (kilka sekund).")
 
 
 @registry.register(
@@ -106,7 +107,7 @@ def remove_background_tool(ctx: ToolContext, args: RemoveBackgroundInput) -> Too
     for file_id in args.file_ids:
         ctx.check_cancelled()
         name, image = _load(ctx, file_id)
-        cutout = cutout_of(ctx, name, image)
+        cutout = cutout_of(ctx, name, image, args.fast)
         target = _save(ctx, cutout, with_suffix(name, ".png", "_bez_tla"), used)
         outputs.append(OutputFile(target, target.name, f"{name} bez tła"))
         if len(previews) < 3:
@@ -132,6 +133,7 @@ class ChangeBackgroundInput(ToolInput):
         None, description="Oryginalne zdjęcie do rozmycia (mode='blur'), gdy file_id jest już wycinkiem."
     )
     blur_radius: float = Field(18, ge=1, le=120, description="Siła rozmycia tła (mode='blur').")
+    fast: bool = Field(False, description="Szybszy, mniej dokładny model wycinania (kilka sekund).")
 
 
 @registry.register(
@@ -152,7 +154,7 @@ def change_background(ctx: ToolContext, args: ChangeBackgroundInput) -> ToolResu
     )
     if args.mode == "image" and background is None:
         raise ToolError("Podaj background_file_id – zdjęcie nowego tła.")
-    cutout = cutout_of(ctx, name, image)
+    cutout = cutout_of(ctx, name, image, args.fast)
     ctx.progress("Składanie nowego tła")
     try:
         result = compose_background(

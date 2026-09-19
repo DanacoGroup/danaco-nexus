@@ -33,6 +33,7 @@ function ImagesPage(_: ModulePageProps) {
   const [angle, setAngle] = useState(90);
   const [blur, setBlur] = useState(18);
   const [backgroundImage, setBackgroundImage] = useState<FileInfo | null>(null);
+  const [fast, setFast] = useState(false);
   const [brush, setBrush] = useState(32);
   const [maskEmpty, setMaskEmpty] = useState(true);
   const [scale, setScale] = useState<2 | 3 | 4>(2);
@@ -59,7 +60,7 @@ function ImagesPage(_: ModulePageProps) {
     if (!source) return null;
     switch (tool) {
       case "remove":
-        return { endpoint: "usun-tlo", body: { file_id: source.id } };
+        return { endpoint: "usun-tlo", body: { file_id: source.id, fast } };
       case "background":
         return {
           endpoint: "zmien-tlo",
@@ -70,6 +71,7 @@ function ImagesPage(_: ModulePageProps) {
             color2,
             angle,
             blur_radius: blur,
+            fast,
             background_file_id: mode === "image" ? backgroundImage?.id : undefined,
           },
         };
@@ -246,6 +248,14 @@ function ImagesPage(_: ModulePageProps) {
                 />
                 <p className="text-sm text-muted">Real-ESRGAN działa na procesorze – duże zdjęcie może się przetwarzać kilka minut.</p>
               </div>
+            )}
+            {(tool === "remove" || (tool === "background" && mode !== "transparent")) && (
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={fast} onChange={(event) => setFast(event.target.checked)} className="mt-1 accent-[var(--accent)]" />
+                <span>
+                  Tryb szybki <span className="text-muted">– kilka sekund zamiast ok. minuty, mniej dokładne krawędzie</span>
+                </span>
+              </label>
             )}
             {unavailable && (
               <p className="rounded-xl border border-line bg-raised px-3 py-2 text-sm text-muted">

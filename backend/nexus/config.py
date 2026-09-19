@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     # Usuwanie tła obrazów: uruchamiacz rembg i model (pusty = domyślny model rembg).
     tworczy_rembg_bin: str = "/danaco/programy/bin/rembg"
     tworczy_rembg_model: str = ""
+    tworczy_rembg_fast_model: str = "isnet-general-use"
     # Tłumacz: model Claude (przez Claude Code CLI), limit czasu partii, rozmiar partii w znakach.
     tworczy_translate_model: str = "claude-sonnet-5"
     tworczy_translate_timeout_s: int = 300
