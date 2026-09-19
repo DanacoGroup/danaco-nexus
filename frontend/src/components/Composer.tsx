@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { uploadFile, type FileInfo } from "../api";
 import { formatSize } from "../runState";
-import { CloseIcon, FileIcon, PaperclipIcon, SendIcon, StopIcon } from "./icons";
+import { CloseIcon, FileIcon, PaperclipIcon, SendIcon, StopIcon, WaveIcon } from "./icons";
 
 export const ACCEPTED_FILES =
   ".pdf,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.txt,.md,.html,.jpg,.jpeg,.png,.heic,.tif,.tiff,.bmp,.webp,.gif,.svg,.zip,.mp4,.mov,.mkv,.webm,.mp3,.wav,.m4a,.ogg,.flac";
@@ -27,12 +27,14 @@ interface Props {
   onDroppedConsumed: () => void;
   prefill: string;
   onPrefillConsumed: () => void;
+  onVoice?: () => void;
 }
 
 let counter = 0;
 
 export function Composer(props: Props) {
-  const { conversationId, running, onSend, onStop, droppedFiles, onDroppedConsumed, prefill, onPrefillConsumed } = props;
+  const { conversationId, running, onSend, onStop, droppedFiles, onDroppedConsumed, prefill, onPrefillConsumed, onVoice } =
+    props;
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [sending, setSending] = useState(false);
@@ -200,6 +202,17 @@ export function Composer(props: Props) {
           onPaste={onPaste}
           className="max-h-[260px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-fg outline-none placeholder:text-muted"
         />
+        {onVoice && !running && (
+          <button
+            type="button"
+            className="icon-btn size-10 rounded-full"
+            onClick={onVoice}
+            aria-label="Rozmowa głosowa"
+            title="Rozmowa głosowa"
+          >
+            <WaveIcon />
+          </button>
+        )}
         {running ? (
           <button
             type="button"

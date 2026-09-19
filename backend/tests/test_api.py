@@ -44,6 +44,9 @@ def settings(tmp_path: Path) -> Settings:
         public_url="",
         chmura_public_url="",
         redis_url="",
+        voice_warm_up=False,
+        voice_stt_model_dir=tmp_path / "brak-modelu",
+        voice_tts_dir=tmp_path / "brak-glosow",
         login_attempts_per_15_min=3,
         qdrant_url="http://127.0.0.1:1",
     )
@@ -221,3 +224,20 @@ def test_pwa_files_served_with_cache_rules(settings: Settings) -> None:
         assert "worker-src 'self'" in spa.headers["content-security-policy"]
         shared = client.post("/share-target", follow_redirects=False)
         assert shared.status_code == 303 and shared.headers["location"] == "/"
+
+
+def test_voice_endpoints_without_models(client: TestClient, settings: Settings) -> None:
+    set_password(settings)
+    login(client)
+    config = client.get("/api/voice/config").json()
+    assert config == {"available": False, "voices": [], "default_voice": ""}
+    response = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("wypowiedz.webm", bytes(16), "audio/webm")},
+        data={"language": "pl"},
+        headers=HEADERS,
+    )
+    assert response.status_code == 503
+    assert client.post("/api/voice/speak", json={"text": "Dzień dobry"}, headers=HEADERS).status_code == 503
+    assert client.post("/api/voice/speak", json={"text": ""}, headers=HEADERS).status_code == 422
+    assert "microphone=(self)" in client.get("/api/health").headers["permissions-policy"]

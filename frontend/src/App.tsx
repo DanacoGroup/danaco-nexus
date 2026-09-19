@@ -10,6 +10,7 @@ import {
   type ConversationSummary,
   type FileInfo,
   type Turn,
+  type VoiceConfig,
 } from "./api";
 import { Composer } from "./components/Composer";
 import { Logo, MenuIcon, PaperclipIcon, PlusIcon } from "./components/icons";
@@ -19,6 +20,7 @@ import { Sidebar } from "./components/Sidebar";
 import { AssistantMessage, UserMessage } from "./components/Turns";
 import { applyRunEvent, emptyAssistantTurn } from "./runState";
 import { takeSharedContent } from "./share";
+import { VoiceMode } from "./voice/VoiceMode";
 import { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 
 const SUGGESTIONS = [
@@ -49,6 +51,9 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [dropped, setDropped] = useState<File[]>([]);
   const [prefill, setPrefill] = useState("");
+  const [voiceConfig, setVoiceConfig] = useState<VoiceConfig | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceRunId, setVoiceRunId] = useState<string | null>(null);
   const unsubscribe = useRef<(() => void) | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -184,6 +189,14 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
+    api
+      .voiceConfig()
+      .then(setVoiceConfig)
+      .catch(() => setVoiceConfig(null));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     refreshList();
     // Rozmowa z adresu strony jest otwierana wyłącznie po zalogowaniu.
     if (currentId) open(currentId);
@@ -194,7 +207,7 @@ export default function App() {
     if (element && stickToBottom.current) element.scrollTop = element.scrollHeight;
   }, [detail]);
 
-  const send = async (text: string, files: FileInfo[]): Promise<boolean> => {
+  const send = async (text: string, files: FileInfo[], voice = false): Promise<boolean> => {
     try {
       let conversationId = currentId;
       if (!conversationId) {
@@ -204,7 +217,8 @@ export default function App() {
         window.history.replaceState(null, "", `/c/${created.id}`);
         setDetail({ id: created.id, title: created.title, turns: [], files: [], active_run: null });
       }
-      const { run_id } = await api.sendMessage(conversationId, text, files.map((file) => file.id));
+      const { run_id } = await api.sendMessage(conversationId, text, files.map((file) => file.id), voice);
+      if (voice) setVoiceRunId(run_id);
       const userTurn: Turn = { type: "user", id: `local-${run_id}`, text, files, run_id, created_at: new Date().toISOString() };
       const assistantTurn: AssistantTurn = emptyAssistantTurn(run_id);
       const id = conversationId;
@@ -236,6 +250,13 @@ export default function App() {
   if (user === null) return <Login onLoggedIn={() => loadMe()} />;
 
   const turns = detail?.turns ?? [];
+  const voiceTurn = voiceRunId
+    ? turns.find((turn): turn is AssistantTurn => turn.type === "assistant" && turn.run_id === voiceRunId)
+    : undefined;
+  const voiceReply = voiceTurn
+    ? voiceTurn.items.map((item) => (item.kind === "text" ? item.text : "")).filter(Boolean).join("\n")
+    : "";
+  const voiceDone = !voiceTurn || (voiceTurn.status !== "running" && voiceTurn.status !== "queued");
   return (
     <div className="flex h-full overflow-hidden">
       <Sidebar
@@ -352,6 +373,7 @@ export default function App() {
             onDroppedConsumed={() => setDropped([])}
             prefill={prefill}
             onPrefillConsumed={() => setPrefill("")}
+            onVoice={voiceConfig?.available ? () => setVoiceOpen(true) : undefined}
           />
           <div className="py-1.5 text-center text-xs text-muted">
             Danaco Nexus korzysta z Claude. Wyniki warto sprawdzić przed użyciem.
@@ -365,6 +387,18 @@ export default function App() {
         )}
       </main>
       {preview && <PreviewModal file={preview} onClose={() => setPreview(null)} />}
+      {voiceOpen && voiceConfig && (
+        <VoiceMode
+          config={voiceConfig}
+          replyText={voiceReply}
+          replyDone={voiceDone}
+          onSend={(text) => send(text, [], true)}
+          onClose={() => {
+            setVoiceOpen(false);
+            setVoiceRunId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

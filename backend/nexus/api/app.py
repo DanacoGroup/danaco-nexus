@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -75,6 +76,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.login_throttle = auth.LoginThrottle(settings.login_attempts_per_15_min)
         app.state.events = EventBus(settings.redis_url)
         app.state.voice = VoiceEngine(settings)
+        if settings.voice_warm_up:
+            asyncio.get_running_loop().run_in_executor(None, app.state.voice.warm_up)
         app.state.knowledge = KnowledgeBase(
             settings.qdrant_url,
             settings.qdrant_collection,

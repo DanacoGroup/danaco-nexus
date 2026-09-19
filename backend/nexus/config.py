@@ -53,7 +53,8 @@ class Settings(BaseSettings):
     voice_stt_model_dir: Path = Path("/danaco/projekty/danaco-nexus/programy/modele/whisper-large-v3-turbo")
     voice_tts_dir: Path = Path("/danaco/projekty/danaco-nexus/programy/modele/piper")
     voice_default: str = "pl_PL-gosia-medium"
-    voice_threads: int = 8
+    voice_threads: int = 16
+    voice_warm_up: bool = True
     whisper_python: str = "/danaco/programy/srodowiska/mowa/bin/python"
     whisper_model_dir: Path = Path("/danaco/programy/modele/mowa")
 

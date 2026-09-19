@@ -93,6 +93,42 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return (await response.json()) as T;
 }
 
+export interface VoiceConfig {
+  available: boolean;
+  voices: { id: string; name: string }[];
+  default_voice: string;
+}
+
+/** Rozpoznanie nagranej wypowiedzi (rozmowa głosowa). */
+export async function transcribeAudio(audio: Blob, signal?: AbortSignal): Promise<string> {
+  const form = new FormData();
+  const extension = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `wypowiedz.${extension}`);
+  form.append("language", "pl");
+  const response = await fetch("/api/voice/transcribe", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: APP_HEADER,
+    body: form,
+    signal,
+  });
+  if (!response.ok) throw new ApiError(response.status, `Rozpoznawanie mowy nie powiodło się (${response.status})`);
+  return ((await response.json()) as { text: string }).text;
+}
+
+/** Synteza mowy (WAV) wybranym głosem. */
+export async function speakText(text: string, voice: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const response = await fetch("/api/voice/speak", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { ...APP_HEADER, "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice }),
+    signal,
+  });
+  if (!response.ok) throw new ApiError(response.status, `Synteza mowy nie powiodła się (${response.status})`);
+  return response.arrayBuffer();
+}
+
 export const api = {
   me: () => request<{ username: string; cloud_url?: string }>("GET", "/api/auth/me"),
   login: (username: string, password: string) =>
@@ -104,8 +140,9 @@ export const api = {
   renameConversation: (id: string, title: string) =>
     request<{ id: string; title: string }>("PATCH", `/api/conversations/${id}`, { title }),
   deleteConversation: (id: string) => request<{ ok: boolean }>("DELETE", `/api/conversations/${id}`),
-  sendMessage: (id: string, text: string, fileIds: string[]) =>
-    request<{ run_id: string }>("POST", `/api/conversations/${id}/messages`, { text, file_ids: fileIds }),
+  sendMessage: (id: string, text: string, fileIds: string[], voice = false) =>
+    request<{ run_id: string }>("POST", `/api/conversations/${id}/messages`, { text, file_ids: fileIds, voice }),
+  voiceConfig: () => request<VoiceConfig>("GET", "/api/voice/config"),
   cancelRun: (id: string) => request<{ status: string }>("POST", `/api/runs/${id}/cancel`),
 };
 

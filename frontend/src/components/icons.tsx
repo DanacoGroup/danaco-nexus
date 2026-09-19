@@ -167,3 +167,8 @@ export function Logo({ size = 28, className = "" }: { size?: number; className?:
     </svg>
   );
 }
+export const WaveIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />
+  </Icon>
+);

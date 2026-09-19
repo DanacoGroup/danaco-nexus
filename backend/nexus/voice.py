@@ -126,6 +126,19 @@ class VoiceEngine:
             self._voices[voice_id] = PiperVoice.load(str(model))
         return self._voices[voice_id]
 
+    def warm_up(self) -> None:
+        """Wczytuje modele z góry (w tle przy starcie API), żeby pierwsza rozmowa nie czekała."""
+        try:
+            if self.stt_available():
+                with self._stt_lock:
+                    self._load_stt()
+            voice_id = self.default_voice()
+            if voice_id:
+                with self._tts_lock:
+                    self._load_voice(voice_id)
+        except Exception:  # noqa: BLE001 - rozgrzewanie jest tylko przyspieszeniem
+            logger.exception("Nie udało się wczytać modeli mowy z góry")
+
     def speak(self, text: str, voice_id: str = "", speed: float = 1.0) -> bytes:
         """Syntezuje tekst do pliku WAV (mono, częstotliwość modelu głosu)."""
         text = spoken_text(text)
