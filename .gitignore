@@ -20,3 +20,5 @@ logs/
 
 # Logi budowy i uruchomień lokalnych
 .logs/
+.tmp/
+.venv/
