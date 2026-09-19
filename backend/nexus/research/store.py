@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import threading
 import uuid
 from pathlib import Path
@@ -46,9 +47,12 @@ class Indexer(Protocol):
     ) -> list[dict[str, Any]]: ...
 
 
+MARKDOWN_MARKS = re.compile(r"(?m)^\s*(#{1,6}|[-*+>]|\d+[.)])\s+|\*\*|__|`")
+
+
 def excerpt(text: str, limit: int = EXCERPT_CHARS) -> str:
-    """Początek treści w jednym wierszu."""
-    flat = " ".join(text.split())
+    """Początek treści w jednym wierszu (bez znaczników Markdown: nagłówków, punktorów, pogrubień)."""
+    flat = " ".join(MARKDOWN_MARKS.sub(" ", text[: limit * 4]).split())
     return flat if len(flat) <= limit else flat[: limit - 1].rstrip() + "…"
 
 

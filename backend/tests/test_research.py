@@ -235,6 +235,16 @@ def test_extract_html_skips_boilerplate_with_unclosed_tags() -> None:
     assert "- Punkt A\n- Punkt B" in text
 
 
+def test_excerpt_strips_markdown() -> None:
+    from nexus.research.store import excerpt
+
+    assert (
+        excerpt("## Wnioski\n- Pompa **opłaca** się.\n1. Punkt `kod`", 80)
+        == "Wnioski Pompa opłaca się. Punkt kod"
+    )
+    assert excerpt("a " * 200, 20).endswith("…")
+
+
 def test_decode_uses_meta_charset() -> None:
     body = '<html><head><meta charset="iso-8859-2"><title>Łódź</title></head></html>'.encode("iso-8859-2")
     assert "Łódź" in web.decode_body(body, "text/html")
