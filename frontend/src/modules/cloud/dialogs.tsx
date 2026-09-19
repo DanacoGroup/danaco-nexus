@@ -175,7 +175,7 @@ export function ShareDialog({ entry, onClose, onChanged }: { entry: CloudEntry; 
           {shares === null ? (
             <Loading />
           ) : shares.length === 0 ? (
-            <p className="text-sm text-muted">Brak linków – każdy, kto dostanie link, zobaczy ten element bez logowania.</p>
+            <p className="text-sm text-muted">Brak linków. Link publiczny pozwala otworzyć ten element bez logowania – każdemu, kto go dostanie.</p>
           ) : (
             <ul className="space-y-2">
               {shares.map((share) => (
@@ -200,7 +200,7 @@ export function ShareDialog({ entry, onClose, onChanged }: { entry: CloudEntry; 
                       <LockIcon size={14} /> {share.has_password ? "z hasłem" : "bez hasła"}
                     </span>
                     <span>{share.expires ? `wygasa ${share.expires}` : "bez daty wygaśnięcia"}</span>
-                    {share.permissions > 1 && <span>z wgrywaniem</span>}
+                    {(share.permissions & 4) !== 0 && <span>z wgrywaniem</span>}
                     {share.has_password ? (
                       <button type="button" className="text-accent hover:underline" onClick={() => change(share, { password: "" })}>
                         Usuń hasło

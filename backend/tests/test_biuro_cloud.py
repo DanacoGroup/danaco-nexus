@@ -258,6 +258,8 @@ def test_browse_folders_and_files(api: TestClient, cloud: FakeNextcloud) -> None
     assert "filename*=UTF-8''Notatka%20%C5%BC%C3%B3%C5%82ta.txt" in download.headers["content-disposition"]
     inline = api.get("/api/cloud/pobierz", params={"path": "/Dokumenty/Notatka żółta.txt", "inline": 1})
     assert inline.headers["content-type"].startswith("text/plain")
+    assert inline.headers["x-frame-options"] == "SAMEORIGIN"
+    assert download.headers["x-frame-options"] == "DENY"
 
     renamed = api.post(
         "/api/cloud/zmien-nazwe",

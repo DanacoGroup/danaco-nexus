@@ -142,7 +142,9 @@ export function KalendarzPage({ openConversation }: ModulePageProps) {
             <ChevronRightIcon />
           </button>
         </div>
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold md:text-base">{rangeLabel(view, anchor)}</h2>
+        <h2 className="order-first w-full truncate text-base font-semibold md:order-none md:w-auto md:min-w-0 md:flex-1">
+          {rangeLabel(view, anchor)}
+        </h2>
         <div className="flex rounded-xl border border-line p-0.5" role="tablist" aria-label="Widok">
           {VIEWS.map(([id, label]) => (
             <button

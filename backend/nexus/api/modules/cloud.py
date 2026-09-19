@@ -207,6 +207,10 @@ async def _stream(request: Request, path: str, inline: bool, version: str | None
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, no-store",
     }
+    if show_inline:
+        # Podgląd PDF w ramce okna podglądu (ta sama domena); pozostałe strony nie mogą osadzać plików.
+        headers["X-Frame-Options"] = "SAMEORIGIN"
+        headers["Content-Security-Policy"] = "frame-ancestors 'self'"
     if response.headers.get("content-length"):
         headers["Content-Length"] = response.headers["content-length"]
     return StreamingResponse(

@@ -189,7 +189,12 @@ export function EventDialog({
           ) : (
             <>
               {event && (
-                <button type="button" className={`${buttonClass.ghost} mr-auto text-danger`} disabled={busy} onClick={remove}>
+                <button
+                  type="button"
+                  className="mr-auto inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-danger transition-colors hover:bg-danger-soft disabled:opacity-40"
+                  disabled={busy}
+                  onClick={remove}
+                >
                   <TrashIcon size={17} /> Usuń
                 </button>
               )}
