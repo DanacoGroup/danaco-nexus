@@ -17,3 +17,6 @@ frontend/dist/
 # Dane uruchomieniowe
 data/
 logs/
+
+# Logi budowy i uruchomień lokalnych
+.logs/
