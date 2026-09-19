@@ -10,6 +10,7 @@ Podział odpowiedzialności bibliotek:
 
 from __future__ import annotations
 
+import functools
 import io
 import logging
 import numbers
@@ -38,6 +39,17 @@ FONT_CANDIDATES: tuple[Path, ...] = (
     Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
     Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
     Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "arial.ttf",
+)
+FONT_DIRECTORIES: tuple[Path, ...] = (
+    Path("/usr/share/fonts"),
+    Path("/usr/local/share/fonts"),
+    Path("/danaco/programy/kroje"),
+)
+FONT_FILE_NAMES: tuple[str, ...] = (
+    "DejaVuSans.ttf",
+    "LiberationSans-Regular.ttf",
+    "Arimo-Regular.ttf",
+    "NotoSans-Regular.ttf",
 )
 EXIF_ROTATION: dict[int, int] = {3: 180, 6: 90, 8: 270}
 
@@ -196,13 +208,26 @@ def build_image_container(image_path: Path, target: Path, default_dpi: int) -> l
     return dpis
 
 
+@functools.lru_cache(maxsize=4)
 def find_text_layer_font(preferred: str = "") -> Path:
-    """Wyszukuje czcionkę TrueType z polskimi znakami dla warstwy tekstowej."""
-    if preferred and Path(preferred).is_file():
-        return Path(preferred)
+    """Wyszukuje czcionkę TrueType z polskimi znakami dla warstwy tekstowej.
+
+    Kolejność: wskazany plik, zmienna ``NEXUS_TEXT_LAYER_FONT``, znane ścieżki,
+    a następnie przeszukanie katalogów czcionek pod kątem znanych nazw plików.
+    """
+    for configured in (preferred, os.environ.get("NEXUS_TEXT_LAYER_FONT", "")):
+        if configured and Path(configured).is_file():
+            return Path(configured)
     for candidate in FONT_CANDIDATES:
         if candidate.is_file():
             return candidate
+    for directory in FONT_DIRECTORIES:
+        if not directory.is_dir():
+            continue
+        for root, _, names in os.walk(directory):
+            for name in FONT_FILE_NAMES:
+                if name in names:
+                    return Path(root) / name
     raise PdfProcessingError("Nie znaleziono czcionki TrueType do warstwy tekstowej PDF.")
 
 

@@ -1,0 +1,27 @@
+# Danaco Nexus — prywatny asystent AI (API i interfejs: 127.0.0.1:8930).
+# Instalacja: zamienić NEXUS.DOMENA.PL na docelową domenę i skopiować do /etc/caddy/witryny/.
+NEXUS.DOMENA.PL {
+	encode zstd gzip
+	request_body {
+		max_size 2GB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/danaco-nexus.access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+	reverse_proxy 127.0.0.1:8930 {
+		# Strumień zdarzeń zadań (SSE) wymaga natychmiastowego przekazywania danych.
+		flush_interval -1
+		transport http {
+			read_timeout 30m
+			write_timeout 30m
+		}
+	}
+}
