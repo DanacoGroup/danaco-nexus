@@ -322,6 +322,9 @@ def _site_response(path: Path, status_code: int = 200, cache: str = "no-cache") 
             "Referrer-Policy": "no-referrer",
             "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
             "Cross-Origin-Opener-Policy": "same-origin",
+            # Dokument w piaskownicy ma pochodzenie „null”: skrypty modułowe, czcionki i fetch
+            # własnych plików strony wymagają CORS. Treść strony nie zależy od ciasteczek.
+            "Access-Control-Allow-Origin": "*",
         },
     )
 

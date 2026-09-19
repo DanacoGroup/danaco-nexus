@@ -177,7 +177,7 @@ export function SiteEditor({
       {site?.publish_request && (
         <div className="flex flex-wrap items-center gap-2 border-b border-accent/30 bg-accent-soft/60 px-4 py-2 text-sm">
           <span className="flex-1">
-            Asystent proponuje publikację strony{site.publish_request.note ? `: ${site.publish_request.note}` : "."} Sprawdź podgląd i
+            Asystent proponuje publikację strony{site.publish_request.note ? `: ${site.publish_request.note.replace(/\.$/, "")}.` : "."} Sprawdź podgląd i
             zatwierdź.
           </span>
           <button type="button" className={buttonSecondary} onClick={() => act(() => sitesApi.rejectPublish(address))} disabled={busy}>
