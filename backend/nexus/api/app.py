@@ -13,7 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from nexus import __version__
-from nexus.api import auth, conversations, files, runs, voice
+from nexus.api import auth, conversations, files, modules, runs, voice
 from nexus.config import Settings, get_settings
 from nexus.db import Database
 from nexus.events import EventBus
@@ -99,6 +99,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityHeaders)
     for module in (auth, conversations, files, runs, voice):
         app.include_router(module.router)
+    # Moduły aplikacji (nexus/api/modules/*.py) – podłączane automatycznie.
+    for router in modules.routers():
+        app.include_router(router)
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:

@@ -241,3 +241,22 @@ def test_voice_endpoints_without_models(client: TestClient, settings: Settings) 
     assert client.post("/api/voice/speak", json={"text": "Dzień dobry"}, headers=HEADERS).status_code == 503
     assert client.post("/api/voice/speak", json={"text": ""}, headers=HEADERS).status_code == 422
     assert "microphone=(self)" in client.get("/api/health").headers["permissions-policy"]
+
+
+def test_device_tokens(client: TestClient, settings: Settings) -> None:
+    set_password(settings)
+    login(client)
+    created = client.post("/api/urzadzenia", json={"name": "Telefon", "kind": "android"}, headers=HEADERS)
+    assert created.status_code == 201
+    token = created.json()["token"]
+    assert token.startswith("nxd_")
+    assert "token" not in client.get("/api/urzadzenia").json()[0]
+    device = TestClient(client.app)
+    bearer = {"Authorization": f"Bearer {token}"}
+    assert device.get("/api/conversations", headers=bearer).status_code == 200
+    # Urządzenie nie potrzebuje nagłówka CSRF, ale nie może wydawać nowych kluczy.
+    assert device.post("/api/conversations", json={}, headers=bearer).status_code == 201
+    assert device.post("/api/urzadzenia", json={"name": "x"}, headers=bearer).status_code == 403
+    assert device.get("/api/conversations", headers={"Authorization": "Bearer nxd_zly"}).status_code == 401
+    client.delete(f"/api/urzadzenia/{created.json()['id']}", headers=HEADERS)
+    assert device.get("/api/conversations", headers=bearer).status_code == 401

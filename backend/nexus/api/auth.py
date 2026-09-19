@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from nexus.db import Database, Setting, UserSession, utcnow
+from nexus.db import Database, DeviceToken, Setting, UserSession, utcnow
 
 COOKIE_NAME = "nexus_session"
 CSRF_HEADER = "x-nexus-request"
@@ -90,8 +90,40 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
+DEVICE_TOKEN_PREFIX = "nxd_"
+
+
+async def device_session(request: Request) -> UserSession | None:
+    """Sesja urządzenia z nagłówka ``Authorization: Bearer nxd_…`` (lub ``None``)."""
+    header = request.headers.get("authorization", "")
+    if not header.lower().startswith("bearer "):
+        return None
+    token = header[7:].strip()
+    if not token.startswith(DEVICE_TOKEN_PREFIX):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Nieprawidłowy klucz urządzenia.")
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        record = await session.scalar(select(DeviceToken).where(DeviceToken.token_hash == token_hash(token)))
+        if record is None or record.revoked:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Klucz urządzenia jest nieważny lub cofnięty.")
+        if record.last_used_at is None or (utcnow() - record.last_used_at) > timedelta(minutes=5):
+            record.last_used_at = utcnow()
+        request.state.device = {"id": str(record.id), "name": record.name, "kind": record.kind}
+    now = utcnow()
+    return UserSession(
+        token_hash=f"device:{record.id}", created_at=now, expires_at=now + timedelta(days=1), last_seen_at=now
+    )
+
+
 async def require_session(request: Request) -> UserSession:
-    """Zależność FastAPI: wymaga ważnej sesji (i nagłówka CSRF dla zmian stanu)."""
+    """Zależność FastAPI: wymaga ważnej sesji (i nagłówka CSRF dla zmian stanu).
+
+    Urządzenia (Android, Desktop, rozszerzenie) uwierzytelniają się kluczem w nagłówku
+    ``Authorization`` – takie żądania nie korzystają z ciasteczek, więc nie wymagają CSRF.
+    """
+    device = await device_session(request)
+    if device is not None:
+        return device
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wymagane logowanie.")

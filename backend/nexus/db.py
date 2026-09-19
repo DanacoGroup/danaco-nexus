@@ -26,6 +26,7 @@ from sqlalchemy import (
     TypeDecorator,
     Uuid,
     event,
+    inspect,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -35,6 +36,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 JsonType = JSON().with_variant(JSONB(), "postgresql")
 IdType = BigInteger().with_variant(Integer(), "sqlite")
 SCHEMA_LOCK_ID = 7_314_225
+# Kolumny dodane do istniejących tabel po pierwszym wdrożeniu: (tabela, kolumna, typ PostgreSQL,
+# typ SQLite). create_all nie zmienia istniejących tabel – te kolumny dodaje create_schema.
+# Moduły dopisują własne w nexus/models/<moduł>.py jako COLUMNS.
+COLUMNS: list[tuple[str, str, str, str]] = [
+    ("conversations", "meta", "JSONB NOT NULL DEFAULT '{}'::jsonb", "JSON NOT NULL DEFAULT '{}'"),
+]
 
 
 def _sqlite_pragmas(connection: Any, _record: Any) -> None:
@@ -42,6 +49,14 @@ def _sqlite_pragmas(connection: Any, _record: Any) -> None:
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA busy_timeout=30000")
     cursor.close()
+
+
+def _existing_columns(connection: Any) -> dict[str, set[str]]:
+    inspector = inspect(connection)
+    return {
+        table: {column["name"] for column in inspector.get_columns(table)}
+        for table in inspector.get_table_names()
+    }
 
 
 def utcnow() -> datetime:
@@ -88,6 +103,23 @@ class UserSession(Base):
     user_agent: Mapped[str] = mapped_column(String(300), default="")
 
 
+class DeviceToken(Base):
+    """Klucz urządzenia (aplikacja Android, Nexus Desktop, rozszerzenie przeglądarki).
+
+    Urządzenie wysyła ``Authorization: Bearer nxd_…``; w bazie jest tylko skrót klucza.
+    """
+
+    __tablename__ = "device_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    kind: Mapped[str] = mapped_column(String(20), default="inne")
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class Conversation(Base):
     """Rozmowa z asystentem."""
 
@@ -96,6 +128,8 @@ class Conversation(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(200), default="Nowa rozmowa")
     claude_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Ustawienia rozmowy zależne od modułu, np. {"mode": "code", "workspace": "sklep"}.
+    meta: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
 
@@ -207,11 +241,23 @@ class Database:
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def create_schema(self) -> None:
-        """Tworzy brakujące tabele; w PostgreSQL pod blokadą doradczą (API i worker)."""
+        """Tworzy brakujące tabele i kolumny; w PostgreSQL pod blokadą doradczą (API i worker)."""
+        from nexus.models import extra_columns
+
+        columns = COLUMNS + extra_columns()
         async with self.engine.begin() as connection:
-            if connection.dialect.name == "postgresql":
+            postgres = connection.dialect.name == "postgresql"
+            if postgres:
                 await connection.execute(text(f"SELECT pg_advisory_xact_lock({SCHEMA_LOCK_ID})"))
             await connection.run_sync(Base.metadata.create_all)
+            existing = await connection.run_sync(_existing_columns)
+            for table, column, pg_type, sqlite_type in columns:
+                if table in existing and column not in existing[table]:
+                    await connection.execute(
+                        text(
+                            f"ALTER TABLE {table} ADD COLUMN {column} {pg_type if postgres else sqlite_type}"
+                        )
+                    )
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
