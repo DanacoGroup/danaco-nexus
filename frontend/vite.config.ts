@@ -84,7 +84,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
         globIgnores: ["screenshots/**"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/],
+        // Instalatory i panel osadzany (inne nagłówki ramki) zawsze z sieci, nie z pamięci podręcznej.
+        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/, /^\/pobierz(\/|$)/, /[?&]widok=panel/],
         importScripts: ["/share-target.js"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -92,7 +93,7 @@ export default defineConfig({
       },
     }),
   ],
-  server: { proxy: { "/api": "http://127.0.0.1:8930" } },
+  server: { proxy: { "/api": "http://127.0.0.1:8930", "/pobierz": "http://127.0.0.1:8930" } },
   build: { sourcemap: false, chunkSizeWarningLimit: 800 },
   test: { environment: "jsdom" },
 });

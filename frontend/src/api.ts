@@ -1,5 +1,7 @@
 // Klient API Danaco Nexus: zapytania JSON, przesyłanie plików z postępem, strumień zdarzeń.
 
+import { fetchEventStream } from "./shell/sse";
+
 export interface FileInfo {
   id: string;
   name: string;
@@ -74,11 +76,38 @@ export class ApiError extends Error {
 
 const APP_HEADER = { "X-Nexus-Request": "1" };
 
+// Tryb klucza urządzenia (panel osadzony w rozszerzeniu, Nexus Desktop, Android): zamiast
+// ciasteczka sesji każde żądanie niesie nagłówek Authorization: Bearer nxd_….
+let deviceToken: string | null = null;
+
+export function setDeviceToken(token: string | null): void {
+  deviceToken = token;
+}
+
+export function usesDeviceToken(): boolean {
+  return deviceToken !== null;
+}
+
+/** Nagłówki uwierzytelnienia dla bieżącego trybu (ciasteczko + CSRF albo klucz urządzenia). */
+export function authHeaders(): Record<string, string> {
+  return deviceToken ? { Authorization: `Bearer ${deviceToken}` } : { ...APP_HEADER };
+}
+
+/** fetch z uwierzytelnieniem Nexusa – do użycia także przez moduły. */
+export function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  for (const [name, value] of Object.entries(authHeaders())) headers.set(name, value);
+  return fetch(url, { ...init, headers, credentials: deviceToken ? "omit" : "same-origin" });
+}
+
+export async function apiRequest<T>(method: string, url: string, body?: unknown): Promise<T> {
+  return request<T>(method, url, body);
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method,
-    credentials: "same-origin",
-    headers: body === undefined ? APP_HEADER : { ...APP_HEADER, "Content-Type": "application/json" },
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
@@ -106,10 +135,8 @@ export async function transcribeAudio(audio: Blob, signal?: AbortSignal): Promis
   const extension = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
   form.append("audio", audio, `wypowiedz.${extension}`);
   form.append("language", "pl");
-  const response = await fetch("/api/voice/transcribe", {
+  const response = await apiFetch("/api/voice/transcribe", {
     method: "POST",
-    credentials: "same-origin",
-    headers: APP_HEADER,
     body: form,
     signal,
   });
@@ -119,10 +146,9 @@ export async function transcribeAudio(audio: Blob, signal?: AbortSignal): Promis
 
 /** Synteza mowy (WAV) wybranym głosem. */
 export async function speakText(text: string, voice: string, signal?: AbortSignal): Promise<Blob> {
-  const response = await fetch("/api/voice/speak", {
+  const response = await apiFetch("/api/voice/speak", {
     method: "POST",
-    credentials: "same-origin",
-    headers: { ...APP_HEADER, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice }),
     signal,
   });
@@ -164,7 +190,8 @@ export function uploadFile(
   const xhr = new XMLHttpRequest();
   const promise = new Promise<FileInfo>((resolve, reject) => {
     xhr.open("POST", "/api/files");
-    xhr.setRequestHeader("X-Nexus-Request", "1");
+    xhr.withCredentials = !deviceToken;
+    for (const [name, value] of Object.entries(authHeaders())) xhr.setRequestHeader(name, value);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(event.loaded / event.total);
     };
@@ -215,6 +242,20 @@ export const FINAL_EVENTS = new Set(["run.completed", "run.failed", "run.cancell
 
 /** Subskrybuje zdarzenia zadania; EventSource sam wznawia połączenie od ostatniego zdarzenia. */
 export function subscribeRun(runId: string, onEvent: (event: RunEvent) => void): () => void {
+  if (deviceToken) {
+    // Z kluczem urządzenia EventSource nie wyśle nagłówka Authorization – strumień czyta fetch.
+    const types = new Set(EVENT_TYPES);
+    const stop = fetchEventStream(`/api/runs/${runId}/events`, {
+      headers: authHeaders(),
+      onMessage: (message) => {
+        if (!types.has(message.event)) return;
+        const event: RunEvent = { id: Number(message.id), type: message.event, data: JSON.parse(message.data) };
+        onEvent(event);
+        if (FINAL_EVENTS.has(event.type)) stop();
+      },
+    });
+    return stop;
+  }
   const source = new EventSource(`/api/runs/${runId}/events`);
   const handler = (message: MessageEvent<string>) => {
     const event: RunEvent = { id: Number(message.lastEventId), type: message.type, data: JSON.parse(message.data) };
