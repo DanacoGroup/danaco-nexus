@@ -388,6 +388,8 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
       role="dialog"
       aria-modal="true"
       aria-label="Rozmowa głosowa"
+      data-phase={phase}
+      data-level={level.toFixed(3)}
     >
       <div className="flex w-full max-w-md items-center justify-between py-3">
         <select
