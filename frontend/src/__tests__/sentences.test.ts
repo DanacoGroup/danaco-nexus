@@ -35,3 +35,17 @@ describe("speakable", () => {
     );
   });
 });
+
+describe("first clause", () => {
+  it("starts reading at the first comma of a long opening sentence", () => {
+    const text = "Jesienią pogoda bywa kapryśna i zmienna, chłodne ranki przechodzą w słoneczne popołudnia";
+    const { chunks, next } = takeSentences(text, 0, false);
+    expect(chunks).toEqual(["Jesienią pogoda bywa kapryśna i zmienna,"]);
+    expect(text.slice(next).trim()).toBe("chłodne ranki przechodzą w słoneczne popołudnia");
+  });
+
+  it("prefers a full sentence when it ends before the comma", () => {
+    const text = "To jest pełne, krótkie zdanie testowe. Dalej, coś jeszcze";
+    expect(takeSentences(text, 0, false).chunks).toEqual(["To jest pełne, krótkie zdanie testowe."]);
+  });
+});

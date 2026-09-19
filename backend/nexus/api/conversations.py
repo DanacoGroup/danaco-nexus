@@ -328,6 +328,7 @@ async def send_message(conversation_id: uuid.UUID, payload: SendMessage, request
         if conversation.title == DEFAULT_TITLE:
             values["title"] = _title_from(text, records)
         await session.execute(update(Conversation).where(Conversation.id == conversation_id).values(**values))
+    await request.app.state.events.notify_queue()
     return {"run_id": str(run.id)}
 
 

@@ -14,7 +14,7 @@ from sqlalchemy import select, update
 
 from nexus.api.auth import require_session
 from nexus.db import Database, Run, RunEvent
-from nexus.events import EventBus
+from nexus.events import EventBus, channel
 
 router = APIRouter(prefix="/api/runs", tags=["runs"], dependencies=[Depends(require_session)])
 
@@ -86,7 +86,7 @@ async def run_events(
         last_sent = time.monotonic()
         yield "retry: 2000\n\n"
         # Subskrypcja przed pierwszym odczytem bazy – żadne powiadomienie nie ginie.
-        async with bus.listener(run_id) as wait:
+        async with bus.listener(channel(run_id)) as wait:
             while True:
                 if await request.is_disconnected():
                     return

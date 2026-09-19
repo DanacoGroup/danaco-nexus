@@ -20,6 +20,7 @@ from sqlalchemy import text, update
 from nexus.agent.runner import AgentRunner
 from nexus.config import Settings, get_settings
 from nexus.db import Database, Run, utcnow
+from nexus.events import QUEUE_CHANNEL, EventBus
 from nexus.logging_setup import configure_logging
 from nexus.tools import registry
 
@@ -68,7 +69,8 @@ class Worker:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._database = Database(settings.database_url)
-        self._runner = AgentRunner(settings, self._database)
+        self._events = EventBus(settings.redis_url)
+        self._runner = AgentRunner(settings, self._database, self._events)
         self._worker_id = f"{socket.gethostname()}:{os.getpid()}"
         self._slots = asyncio.Semaphore(max(1, settings.worker_concurrency))
         self._stopping = asyncio.Event()
@@ -93,26 +95,27 @@ class Worker:
             len(registry.names()),
             ", ".join(registry.names()),
         )
-        while not self._stopping.is_set():
-            await self._slots.acquire()
-            run_id = None
-            try:
-                run_id = await claim_next(self._database, self._worker_id)
-            except Exception:  # noqa: BLE001 - chwilowa niedostępność bazy nie zatrzymuje procesu
-                logger.exception("Błąd pobierania zadania z kolejki")
-            if run_id is None:
-                self._slots.release()
+        # Powiadomienie o nowym zadaniu (Redis) budzi pętlę od razu; baza jest i tak
+        # odpytywana co POLL_SECONDS (zadania z innych źródeł, brak Redisa).
+        async with self._events.listener(QUEUE_CHANNEL) as wait:
+            while not self._stopping.is_set():
+                await self._slots.acquire()
+                run_id = None
                 try:
-                    await asyncio.wait_for(self._stopping.wait(), POLL_SECONDS)
-                except TimeoutError:
-                    pass
-                continue
-            task = asyncio.create_task(self._execute(run_id))
-            self._tasks.add(task)
-            task.add_done_callback(self._tasks.discard)
+                    run_id = await claim_next(self._database, self._worker_id)
+                except Exception:  # noqa: BLE001 - chwilowa niedostępność bazy nie zatrzymuje procesu
+                    logger.exception("Błąd pobierania zadania z kolejki")
+                if run_id is None:
+                    self._slots.release()
+                    await wait(POLL_SECONDS)
+                    continue
+                task = asyncio.create_task(self._execute(run_id))
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
         if self._tasks:
             logger.info("Oczekiwanie na zakończenie %d zadań…", len(self._tasks))
             await asyncio.gather(*self._tasks, return_exceptions=True)
+        await self._events.close()
         await self._database.close()
 
     async def _execute(self, run_id: uuid.UUID) -> None:

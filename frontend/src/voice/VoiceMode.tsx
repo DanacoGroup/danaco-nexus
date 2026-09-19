@@ -17,9 +17,9 @@ interface Props {
   onClose: () => void;
 }
 
-const FRAME_MS = 50;
+const FRAME_MS = 40;
 const SPEECH_START_MS = 200;
-const SPEECH_END_SILENCE_MS = 900;
+const SPEECH_END_SILENCE_MS = 700;
 const MIN_SPEECH_MS = 350;
 const MAX_UTTERANCE_MS = 60_000;
 const IDLE_RESTART_MS = 20_000;

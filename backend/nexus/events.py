@@ -18,6 +18,8 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 CHANNEL_PREFIX = "nexus:run:"
+# Nowe zadanie w kolejce – proces roboczy podejmuje je od razu, bez czekania na odpytanie bazy.
+QUEUE_CHANNEL = "nexus:queue"
 FALLBACK_POLL_SECONDS = 0.25
 RETRY_AFTER_ERROR_SECONDS = 30.0
 
@@ -58,15 +60,25 @@ class EventBus:
         except Exception as error:  # noqa: BLE001 - powiadomienie jest tylko przyspieszeniem
             self._failed(error)
 
+    async def notify_queue(self) -> None:
+        """Budzi procesy robocze po dodaniu zadania do kolejki."""
+        client = self._redis()
+        if client is None:
+            return
+        try:
+            await client.publish(QUEUE_CHANNEL, "1")
+        except Exception as error:  # noqa: BLE001
+            self._failed(error)
+
     @contextlib.asynccontextmanager
-    async def listener(self, run_id: uuid.UUID) -> AsyncIterator[Any]:
-        """Subskrypcja kanału zadania; zwraca funkcję ``wait(timeout)``."""
+    async def listener(self, name: str) -> AsyncIterator[Any]:
+        """Subskrypcja kanału (``channel(run_id)`` albo ``QUEUE_CHANNEL``); zwraca ``wait(timeout)``."""
         client = self._redis()
         pubsub = None
         if client is not None:
             try:
                 pubsub = client.pubsub()
-                await pubsub.subscribe(channel(run_id))
+                await pubsub.subscribe(name)
             except Exception as error:  # noqa: BLE001 - tryb awaryjny: odpytywanie bazy
                 self._failed(error)
                 pubsub = None
