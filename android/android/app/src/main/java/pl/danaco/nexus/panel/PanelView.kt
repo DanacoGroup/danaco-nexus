@@ -78,7 +78,7 @@ class PanelView(
         voiceButton = findViewById(R.id.panel_voice)
         web = WebView(context)
         web.setBackgroundColor(Color.parseColor("#212121"))
-        findViewById<FrameLayout>(R.id.panel_web).addView(web, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        findViewById<FrameLayout>(R.id.panel_web).addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         setupButtons()
         setupWebView()
         scope.launch {

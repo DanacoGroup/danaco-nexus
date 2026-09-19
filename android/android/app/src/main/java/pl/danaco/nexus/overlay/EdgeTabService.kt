@@ -186,7 +186,9 @@ class EdgeTabService : Service(), PanelView.Host {
                 }
                 return super.dispatchKeyEvent(event)
             }
-        }.apply { addView(view, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)) }
+        }.apply {
+            addView(view, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        }
     }
 
     override fun closePanel() {
