@@ -45,7 +45,7 @@ class Vad(private val params: Params = Params()) {
     var hearing: Boolean = false
         private set
 
-    private var aboveSince = 0L
+    private var aboveSince = NONE
     private var speechStart = 0L
     private var lastVoice = 0L
 
@@ -55,7 +55,7 @@ class Vad(private val params: Params = Params()) {
     /** Zeruje stan wypowiedzi (poziom tła zostaje). */
     fun reset() {
         hearing = false
-        aboveSince = 0
+        aboveSince = NONE
         speechStart = 0
         lastVoice = 0
     }
@@ -75,7 +75,7 @@ class Vad(private val params: Params = Params()) {
         if (!hearing && rms < threshold) floor = floor * 0.97 + rms * 0.03
         var event: Event? = null
         if (rms > threshold) {
-            if (aboveSince == 0L) aboveSince = now
+            if (aboveSince == NONE) aboveSince = now
             lastVoice = now
             if (!hearing && now - aboveSince > params.speechStartMs) {
                 hearing = true
@@ -83,7 +83,7 @@ class Vad(private val params: Params = Params()) {
                 event = Event.SpeechStarted(speechStart)
             }
         } else {
-            aboveSince = 0
+            aboveSince = NONE
         }
         if (hearing && event == null) {
             val silence = now - lastVoice
@@ -91,7 +91,7 @@ class Vad(private val params: Params = Params()) {
             val forced = length > params.maxUtteranceMs
             if ((silence > params.speechEndSilenceMs && length > params.minSpeechMs) || forced) {
                 hearing = false
-                aboveSince = 0
+                aboveSince = NONE
                 return Event.UtteranceEnded(speechStart, now, forced)
             }
         }
@@ -100,7 +100,7 @@ class Vad(private val params: Params = Params()) {
 
     private fun speaking(rms: Double, now: Long): Event? {
         if (rms > bargeThreshold) {
-            if (aboveSince == 0L) aboveSince = now
+            if (aboveSince == NONE) aboveSince = now
             if (now - aboveSince > params.bargeInMs) {
                 hearing = true
                 speechStart = aboveSince
@@ -108,12 +108,15 @@ class Vad(private val params: Params = Params()) {
                 return Event.BargeIn(speechStart)
             }
         } else {
-            aboveSince = 0
+            aboveSince = NONE
         }
         return null
     }
 
     companion object {
+        /** Brak dźwięku powyżej progu (czas 0 jest poprawnym znacznikiem ramki). */
+        private const val NONE = -1L
+
         /** RMS ramki 16-bitowego PCM w skali 0..1 (jak getFloatTimeDomainData w przeglądarce). */
         fun rms(samples: ShortArray, count: Int = samples.size): Double {
             if (count <= 0) return 0.0
