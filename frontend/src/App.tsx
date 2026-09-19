@@ -56,7 +56,17 @@ export default function App() {
   }, []);
 
   const refreshList = useCallback(() => {
-    api.conversations().then(setConversations).catch(handleError);
+    api
+      .conversations()
+      .then((list) => {
+        setConversations(list);
+        // Tytuł nadawany przez serwer po pierwszej wiadomości trafia także do nagłówka.
+        setDetail((current) => {
+          const title = current && list.find((item) => item.id === current.id)?.title;
+          return current && title && title !== current.title ? { ...current, title } : current;
+        });
+      })
+      .catch(handleError);
   }, [handleError]);
 
   const follow = useCallback(
