@@ -1,0 +1,19 @@
+# Sekrety i konfiguracja lokalna
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Dane uruchomieniowe
+data/
+logs/
