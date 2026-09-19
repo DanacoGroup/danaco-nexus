@@ -8,6 +8,7 @@ import {
   formatContext,
   fromParent,
   parseParentMessage,
+  plainText,
   postToParent,
   splitContext,
 } from "../shell/embed";
@@ -111,6 +112,13 @@ describe("pomocnicze", () => {
       ],
     };
     expect(assistantText(turn)).toBe("Dzień dobry!\n\nPozdrawiam");
+  });
+
+  it("zamienia Markdown odpowiedzi na zwykły tekst do wstawienia", () => {
+    expect(plainText("## Odpowiedź\n\nDziękujemy za **ciepłe** słowa i *uwagi*.\n\n* śniadania\n* `cisza nocna`\n\n[Strona](https://x.pl)")).toBe(
+      "Odpowiedź\n\nDziękujemy za ciepłe słowa i uwagi.\n\n- śniadania\n- cisza nocna\n\nStrona (https://x.pl)",
+    );
+    expect(plainText("Cena 2*3*4 zł")).toBe("Cena 2*3*4 zł");
   });
 
   it("przyjmuje komunikaty tylko od rodzica i wysyła do rodzica", () => {

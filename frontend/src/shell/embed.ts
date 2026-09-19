@@ -117,6 +117,20 @@ export function assistantText(turn: AssistantTurn): string {
     .join("\n\n");
 }
 
+/** Markdown odpowiedzi jako zwykły tekst do wstawienia w pole formularza (opinie, SMS, poczta). */
+export function plainText(markdown: string): string {
+  return markdown
+    .replace(/```[^\n]*\n([\s\S]*?)```/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
+    .replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, "$1$2")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1 ($2)")
+    .replace(/^[ \t]*[*+][ \t]+/gm, "- ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Czy komunikat pochodzi od rodzica panelu (lub natywnej aplikacji, gdy panel jest oknem głównym). */
 export function fromParent(event: MessageEvent, win: Window = window): boolean {
   if (event.source === win.parent) return true;

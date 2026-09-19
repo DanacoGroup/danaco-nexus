@@ -13,6 +13,7 @@ import {
   dataUrlToFile,
   fromParent,
   parseParentMessage,
+  plainText,
   postToParent,
   type EmbedContext,
 } from "./embed";
@@ -27,7 +28,7 @@ const AUTH_GRACE_MS = 1200;
 
 function ReplyActions({ turn }: { turn: AssistantTurn }) {
   const [copied, setCopied] = useState(false);
-  const text = assistantText(turn);
+  const text = plainText(assistantText(turn));
   if (!text || turn.status === "running" || turn.status === "queued") return null;
   const copy = async () => {
     postToParent({ type: "nexus:copy", text });

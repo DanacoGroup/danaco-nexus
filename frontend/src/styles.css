@@ -191,7 +191,16 @@ html:has(.landing) {
   background: #0d0d10;
 }
 @layer components {
+  /* Siatka w pseudoelemencie – maska wygasza tylko tło, nie treść sekcji. */
   .landing-grid {
+    isolation: isolate;
+  }
+  .landing-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image:
       linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
