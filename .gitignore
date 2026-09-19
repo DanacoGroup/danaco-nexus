@@ -25,3 +25,6 @@ programy/
 .logs/
 .tmp/
 *.egg-info/
+
+# Robocze drzewa agentów Claude Code
+.claude/
