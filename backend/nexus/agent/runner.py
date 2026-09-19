@@ -5,9 +5,16 @@ Nexusa dostarcza serwer MCP (``nexus.mcp_server``) uruchamiany przez CLI
 na czas zadania. Kontekst rozmowy utrzymuje sesja CLI: pierwsze zadanie
 rozmowy tworzy ją (``--session-id``), kolejne wznawiają (``--resume``).
 
+Tryb rozmowy (``Conversation.meta["mode"]``: ``chat``, ``research``, ``code``,
+``strona``) dokleja instrukcję z ``nexus/agent/tryby/<tryb>.md``; tryb ``code``
+dodaje narzędzia programistyczne CLI ograniczone do katalogu projektu.
+Podagenci (narzędzie Agent) dziedziczą ograniczony zestaw narzędzi sesji;
+ich zdarzenia (``parent_tool_use_id``) trafiają do interfejsu jako elementy
+zagnieżdżone.
+
 Strumień zdarzeń CLI jest tłumaczony na zdarzenia interfejsu (``RunEvent``),
 wpisy historii (``Message``) i rejestr wywołań narzędzi (``ToolCall``).
-Anulowanie kończy całą grupę procesów CLI (razem z serwerem MCP).
+Anulowanie kończy całą grupę procesów CLI (razem z serwerem MCP i podagentami).
 """
 
 from __future__ import annotations
@@ -17,6 +24,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import sys
@@ -24,14 +32,16 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select, update
 
-from nexus.agent.prompt import SYSTEM_PROMPT
+from nexus.agent.prompt import SUBAGENT_PROMPT, system_prompt
+from nexus.agent.przestrzenie import existing_project
 from nexus.config import Settings
-from nexus.db import Conversation, Database, Message, Run, RunEvent, ToolCall, utcnow
+from nexus.db import Conversation, Database, Message, Run, RunEvent, Setting, ToolCall, utcnow
 from nexus.events import EventBus
 
 logger = logging.getLogger(__name__)
@@ -40,7 +50,14 @@ MCP_SERVER_NAME = "nexus"
 MCP_PREFIX = f"mcp__{MCP_SERVER_NAME}__"
 # Biała lista: narzędzia Nexusa i ToolSearch (definicje MCP mogą być odraczane).
 ALLOWED_TOOLS = [f"mcp__{MCP_SERVER_NAME}", "ToolSearch"]
-# Narzędzia wbudowane CLI jawnie zakazane – agent działa wyłącznie przez narzędzia Nexusa.
+AGENT_TOOLS = frozenset({"Agent", "Task"})
+AGENT_CALL_NAME = "podagent"
+SUBAGENT_TYPE = "pomocnik"
+WEB_TOOLS = ["WebSearch", "WebFetch"]
+CODE_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+# Narzędzia pomocnicze CLI niewidoczne w interfejsie.
+HIDDEN_TOOLS = frozenset({"ToolSearch", "TodoWrite"})
+# Narzędzia wbudowane CLI jawnie zakazane (poza włączonymi dla trybu rozmowy).
 DISALLOWED_TOOLS = [
     "Bash",
     "PowerShell",
@@ -69,6 +86,35 @@ DISALLOWED_TOOLS = [
     "CronDelete",
     "RemoteTrigger",
 ]
+# Tryb code: polecenia sieciowe i podnoszenie uprawnień zablokowane regułami CLI
+# (dodatkowo do instrukcji trybu; to ograniczenie „w dobrej wierze”, nie piaskownica).
+CODE_BASH_DENY = [
+    f"Bash({command} *)"
+    for command in (
+        "sudo",
+        "su",
+        "doas",
+        "pkexec",
+        "curl",
+        "wget",
+        "ssh",
+        "scp",
+        "sftp",
+        "rsync",
+        "nc",
+        "ncat",
+        "socat",
+        "telnet",
+        "git push",
+        "git fetch",
+        "git pull",
+        "git remote",
+        "npm publish",
+        "systemctl",
+    )
+]
+MODES = ("chat", "research", "code", "strona")
+MODES_DIR = Path(__file__).with_name("tryby")
 LIMIT_PATTERNS = ("session limit", "usage limit", "weekly limit", "rate limit", '"api_error_status":429')
 AUTH_PATTERNS = (
     "could not be refreshed",
@@ -84,11 +130,25 @@ STREAM_LINE_LIMIT = 256 * 1024 * 1024
 STDERR_TAIL_LINES = 40
 HISTORY_DIGEST_MESSAGES = 16
 HISTORY_DIGEST_CHARS = 1500
+BUILTIN_RESULT_CHARS = 4000
+RATE_LIMIT_KEY = "claude.limity"
+RATE_LIMIT_WARN = 0.9
+BACKGROUND_AGENT_MARKER = "async agent launched"
 VOICE_INSTRUCTION = (
     "[Rozmowa głosowa: użytkownik mówi, a Twoja odpowiedź zostanie przeczytana na głos. "
     "Odpowiadaj naturalnie i zwięźle, pełnymi zdaniami, bez Markdown, list, tabel i adresów. "
     "Zadania na plikach wykonuj jak zwykle; o wynikach powiedz krótko, pliki pojawią się na ekranie.]"
 )
+AGENT_STATUS = {
+    "completed": "done",
+    "success": "done",
+    "done": "done",
+    "failed": "error",
+    "error": "error",
+    "killed": "cancelled",
+    "stopped": "cancelled",
+    "cancelled": "cancelled",
+}
 
 
 class RunCancelled(Exception):
@@ -99,9 +159,51 @@ class RunTimedOut(Exception):
     """Przebieg przekroczył limit czasu."""
 
 
+class RunInterrupted(Exception):
+    """Przebieg przerwany przez zatrzymanie procesu roboczego."""
+
+
+class CliFailure(Exception):
+    """CLI zakończył działanie bez wyniku albo nie mógł wystartować."""
+
+
+@dataclass(frozen=True)
+class RunOptions:
+    """Ustawienia przebiegu wynikające z rozmowy i wiadomości."""
+
+    mode: str = "chat"
+    workspace: Path | None = None
+    voice: bool = False
+
+
 def tool_display_name(name: str) -> str:
-    """Nazwa narzędzia bez prefiksu serwera MCP."""
+    """Nazwa narzędzia w interfejsie: bez prefiksu MCP, podagent jako ``podagent``."""
+    if name in AGENT_TOOLS:
+        return AGENT_CALL_NAME
     return name.removeprefix(MCP_PREFIX)
+
+
+def conversation_mode(meta: dict[str, Any] | None) -> str:
+    """Tryb rozmowy z ``Conversation.meta`` (nieznany = ``chat``)."""
+    mode = (meta or {}).get("mode")
+    return mode if isinstance(mode, str) and mode in MODES else "chat"
+
+
+def mode_instruction(mode: str) -> str:
+    """Instrukcja trybu z ``tryby/<tryb>.md`` (pusta, gdy pliku nie ma)."""
+    if mode not in MODES:
+        return ""
+    try:
+        return (MODES_DIR / f"{mode}.md").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def run_timeout_minutes(settings: Settings, mode: str) -> int:
+    """Limit czasu zadania: tryb badań ma dłuższy."""
+    if mode == "research":
+        return max(settings.run_timeout_minutes, settings.run_timeout_research_minutes)
+    return settings.run_timeout_minutes
 
 
 def find_session_file(profile: Path, session_id: str) -> Path | None:
@@ -120,7 +222,7 @@ def read_oauth_token(profile: Path) -> str:
         return ""
 
 
-def cli_environment(settings: Settings, run_dir: Path) -> dict[str, str]:
+def cli_environment(settings: Settings, run_dir: Path, code: bool = False) -> dict[str, str]:
     """Środowisko procesu CLI: profil projektu, token OAuth, limity MCP."""
     profile = settings.claude_profile_dir
     env = dict(os.environ)
@@ -144,6 +246,11 @@ def cli_environment(settings: Settings, run_dir: Path) -> dict[str, str]:
     if settings.max_output_tokens:
         env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(settings.max_output_tokens)
     env["TMPDIR"] = str(run_dir)
+    if code:
+        # Commity agenta w przestrzeni projektu; git nigdy nie pyta o hasło.
+        env["GIT_AUTHOR_NAME"] = env["GIT_COMMITTER_NAME"] = settings.kod_git_name
+        env["GIT_AUTHOR_EMAIL"] = env["GIT_COMMITTER_EMAIL"] = settings.kod_git_email
+        env["GIT_TERMINAL_PROMPT"] = "0"
     return env
 
 
@@ -161,10 +268,60 @@ def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
+def session_tools(settings: Settings, options: RunOptions) -> list[str]:
+    """Wbudowane narzędzia CLI dostępne w sesji (``--tools``); podagenci dziedziczą ten zestaw."""
+    tools = ["ToolSearch"]
+    if settings.claude_subagents:
+        tools.append("Agent")
+    if settings.claude_web_tools:
+        tools += WEB_TOOLS
+    if options.mode == "code" and options.workspace is not None:
+        tools += CODE_TOOLS
+    return tools
+
+
+def agent_definitions(settings: Settings, options: RunOptions) -> dict[str, Any]:
+    """Definicja podagenta ``pomocnik`` (``--agents``): narzędzia sesji bez zlecania dalej."""
+    from nexus.tools import registry
+
+    tools = [f"{MCP_PREFIX}{name}" for name in registry.names()]
+    tools += [tool for tool in session_tools(settings, options) if tool != "Agent"]
+    definition: dict[str, Any] = {
+        "description": (
+            "Podagent Danaco Nexus do wydzielonej części zadania: praca na plikach narzędziami "
+            "Nexusa, analiza, wyszukiwanie w sieci"
+            + (", zmiany w kodzie projektu" if options.mode == "code" else "")
+            + ". Uruchamiaj równolegle dla niezależnych części."
+        ),
+        "prompt": SUBAGENT_PROMPT
+        + ("\n\n" + mode_instruction(options.mode) if options.mode == "code" else ""),
+        "tools": tools,
+    }
+    if settings.claude_subagent_model:
+        definition["model"] = settings.claude_subagent_model
+    return {SUBAGENT_TYPE: definition}
+
+
 def build_command(
-    settings: Settings, mcp_config_path: Path, session_id: str, resume: bool, voice: bool = False
+    settings: Settings,
+    mcp_config_path: Path,
+    session_id: str,
+    resume: bool,
+    voice: bool = False,
+    options: RunOptions | None = None,
 ) -> list[str]:
     """Polecenie ``claude -p`` (treść zadania przekazywana na stdin)."""
+    options = options or RunOptions(voice=voice)
+    tools = session_tools(settings, options)
+    code = "Bash" in tools
+    allowed = [*ALLOWED_TOOLS, *(tool for tool in tools if tool in ("Agent", *WEB_TOOLS))]
+    if code:
+        # Edycje plików w katalogu projektu akceptuje tryb acceptEdits; Bash wymaga reguły.
+        allowed.append("Bash")
+    enabled = set(tools) | (AGENT_TOOLS if "Agent" in tools else set())
+    disallowed = [tool for tool in DISALLOWED_TOOLS if tool not in enabled]
+    if code:
+        disallowed += CODE_BASH_DENY
     command = [
         settings.claude_bin,
         "-p",
@@ -175,20 +332,38 @@ def build_command(
         "--model",
         settings.claude_model,
         "--system-prompt",
-        SYSTEM_PROMPT,
+        system_prompt(settings.claude_subagents, settings.claude_web_tools, settings.agenci_max_podagentow),
         "--mcp-config",
         str(mcp_config_path),
         "--strict-mcp-config",
+        "--tools",
+        ",".join(tools),
         "--allowed-tools",
-        *ALLOWED_TOOLS,
+        *allowed,
         "--disallowed-tools",
-        *DISALLOWED_TOOLS,
+        *disallowed,
+        # Bez hosta uprawnień: wszystko, co wymagałoby zgody, jest odrzucane.
+        "--permission-prompts",
+        "none",
     ]
+    instruction = mode_instruction(options.mode)
+    if instruction:
+        command += ["--append-system-prompt", instruction]
+    if settings.claude_subagents:
+        command += [
+            "--agents",
+            json.dumps(agent_definitions(settings, options), ensure_ascii=False),
+            "--forward-subagent-text",
+        ]
+    if code and options.workspace is not None:
+        command += ["--permission-mode", "acceptEdits", "--add-dir", str(options.workspace)]
     if settings.claude_fallback_model and settings.claude_fallback_model != settings.claude_model:
         command += ["--fallback-model", settings.claude_fallback_model]
     # Rozmowa głosowa: krótszy namysł – odpowiedź ma przyjść szybko.
     effort = (
-        settings.claude_voice_effort if voice and settings.claude_voice_effort else settings.claude_effort
+        settings.claude_voice_effort
+        if options.voice and settings.claude_voice_effort
+        else settings.claude_effort
     )
     if effort:
         command += ["--effort", effort]
@@ -207,6 +382,32 @@ def strip_images(content: Any) -> Any:
         else:
             stripped.append(part)
     return stripped
+
+
+def truncate_content(content: Any, limit: int = BUILTIN_RESULT_CHARS) -> Any:
+    """Skraca długie wyniki narzędzi wbudowanych (np. treść odczytanego pliku) przed zapisem."""
+    if isinstance(content, str):
+        return content if len(content) <= limit else content[:limit] + "…"
+    if isinstance(content, list):
+        return [
+            {**part, "text": truncate_content(part["text"], limit)}
+            if isinstance(part, dict) and isinstance(part.get("text"), str)
+            else part
+            for part in strip_images(content)
+        ]
+    return content
+
+
+def result_text(block: dict[str, Any]) -> str:
+    """Tekst bloku ``tool_result`` (pierwsza część tekstowa albo cały napis)."""
+    content = block.get("content")
+    if isinstance(content, str):
+        return content
+    return "\n".join(
+        part.get("text", "")
+        for part in content or []
+        if isinstance(part, dict) and part.get("type") == "text"
+    )
 
 
 def parse_tool_result(block: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
@@ -244,6 +445,36 @@ def parse_tool_result(block: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]
     return str(payload.get("summary") or "")[:2000], files
 
 
+def builtin_summary(name: str, block: dict[str, Any]) -> str:
+    """Krótki opis wyniku narzędzia wbudowanego CLI (bez przepisywania całej treści)."""
+    text = result_text(block).strip()
+    if block.get("is_error"):
+        return re.sub(r"</?tool_use_error>", "", text)[:500] or "Błąd narzędzia"
+    lines = [line for line in text.splitlines() if line.strip()]
+    if name == "Read":
+        return f"Odczytano {len(lines)} wierszy"
+    if name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        return "Zapisano zmiany"
+    if name in ("Glob", "Grep"):
+        if not lines or lines[0].lower().startswith("no "):
+            return "Brak wyników"
+        return f"Wyników: {len(lines)}"
+    if name == "WebFetch":
+        return "Odczytano stronę"
+    if name == "WebSearch":
+        return "Wyszukano w sieci"
+    if name == "Bash":
+        return "\n".join(lines[-6:])[-600:] or "Wykonano"
+    return (lines[0] if lines else "")[:300]
+
+
+def agent_output(text: str) -> str:
+    """Wynik podagenta bez metadanych CLI (identyfikator agenta, zużycie)."""
+    text = re.sub(r"<usage>.*?</usage>", "", text, flags=re.DOTALL)
+    lines = [line for line in text.splitlines() if not line.strip().lower().startswith("agentid:")]
+    return "\n".join(lines).strip()[:2000]
+
+
 def friendly_error(text: str) -> str:
     """Czytelny komunikat błędu CLI dla użytkownika."""
     lowered = text.lower()
@@ -269,6 +500,40 @@ def input_preview(raw: Any) -> dict[str, Any]:
     return preview
 
 
+def rate_limit_warning(info: dict[str, Any]) -> str:
+    """Ostrzeżenie o wyczerpywaniu limitu konta (pusty napis, gdy daleko do limitu)."""
+    windows = info.get("unifiedWindows") if isinstance(info.get("unifiedWindows"), dict) else {}
+    labels = {"five_hour": "5-godzinnego", "seven_day": "tygodniowego"}
+    worst: tuple[float, str, Any] | None = None
+    for key, window in windows.items():
+        if not isinstance(window, dict):
+            continue
+        try:
+            utilization = float(window.get("utilization") or 0)
+        except (TypeError, ValueError):
+            continue
+        if worst is None or utilization > worst[0]:
+            worst = (utilization, labels.get(key, key), window.get("resetsAt"))
+    status = str(info.get("status") or "allowed")
+    if status != "allowed" and worst is None:
+        return "Konto Claude osiągnęło limit użycia – zadania mogą czekać na odnowienie limitu."
+    if worst is None or (worst[0] < RATE_LIMIT_WARN and status == "allowed"):
+        return ""
+    reset = ""
+    if isinstance(worst[2], int | float):
+        reset = f" (odnowienie: {_local_time(worst[2])})"
+    return f"Wykorzystano {round(worst[0] * 100)}% limitu {worst[1]} konta Claude{reset}."
+
+
+def _local_time(timestamp: float) -> str:
+    moment = datetime.fromtimestamp(timestamp, UTC)
+    with contextlib.suppress(Exception):
+        from zoneinfo import ZoneInfo
+
+        moment = moment.astimezone(ZoneInfo("Europe/Warsaw"))
+    return moment.strftime("%d.%m %H:%M")
+
+
 @dataclass
 class _Buffer:
     """Łączy drobne fragmenty tekstu w większe zdarzenia (mniej zapisów w bazie)."""
@@ -279,6 +544,20 @@ class _Buffer:
 
 
 @dataclass
+class _Call:
+    """Trwające wywołanie narzędzia (także podagenta) w przebiegu."""
+
+    call_id: int
+    name: str
+    started: float
+    parent: str | None = None
+    mcp: bool = False
+    agent: bool = False
+    background: bool = False
+    files: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
 class _RunState:
     """Stan tłumaczenia strumienia CLI na zdarzenia jednego przebiegu."""
 
@@ -286,11 +565,14 @@ class _RunState:
     conversation_id: uuid.UUID
     text: _Buffer = field(default_factory=lambda: _Buffer("text.delta"))
     thinking: _Buffer = field(default_factory=lambda: _Buffer("thinking.delta"))
-    calls: dict[str, tuple[int, str, float]] = field(default_factory=dict)
+    calls: dict[str, _Call] = field(default_factory=dict)
     session_id: str = ""
     result: dict[str, Any] | None = None
+    results: list[dict[str, Any]] = field(default_factory=list)
     model: str = ""
     voice: bool = False
+    init_seen: bool = False
+    limit_warned: bool = False
 
 
 class AgentRunner:
@@ -300,6 +582,11 @@ class AgentRunner:
         self._settings = settings
         self._db = database
         self._events = events or EventBus(settings.redis_url)
+        self._shutdown = asyncio.Event()
+
+    def interrupt_all(self) -> None:
+        """Przerywa wszystkie trwające przebiegi (zatrzymanie procesu roboczego)."""
+        self._shutdown.set()
 
     # --- zdarzenia i zapis -----------------------------------------------------------------
 
@@ -317,6 +604,10 @@ class AgentRunner:
             buffer.parts.clear()
             buffer.last_flush = time.monotonic()
             await self.emit(run_id, buffer.kind, {"text": text})
+
+    async def _flush_all(self, state: _RunState) -> None:
+        await self._flush(state.run_id, state.text, force=True)
+        await self._flush(state.run_id, state.thinking, force=True)
 
     async def _append(
         self, state: _RunState, role: str, kind: str, content: list[dict[str, Any]], meta: dict[str, Any]
@@ -347,14 +638,18 @@ class AgentRunner:
             )
         state = _RunState(run_id, run.conversation_id)
         state.voice = bool(prompt_message is not None and (prompt_message.meta or {}).get("voice"))
+        meta = (conversation.meta if conversation else None) or {}
+        mode = conversation_mode(meta)
         usage: dict[str, Any] = {}
         status, error_text = "done", ""
-        await self.emit(run_id, "run.started", {})
+        timeout = run_timeout_minutes(self._settings, mode)
+        await self.emit(run_id, "run.started", {"mode": mode} if mode != "chat" else {})
         try:
+            options = self._options(mode, meta, state.voice)
             prompt = _prompt_text(prompt_message)
-            await self._run_cli(state, conversation, prompt)
+            await self._run_cli(state, conversation, prompt, options, timeout)
             result = state.result or {}
-            usage = _usage(result)
+            usage = _usage_total(state.results or [result])
             if result.get("is_error") or result.get("subtype", "success") != "success":
                 status = "failed"
                 error_text = _result_error(result)
@@ -362,7 +657,9 @@ class AgentRunner:
             status, error_text = "cancelled", "Zadanie anulowane."
         except RunTimedOut:
             status = "failed"
-            error_text = f"Zadanie przekroczyło limit czasu ({self._settings.run_timeout_minutes} min)."
+            error_text = f"Zadanie przekroczyło limit czasu ({timeout} min)."
+        except RunInterrupted:
+            status, error_text = "failed", "Zadanie przerwane (restart procesu roboczego)."
         except CliFailure as error:
             status, error_text = "failed", friendly_error(str(error))
             logger.error("Błąd CLI w przebiegu %s: %s", run_id, str(error)[-2000:])
@@ -378,9 +675,15 @@ class AgentRunner:
             )
         final_type = {"done": "run.completed", "cancelled": "run.cancelled"}.get(status, "run.failed")
         await self.emit(run_id, final_type, {"error": error_text, "usage": usage})
+        async with self._db.session() as session:
+            title = await session.scalar(
+                select(Conversation.title).where(Conversation.id == run.conversation_id)
+            )
+        await self._events.notify_finished(run_id, run.conversation_id, status, title or "")
         logger.info(
-            "Przebieg %s: %s | model: %s | tury: %s | tokeny wej.: %s (cache: %s) | wyj.: %s",
+            "Przebieg %s (%s): %s | model: %s | tury: %s | tokeny wej.: %s (cache: %s) | wyj.: %s",
             run_id,
+            mode,
             status,
             state.model or "-",
             usage.get("num_turns", "-"),
@@ -388,6 +691,15 @@ class AgentRunner:
             usage.get("cache_read_input_tokens", "-"),
             usage.get("output_tokens", "-"),
         )
+
+    def _options(self, mode: str, meta: dict[str, Any], voice: bool) -> RunOptions:
+        workspace = None
+        if mode == "code":
+            name = str(meta.get("workspace") or "")
+            workspace = existing_project(self._settings, name)
+            if workspace is None:
+                raise CliFailure(f"projekt „{name}” nie istnieje w module Kod")
+        return RunOptions(mode=mode, workspace=workspace, voice=voice)
 
     async def _session_for(
         self, state: _RunState, conversation: Conversation | None
@@ -439,20 +751,27 @@ class AgentRunner:
             + "\n[Koniec streszczenia]\n\n"
         )
 
-    async def _run_cli(self, state: _RunState, conversation: Conversation | None, prompt: str) -> None:
+    async def _run_cli(
+        self,
+        state: _RunState,
+        conversation: Conversation | None,
+        prompt: str,
+        options: RunOptions,
+        timeout_minutes: int,
+    ) -> None:
         settings = self._settings
         session_id, resume, digest = await self._session_for(state, conversation)
         run_dir = settings.work_dir / f"cli-{state.run_id}"
         run_dir.mkdir(parents=True, exist_ok=True)
-        cwd = settings.data_dir / "agent"
+        cwd = options.workspace or settings.data_dir / "agent"
         cwd.mkdir(parents=True, exist_ok=True)
         config_path = run_dir / "mcp.json"
         config_path.write_text(json.dumps(mcp_config(state.run_id, state.conversation_id)), encoding="utf-8")
-        command = build_command(settings, config_path, session_id, resume, voice=state.voice)
+        command = build_command(settings, config_path, session_id, resume, options=options)
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=cwd,
-            env=cli_environment(settings, run_dir),
+            env=cli_environment(settings, run_dir, code=options.mode == "code"),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -465,14 +784,15 @@ class AgentRunner:
         stderr_task = asyncio.create_task(_collect(process.stderr, stderr_tail))
         reader = asyncio.create_task(self._consume(process, state))
         cancel_wait = asyncio.create_task(cancel.wait())
+        shutdown_wait = asyncio.create_task(self._shutdown.wait())
         try:
             assert process.stdin is not None
             process.stdin.write((digest + prompt).encode("utf-8"))
             await process.stdin.drain()
             process.stdin.close()
             done, _ = await asyncio.wait(
-                {reader, cancel_wait},
-                timeout=settings.run_timeout_minutes * 60,
+                {reader, cancel_wait, shutdown_wait},
+                timeout=timeout_minutes * 60,
                 return_when=asyncio.FIRST_COMPLETED,
             )
             if reader not in done:
@@ -480,12 +800,13 @@ class AgentRunner:
                 reader.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await reader
-                raise RunCancelled if cancel_wait in done else RunTimedOut
+                if cancel_wait in done:
+                    raise RunCancelled
+                raise RunInterrupted if shutdown_wait in done else RunTimedOut
             reader.result()
             returncode = await process.wait()
             await stderr_task
-            await self._flush(state.run_id, state.text, force=True)
-            await self._flush(state.run_id, state.thinking, force=True)
+            await self._flush_all(state)
             if state.result is None:
                 raise CliFailure(f"kod wyjścia {returncode}\n" + "\n".join(stderr_tail))
             if state.result.get("is_error"):
@@ -493,6 +814,7 @@ class AgentRunner:
         finally:
             watcher.cancel()
             cancel_wait.cancel()
+            shutdown_wait.cancel()
             if process.returncode is None:
                 await _terminate(process)
             if not stderr_task.done():
@@ -525,13 +847,34 @@ class AgentRunner:
                 await self.handle_event(state, event)
 
     async def handle_event(self, state: _RunState, event: dict[str, Any]) -> None:
-        """Tłumaczy jedno zdarzenie strumienia CLI."""
+        """Tłumaczy jedno zdarzenie strumienia CLI (także zdarzenia podagentów)."""
         kind = event.get("type")
-        if event.get("parent_tool_use_id"):
-            return
-        if kind == "system" and event.get("subtype") == "init":
-            state.session_id = event.get("session_id", "")
-            state.model = event.get("model", "")
+        parent = event.get("parent_tool_use_id") or None
+        if kind == "system":
+            await self._system(state, event)
+        elif kind == "stream_event":
+            # Fragmenty odpowiedzi strumieniuje tylko agent główny; podagenci przysyłają całe bloki.
+            if parent is None:
+                await self._stream_event(state, event.get("event") or {})
+        elif kind == "assistant":
+            await self._assistant(state, event.get("message") or {}, parent)
+        elif kind == "user":
+            await self._tool_results(state, event.get("message") or {}, parent)
+        elif kind == "result" and parent is None:
+            state.results.append(event)
+            state.result = event
+        elif kind == "rate_limit_event":
+            await self._rate_limit(state, event.get("rate_limit_info") or {})
+
+    async def _system(self, state: _RunState, event: dict[str, Any]) -> None:
+        subtype = event.get("subtype")
+        if subtype == "init":
+            # Po zakończeniu podagentów w tle CLI rozpoczyna kolejną turę z nowym „init”.
+            state.session_id = event.get("session_id", "") or state.session_id
+            state.model = event.get("model", "") or state.model
+            if state.init_seen:
+                return
+            state.init_seen = True
             failed = [
                 server.get("name")
                 for server in event.get("mcp_servers") or []
@@ -541,14 +884,24 @@ class AgentRunner:
                 await self.emit(
                     state.run_id, "notice", {"text": "Narzędzia serwera są niedostępne (błąd serwera MCP)."}
                 )
-        elif kind == "stream_event":
-            await self._stream_event(state, event.get("event") or {})
-        elif kind == "assistant":
-            await self._assistant(state, event.get("message") or {})
-        elif kind == "user":
-            await self._tool_results(state, event.get("message") or {})
-        elif kind == "result":
-            state.result = event
+        elif subtype == "task_notification":
+            tool_use_id = str(event.get("tool_use_id") or "")
+            call = state.calls.get(tool_use_id)
+            if call is None or not call.agent:
+                return
+            status = AGENT_STATUS.get(str(event.get("status") or "").lower(), "done")
+            summary = agent_output(str(event.get("summary") or ""))
+            await self._finish_call(state, tool_use_id, status, summary or _status_text(status), [])
+        elif subtype == "task_progress":
+            tool_use_id = str(event.get("tool_use_id") or "")
+            call = state.calls.get(tool_use_id)
+            if call is None or not call.agent:
+                return
+            text = str(event.get("description") or event.get("last_tool_name") or "")
+            if text:
+                await self.emit(
+                    state.run_id, "tool.progress", {"tool_use_id": tool_use_id, "text": text[:300]}
+                )
 
     async def _stream_event(self, state: _RunState, event: dict[str, Any]) -> None:
         kind = event.get("type")
@@ -561,52 +914,75 @@ class AgentRunner:
                 state.thinking.parts.append(delta.get("thinking", ""))
                 await self._flush(state.run_id, state.thinking)
         elif kind == "content_block_start":
-            await self._flush(state.run_id, state.text, force=True)
-            await self._flush(state.run_id, state.thinking, force=True)
+            await self._flush_all(state)
             block = event.get("content_block") or {}
-            if block.get("type") == "tool_use" and block.get("name", "").startswith(MCP_PREFIX):
-                await self.emit(state.run_id, "tool.pending", {"name": tool_display_name(block["name"])})
+            name = block.get("name", "")
+            if block.get("type") == "tool_use" and name not in HIDDEN_TOOLS:
+                await self.emit(state.run_id, "tool.pending", {"name": tool_display_name(name)})
             elif block.get("type") == "text":
                 await self.emit(state.run_id, "text.block", {})
         elif kind == "message_stop":
-            await self._flush(state.run_id, state.text, force=True)
-            await self._flush(state.run_id, state.thinking, force=True)
+            await self._flush_all(state)
 
-    async def _assistant(self, state: _RunState, message: dict[str, Any]) -> None:
-        await self._flush(state.run_id, state.text, force=True)
-        await self._flush(state.run_id, state.thinking, force=True)
+    async def _assistant(self, state: _RunState, message: dict[str, Any], parent: str | None) -> None:
+        if parent is None:
+            await self._flush_all(state)
         content = []
         for block in message.get("content") or []:
             if not isinstance(block, dict):
                 continue
-            if block.get("type") == "tool_use":
+            kind = block.get("type")
+            if kind == "tool_use":
                 name = block.get("name", "")
-                if not name.startswith(MCP_PREFIX):
+                if name in HIDDEN_TOOLS:
                     continue
+                await self._start_call(state, block, parent)
                 block = {**block, "name": tool_display_name(name)}
-                await self._start_call(state, block)
-            if block.get("type") in ("text", "thinking", "tool_use"):
+            elif kind == "text" and parent is not None:
+                if block.get("text"):
+                    data = {"parent_tool_use_id": parent}
+                    await self.emit(state.run_id, "text.block", data)
+                    await self.emit(state.run_id, "text.delta", {**data, "text": block["text"]})
+                continue
+            if kind in ("text", "thinking", "tool_use"):
                 content.append(block)
+        if parent is not None:
+            return
         if message.get("model"):
             state.model = message["model"]
         if content:
             await self._append(state, "assistant", "assistant", content, {"model": message.get("model", "")})
 
-    async def _start_call(self, state: _RunState, block: dict[str, Any]) -> None:
+    async def _start_call(self, state: _RunState, block: dict[str, Any], parent: str | None) -> None:
         tool_use_id = block.get("id", "")
+        raw_name = block.get("name", "")
+        name = tool_display_name(raw_name)
         raw_input = block.get("input") if isinstance(block.get("input"), dict) else {}
+        agent = raw_name in AGENT_TOOLS
         async with self._db.session() as session:
-            call = ToolCall(run_id=state.run_id, tool_use_id=tool_use_id, name=block["name"], input=raw_input)
+            call = ToolCall(run_id=state.run_id, tool_use_id=tool_use_id, name=name, input=raw_input)
             session.add(call)
             await session.flush()
-            state.calls[tool_use_id] = (call.id, block["name"], time.monotonic())
-        await self.emit(
-            state.run_id,
-            "tool.started",
-            {"tool_use_id": tool_use_id, "name": block["name"], "input": input_preview(raw_input)},
-        )
+            state.calls[tool_use_id] = _Call(
+                call.id,
+                name,
+                time.monotonic(),
+                parent=parent,
+                mcp=raw_name.startswith(MCP_PREFIX),
+                agent=agent,
+            )
+        data: dict[str, Any] = {"tool_use_id": tool_use_id, "name": name, "input": input_preview(raw_input)}
+        if parent is not None:
+            data["parent_tool_use_id"] = parent
+        if agent:
+            data["agent"] = {
+                "description": str(raw_input.get("description") or "")[:200],
+                "subagent_type": str(raw_input.get("subagent_type") or ""),
+                "background": bool(raw_input.get("run_in_background")),
+            }
+        await self.emit(state.run_id, "tool.started", data)
 
-    async def _tool_results(self, state: _RunState, message: dict[str, Any]) -> None:
+    async def _tool_results(self, state: _RunState, message: dict[str, Any], parent: str | None) -> None:
         content = message.get("content")
         if not isinstance(content, list):
             return
@@ -615,24 +991,46 @@ class AgentRunner:
             if not isinstance(block, dict) or block.get("type") != "tool_result":
                 continue
             tool_use_id = block.get("tool_use_id", "")
-            if tool_use_id not in state.calls:
+            call = state.calls.get(tool_use_id)
+            if call is None:
                 continue
-            summary, files = parse_tool_result(block)
             status = "error" if block.get("is_error") else "done"
+            files: list[dict[str, Any]] = []
+            if call.agent:
+                text = result_text(block)
+                if not block.get("is_error") and BACKGROUND_AGENT_MARKER in text.lower():
+                    # Podagent w tle: wynik przyjdzie w zdarzeniu task_notification.
+                    call.background = True
+                    await self.emit(
+                        state.run_id, "tool.progress", {"tool_use_id": tool_use_id, "text": "Pracuje w tle…"}
+                    )
+                    stored.append({**block, "content": truncate_content(block.get("content"))})
+                    continue
+                summary = agent_output(text) or _status_text(status)
+            elif call.mcp:
+                summary, files = parse_tool_result(block)
+            else:
+                summary = builtin_summary(call.name, block)
             await self._finish_call(state, tool_use_id, status, summary, files)
-            stored.append({**block, "content": strip_images(block.get("content"))})
-        if stored:
+            if call.mcp:
+                stored.append({**block, "content": strip_images(block.get("content"))})
+            else:
+                stored.append({**block, "content": truncate_content(block.get("content"))})
+        if stored and parent is None:
             await self._append(state, "user", "tool_results", stored, {})
 
     async def _finish_call(
         self, state: _RunState, tool_use_id: str, status: str, summary: str, files: list[dict[str, Any]]
     ) -> None:
-        call_id, name, started = state.calls.pop(tool_use_id)
-        duration = int((time.monotonic() - started) * 1000)
+        call = state.calls.pop(tool_use_id)
+        duration = int((time.monotonic() - call.started) * 1000)
+        if call.agent:
+            # Podagent oddaje pliki wszystkich swoich wywołań (widoczne też w historii rozmowy).
+            files = [*files, *call.files]
         async with self._db.session() as session:
             await session.execute(
                 update(ToolCall)
-                .where(ToolCall.id == call_id)
+                .where(ToolCall.id == call.call_id)
                 .values(
                     status=status,
                     summary=summary[:2000],
@@ -640,29 +1038,49 @@ class AgentRunner:
                     output_file_ids=[f["id"] for f in files],
                 )
             )
-        await self.emit(
-            state.run_id,
-            "tool.finished",
-            {
-                "tool_use_id": tool_use_id,
-                "name": name,
-                "status": status,
-                "summary": summary[:500],
-                "files": files,
-                "duration_ms": duration,
-            },
-        )
+        if files:
+            ancestor = state.calls.get(call.parent) if call.parent else None
+            if ancestor is not None and ancestor.agent:
+                ancestor.files.extend(files)
+        data: dict[str, Any] = {
+            "tool_use_id": tool_use_id,
+            "name": call.name,
+            "status": status,
+            "summary": summary[:500],
+            "files": files,
+            "duration_ms": duration,
+        }
+        if call.parent is not None:
+            data["parent_tool_use_id"] = call.parent
+        await self.emit(state.run_id, "tool.finished", data)
 
     async def _close_open_calls(self, state: _RunState, status: str) -> None:
         """Wywołania bez wyniku (przerwany przebieg) oznacza jako anulowane lub błędne."""
         final = "cancelled" if status == "cancelled" else "error"
         summary = "Anulowano" if final == "cancelled" else "Przerwano"
-        for tool_use_id in list(state.calls):
-            await self._finish_call(state, tool_use_id, final, summary, [])
+        # Najpierw najgłębiej zagnieżdżone (odwrotna kolejność), żeby pliki trafiły do podagentów.
+        for tool_use_id in reversed(list(state.calls)):
+            if tool_use_id in state.calls:
+                await self._finish_call(state, tool_use_id, final, summary, [])
+
+    async def _rate_limit(self, state: _RunState, info: dict[str, Any]) -> None:
+        """Zapamiętuje stan limitów konta (moduł Agenci) i ostrzega przy ich wyczerpywaniu."""
+        if not isinstance(info, dict) or not info:
+            return
+        payload = json.dumps({**info, "updated_at": utcnow().isoformat()}, ensure_ascii=False)
+        try:
+            async with self._db.session() as session:
+                await session.merge(Setting(key=RATE_LIMIT_KEY, value=payload, updated_at=utcnow()))
+        except Exception:  # noqa: BLE001 - informacja pomocnicza, równoległe zapisy mogą się zderzyć
+            logger.debug("Nie zapisano stanu limitów konta", exc_info=True)
+        warning = rate_limit_warning(info)
+        if warning and not state.limit_warned:
+            state.limit_warned = True
+            await self.emit(state.run_id, "notice", {"text": warning})
 
 
-class CliFailure(Exception):
-    """CLI zakończył działanie bez wyniku."""
+def _status_text(status: str) -> str:
+    return {"done": "Zakończono", "cancelled": "Anulowano"}.get(status, "Nie powiodło się")
 
 
 def _prompt_text(message: Message | None) -> str:
@@ -695,6 +1113,19 @@ def _usage(result: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def _usage_total(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Zużycie wszystkich tur przebiegu (podagenci w tle wydłużają przebieg o kolejne tury)."""
+    total: dict[str, Any] = {}
+    for result in results:
+        for name, value in _usage(result).items():
+            if name == "total_cost_usd":
+                # CLI podaje koszt narastająco w obrębie procesu.
+                total[name] = value
+            elif isinstance(value, int | float):
+                total[name] = total.get(name, 0) + value
+    return total
+
+
 def _result_error(result: dict[str, Any]) -> str:
     subtype = result.get("subtype", "")
     if subtype == "error_max_turns":
@@ -718,7 +1149,7 @@ async def _collect(stream: asyncio.StreamReader | None, tail: deque[str]) -> Non
 
 
 async def _terminate(process: asyncio.subprocess.Process) -> None:
-    """Kończy CLI wraz z procesami potomnymi (serwer MCP, programy narzędzi)."""
+    """Kończy CLI wraz z procesami potomnymi (serwer MCP, podagenci, programy narzędzi)."""
     if process.returncode is not None:
         return
     with contextlib.suppress(ProcessLookupError, PermissionError):

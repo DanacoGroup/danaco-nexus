@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import time
 import uuid
@@ -20,6 +21,8 @@ logger = logging.getLogger(__name__)
 CHANNEL_PREFIX = "nexus:run:"
 # Nowe zadanie w kolejce – proces roboczy podejmuje je od razu, bez czekania na odpytanie bazy.
 QUEUE_CHANNEL = "nexus:queue"
+# Zakończone zadanie: JSON {"run_id", "conversation_id", "status", "title"}.
+FINISHED_CHANNEL = "nexus:run-finished"
 FALLBACK_POLL_SECONDS = 0.25
 RETRY_AFTER_ERROR_SECONDS = 30.0
 
@@ -58,6 +61,27 @@ class EventBus:
         try:
             await client.publish(channel(run_id), "1")
         except Exception as error:  # noqa: BLE001 - powiadomienie jest tylko przyspieszeniem
+            self._failed(error)
+
+    async def notify_finished(
+        self, run_id: uuid.UUID, conversation_id: uuid.UUID, status: str, title: str
+    ) -> None:
+        """Ogłasza zakończenie zadania (kanał ``FINISHED_CHANNEL``, np. dla powiadomień Web Push)."""
+        client = self._redis()
+        if client is None:
+            return
+        payload = json.dumps(
+            {
+                "run_id": str(run_id),
+                "conversation_id": str(conversation_id),
+                "status": status,
+                "title": title,
+            },
+            ensure_ascii=False,
+        )
+        try:
+            await client.publish(FINISHED_CHANNEL, payload)
+        except Exception as error:  # noqa: BLE001 - powiadomienie nie wpływa na wynik zadania
             self._failed(error)
 
     async def notify_queue(self) -> None:

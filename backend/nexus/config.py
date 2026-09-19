@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     tool_timeout_minutes: int = 90
     mcp_startup_timeout_s: int = 60
 
-    worker_concurrency: int = 2
+    worker_concurrency: int = 4
     tool_threads: int = 8
     upload_limit_mb: int = 2048
 
@@ -80,6 +80,23 @@ class Settings(BaseSettings):
     def work_dir(self) -> Path:
         """Katalog roboczy narzędzi (pliki tymczasowe zadań)."""
         return self.data_dir / "work"
+
+    # --- moduł agenci ---
+    claude_subagents: bool = True
+    claude_web_tools: bool = True
+    claude_subagent_model: str = ""
+    agenci_max_podagentow: int = 15
+    run_timeout_research_minutes: int = 360
+    worker_stop_grace_s: int = 90
+    kod_git_name: str = "Danaco Nexus"
+    kod_git_email: str = "nexus@danaco-nexus.pl"
+    kod_clone_timeout_s: int = 600
+    kod_file_preview_kb: int = 1024
+
+    @property
+    def kod_dir(self) -> Path:
+        """Katalog przestrzeni projektów modułu Kod."""
+        return self.data_dir / "kod"
 
 
 @lru_cache
