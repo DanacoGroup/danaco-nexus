@@ -7,6 +7,10 @@ import android.content.pm.PackageInfo
 import android.view.View
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
+import androidx.work.WorkManager
+import androidx.work.testing.WorkManagerTestInitHelper
+import pl.danaco.nexus.notify.RunWatch
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -34,6 +38,12 @@ import pl.danaco.nexus.voice.VoiceStartActivity
 class AndroidSmokeTest {
     private val app: Application get() = ApplicationProvider.getApplicationContext()
 
+    @Before
+    fun setUp() {
+        // Na telefonie WorkManager startuje przez App Startup; Robolectric go nie uruchamia.
+        WorkManagerTestInitHelper.initializeTestWorkManager(app)
+    }
+
     private fun texts(view: View): List<String> {
         val result = mutableListOf<String>()
         fun walk(node: View) {
@@ -58,6 +68,21 @@ class AndroidSmokeTest {
         assertTrue(shadowOf(webView).lastLoadedUrl.startsWith("https://danaco-nexus.pl"))
         assertTrue(shadowOf(webView).webViewClient is pl.danaco.nexus.web.NexusWebViewClient)
         assertNotNull(activity.bridge.getPlugin("NexusAndroid"))
+    }
+
+    @Test
+    fun `obserwowane zadania i planowanie sprawdzania`() {
+        val run = "11111111-2222-3333-4444-555555555555"
+        val conversation = "66666666-7777-8888-9999-000000000000"
+        RunWatch.add(app, run, conversation)
+        RunWatch.add(app, run, conversation)
+        val entries = RunWatch.load(app)
+        assertEquals(1, entries.size)
+        assertEquals(conversation, entries.single().conversationId)
+        RunWatch.schedule(app)
+        val work = WorkManager.getInstance(app).getWorkInfosForUniqueWork("nexus-obserwacja-zadan").get()
+        assertEquals(1, work.size)
+        RunWatch.cancel(app)
     }
 
     @Test

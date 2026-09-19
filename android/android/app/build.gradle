@@ -96,6 +96,7 @@ dependencies {
     testImplementation "org.json:json:20250517"
     testImplementation "org.robolectric:robolectric:4.17"
     testImplementation "androidx.test:core:1.7.0"
+    testImplementation "androidx.work:work-testing:2.10.5"
     implementation project(':capacitor-cordova-android-plugins')
 }
 
