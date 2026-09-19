@@ -155,6 +155,37 @@ def check_chmura(settings: Settings) -> Check:
     )
 
 
+def check_redis(settings: Settings) -> Check:
+    """Redis (Valkey) projektu – powiadomienia o zdarzeniach zadań."""
+    if not settings.redis_url:
+        return Check("redis", True, "wyłączony (strumienie odpytują bazę)")
+    import redis
+
+    try:
+        client = redis.from_url(settings.redis_url, socket_timeout=5, socket_connect_timeout=2)
+        info = client.info("server")
+        client.close()
+    except redis.RedisError as error:
+        return Check("redis", False, f"{error.__class__.__name__}: {error}"[:300])
+    name = "Valkey" if info.get("valkey_version") else "Redis"
+    return Check("redis", True, f"{name} {info.get('valkey_version') or info.get('redis_version')}")
+
+
+def check_whisper(settings: Settings) -> Check:
+    """Transkrypcja mowy: interpreter z faster-whisper i model."""
+    if not Path(settings.whisper_python).is_file():
+        return Check("transkrypcja", False, f"brak {settings.whisper_python}")
+    if not (settings.whisper_model_dir / "model.bin").is_file():
+        return Check("transkrypcja", False, f"brak modelu w {settings.whisper_model_dir}")
+    completed = _run(
+        [settings.whisper_python, "-c", "import faster_whisper; print(faster_whisper.__version__)"]
+    )
+    version = completed.stdout.strip()
+    return Check(
+        "transkrypcja", bool(version), f"faster-whisper {version}" if version else completed.stderr[-300:]
+    )
+
+
 def check_http(name: str, url: str) -> Check:
     """Dostępność usługi HTTP."""
     try:
@@ -275,6 +306,8 @@ def run_checks(settings: Settings, online: bool = False) -> list[Check]:
             else check_tika_app(settings)
         ),
         lambda: check_http("languagetool", f"{settings.languagetool_url}/v2/languages"),
+        lambda: check_redis(settings),
+        lambda: check_whisper(settings),
         lambda: check_chmura(settings),
         lambda: check_claude_cli(settings),
         check_mcp_server,
