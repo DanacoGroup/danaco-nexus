@@ -254,3 +254,15 @@ def test_scan_cleanup_with_unpaper(harness: ToolHarness, tmp_path: Path) -> None
     image = harness.add(write_image(tmp_path / "skan.png", render_text_image(dpi=100)))
     result = call(harness, "enhance_document_scan", file_ids=[image], unpaper=True)
     assert result.data["results"][0]["unpaper"] is True
+
+
+def test_upscale_image_with_realesrgan(harness: ToolHarness, tmp_path: Path) -> None:
+    executable = harness.settings.realesrgan_dir / "realesrgan-ncnn-vulkan"
+    if not executable.is_file():
+        pytest.skip("Brak Real-ESRGAN w środowisku testów")
+    small = cv2.resize(render_text_image(dpi=40), (96, 128))
+    image = harness.add(write_image(tmp_path / "maly.png", cv2.cvtColor(small, cv2.COLOR_GRAY2BGR)))
+    result = call(harness, "upscale_image", file_ids=[image], scale=2, model="anime")
+    output = read_image(result.files[0].path)
+    assert output.shape[:2] == (256, 192)
+    assert result.files[0].name == "maly_x2.png"
