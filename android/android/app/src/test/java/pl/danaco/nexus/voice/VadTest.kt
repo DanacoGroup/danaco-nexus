@@ -42,7 +42,8 @@ class VadTest {
         val ended = end.single() as Vad.Event.UtteranceEnded
         assertEquals(t1, ended.startMs)
         assertFalse(ended.forced)
-        assertTrue(ended.endMs - t2 in 700..800)
+        // Ostatnia głośna ramka to t2 − 40 ms; koniec, gdy cisza przekroczy 700 ms od niej.
+        assertEquals(t2 + 680, ended.endMs)
         assertFalse(vad.hearing)
     }
 
@@ -61,8 +62,10 @@ class VadTest {
         val vad = Vad()
         val (events, _) = vad.feed(0.2, 61_000, 0)
         assertTrue(events.first() is Vad.Event.SpeechStarted)
-        val forced = events.last() as Vad.Event.UtteranceEnded
+        val forced = events.filterIsInstance<Vad.Event.UtteranceEnded>().single()
         assertTrue(forced.forced)
+        assertEquals(0L, forced.startMs)
+        assertTrue(forced.endMs in 60_000..60_100)
     }
 
     @Test

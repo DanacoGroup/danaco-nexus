@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package pl.danaco.nexus.config
 
 import android.content.Context
@@ -11,7 +13,6 @@ import androidx.security.crypto.MasterKey
  * Klucz nigdy nie trafia do logów ani do zwykłych preferencji. Biblioteka security-crypto 1.1.0 jest
  * oznaczona jako przestarzała, ale pozostaje działającym, stabilnym szyfrowaniem AES-256 (GCM/SIV).
  */
-@Suppress("DEPRECATION")
 class DeviceKeyStore private constructor(private val prefs: SharedPreferences?) {
     val token: String? get() = prefs?.getString(KEY_TOKEN, null)
 
