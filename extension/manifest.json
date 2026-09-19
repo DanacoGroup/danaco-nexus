@@ -26,7 +26,7 @@
     "open_in_tab": true
   },
   "permissions": ["storage", "contextMenus", "scripting", "clipboardWrite"],
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],

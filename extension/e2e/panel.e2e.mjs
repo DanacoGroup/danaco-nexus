@@ -23,6 +23,9 @@ const ATRAPA = readFileSync(join(KATALOG, "atrapa-panelu.html"), "utf8");
 const ADRES_STRONY = "https://admin.booking.com/hotel/hoteladmin/opinie";
 // Wartość testowa (nie jest kluczem żadnego serwera).
 const KLUCZ_TESTOWY = `nxd_${"t".repeat(43)}`;
+// Nagłówek, który serwer powinien wysyłać dla /?widok=panel (docs/moduly/rozszerzenie.md).
+const NAGLOWEK_ZALECANY =
+  process.env.NAGLOWEK_RAMKI ?? "frame-ancestors 'self' https: chrome-extension: moz-extension:";
 
 const wyniki = [];
 function sprawdz(nazwa, warunek, szczegoly = "") {
@@ -84,7 +87,7 @@ try {
     }, czas);
 
   // ---------- scenariusz główny: frame-ancestors dopuszcza rozszerzenie ----------
-  naglowekRamki = `frame-ancestors ${pochodzenieRozszerzenia}`;
+  naglowekRamki = NAGLOWEK_ZALECANY;
   const strona = await context.newPage();
   await strona.goto(ADRES_STRONY);
   const host = await strona.waitForSelector("danaco-nexus", { state: "attached", timeout: 10000 }).catch(() => null);
@@ -101,7 +104,10 @@ try {
     return r.panel && r.nexus ? r : null;
   }, 10000);
   sprawdz("kliknięcie przycisku otwiera panel z ramką Nexusa ?widok=panel", !!r1);
-  if (!r1) throw new Error("Panel się nie otworzył – dalsze kroki bez sensu.");
+  if (!r1) {
+    await strona.screenshot({ path: join(profil, "..", "e2e-blad.png") });
+    throw new Error(`Panel się nie otworzył. Ramki: ${strona.frames().map((f) => f.url()).join(", ")}`);
+  }
   const { panel, nexus } = r1;
 
   const auth = await czekajNaKomunikat(nexus, "nexus:auth", 1);
@@ -177,7 +183,11 @@ try {
     await panel.click('[data-akcja="stresc"]');
     const kontekst4 = await czekajNaKomunikat(nexus, "nexus:context", 4, 10000);
     const obraz = kontekst4?.data.context.image ?? "";
-    sprawdz("Zrzut: kontekst z obrazem JPEG (data URL)", obraz.startsWith("data:image/jpeg;base64,"), `${obraz.length} znaków`);
+    sprawdz(
+      "Zrzut: kontekst z obrazem JPEG (data URL)",
+      obraz.startsWith("data:image/jpeg;base64,"),
+      obraz ? `${obraz.length} znaków` : await panel.textContent("#komunikat"),
+    );
     await panel.uncheck("#zrzut");
   }
 
@@ -194,25 +204,25 @@ try {
     kontekst5?.data.context.text === "Dzień dobry, pokój jest gotowy." && polecenia.at(-1)?.data.text.includes("Przetłumacz"),
   );
 
-  // Strona nie może wysłać poleceń do ramki Nexusa (inne pochodzenie).
-  await strona.evaluate(() => {
-    const wszystkie = [];
+  // Strona nie sięga do ramek panelu (są w zamkniętym Shadow DOM, poza window.frames),
+  // a gdyby sięgnęła – jej wiadomości mają pochodzenie strony, nie rozszerzenia.
+  const dostepneRamki = await strona.evaluate(() => {
+    let liczba = 0;
     const zbierz = (w) => {
       for (let i = 0; i < w.frames.length; i += 1) {
-        wszystkie.push(w.frames[i]);
+        liczba += 1;
+        w.frames[i].postMessage({ type: "nexus:prompt", text: "atak", send: true }, "*");
         zbierz(w.frames[i]);
       }
     };
     zbierz(window);
-    for (const ramka of wszystkie) ramka.postMessage({ type: "nexus:prompt", text: "atak", send: true }, "*");
+    window.postMessage({ type: "nexus-ext:port", klucz: "zgadywany" }, "*");
+    return liczba;
   });
   await new Promise((r) => setTimeout(r, 500));
-  const odrzucone = await nexus.evaluate(() => window.__odrzucone.map((m) => m.origin));
   const przyjeteAtaki = (await odebrane(nexus, "nexus:prompt")).filter((m) => m.data.text === "atak");
-  sprawdz(
-    "Wiadomości strony do ramki Nexusa mają pochodzenie strony (do odrzucenia przez panel)",
-    przyjeteAtaki.length === 0 && odrzucone.includes("https://admin.booking.com"),
-  );
+  sprawdz("Ramki panelu niewidoczne w window.frames strony", dostepneRamki === 0, `${dostepneRamki} ramek`);
+  sprawdz("Nexus nie przyjął poleceń od strony", przyjeteAtaki.length === 0);
 
   // Escape w panelu zamyka, Alt+N otwiera ponownie.
   await panel.press("body", "Escape");
@@ -239,11 +249,19 @@ try {
     await s.close();
     return !!gotowy;
   };
-  sprawdz(
-    "frame-ancestors 'none' (obecny nagłówek produkcji) blokuje panel",
-    !(await probaNaglowka("frame-ancestors 'none'")),
-  );
-  sprawdz("frame-ancestors chrome-extension: (cały schemat) wystarcza", await probaNaglowka("frame-ancestors 'self' chrome-extension:"));
+  // Chromium sprawdza frame-ancestors dla WSZYSTKICH przodków ramki – także dla strony,
+  // na której działa rozszerzenie – więc samo pochodzenie rozszerzenia nie wystarcza.
+  const PROBY = [
+    ["frame-ancestors 'none'", false],
+    [`frame-ancestors ${pochodzenieRozszerzenia}`, false],
+    ["frame-ancestors 'self' chrome-extension:", false],
+    [NAGLOWEK_ZALECANY, true],
+    ["", true],
+  ];
+  for (const [naglowek, oczekiwany] of PROBY) {
+    const wynik = await probaNaglowka(naglowek);
+    sprawdz(`Nagłówek „${naglowek || "(brak CSP)"}” ${oczekiwany ? "pozwala" : "nie pozwala"} osadzić panel`, wynik === oczekiwany);
+  }
 
   // ---------- ekran opcji z prawdziwym serwerem testowym ----------
   if (process.env.NEXUS_TEST_SERWER && process.env.NEXUS_TEST_KLUCZ) {
