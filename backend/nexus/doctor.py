@@ -131,6 +131,30 @@ def check_tika_app(settings: Settings) -> Check:
     return Check("tika", completed.returncode == 0, version or completed.stderr.strip()[-300:])
 
 
+def check_chmura(settings: Settings) -> Check:
+    """Chmura osobista: Nextcloud zainstalowany i dostęp WebDAV hasłem aplikacji Nexusa."""
+    from nexus.tools.base import ToolError
+    from nexus.tools.cloud import CloudClient
+
+    try:
+        status = httpx.get(f"{settings.chmura_url}/status.php", timeout=10).json()
+    except (httpx.HTTPError, ValueError) as error:
+        return Check("chmura", False, f"{settings.chmura_url}: {error.__class__.__name__}")
+    if not status.get("installed"):
+        return Check("chmura", False, "Nextcloud nie jest zainstalowany")
+    try:
+        client = CloudClient(settings)
+        try:
+            entries = client.list("/")
+        finally:
+            client.close()
+    except ToolError as error:
+        return Check("chmura", False, f"Nextcloud {status.get('versionstring')}: {error}")
+    return Check(
+        "chmura", True, f"Nextcloud {status.get('versionstring')}, WebDAV OK ({len(entries)} pozycji)"
+    )
+
+
 def check_http(name: str, url: str) -> Check:
     """Dostępność usługi HTTP."""
     try:
@@ -251,6 +275,7 @@ def run_checks(settings: Settings, online: bool = False) -> list[Check]:
             else check_tika_app(settings)
         ),
         lambda: check_http("languagetool", f"{settings.languagetool_url}/v2/languages"),
+        lambda: check_chmura(settings),
         lambda: check_claude_cli(settings),
         check_mcp_server,
     ]
