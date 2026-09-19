@@ -16,7 +16,9 @@ wykonuje operacje na plikach i zwraca gotowe wyniki do pobrania.
 5. [Konfiguracja](#konfiguracja)
 6. [Rozwój i testy](#rozwój-i-testy)
 7. [Bezpieczeństwo](#bezpieczeństwo)
-8. [Chmura osobista](#chmura-osobista)
+8. [Aplikacja (PWA)](#aplikacja-pwa)
+9. [Adresy](#adresy)
+10. [Chmura osobista](#chmura-osobista)
 
 ## Architektura
 
@@ -43,10 +45,11 @@ wyłączone. Kontekst rozmowy utrzymuje sesja CLI – pierwsze zadanie ją tworz
 
 | Składnik | Rola |
 |---|---|
-| `frontend/` | Aplikacja WWW (React, TypeScript, Vite): historia rozmów, czat, załączniki (przycisk, przeciąganie, wklejanie), podgląd i pobieranie wyników, strumieniowanie odpowiedzi. |
+| `frontend/` | Aplikacja PWA (React, TypeScript, Vite, Tailwind CSS): rozmowa z asystentem, załączniki (przycisk, przeciąganie, wklejanie), podgląd i pobieranie wyników, strumieniowanie odpowiedzi; instalowana na Androidzie, iPhonie i Windows. |
 | `backend/nexus/api` | API: logowanie administratora, rozmowy, pliki, zadania i strumień zdarzeń SSE. |
 | `backend/nexus/worker.py` | Proces roboczy: pobiera zadania z kolejki (`FOR UPDATE SKIP LOCKED`) i uruchamia dla nich agenta. |
 | `backend/nexus/agent` | Przebieg agenta przez Claude Code CLI: `claude-opus-5` (zapasowy `claude-sonnet-5`), strumień `stream-json` tłumaczony na zdarzenia interfejsu, historię i rejestr wywołań narzędzi; anulowanie kończy całą grupę procesów. |
+| `backend/nexus/events.py` | Powiadomienia o zdarzeniach zadań przez Redis (Valkey) – strumień SSE bez odpytywania bazy. |
 | `backend/nexus/mcp_server.py` | Serwer MCP (stdio) z narzędziami Nexusa; pliki wynikowe zapisuje w magazynie, postęp w zdarzeniach zadania. |
 | `backend/nexus/tools` | Narzędzia wywoływane przez Claude (tabela niżej). |
 | `backend/nexus/ocr` | Rdzeń OCR: przygotowanie obrazu, Tesseract, niewidoczna warstwa tekstowa PDF, eksport TXT/DOCX. |
@@ -75,12 +78,16 @@ Claude sam decyduje, których narzędzi użyć i z jakimi parametrami.
 | `pdf_split`, `pdf_merge`, `pdf_edit_pages` | Podział, łączenie, kolejność, obrót i usuwanie stron | PyMuPDF |
 | `detect_document_boundaries` | Wykrywanie granic dokumentów w wielodokumentowym PDF | PyMuPDF, Tesseract |
 | `media_process` | Konwersja, wycinanie, kompresja, normalizacja głośności, klatka podglądu | FFmpeg |
+| `transcribe_audio` | Transkrypcja mowy z audio i wideo, napisy SRT/VTT | faster-whisper (Whisper) |
+| `cloud_browse`, `cloud_import`, `cloud_save` | Pliki w chmurze osobistej: przeglądanie, pobieranie, zapis wyników | Nextcloud (WebDAV) |
 | `create_archive`, `extract_archive` | Archiwa ZIP (z ochroną przed zip-slip i bombami ZIP) | zipfile |
 | `index_documents`, `search_documents` | Indeksowanie i wyszukiwanie semantyczne dokumentów | Qdrant, fastembed |
 
 ## Wymagania
 
-Instalacja działa bez Dockera. Wszystko, co należy wyłącznie do projektu,
+Instalacja działa bez Dockera: magazyn obrazów Dockera na tym serwerze leży na małej
+partycji systemowej współdzielonej z innymi projektami, więc usługi Nexusa są
+instalowane natywnie (systemd). Wszystko, co należy wyłącznie do projektu,
 znajduje się w katalogu projektu (`/danaco/projekty/danaco-nexus`):
 
 | Katalog | Zawartość |
@@ -89,6 +96,7 @@ znajduje się w katalogu projektu (`/danaco/projekty/danaco-nexus`):
 | `programy/qdrant/` | program Qdrant (pobierany przez skrypt instalacji) |
 | `dane/postgres/` | własny klaster PostgreSQL 18 (tylko gniazdo uniksowe w `dane/run`, port 5433) |
 | `dane/qdrant/` | magazyn Qdrant (127.0.0.1:6335) |
+| `programy/valkey/` | Valkey – serwer zgodny z Redis (gniazdo `dane/run/valkey.sock`) |
 | `dane/app/` | pliki rozmów, pamięć podręczna, logi aplikacji |
 | `dane/claude-profil/` | profil Claude Code CLI projektu (sesje, token OAuth) |
 | `.cache/` | pamięć podręczna pip/uv/npm (poza partycją systemową) |
@@ -120,6 +128,7 @@ zakłada klaster PostgreSQL i bazę `nexus`, podłącza jednostki systemd z
 | `danaco-nexus-worker` | proces roboczy agenta |
 | `danaco-nexus-chmura` | chmura osobista Nextcloud (127.0.0.1:8940) |
 | `danaco-nexus-chmura-cron.timer` | zadania w tle Nextcloud co 5 minut |
+| `danaco-nexus-valkey` | Redis (Valkey): zdarzenia zadań Nexusa, pamięć podręczna i blokady chmury |
 | `danaco-nexus.target` | wszystkie powyższe razem |
 
 Usługi działają jako `danaco-serwis:danaco-user` z zabezpieczeniami systemd
@@ -155,6 +164,40 @@ Aktualizacja: `git pull && deploy/instalacja.sh`.
 
 Dziennik zdarzeń: `journalctl -u danaco-nexus-worker -u danaco-nexus-api -f` oraz
 pliki w `dane/app/logs/` (`worker.log`, `api.log`, `mcp.log`).
+
+## Aplikacja (PWA)
+
+Nexus jest progresywną aplikacją WWW: działa w przeglądarce i instaluje się jak
+zwykła aplikacja – z własną ikoną, w osobnym oknie na pełnym ekranie, bez pasków
+przeglądarki.
+
+| Urządzenie | Instalacja |
+|---|---|
+| Android (Chrome, Edge, Samsung Internet) | przycisk „Zainstaluj aplikację” w panelu bocznym albo menu przeglądarki → „Zainstaluj aplikację” |
+| iPhone / iPad (Safari) | Udostępnij → „Do ekranu początkowego” (instrukcja w panelu bocznym) |
+| Windows (Edge, Chrome) | przycisk „Zainstaluj aplikację” albo ikona instalacji w pasku adresu; okno bez paska tytułu (Window Controls Overlay) |
+
+Elementy PWA: manifest (`display: standalone`, skrót „Nowa rozmowa”), ikony zwykłe
+i maskowalne (`frontend/scripts/ikony.py`), ikona iOS, service worker (Workbox) z
+powłoką aplikacji dostępną offline i komunikatem o nowej wersji. API, pliki
+i strumień zadań nigdy nie są buforowane. Interfejs: Tailwind CSS 4, motyw ciemny
+domyślnie (jasny i systemowy do wyboru), układ w stylu Claude/ChatGPT, obsługa
+wycięć ekranu (safe area) na telefonach.
+
+## Adresy
+
+| Adres | Zawartość |
+|---|---|
+| `https://danaco-nexus.pl` | aplikacja (PWA) i API; `/cloud` przechodzi do chmury |
+| `https://api.danaco-nexus.pl` | samo API (`/api/*`) dla integracji i automatyzacji |
+| `https://cloud.danaco-nexus.pl` | chmura osobista Nextcloud z logowaniem jednokrotnym |
+
+Logowanie jednokrotne: ciasteczko sesji Nexusa obejmuje domenę `danaco-nexus.pl`;
+Caddy przed wejściem do chmury pyta Nexusa o sesję (`forward_auth` →
+`/api/auth/sso`) i przekazuje tożsamość do Nextcloud (aplikacja `user_saml`, tryb
+zmiennej środowiskowej). Wejście do chmury bez sesji prowadzi do logowania Nexusa
+i z powrotem. Klienci synchronizacji (komputer, telefon) logują się przez
+przeglądarkę tym samym mechanizmem; awaryjnie `https://cloud.danaco-nexus.pl/login?direct=1`.
 
 ## Chmura osobista
 

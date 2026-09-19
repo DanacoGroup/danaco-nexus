@@ -28,4 +28,10 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   `cloud_import` i `cloud_save`; odnośnik do chmury w interfejsie.
 - Skrypt rekordów DNS w strefie OVH i witryna Caddy dla `danaco-nexus.pl`
   i `cloud.danaco-nexus.pl`.
+- Aplikacja PWA: instalacja na Androidzie, iPhonie i Windows, własna ikona, tryb
+  pełnoekranowy, powłoka offline, powiadomienie o nowej wersji.
+- Nowy interfejs na Tailwind CSS 4: motyw ciemny domyślnie, jasny i systemowy.
+- Transkrypcja mowy z audio i wideo (`transcribe_audio`, faster-whisper).
+- Valkey (Redis) projektu: powiadomienia o zdarzeniach zadań i pamięć podręczna chmury.
+- Logowanie jednokrotne do chmury z sesji Nexusa; adresy `api.` i `cloud.danaco-nexus.pl`.
 - Polecenie diagnostyczne `doctor` (programy, usługi, Claude Code CLI, serwer MCP).
