@@ -81,7 +81,11 @@ export type DoTla =
   | { type: "nexus-ext:zrzut" }
   | { type: "nexus-ext:oczekujace" }
   | { type: "nexus-ext:opcje" }
-  | { type: "nexus-ext:mozliwosci" };
+  | { type: "nexus-ext:mozliwosci" }
+  | { type: "nexus-ext:szybka-akcja"; polecenie: string; tekst: string; adres: string };
+
+/** Odpowiedź na szybką akcję przybornika: sama treść albo zdanie o tym, czego brakuje. */
+export type WynikSzybkiejAkcji = { wynik: string } | { blad: string };
 
 export type TloDoTresci = { type: "nexus-ext:przelacz" } | { type: "nexus-ext:otworz" };
 

@@ -13,9 +13,9 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from nexus import model_krotki as model_cli
 from nexus.api.app import create_app
 from nexus.config import Settings
-from nexus.demo import model as model_cli
 from nexus.demo.gotowosc import NA_ZYWO, ODTWORZENIE
 from nexus.demo.przebieg import Wykonanie, tryb_scenariusza, uruchom
 from nexus.demo.scenariusze import SCENARIUSZE, Krok, Postep, Scenariusz, scenariusz

@@ -84,7 +84,9 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         przestrzen_mb=1_024,
         skrzynki_poczty=1,
         wersjonowanie=False,
-        synchronizacja=True,
+        # Synchronizacja i wersje plików zaczynają się w planie Pro: to one są powodem,
+        # dla którego ktoś z Osobistego przechodzi wyżej.
+        synchronizacja=False,
         zawartosc=(
             "Rozmowa z Nexusem, także głosowa",
             "Zdjęcia, dokumenty i nagrania",
@@ -92,7 +94,6 @@ KATALOG: tuple[PlanKatalogu, ...] = (
             "Wyszukiwanie w Twoich plikach",
             "1 GB przestrzeni na pliki i pocztę",
             "Własny adres e-mail w domenie Nexusa",
-            "Synchronizacja z komputerem",
         ),
         kolejnosc=10,
         okres_probny_dni=7,
@@ -115,6 +116,7 @@ KATALOG: tuple[PlanKatalogu, ...] = (
             "2 GB przestrzeni na pliki i pocztę",
             "Do 10 adresów e-mail w domenie Nexusa",
             "Wersje plików — powrót do poprzedniej",
+            "Synchronizacja z komputerem i telefonem",
             "Cztery zadania naraz zamiast jednego",
             "Dziesięciokrotnie więcej kredytów",
         ),

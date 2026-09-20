@@ -9,6 +9,9 @@ przypisanie planu z cudzej sesji zakupu i wyciek treści błędu serwera do goś
 from __future__ import annotations
 
 import asyncio
+import io
+import json
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -20,18 +23,22 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from test_api import HEADERS, PASSWORD, client, set_password, settings  # noqa: F401
 from test_biuro_cloud import FakeNextcloud
-from test_izolacja_kont import KLIENT_HASLO, zaloguj, zaloz_konto  # noqa: F401
+from test_izolacja_kont import KLIENT_HASLO, zaloguj, zaloz_konto, zapelnij_przestrzen  # noqa: F401
 
-from nexus.api.auth import GOSC_NA_ADRES
+from nexus import model_krotki as model_pokazu
+from nexus.api.auth import GOSC_NA_ADRES, SSO_USER_HEADER
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER, Conversation, Database, StoredFile
-from nexus.demo import model as model_pokazu
 from nexus.demo.gotowosc import NA_ZYWO
-from nexus.demo.przebieg import Przebieg, Wykonanie, uruchom
+from nexus.demo.przebieg import BLAD_DLA_GOSCIA, Przebieg, Wykonanie, uruchom
 from nexus.demo.scenariusze import Krok, Scenariusz
-from nexus.demo.sesje import Piaskownica
+from nexus.demo.sesje import BladPiaskownicy, Piaskownica
 from nexus.platnosci.klient import BladStripe
+from nexus.platnosci.plany import PLAN_DOMYSLNY
+from nexus.platnosci.uprawnienia import limity_planu, opis_przestrzeni
 from nexus.platnosci.uslugi import zsynchronizuj_po_powrocie
+from nexus.pulpit import MEMORY_BROKER, online_computers
+from nexus.tools.base import ToolError
 
 # Adres, który przed poprawką wystarczyło podać w nagłówku, aby licznik prób liczył
 # każde żądanie osobno.
@@ -273,9 +280,9 @@ def test_model_pokazu_nie_powtarza_bledu_silnika() -> None:
     assert "sk_live_tajny" not in str(blad.value)
 
 
-def _scenariusz_z_bledem(komunikat: str) -> Scenariusz:
+def _scenariusz_z_bledem(komunikat: str, wyjatek: type[Exception] = RuntimeError) -> Scenariusz:
     def polecenie(_postep: Any) -> str:
-        raise RuntimeError(komunikat)
+        raise wyjatek(komunikat)
 
     return Scenariusz(
         id="test-bledu",
@@ -303,3 +310,188 @@ def test_przebieg_pokazu_nie_ujawnia_tresci_wyjatku(settings: Settings) -> None:
     przebieg = asyncio.run(run())
     assert przebieg.stan == "blad"
     assert tajemnica not in przebieg.blad
+
+
+# --- logowanie jednokrotne do chmury: tylko właściciel instalacji ---
+
+
+def test_sso_nie_wpuszcza_konta_probnego_do_chmury(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Sesja konta próbnego nie wydaje nagłówka, którym Caddy loguje konto w Nextcloud."""
+    set_password(settings)
+    assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
+    odpowiedz = client.get("/api/auth/sso")
+    assert odpowiedz.status_code == 204
+    assert SSO_USER_HEADER.lower() not in odpowiedz.headers, "gość wchodził do chmury właściciela"
+
+
+def test_sso_nie_wpuszcza_konta_klienta_do_chmury(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Konto klienta portalu loguje się do aplikacji, ale nie do chmury osobistej właściciela."""
+    set_password(settings)
+    zaloz_konto(settings, KLIENT_POCZTA)
+    zaloguj(client, KLIENT_POCZTA, KLIENT_HASLO)
+    odpowiedz = client.get("/api/auth/sso")
+    assert odpowiedz.status_code == 204
+    assert SSO_USER_HEADER.lower() not in odpowiedz.headers
+
+
+def test_sso_wpuszcza_wlasciciela_instalacji(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Ta sama ścieżka nadal loguje właściciela instalacji — poprawka niczego mu nie odbiera."""
+    set_password(settings)
+    zaloguj(client, "admin", PASSWORD)
+    odpowiedz = client.get("/api/auth/sso")
+    assert odpowiedz.headers[SSO_USER_HEADER] == settings.chmura_user
+
+
+# --- przekaźnik komputera: komputer należy do konta, które wydało klucz ---
+
+
+def test_konto_probne_nie_widzi_komputera_wlasciciela(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Wykaz komputerów pokazuje maszyny konta, nie wszystkie podłączone do instalacji."""
+    MEMORY_BROKER._online.clear()
+    set_password(settings)
+    zaloguj(client, "admin", PASSWORD)
+    klucz = client.post("/api/urzadzenia", json={"name": "Laptop", "kind": "desktop"}, headers=HEADERS)
+    assert klucz.status_code == 201, klucz.text
+    with client.websocket_connect("/api/pulpit/ws") as gniazdo:
+        gniazdo.send_json({"type": "auth", "token": klucz.json()["token"], "host": "BIURO-PC"})
+        assert gniazdo.receive_json()["type"] == "ready"
+        assert [item["host"] for item in client.get("/api/pulpit/komputery").json()] == ["BIURO-PC"]
+        assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
+        widziane = client.get("/api/pulpit/komputery")
+        assert widziane.status_code == 200, widziane.text
+        assert widziane.json() == [], "konto próbne sięgało do komputera właściciela instalacji"
+
+
+def test_narzedzie_pc_nie_siega_do_cudzego_komputera() -> None:
+    """Zawężenie po koncie obowiązuje też w przekaźniku narzędzi, nie tylko w wykazie HTTP."""
+    wpis = {"name": "Laptop", "host": "BIURO-PC", "seen": time.time(), "connected_at": 1.0}
+
+    class Rejestr:
+        def online_sync(self) -> dict[str, str]:
+            return {"urzadzenie-1": json.dumps({**wpis, "owner": str(ADMIN_OWNER)})}
+
+    rejestr = Rejestr()
+    assert [c["host"] for c in online_computers(rejestr, owner=str(ADMIN_OWNER))] == ["BIURO-PC"]  # type: ignore[arg-type]
+    assert online_computers(rejestr, owner=str(uuid.uuid4())) == []  # type: ignore[arg-type]
+
+
+# --- pokaz: błąd narzędzia i modelu bez treści z serwera ---
+
+
+def test_przebieg_pokazu_nie_ujawnia_bledu_narzedzia(settings: Settings) -> None:  # noqa: F811
+    """Błąd narzędzia niesie ścieżkę programu i stderr — gość dostaje sam fakt błędu."""
+    tajemnica = "/danaco/programy/qpdf zakończył się błędem (2)"
+    piaskownica = Piaskownica(settings)
+    sesja = piaskownica.utworz("198.51.100.8")
+    wykonanie = Wykonanie(settings=settings, piaskownica=piaskownica, pauza=False)
+
+    async def run() -> Przebieg:
+        scenariusz = _scenariusz_z_bledem(tajemnica, ToolError)
+        przebieg = uruchom(wykonanie, sesja, scenariusz, NA_ZYWO, [])
+        assert przebieg.zadanie is not None
+        await przebieg.zadanie
+        return przebieg
+
+    przebieg = asyncio.run(run())
+    assert przebieg.stan == "blad"
+    assert tajemnica not in przebieg.blad
+    assert przebieg.blad == BLAD_DLA_GOSCIA
+
+
+def test_przebieg_pokazu_nie_ujawnia_bledu_modelu(settings: Settings) -> None:  # noqa: F811
+    """To samo dotyczy błędu silnika modelu, który w treści niesie dane uruchomienia."""
+    tajemnica = "klucz sk_live_tajny odrzucony"
+    piaskownica = Piaskownica(settings)
+    sesja = piaskownica.utworz("198.51.100.9")
+    wykonanie = Wykonanie(settings=settings, piaskownica=piaskownica, pauza=False)
+
+    async def run() -> Przebieg:
+        scenariusz = _scenariusz_z_bledem(tajemnica, model_pokazu.BladModelu)
+        przebieg = uruchom(wykonanie, sesja, scenariusz, NA_ZYWO, [])
+        assert przebieg.zadanie is not None
+        await przebieg.zadanie
+        return przebieg
+
+    przebieg = asyncio.run(run())
+    assert przebieg.stan == "blad" and tajemnica not in przebieg.blad
+
+
+def test_przebieg_pokazu_powtarza_komunikat_piaskownicy(settings: Settings) -> None:  # noqa: F811
+    """Komunikaty piaskownicy pisane są dla gościa, więc mają wracać dosłownie."""
+    powod = "Poczekaj na zakończenie bieżącego przebiegu."
+    piaskownica = Piaskownica(settings)
+    sesja = piaskownica.utworz("198.51.100.10")
+    wykonanie = Wykonanie(settings=settings, piaskownica=piaskownica, pauza=False)
+
+    async def run() -> Przebieg:
+        scenariusz = _scenariusz_z_bledem(powod, BladPiaskownicy)
+        przebieg = uruchom(wykonanie, sesja, scenariusz, NA_ZYWO, [])
+        assert przebieg.zadanie is not None
+        await przebieg.zadanie
+        return przebieg
+
+    assert asyncio.run(run()).blad == powod
+
+
+# --- import z chmury: przydział przestrzeni planu obowiązuje tak samo jak przy wgraniu ---
+
+
+def test_import_z_chmury_respektuje_przestrzen_planu(
+    api: TestClient,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+    chmura: FakeNextcloud,
+) -> None:
+    """Pełna przestrzeń konta odrzuca plik z chmury tak samo jak plik wgrany z dysku."""
+    _klient_w_chmurze(api, biuro_settings)
+    limity = limity_planu(PLAN_DOMYSLNY, "brak")
+    pierwszy = api.post(
+        "/api/files",
+        files={"file": ("notatka.txt", io.BytesIO(b"x" * 10), "text/plain")},
+        headers=HEADERS_BIURO,
+    )
+    assert pierwszy.status_code == 201, pierwszy.text
+    zapelnij_przestrzen(biuro_settings, uuid.UUID(pierwszy.json()["id"]), limity.przestrzen_mb * 1024 * 1024)
+
+    api.put("/api/cloud/plik", params={"path": "/Notatka.txt"}, content=b"Tekst", headers=HEADERS_BIURO)
+    odrzucony = api.post(
+        "/api/cloud/do-rozmowy", json={"paths": ["/Notatka.txt"], "send": False}, headers=HEADERS_BIURO
+    )
+    assert odrzucony.status_code == 413, odrzucony.text
+    detail = odrzucony.json()["detail"]
+    assert "Przestrzeń konta" in detail and opis_przestrzeni(limity.przestrzen_mb) in detail
+
+
+# --- pliki: dokument SVG nie wyświetla się w domenie aplikacji ---
+
+
+def test_svg_z_parametrem_nie_wyswietla_sie_w_przegladarce(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Parametr przy typie nośnika nie omija zakazu wyświetlania dokumentów SVG."""
+    set_password(settings)
+    zaloguj(client, "admin", PASSWORD)
+    wgrany = client.post(
+        "/api/files",
+        files={"file": ("rysunek.svg", io.BytesIO(b"<svg xmlns='http://www.w3.org/2000/svg'/>"),
+                        "image/svg+xml; charset=utf-8")},
+        headers=HEADERS,
+    )
+    assert wgrany.status_code == 201, wgrany.text
+    assert wgrany.json()["mime"] == "image/svg+xml"
+    pobrany = client.get(f"/api/files/{wgrany.json()['id']}/download", params={"inline": 1})
+    assert pobrany.status_code == 200, pobrany.text
+    assert pobrany.headers["content-type"] == "application/octet-stream"
+    assert pobrany.headers["content-disposition"].startswith("attachment"), "SVG szedł do wyświetlenia"

@@ -26,10 +26,11 @@ from starlette.background import BackgroundTask
 from nexus.api import conversations
 from nexus.api.auth import require_session
 from nexus.api.conversations import file_payload
-from nexus.api.files import INLINE_MIME_PREFIXES, _content_disposition
+from nexus.api.files import INLINE_MIME_PREFIXES, INLINE_ZABRONIONE, _content_disposition, zajete_miejsce
 from nexus.cloud_service import CloudError, CloudService, check_name, clean_path
 from nexus.config import Settings
 from nexus.db import Conversation, Database, StoredFile
+from nexus.platnosci.uprawnienia import limity_uzytkownika, opis_przestrzeni
 from nexus.storage import FileStorage, guess_mime, safe_filename
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"], dependencies=[Depends(require_session)])
@@ -221,7 +222,7 @@ async def _stream(request: Request, path: str, inline: bool, version: str | None
         stem, dot, suffix = name.rpartition(".")
         name = f"{stem} (wersja){dot}{suffix}" if dot else f"{name} (wersja)"
     mime = (response.headers.get("content-type") or guess_mime(name)).split(";")[0].strip()
-    show_inline = inline and mime.startswith(INLINE_MIME_PREFIXES) and mime != "image/svg+xml"
+    show_inline = inline and mime.startswith(INLINE_MIME_PREFIXES) and mime not in INLINE_ZABRONIONE
     headers = {
         "Content-Disposition": _content_disposition(name, show_inline),
         "X-Content-Type-Options": "nosniff",
@@ -458,8 +459,21 @@ async def upload_abort(upload_id: str, request: Request) -> dict[str, bool]:
 # --- plik z chmury do rozmowy ---
 
 
+async def _przestrzen_konta(database: Database, owner: uuid.UUID) -> tuple[int, str]:
+    """Przydział przestrzeni planu konta w bajtach i jego opis dla komunikatu."""
+    limity = await limity_uzytkownika(database, str(owner))
+    return limity.przestrzen_mb * 1024 * 1024, opis_przestrzeni(limity.przestrzen_mb)
+
+
 async def _import(
-    request: Request, cloud: CloudService, path: str, conversation_id: uuid.UUID | None
+    request: Request,
+    cloud: CloudService,
+    path: str,
+    conversation_id: uuid.UUID | None,
+    *,
+    przydzial: int,
+    zajete: int,
+    opis_przydzialu: str,
 ) -> StoredFile:
     settings = _settings(request)
     storage: FileStorage = request.app.state.storage
@@ -469,6 +483,14 @@ async def _import(
     limit = settings.upload_limit_mb * 1024 * 1024
     if (entry["size"] or 0) > limit:
         raise CloudError(413, f"{entry['name']} przekracza limit {settings.upload_limit_mb} MB.")
+    # Plik z chmury zajmuje magazyn Nexusa tak samo jak wgrany z dysku, więc liczy się
+    # do przydziału planu. Bez tego import omijał limit przestrzeni.
+    if przydzial > 0 and zajete + (entry["size"] or 0) > przydzial:
+        raise CloudError(
+            413,
+            f"Przestrzeń konta ({opis_przydzialu}) jest pełna. "
+            "Usuń niepotrzebne pliki albo przejdź na wyższy plan.",
+        )
     name = safe_filename(entry["name"])
     settings.work_dir.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix="chmura_", dir=settings.work_dir))
@@ -518,7 +540,22 @@ async def to_conversation(payload: ToConversation, request: Request) -> dict[str
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono rozmowy.")
 
     async def run(cloud: CloudService) -> list[StoredFile]:
-        return [await _import(request, cloud, path, payload.conversation_id) for path in payload.paths]
+        przydzial, opis = await _przestrzen_konta(database, wlasciciel_konta)
+        zajete = await zajete_miejsce(database, wlasciciel_konta)
+        pobrane: list[StoredFile] = []
+        for path in payload.paths:
+            rekord = await _import(
+                request,
+                cloud,
+                path,
+                payload.conversation_id,
+                przydzial=przydzial,
+                zajete=zajete,
+                opis_przydzialu=opis,
+            )
+            zajete += rekord.size
+            pobrane.append(rekord)
+        return pobrane
 
     records = await _call(request, run)
     conversation_id = payload.conversation_id

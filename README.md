@@ -125,7 +125,7 @@ Szczegóły, w tym cofanie i hasło do przedsionka: [`deploy/wydania/README.md`]
 
 ## Narzędzia agenta
 
-Rejestr `backend/nexus/tools/` liczy **82 narzędzia**. Claude sam decyduje, których użyć
+Rejestr `backend/nexus/tools/` liczy **83 narzędzia**. Claude sam decyduje, których użyć
 i z jakimi parametrami; wbudowane narzędzia CLI są wyłączone.
 
 Wykaz nie jest przepisywany ręcznie w trzech miejscach. `frontend/scripts/narzedzia.py`

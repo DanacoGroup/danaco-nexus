@@ -21,7 +21,42 @@ export interface Ustawienia {
   jezyk: string;
   /** Czy dołączać zrzut widocznej karty do kontekstu. */
   zrzut: boolean;
+  /** Czy przybornik ma się pokazywać po zaznaczeniu tekstu. */
+  przybornik: boolean;
+  /** Skróty przybornika — kolejność jest kolejnością przycisków. */
+  skroty: SkrotPrzybornika[];
 }
+
+/** Jeden przycisk przybornika: nazwa na przycisku i polecenie wysyłane do modelu.
+ *
+ * Polecenie jest zwykłym zdaniem, bo model wykona wszystko, co da się opisać słowami.
+ * Użytkownik układa własny zestaw: tłumaczowi wystarczą dwa przyciski, programiście
+ * przydadzą się inne niż redaktorowi.
+ */
+export interface SkrotPrzybornika {
+  /** Nadawany przy tworzeniu, stały przez całe życie skrótu. */
+  id: string;
+  /** Napis na przycisku — krótki, bo przybornik stoi przy kursorze. */
+  nazwa: string;
+  /** Polecenie dla modelu; zaznaczenie dochodzi osobno jako dane. */
+  polecenie: string;
+}
+
+/** Zestaw startowy przybornika — punkt wyjścia, nie zamknięta lista.
+ *
+ * Skróty dobrane tak, żeby pokrywały to, po co ludzie najczęściej sięgają do modelu
+ * przy zaznaczonym tekście. Użytkownik zmienia je w opcjach rozszerzenia: dokłada
+ * własne, zmienia treść polecenia, usuwa te, których nie używa.
+ */
+export const SKROTY_STARTOWE: SkrotPrzybornika[] = [
+  { id: "tlumacz", nazwa: "Przetłumacz", polecenie: "Przetłumacz ten fragment na polski. Jeśli już jest po polsku, przetłumacz na angielski." },
+  { id: "wyjasnij", nazwa: "Wyjaśnij", polecenie: "Wyjaśnij prosto, o co chodzi w tym fragmencie." },
+  { id: "skroc", nazwa: "Skróć", polecenie: "Skróć ten tekst do najważniejszych zdań, zachowaj sens." },
+  { id: "popraw", nazwa: "Popraw", polecenie: "Popraw styl, gramatykę i interpunkcję. Oddaj sam poprawiony tekst." },
+  { id: "rozwin", nazwa: "Rozwiń", polecenie: "Rozwiń ten fragment w pełniejszą, uporządkowaną treść." },
+  { id: "odpowiedz", nazwa: "Odpowiedz", polecenie: "Napisz uprzejmą, rzeczową odpowiedź na tę wiadomość." },
+  { id: "kod", nazwa: "Sprawdź kod", polecenie: "Znajdź w tym kodzie błędy i pułapki. Wypisz je krótko, każdy w osobnym punkcie." },
+];
 
 export const DOMYSLNE: Ustawienia = {
   serwer: "https://danaco-nexus.pl",
@@ -31,6 +66,8 @@ export const DOMYSLNE: Ustawienia = {
   szerokosc: 420,
   jezyk: "angielski",
   zrzut: false,
+  przybornik: true,
+  skroty: SKROTY_STARTOWE,
 };
 
 export const SZEROKOSC_MIN = 320;
@@ -76,8 +113,40 @@ function uzupelnij(surowe: Partial<Ustawienia> | undefined): Ustawienia {
   wynik.serwer = normalizujSerwer(wynik.serwer) ?? DOMYSLNE.serwer;
   wynik.szerokosc = Math.min(SZEROKOSC_MAX, Math.max(SZEROKOSC_MIN, Number(wynik.szerokosc) || DOMYSLNE.szerokosc));
   wynik.ukryteHosty = Array.isArray(wynik.ukryteHosty) ? wynik.ukryteHosty.filter((h) => typeof h === "string") : [];
+  wynik.przybornik = wynik.przybornik !== false;
+  wynik.skroty = oczyscSkroty(wynik.skroty);
   return wynik;
 }
+
+/** Odsiewa skróty, których nie da się pokazać ani wykonać.
+ *
+ * Ustawienia mogą pochodzić ze starszej wersji rozszerzenia albo z ręcznej edycji
+ * magazynu, więc kształt trzeba sprawdzić, a nie założyć. Pusty wynik znaczy „brak
+ * przybornika”, nie „przywróć zestaw startowy” — skasowanie wszystkich skrótów jest
+ * dozwolonym wyborem użytkownika.
+ */
+export function oczyscSkroty(surowe: unknown): SkrotPrzybornika[] {
+  if (!Array.isArray(surowe)) return [...SKROTY_STARTOWE];
+  const widziane = new Set<string>();
+  const wynik: SkrotPrzybornika[] = [];
+  for (const pozycja of surowe) {
+    if (!pozycja || typeof pozycja !== "object") continue;
+    const { id, nazwa, polecenie } = pozycja as Partial<SkrotPrzybornika>;
+    if (typeof nazwa !== "string" || typeof polecenie !== "string") continue;
+    const czysta = nazwa.trim().slice(0, 40);
+    const tresc = polecenie.trim().slice(0, 2000);
+    if (!czysta || !tresc) continue;
+    const klucz = typeof id === "string" && id.trim() ? id.trim().slice(0, 60) : czysta.toLowerCase();
+    if (widziane.has(klucz)) continue;
+    widziane.add(klucz);
+    wynik.push({ id: klucz, nazwa: czysta, polecenie: tresc });
+    if (wynik.length >= LIMIT_SKROTOW) break;
+  }
+  return wynik;
+}
+
+/** Ile skrótów mieści się w przyborniku, żeby nie zasłonił strony. */
+export const LIMIT_SKROTOW = 20;
 
 function czytajLocal(): Partial<Ustawienia> {
   try {

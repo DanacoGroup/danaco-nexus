@@ -5,6 +5,8 @@
 
 export const LIMIT_ZNAKOW = 24000;
 export const HOST_PANELU = "danaco-nexus";
+/** Element gospodarza przybornika zaznaczenia (własne drzewo cienia). */
+export const HOST_PRZYBORNIKA = "danaco-nexus-przybornik";
 
 const POMIJANE = new Set([
   "SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG", "CANVAS", "IFRAME", "OBJECT", "EMBED",

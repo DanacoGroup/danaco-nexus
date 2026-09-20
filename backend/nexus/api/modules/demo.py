@@ -17,8 +17,8 @@ from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFil
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from nexus import model_krotki as model_cli
 from nexus.api.auth import CSRF_HEADER, client_ip
-from nexus.demo import model as model_cli
 from nexus.demo.gotowosc import NA_ZYWO, Gotowosc
 from nexus.demo.przebieg import FINALNE, Przebieg, Wykonanie, tryb_scenariusza, uruchom
 from nexus.demo.scenariusze import PRZYKLADY, SCENARIUSZE, Scenariusz, scenariusz

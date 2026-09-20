@@ -635,7 +635,9 @@ w skan — ocr_documents; to narzędzie bierz wtedy, gdy liczy się układ i tab
 def analyze_document_structure(ctx: ToolContext, args: StrukturaInput) -> ToolResult:
     program = _program("danaco-dokument-na-tekst", "Rozbiór struktury dokumentu (Docling)")
     plik = ctx.file(args.file_id)
-    if file_kind(plik) not in {"pdf", "image", "office", "text"}:
+    # Docling czyta PDF, obrazy stron, dokumenty biurowe i HTML — zwykły tekst nie ma układu,
+    # który dałoby się rozebrać.
+    if file_kind(plik) not in {"pdf", "image", "office"} and plik.suffix not in {".html", ".htm"}:
         raise ToolError(f"{plik.name} nie jest dokumentem ani obrazem strony.")
     if not re.fullmatch(r"[a-z]{2}(,[a-z]{2}){0,3}", args.jezyk):
         raise ToolError(
@@ -849,7 +851,7 @@ def edit_subtitles(ctx: ToolContext, args: NapisyInput) -> ToolResult:
             raise ToolError("Scalanie potrzebuje drugiego pliku napisów (pole file_id_drugi).")
         _, druga = _plik_napisow(ctx, args.file_id_drugi)
         polecenie = [program, "mux"]
-        wejscia = ["-i", str(sciezka), str(druga)]
+        wejscia = ["-i", str(sciezka), "-i", str(druga)]
     elif args.operacja == "usun_duplikaty":
         polecenie = [program, "deduplicate"]
     else:

@@ -354,6 +354,23 @@ def test_przesuniecie_napisow_zmienia_czasy(harness: ToolHarness, tmp_path: Path
     assert "00:00:00,500 --> 00:00:02,500" in wynik.files[0].path.read_text(encoding="utf-8")
 
 
+@requires_program("srt")
+def test_scalenie_napisow_laczy_dwie_wersje(harness: ToolHarness, tmp_path: Path) -> None:
+    polskie = tmp_path / "film-pl.srt"
+    polskie.write_text("1\n00:00:01,000 --> 00:00:03,000\nDzień dobry.\n", encoding="utf-8")
+    angielskie = tmp_path / "film-en.srt"
+    angielskie.write_text("1\n00:00:01,000 --> 00:00:03,000\nGood morning.\n", encoding="utf-8")
+    wynik = wywolaj(
+        harness,
+        "edit_subtitles",
+        file_id=harness.add(polskie),
+        operacja="scal",
+        file_id_drugi=harness.add(angielskie),
+    )
+    tresc = wynik.files[0].path.read_text(encoding="utf-8")
+    assert "Dzień dobry." in tresc and "Good morning." in tresc
+
+
 def test_napisy_odrzucaja_inny_plik(harness: ToolHarness, tmp_path: Path) -> None:
     notatka = tmp_path / "notatka.txt"
     notatka.write_text("nie napisy", encoding="utf-8")

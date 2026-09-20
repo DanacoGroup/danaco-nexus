@@ -94,3 +94,35 @@ def test_rozdzielenie_zglasza_brak_sciezek(harness: ToolHarness, tmp_path: Path,
     )
     with pytest.raises(ToolError, match="nie dało żadnej ścieżki"):
         wywolaj(harness, "split_audio_tracks", file_id=harness.add(nagranie))
+
+
+def test_twarze_wymagaja_grupowania_przy_wielu_zdjeciach(harness: ToolHarness, tmp_path: Path) -> None:
+    """Bez grupowania narzędzie czyta jedno zdjęcie — inaczej wynik byłby nie do odczytania."""
+    zdjecia = []
+    for numer in range(2):
+        plik = tmp_path / f"foto-{numer}.png"
+        Image.new("RGB", (8, 8), (90, 90, 90)).save(plik)
+        zdjecia.append(harness.add(plik))
+    with pytest.raises(ToolError, match="jedno zdjęcie naraz"):
+        wywolaj(harness, "find_faces", file_ids=zdjecia)
+
+
+def test_twarze_skladaja_polecenie_grupowania(harness: ToolHarness, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    zdjecie = tmp_path / "rodzina.png"
+    Image.new("RGB", (16, 16), (120, 120, 120)).save(zdjecie)
+    zapis: list[list[str]] = []
+
+    def udawany_bieg(self, arguments, timeout=600, cwd=None, env=None):  # type: ignore[no-untyped-def]
+        zapis.append(list(arguments))
+        Path(arguments[arguments.index("--wyjscie") + 1]).write_text(
+            '{"grupy": [{"osoba": 1, "pliki": ["rodzina.png"]}]}', encoding="utf-8"
+        )
+        return None
+
+    monkeypatch.setattr("nexus.tools.studio.shutil.which", lambda nazwa: f"/udawane/{nazwa}")
+    monkeypatch.setattr("nexus.tools.base.ToolContext.run_command", udawany_bieg)
+    wynik = wywolaj(harness, "find_faces", file_ids=[harness.add(zdjecie)], grupuj=True, prog=0.55)
+    polecenie = zapis[0]
+    assert polecenie[1] == "grupuj"
+    assert polecenie[polecenie.index("--prog") + 1] == "0.55"
+    assert wynik.data["nazwy_plikow"] == {"rodzina.png": "rodzina.png"}

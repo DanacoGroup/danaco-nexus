@@ -130,6 +130,8 @@ def _call(
             broker,
             tool,
             payload,
+            # Narzędzie sięga wyłącznie do komputerów konta, które prowadzi ten przebieg.
+            owner=str(ctx.owner_id),
             computer=args.computer,
             timeout=ctx.settings.pulpit_timeout_s + extra_timeout,
             cancelled=ctx.cancel.is_set,

@@ -8,6 +8,13 @@ dotychczasowego zestawu:
 * odszumianie mowy (DeepFilterNet) — czysty dźwięk przed transkrypcją i do publikacji,
 * ożywienie zdjęcia paralaksą 2.5D (mapa głębi + LaMa + FFmpeg) — film z jednego zdjęcia,
 * rozdzielenie utworu na ścieżki (Demucs) — wokal, perkusja, bas i reszta osobno.
+* rozpoznawanie twarzy (InsightFace) — porządkowanie archiwum zdjęć według osób.
+
+Uwaga do ostatniego: modele InsightFace mają licencję niekomercyjną, a wizerunek
+twarzy to dane biometryczne — szczególna kategoria wg RODO. Przed wejściem produktu
+na rynek trzeba rozstrzygnąć jedno i drugie: licencję (wymiana modelu albo umowa)
+oraz podstawę przetwarzania (zgoda, okres przechowywania wektorów). Czynność jest
+opisana w `docs/zgodnosc/REJESTR-CZYNNOSCI.md`.
 
 Każdy z tych programów ma na serwerze gotowe polecenie `danaco-*`, które ustawia modele
 i tryb offline. Wywołujemy je zamiast powtarzać tu tamtą konfigurację.
@@ -15,6 +22,7 @@ i tryb offline. Wywołujemy je zamiast powtarzać tu tamtą konfigurację.
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 from typing import Literal
@@ -236,4 +244,67 @@ def split_audio_tracks(ctx: ToolContext, args: RozdzielenieInput) -> ToolResult:
     )
 
 
-__all__ = ["animate_photo", "clean_audio", "colorize_photo", "split_audio_tracks"]
+__all__ = ["animate_photo", "clean_audio", "colorize_photo", "find_faces", "split_audio_tracks"]
+
+
+class TwarzeInput(ToolInput):
+    file_ids: list[str] = Field(
+        min_length=1, max_length=60, description="Zdjęcia do przejrzenia pod kątem twarzy."
+    )
+    grupuj: bool = Field(
+        default=False,
+        description="Prawda = pogrupuj twarze tej samej osoby na wszystkich zdjęciach naraz.",
+    )
+    prog: float = Field(
+        default=0.40,
+        ge=0.2,
+        le=0.9,
+        description="Próg podobieństwa przy grupowaniu: wyżej = ostrzej, mniej pomyłek, więcej grup.",
+    )
+
+
+@registry.register(
+    "find_faces",
+    """Znajduje twarze na zdjęciach i — na życzenie — grupuje zdjęcia tej samej osoby
+(InsightFace). Do porządkowania archiwum rodzinnego i zbioru zdjęć z wydarzenia:
+„na których zdjęciach jest babcia”, „rozdziel te dwieście zdjęć według osób”.
+Zwraca liczbę i położenie twarzy, a przy grupowaniu — przypisanie zdjęć do osób.
+Nie rozpoznaje tożsamości: mówi wyłącznie, które twarze są do siebie podobne.""",
+    TwarzeInput,
+)
+def find_faces(ctx: ToolContext, args: TwarzeInput) -> ToolResult:
+    program = _program("danaco-twarze-indeks", "Rozpoznawanie twarzy")
+    katalog = ctx.output_path("twarze").parent
+    nazwy: dict[str, str] = {}
+    for file_id in args.file_ids:
+        ctx.check_cancelled()
+        nazwa, sciezka = _obraz(ctx, file_id)
+        kopia = katalog / sciezka.name
+        kopia.write_bytes(sciezka.read_bytes())
+        nazwy[kopia.name] = nazwa
+
+    wynik = ctx.output_path("twarze.json")
+    if args.grupuj:
+        ctx.progress(f"Grupowanie twarzy na {len(nazwy)} zdj.")
+        polecenie = [program, "grupuj", "--prog", f"{args.prog:.2f}", "--wyjscie", str(wynik), str(katalog)]
+    else:
+        if len(args.file_ids) > 1:
+            raise ToolError("Bez grupowania narzędzie czyta jedno zdjęcie naraz — włącz grupowanie.")
+        ctx.progress("Szukanie twarzy")
+        jedyne = next(iter(nazwy))
+        polecenie = [program, "wykryj", "--wyjscie", str(wynik), str(katalog / jedyne)]
+
+    ctx.run_command(polecenie, timeout=CZAS_DZWIEK)
+    if not wynik.is_file():
+        raise ToolError("Rozpoznawanie twarzy nie zwróciło wyniku.")
+    dane = json.loads(wynik.read_text(encoding="utf-8"))
+    podsumowanie = (
+        f"Twarze: {len(dane.get('grupy', []))} osób na {len(nazwy)} zdj."
+        if args.grupuj
+        else f"Twarze na zdjęciu: {len(dane.get('twarze', []))}"
+    )
+    return ToolResult(
+        {"wynik": dane, "nazwy_plikow": nazwy},
+        podsumowanie,
+        files=[OutputFile(wynik, wynik.name, "Wynik rozpoznawania twarzy (JSON)")],
+    )

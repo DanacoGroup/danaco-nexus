@@ -51,6 +51,9 @@ PLIKI: list[tuple[str, str]] = [
     ("promocja/film/okladki/okladka-1280x720.png", "film/okladka.png"),
     ("promocja/film/wideo/nexus-60s-16x9.mp4", "film/nexus-60s.mp4"),
     ("promocja/film/wideo/nexus-60s-16x9.webm", "film/nexus-60s.webm"),
+    ("promocja/film-praca/okladki/okladka-praca-1280x720.png", "film/okladka-praca.png"),
+    ("promocja/film-praca/wideo/nexus-praca-60s-16x9.mp4", "film/nexus-praca-60s.mp4"),
+    ("promocja/film-praca/wideo/nexus-praca-60s-16x9.webm", "film/nexus-praca-60s.webm"),
 ]
 
 # Tła sekcji: AVIF dla przeglądarek z obsługą, WebP jako zapas.
@@ -86,6 +89,8 @@ for nazwa in RUCH:
 NAPISY = [
     ("promocja/film/wideo/nexus-60s-16x9.pl.srt", "film/nexus-60s.pl.vtt"),
     ("promocja/film/wideo/nexus-60s-16x9.en.srt", "film/nexus-60s.en.vtt"),
+    ("promocja/film-praca/wideo/nexus-praca-60s-16x9.pl.srt", "film/nexus-praca-60s.pl.vtt"),
+    ("promocja/film-praca/wideo/nexus-praca-60s-16x9.en.srt", "film/nexus-praca-60s.en.vtt"),
 ]
 
 
@@ -108,6 +113,7 @@ NAPISY_ROZSZ = (".vtt",)
 # (źródło, cel w public, dopuszczone rozszerzenia)
 KATALOGI: list[tuple[str, str, tuple[str, ...]]] = [
     ("promocja/film/wideo", "film/katalog", WIDEO),
+    ("promocja/film-praca/wideo", "film/katalog", WIDEO),
     ("promocja/kampania/wideo", "kampania", WIDEO),
     ("promocja/kampania/napisy", "kampania/napisy", NAPISY_ROZSZ),
     ("motion/stany/wideo", "ruch/stany", WIDEO),
@@ -122,14 +128,19 @@ KATALOGI: list[tuple[str, str, tuple[str, ...]]] = [
 # Bez przelicznika zostaje PNG, a spis podaje ścieżkę do niego. (źródło, cel w public)
 PLAKATY_KATALOGU: list[tuple[str, str]] = [
     ("promocja/film/okladki", "film/okladki"),
+    ("promocja/film-praca/okladki", "film/okladki"),
     ("promocja/kampania/okladki", "kampania/okladki"),
     ("motion/stany/plansze", "ruch/stany/plansze"),
 ]
 JAKOSC_WEBP = 82
 
-# Zajawka sekcji „Jeden dzień z Nexusem”: sześć sekund pod przyciskiem odtwarzania. Źródło
-# ma 1920 px i dźwięk, do dekoracji idzie 1280 px bez dźwięku; pełna jakość zostaje w katalogu.
-ZAJAWKA_ZRODLO = "promocja/film/wideo/nexus-6s-16x9"
+# Zajawki pod przyciskami odtwarzania w sekcji „Filmy”: po sześć sekund na film. Źródła mają
+# 1920 px i dźwięk, do dekoracji idzie 1280 px bez dźwięku; pełna jakość zostaje w katalogu.
+# (źródło bez rozszerzenia, nazwa pliku w frontend/public/film)
+ZAJAWKI = [
+    ("promocja/film/wideo/nexus-6s-16x9", "zajawka"),
+    ("promocja/film-praca/wideo/nexus-praca-6s-16x9", "zajawka-praca"),
+]
 ZAJAWKA_SZEROKOSC = 1280
 
 # `motion/start/lottie/intro-znaku.json` nie trafia do katalogu publicznego. Decyzja pary P5:
@@ -137,7 +148,7 @@ ZAJAWKA_SZEROKOSC = 1280
 # `ZnakRuchu` rysuje momentem „uruchomienie”. Wraca, gdy Lottie będzie potrzebny gdzie indziej.
 
 # Napisy filmów leżą jako SRT — przeglądarka potrzebuje WebVTT.
-NAPISY_FILMU_Z_SRT = "promocja/film/wideo"
+NAPISY_FILMU_Z_SRT = ("promocja/film/wideo", "promocja/film-praca/wideo")
 
 # Opisy do katalogu w aplikacji. Klucz to nazwa pliku bez kadru i rozszerzenia.
 OPISY_KAMPANII = {
@@ -156,7 +167,23 @@ OPISY_FILMOW = {
     "nexus-15s": ("Spot 15 s", "Krótka forma do mediów społecznościowych."),
     "nexus-30s": ("Spot 30 s", "Pełna obietnica produktu w pół minuty."),
     "nexus-60s": ("Film główny", "Minuta o tym, czym jest Danaco Nexus."),
+    "nexus-praca-6s": ("Nexus w pracy — zajawka", "Sześć sekund z drugiego filmu."),
+    "nexus-praca-60s": ("Nexus w pracy", "Minuta o dniu pracy: poczta, terminy, badania, projekty, strona i kod."),
 }
+
+
+def opis_filmu(baza: str) -> tuple[str, str, str]:
+    """Tytuł, opis i nazwa wariantu dla rdzenia nazwy pliku (bez kadru).
+
+    Klucze mają różną liczbę członów (`nexus-60s`, `nexus-praca-60s`), więc dopasowujemy
+    najdłuższy pasujący przedrostek; reszta nazwy jest wariantem (np. `16x9-lektor`).
+    """
+    czesci = baza.split("-")
+    for dlugosc in range(len(czesci), 0, -1):
+        klucz = "-".join(czesci[:dlugosc])
+        if klucz in OPISY_FILMOW:
+            return (*OPISY_FILMOW[klucz], "-".join(czesci[dlugosc:]))
+    return baza, "", ""
 
 # Animacje stanów — rodziny według motion/stany/README.md.
 RODZINY_STANOW = {
@@ -299,37 +326,38 @@ def plakaty_katalogu() -> int:
 
 
 def zajawka_lekka() -> int:
-    """Buduje lekki wariant zajawki (ffmpeg). Bez ffmpeg zostaje kopia pełnego nagrania."""
+    """Buduje lekkie warianty zajawek (ffmpeg). Bez ffmpeg zostaje kopia pełnego nagrania."""
     ffmpeg = sciezka_ffmpeg()
     braki = 0
-    for rozszerzenie in ("webm", "mp4"):
-        zrodlo = REPO / f"{ZAJAWKA_ZRODLO}.{rozszerzenie}"
-        cel = PUBLIC / f"film/zajawka.{rozszerzenie}"
-        if not zrodlo.is_file():
-            if not cel.is_file():
-                print(f"brak źródła: {ZAJAWKA_ZRODLO}.{rozszerzenie}", file=sys.stderr)
+    for zrodlo_filmu, nazwa in ZAJAWKI:
+        for rozszerzenie in ("webm", "mp4"):
+            zrodlo = REPO / f"{zrodlo_filmu}.{rozszerzenie}"
+            cel = PUBLIC / f"film/{nazwa}.{rozszerzenie}"
+            if not zrodlo.is_file():
+                if not cel.is_file():
+                    print(f"brak źródła: {zrodlo_filmu}.{rozszerzenie}", file=sys.stderr)
+                    braki += 1
+                continue
+            if cel.is_file() and cel.stat().st_mtime >= zrodlo.stat().st_mtime:
+                continue
+            if ffmpeg is None:
+                if not kopiuj(zrodlo, cel):
+                    braki += 1
+                continue
+            cel.parent.mkdir(parents=True, exist_ok=True)
+            kodek = (
+                ["-c:v", "libvpx-vp9", "-crf", "38", "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "3"]
+                if rozszerzenie == "webm"
+                else ["-c:v", "libx264", "-crf", "30", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+            )
+            wynik = subprocess.run(
+                [str(ffmpeg), "-v", "error", "-y", "-i", str(zrodlo),
+                 "-an", "-vf", f"scale={ZAJAWKA_SZEROKOSC}:-2", *kodek, str(cel)],
+                capture_output=True,
+                check=False,
+            )
+            if wynik.returncode != 0 and not kopiuj(zrodlo, cel):
                 braki += 1
-            continue
-        if cel.is_file() and cel.stat().st_mtime >= zrodlo.stat().st_mtime:
-            continue
-        if ffmpeg is None:
-            if not kopiuj(zrodlo, cel):
-                braki += 1
-            continue
-        cel.parent.mkdir(parents=True, exist_ok=True)
-        kodek = (
-            ["-c:v", "libvpx-vp9", "-crf", "38", "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "3"]
-            if rozszerzenie == "webm"
-            else ["-c:v", "libx264", "-crf", "30", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
-        )
-        wynik = subprocess.run(
-            [str(ffmpeg), "-v", "error", "-y", "-i", str(zrodlo),
-             "-an", "-vf", f"scale={ZAJAWKA_SZEROKOSC}:-2", *kodek, str(cel)],
-            capture_output=True,
-            check=False,
-        )
-        if wynik.returncode != 0 and not kopiuj(zrodlo, cel):
-            braki += 1
     return braki
 
 
@@ -378,8 +406,10 @@ def katalog_ruchu() -> int:
                     braki += 1
 
     # Napisy filmów są w SRT; przeglądarka czyta WebVTT.
-    zrodlo_napisow = REPO / NAPISY_FILMU_Z_SRT
-    if zrodlo_napisow.is_dir():
+    for katalog_napisow in NAPISY_FILMU_Z_SRT:
+        zrodlo_napisow = REPO / katalog_napisow
+        if not zrodlo_napisow.is_dir():
+            continue
         for plik in sorted(zrodlo_napisow.glob("*.srt")):
             cel = PUBLIC / "film" / "katalog" / (plik.stem + ".vtt")
             cel.parent.mkdir(parents=True, exist_ok=True)
@@ -407,17 +437,17 @@ def katalog_ruchu() -> int:
         for plik in sorted(kat_filmy.glob("*.mp4")):
             rdzen = plik.stem
             baza, kadr = rozbierz(rdzen)
-            # `nexus-60s-16x9-lektor` → baza `nexus-60s-16x9-lektor`; tnij ogon po kadrze.
-            klucz = "-".join(baza.split("-")[:2])
-            tytul, opis = OPISY_FILMOW.get(klucz, (rdzen, ""))
-            wariant = baza[len(klucz):].strip("-") or ""
+            tytul, opis, wariant = opis_filmu(baza)
             spis["filmy"].append({
                 "id": rdzen,
                 "tytul": tytul + (f" ({wariant})" if wariant else ""),
                 "opis": opis,
                 "kadr": kadr,
                 "zrodla": warianty(kat_filmy, rdzen),
-                "plakat": plakat(kat_filmy.parent / "okladki", "okladka-1920x1080"),
+                "plakat": plakat(
+                    kat_filmy.parent / "okladki",
+                    "okladka-praca-1920x1080" if rdzen.startswith("nexus-praca") else "okladka-1920x1080",
+                ),
                 "napisy": {
                     jezyk: f"/film/katalog/{rdzen}.{jezyk}.vtt"
                     for jezyk in ("pl", "en")

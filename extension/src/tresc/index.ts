@@ -1,10 +1,18 @@
 // Skrypt treści: panel boczny na każdej stronie, kontekst strony, wstawianie odpowiedzi.
 
-import type { DoTresci, TloDoTresci, WynikKontekstu, WynikWstawiania, ZTresci } from "../wspolne/komunikaty";
+import type {
+  DoTresci,
+  TloDoTresci,
+  WynikKontekstu,
+  WynikSzybkiejAkcji,
+  WynikWstawiania,
+  ZTresci,
+} from "../wspolne/komunikaty";
 import { normalizujSerwer, obserwuj, wczytaj, zapisz } from "../wspolne/ustawienia";
-import { tytulStrony, trescStrony, wyodrebnij, zaznaczonyTekst, skroc, LIMIT_ZNAKOW, HOST_PANELU } from "./ekstraktor";
+import { tytulStrony, trescStrony, wyodrebnij, zaznaczonyTekst, skroc, LIMIT_ZNAKOW, HOST_PANELU, HOST_PRZYBORNIKA } from "./ekstraktor";
 import { skrot, znajdzOpinie, type ZnalezionaOpinia } from "./opinie";
 import { PanelHost } from "./panel-host";
+import { Przybornik } from "./przybornik";
 import { jestSkrotemPanelu } from "./skrot";
 import { SledzeniePol, opisPola } from "./wstawianie";
 
@@ -82,14 +90,42 @@ async function start(): Promise<void> {
   panel.zamontuj();
 
   sledzenie.naZmiane((pole) => wyslij({ type: "pole", aktywne: !!pole, opis: pole ? opisPola(pole) : "" }));
+  // Przybornik zaznaczenia: skróty przy kursorze, bez otwierania panelu.
+  // Własny element gospodarza, żeby zmiana drzewa strony (SPA) nie zabierała go razem
+  // z panelem i żeby style obu nie mieszały się w jednym drzewie cienia.
+  const gospodarzPrzybornika = document.createElement(HOST_PRZYBORNIKA);
+  document.documentElement.append(gospodarzPrzybornika);
+  const przybornik = new Przybornik(
+    {
+      wykonaj: (polecenie, tekst) =>
+        new Promise<WynikSzybkiejAkcji>((gotowe) => {
+          try {
+            runtime.sendMessage(
+              { type: "nexus-ext:szybka-akcja", polecenie, tekst, adres: location.href },
+              (odpowiedz: WynikSzybkiejAkcji | undefined) =>
+                gotowe(odpowiedz ?? { blad: "Rozszerzenie nie odpowiedziało." }),
+            );
+          } catch {
+            gotowe({ blad: "Rozszerzenie nie odpowiedziało." });
+          }
+        }),
+    },
+    gospodarzPrzybornika,
+  );
+  przybornik.ustaw(ustawienia);
+
   obserwuj((nowe) => {
     Object.assign(ustawienia, nowe);
     panel.ustawPrzycisk(przyciskWidoczny(nowe));
     panel.ustawSzerokosc(nowe.szerokosc);
+    przybornik.ustaw(nowe);
   });
 
-  // Strony SPA potrafią podmienić <html>/<body> – panel wraca na miejsce.
-  new MutationObserver(() => panel.zamontuj()).observe(document.documentElement, { childList: true });
+  // Strony SPA potrafią podmienić <html>/<body> – panel i przybornik wracają na miejsce.
+  new MutationObserver(() => {
+    panel.zamontuj();
+    if (!gospodarzPrzybornika.isConnected) document.documentElement.append(gospodarzPrzybornika);
+  }).observe(document.documentElement, { childList: true });
 
   document.addEventListener(
     "keydown",

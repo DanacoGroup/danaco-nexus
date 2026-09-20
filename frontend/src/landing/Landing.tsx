@@ -12,7 +12,7 @@ import {
   PasekZdan,
   SEKCJE_NAWIGACJI,
   SekcjaCennik,
-  SekcjaDzien,
+  SekcjaFilmy,
   SekcjaFunkcje,
   SekcjaKroki,
   SekcjaPrywatnosc,
@@ -338,7 +338,7 @@ export function Landing() {
         <SekcjaNarzedzi />
         <SekcjaRoznice />
         <SekcjaRuch />
-        <SekcjaDzien />
+        <SekcjaFilmy />
         {/* Świt prowadzi z dnia w noc prywatności — kolory obu sekcji, wschód sprzężony z przewijaniem. */}
         <PasSwitu barwa="chlodny" od="var(--app)" do="var(--app)" />
         <SekcjaPrywatnosc />

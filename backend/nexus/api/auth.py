@@ -405,33 +405,35 @@ SSO_USER_HEADER = "X-Nexus-User"
 CLOUD_LOGIN_PATHS = frozenset({"/login", "/index.php/login"})
 
 
-async def _valid_session(request: Request) -> bool:
+async def _sesja_ciasteczka(request: Request) -> UserSession | None:
+    """Nieprzeterminowana sesja z ciasteczka (dowolne konto) albo ``None``."""
     token = request.cookies.get(COOKIE_NAME)
     if not token:
-        return False
+        return None
     database: Database = request.app.state.database
     async with database.session() as session:
         record = await session.get(UserSession, token_hash(token))
-    return record is not None and record.expires_at >= utcnow()
+    return record if record is not None and record.expires_at >= utcnow() else None
 
 
 @router.get("/sso", include_in_schema=False)
 async def sso(request: Request) -> Response:
     """Logowanie jednokrotne do chmury osobistej (wywoływane przez ``forward_auth`` Caddy).
 
-    Przy ważnej sesji Nexusa odpowiedź niesie nagłówek ``X-Nexus-User`` z kontem
-    Nextcloud – Caddy przekazuje go do chmury, która loguje użytkownika bez hasła.
-    Bez sesji: strona logowania chmury przekierowuje do logowania Nexusa (powrót do
-    chmury po zalogowaniu), pozostałe adresy (udostępnienia, zasoby) przechodzą dalej.
+    Nagłówek ``X-Nexus-User`` niesie konto Nextcloud właściciela instalacji, więc wydaje
+    go wyłącznie sesja właściciela. Konto klienta portalu i konto próbne mają taką samą
+    sesję, a ciasteczko jedzie na poddomenę chmury — dostają 204 bez nagłówka, czyli
+    własne logowanie chmury. Bez sesji strona logowania chmury przekierowuje do Nexusa.
     """
     settings = request.app.state.settings
-    if await _valid_session(request):
+    sesja = await _sesja_ciasteczka(request)
+    if sesja is not None and sesja.owner_id == ADMIN_OWNER:
         return Response(
             status_code=status.HTTP_204_NO_CONTENT, headers={SSO_USER_HEADER: settings.chmura_user}
         )
     original = urlsplit(request.headers.get("x-forwarded-uri", "/"))
     direct = "direct=1" in original.query.split("&")
-    if original.path in CLOUD_LOGIN_PATHS and not direct and settings.public_url:
+    if sesja is None and original.path in CLOUD_LOGIN_PATHS and not direct and settings.public_url:
         return Response(
             status_code=status.HTTP_302_FOUND,
             headers={"Location": f"{settings.public_url.rstrip('/')}/?next=cloud"},

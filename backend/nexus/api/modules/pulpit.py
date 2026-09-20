@@ -22,13 +22,14 @@ import logging
 import re
 import time
 import uuid
+from functools import partial
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
 from nexus.api.auth import DEVICE_TOKEN_PREFIX, require_session, token_hash
-from nexus.db import Database, DeviceToken, utcnow
+from nexus.db import Database, DeviceToken, UserSession, utcnow
 from nexus.pulpit import (
     MemoryBroker,
     RedisAsyncBroker,
@@ -73,7 +74,12 @@ async def _device_for_token(database: Database, token: str) -> dict[str, str] | 
         if record is None or record.revoked or record.kind != "desktop":
             return None
         record.last_used_at = utcnow()
-        return {"id": str(record.id), "name": record.name, "kind": record.kind}
+        return {
+            "id": str(record.id),
+            "name": record.name,
+            "kind": record.kind,
+            "owner": str(record.owner_id),
+        }
 
 
 async def _still_valid(database: Database, device_id: str) -> bool:
@@ -123,7 +129,10 @@ async def computer_socket(websocket: WebSocket) -> None:
     broker = _broker(websocket)
     database: Database = websocket.app.state.database
     now = time.time()
+    # Właściciel klucza urządzenia trafia do rejestru: przekaźnik wydaje komputer tylko
+    # temu kontu, a wykaz w API i narzędzia ``pc_*`` zawężają po tym polu.
     info = {
+        "owner": device["owner"],
         "name": device["name"],
         "host": _clean(hello.get("host")),
         "version": _clean(hello.get("version"), 40),
@@ -135,7 +144,8 @@ async def computer_socket(websocket: WebSocket) -> None:
     try:
         async with broker.subscribe(request_channel(device_id)) as get_request:
             await broker.set_online(device_id, info)
-            await websocket.send_json({"type": "ready", "device": device})
+            opis = {key: device[key] for key in ("id", "name", "kind")}
+            await websocket.send_json({"type": "ready", "device": opis})
             forward = asyncio.create_task(_forward_requests(websocket, get_request))
             try:
                 await _receive_loop(websocket, broker, database, device_id, info)
@@ -219,13 +229,20 @@ async def _receive_loop(
             await broker.publish(response_channel(request_id), json.dumps(payload, ensure_ascii=False))
 
 
-@router.get("/komputery", dependencies=[Depends(require_session)])
-async def computers(request: Request) -> list[dict[str, Any]]:
-    """Komputery z Nexus Desktop podłączone w tej chwili."""
+@router.get("/komputery")
+async def computers(request: Request, sesja: UserSession = Depends(require_session)) -> list[dict[str, Any]]:
+    """Komputery konta podłączone w tej chwili do Nexus Desktop.
+
+    Wykaz zawęża się do kluczy urządzeń tego konta: rejestr jest wspólny dla instalacji,
+    więc bez zawężenia konto próbne widziało maszynę właściciela instalacji.
+    """
     settings = request.app.state.settings
     broker = sync_broker(settings)
+    owner = str(sesja.owner_id)
     try:
-        found = await asyncio.get_running_loop().run_in_executor(None, online_computers, broker)
+        found = await asyncio.get_running_loop().run_in_executor(
+            None, partial(online_computers, broker, owner=owner)
+        )
     finally:
         if not isinstance(broker, MemoryBroker):
             broker.close()

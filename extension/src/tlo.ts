@@ -3,7 +3,8 @@
 // Każde API spoza podstawy jest sprawdzane przed użyciem – w przeglądarkach z niepełnym
 // API rozszerzeń (Danaco Lynx) panel działa wtedy z przycisku i skrótu na stronie.
 
-import type { AkcjaMenu, DoTla, Mozliwosci, TloDoTresci } from "./wspolne/komunikaty";
+import type { AkcjaMenu, DoTla, Mozliwosci, TloDoTresci, WynikSzybkiejAkcji } from "./wspolne/komunikaty";
+import { wczytaj } from "./wspolne/ustawienia";
 
 const MENU: Array<{ id: AkcjaMenu["akcja"]; tytul: string; konteksty: string[] }> = [
   { id: "zapytaj", tytul: "Zapytaj Nexusa o zaznaczenie", konteksty: ["selection"] },
@@ -55,6 +56,40 @@ try {
   chrome.runtime.onStartup?.addListener(utworzMenu);
 } catch {
   // brak zdarzeń cyklu życia
+}
+
+/** Wykonuje szybką akcję przybornika na serwerze Nexusa.
+ *
+ * Bez klucza urządzenia nie ma czym się uwierzytelnić — wtedy zamiast błędu HTTP
+ * użytkownik dostaje zdanie o tym, co ma zrobić, bo to najczęstsza przyczyna odmowy.
+ */
+async function szybkaAkcja(
+  komunikat: Extract<DoTla, { type: "nexus-ext:szybka-akcja" }>,
+): Promise<WynikSzybkiejAkcji> {
+  const ustawienia = await wczytaj();
+  if (!ustawienia.klucz) {
+    return { blad: "Najpierw wpisz klucz urządzenia w opcjach rozszerzenia." };
+  }
+  let odpowiedz: Response;
+  try {
+    odpowiedz = await fetch(`${ustawienia.serwer}/api/rozszerzenie/szybka-akcja`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ustawienia.klucz}` },
+      body: JSON.stringify({
+        polecenie: komunikat.polecenie,
+        tekst: komunikat.tekst,
+        adres: komunikat.adres,
+      }),
+    });
+  } catch {
+    return { blad: "Brak połączenia z Nexusem." };
+  }
+  if (!odpowiedz.ok) {
+    const tresc = (await odpowiedz.json().catch(() => null)) as { detail?: string } | null;
+    return { blad: tresc?.detail || `Nexus odmówił (${odpowiedz.status}).` };
+  }
+  const dane = (await odpowiedz.json()) as { wynik?: string };
+  return dane.wynik ? { wynik: dane.wynik } : { blad: "Nexus nie zwrócił treści." };
 }
 
 /** Zapamiętuje akcję dla karty i otwiera w niej panel (panel pobierze akcję z tła). */
@@ -118,6 +153,13 @@ chrome.runtime.onMessage.addListener((komunikat: DoTla, nadawca, odpowiedz) => {
       if (chrome.runtime.openOptionsPage) void chrome.runtime.openOptionsPage();
       odpowiedz(!!chrome.runtime.openOptionsPage);
       return false;
+    case "nexus-ext:szybka-akcja":
+      // Klucz urządzenia zna wyłącznie tło; skrypt treści nigdy go nie widzi, więc
+      // żądanie do Nexusa składamy tutaj, a do strony wraca sama treść odpowiedzi.
+      szybkaAkcja(komunikat)
+        .then(odpowiedz)
+        .catch((blad: unknown) => odpowiedz({ blad: String((blad as Error)?.message ?? blad) }));
+      return true;
     case "nexus-ext:zrzut":
       if (!mozliwosci().zrzut || !karta) {
         odpowiedz({ ok: false, blad: "Ta przeglądarka nie udostępnia zrzutów karty." });

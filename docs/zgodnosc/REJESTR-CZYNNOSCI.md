@@ -259,11 +259,26 @@ po stronie dostawcy modelu nie trafiają ani do interfejsu, ani do komunikatów 
 | Działanie na komputerze użytkownika dopiero po potwierdzeniu | `backend/nexus/models/biuro.py`, `desktop/src/agent/powershellPolicy.js` |
 | Idempotencja zdarzeń rozliczeniowych i weryfikacja podpisu webhooka | `backend/nexus/platnosci/**` |
 
+### CZ-14. Rozpoznawanie twarzy na zdjęciach użytkownika
+
+| Pozycja | Treść |
+|---|---|
+| Cel | Porządkowanie zbioru zdjęć według osób na prośbę użytkownika (narzędzie `find_faces`) |
+| Podstawa prawna | **do rozstrzygnięcia przed wejściem na rynek** — wizerunek twarzy przetwarzany w celu jednoznacznej identyfikacji to dane biometryczne (art. 9 ust. 1 RODO); potrzebna wyraźna zgoda (art. 9 ust. 2 lit. a) albo rezygnacja z funkcji |
+| Kategorie osób | użytkownik oraz każda osoba widoczna na wgranych przez niego zdjęciach |
+| Kategorie danych | położenie twarzy w kadrze, 512-wymiarowe wektory cech, przypisanie zdjęć do grup |
+| Miejsce w kodzie | `backend/nexus/tools/studio.py` (`find_faces`), program `danaco-twarze-indeks` (InsightFace) |
+| Odbiorcy | brak — model liczy na tym serwerze, nic nie wychodzi na zewnątrz |
+| Przekazanie poza EOG | nie |
+| Termin usunięcia | wynik jest plikiem rozmowy i podlega CZ-4; wektory nie są przechowywane poza tym plikiem |
+| Zastrzeżenie licencyjne | modele InsightFace mają licencję **wyłącznie niekomercyjną**. Dopóki produkt nie jest sprzedawany, funkcja działa zgodnie z licencją; przed sprzedażą trzeba wymienić model na komercyjny albo uzyskać zgodę autorów |
+
 ## 5. Braki rejestru
 
 | Brak | Skutek |
 |---|---|
 | Dane rejestrowe administratora | rejestr niekompletny w części identyfikacyjnej (art. 30 ust. 1 lit. a RODO) |
+| Podstawa przetwarzania danych biometrycznych i licencja modeli twarzy | CZ-14 działa dziś na modelach niekomercyjnych i bez wyraźnej zgody. Obie sprawy trzeba zamknąć przed uruchomieniem sprzedaży: zgoda przy pierwszym użyciu funkcji oraz model o licencji komercyjnej |
 | Rozdzielenie kont nie obejmuje chmury osobistej ani kalendarza | `CloudService` i `CalendarClient` logują się jednym kontem Nextcloud (`settings.chmura_user`, `chmura_token_file` — `cloud_service.py:96-103`, `calendar.py:105-112`). Pliki i wydarzenia są wspólne dla całej instalacji; rozdz. 3 polityki mówi więc o „magazynie tej instalacji”, a nie o magazynie konta |
 | Umowy powierzenia z Anthropic, Google i Stripe | CZ-6, CZ-7 i CZ-11 nie mają udokumentowanej podstawy powierzenia |
 | Kwalifikacja dostawcy serwera poczty portalu | rozdz. 3 tego rejestru i rozdz. 6 polityki opisują go jako odbiorcę technicznego. Jeżeli właściciel produktu uzna, że dostawca przechowuje wiadomości portalu na zlecenie Danaco, potrzebna będzie umowa z art. 28 RODO i zmiana obu dokumentów |

@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from nexus import model_krotki as model_cli
 from nexus.config import Settings
-from nexus.demo import model as model_cli
 from nexus.demo.gotowosc import NA_ZYWO, ODTWORZENIE
 from nexus.demo.scenariusze import NAGRANIA, Krok, Postep, Scenariusz
 from nexus.demo.sesje import BladPiaskownicy, DemoPlik, DemoSesja, Piaskownica, bezpieczna_nazwa
@@ -33,6 +33,8 @@ LIMIT_PRZEBIEGU_S = 420
 ODTWORZENIE_MNOZNIK = 0.12
 ODTWORZENIE_MAX_S = 1.4
 FINALNE = frozenset({"gotowe", "blad", "anulowane"})
+# Jedyny komunikat o błędzie, jaki widzi gość pokazu: treść wyjątku zostaje w dzienniku.
+BLAD_DLA_GOSCIA = "Błąd wewnętrzny pokazu. Spróbuj ponownie."
 
 
 @dataclass(slots=True)
@@ -331,13 +333,19 @@ def uruchom(
             przebieg.stan, przebieg.blad = "blad", "Przebieg przekroczył limit czasu pokazu."
         except (ToolCancelled, asyncio.CancelledError):
             przebieg.stan, przebieg.blad = "anulowane", "Przebieg przerwany."
-        except (ToolError, BladPiaskownicy, model_cli.BladModelu) as error:
+        except BladPiaskownicy as error:
+            # Komunikaty piaskownicy pisane są dla gościa (limity, tempo), więc wracają wprost.
             przebieg.stan, przebieg.blad = "blad", str(error)[:300]
+        except (ToolError, model_cli.BladModelu) as error:
+            # Błąd narzędzia albo modelu niesie ścieżkę programu na serwerze i treść stderr,
+            # a przebieg widzi gość bez konta — do przeglądarki idzie sam fakt.
+            logger.warning("Błąd narzędzia w przebiegu pokazu %s: %s", scenariusz.id, error)
+            przebieg.stan, przebieg.blad = "blad", BLAD_DLA_GOSCIA
         except Exception:  # noqa: BLE001 - błąd pokazu trafia do interfejsu
             # Treść nieprzewidzianego wyjątku (ścieżki, zapytania, dane połączeń) zostaje
             # w dzienniku: przebieg zleca gość bez konta, a widzi go każdy odwiedzający.
             logger.exception("Błąd przebiegu pokazu %s", scenariusz.id)
-            przebieg.stan, przebieg.blad = "blad", "Błąd wewnętrzny pokazu. Spróbuj ponownie."
+            przebieg.stan, przebieg.blad = "blad", BLAD_DLA_GOSCIA
         finally:
             _oznacz_finalne(przebieg)
             przebieg.rozglos()

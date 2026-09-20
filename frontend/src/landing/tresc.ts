@@ -202,6 +202,56 @@ export const DZIEN: Pora[] = [
   },
 ];
 
+export interface FilmPromocyjny {
+  /** Identyfikator w atrybutach dostępności i kluczach listy. */
+  id: string;
+  tytul: string;
+  /** Jedno zdanie pod tytułem — czym ten film różni się od drugiego. */
+  opis: string;
+  /** Plakat pod przyciskiem odtwarzania i jako `poster` odtwarzacza. */
+  plakat: string;
+  /** Krótka pętla bez dźwięku puszczana pod przyciskiem. */
+  zajawka: string;
+  /** Źródła odtwarzacza: WebM przed MP4 — przeglądarka bierze pierwsze, które zna. */
+  zrodla: { plik: string; typ: string }[];
+  /** Napisy WebVTT: kod języka → adres pliku. */
+  napisy: { jezyk: string; etykieta: string; plik: string }[];
+}
+
+/** Dwa filmy promocyjne: życie codzienne i praca zawodowa. Pliki wstawia frontend/scripts/zasoby.py. */
+export const FILMY: FilmPromocyjny[] = [
+  {
+    id: "dzien",
+    tytul: "Jeden dzień z Nexusem",
+    opis: "Życie codzienne: lista zakupów z jednego zdania, odnowione zdjęcie babci, bajka czytana na dobranoc.",
+    plakat: "/film/okladka.png",
+    zajawka: "/film/zajawka.webm",
+    zrodla: [
+      { plik: "/film/nexus-60s.webm", typ: "video/webm" },
+      { plik: "/film/nexus-60s.mp4", typ: "video/mp4" },
+    ],
+    napisy: [
+      { jezyk: "pl", etykieta: "Polski", plik: "/film/nexus-60s.pl.vtt" },
+      { jezyk: "en", etykieta: "English", plik: "/film/nexus-60s.en.vtt" },
+    ],
+  },
+  {
+    id: "praca",
+    tytul: "Nexus w pracy",
+    opis: "Praca zawodowa: poczta i terminy, badanie tematu z przypisami, projekt graficzny, strona i kod.",
+    plakat: "/film/okladka-praca.png",
+    zajawka: "/film/zajawka-praca.webm",
+    zrodla: [
+      { plik: "/film/nexus-praca-60s.webm", typ: "video/webm" },
+      { plik: "/film/nexus-praca-60s.mp4", typ: "video/mp4" },
+    ],
+    napisy: [
+      { jezyk: "pl", etykieta: "Polski", plik: "/film/nexus-praca-60s.pl.vtt" },
+      { jezyk: "en", etykieta: "English", plik: "/film/nexus-praca-60s.en.vtt" },
+    ],
+  },
+];
+
 export interface Nagranie {
   plik: string;
   tytul: string;

@@ -247,15 +247,22 @@ def sync_broker(settings: Settings) -> MemoryBroker | RedisSyncBroker:
 
 
 def online_computers(
-    broker: MemoryBroker | RedisSyncBroker, now: float | None = None
+    broker: MemoryBroker | RedisSyncBroker, now: float | None = None, *, owner: str
 ) -> list[dict[str, Any]]:
-    """Podłączone komputery (najpierw najświeższe połączenia), bez nieaktualnych wpisów."""
+    """Podłączone komputery konta ``owner`` (najpierw najświeższe), bez nieaktualnych wpisów.
+
+    Konto podaje się zawsze: rejestr jest wspólny dla całej instalacji, a komputer należy
+    do konta, które wydało klucz urządzenia. Bez zawężenia konto próbne sięgało narzędziami
+    ``pc_*`` do maszyny właściciela instalacji.
+    """
     now = time.time() if now is None else now
     computers = []
     for device_id, raw in broker.online_sync().items():
         try:
             info = json.loads(raw)
         except (TypeError, ValueError):
+            continue
+        if str(info.get("owner", "")) != owner:
             continue
         if now - float(info.get("seen", 0)) > ONLINE_STALE_SECONDS:
             continue
@@ -306,6 +313,7 @@ def call_computer(
     tool: str,
     args: dict[str, Any],
     *,
+    owner: str,
     computer: str = "",
     timeout: float = 60.0,
     cancelled: Callable[[], bool] = lambda: False,
@@ -315,8 +323,9 @@ def call_computer(
 
     Zwraca ``(wynik, opis_komputera)``. Błąd po stronie komputera, brak komputera
     albo przekroczenie czasu kończą się ``PcError``; anulowanie zadania – ``PcCancelled``.
+    Wybór ogranicza się do komputerów konta ``owner``.
     """
-    target = choose_computer(online_computers(broker), computer)
+    target = choose_computer(online_computers(broker, owner=owner), computer)
     request_id = uuid.uuid4().hex
     request = json.dumps({"id": request_id, "tool": tool, "args": args}, ensure_ascii=False)
     with broker.subscribe_sync(response_channel(request_id)) as get:

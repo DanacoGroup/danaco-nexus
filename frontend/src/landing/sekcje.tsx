@@ -1,10 +1,11 @@
-// Sekcje strony produktu: pasek zdań, kroki, funkcje, dzień, prywatność, zaufanie, cennik, pytania, brama.
+// Sekcje strony produktu: pasek zdań, kroki, funkcje, filmy, prywatność, zaufanie, cennik, pytania, brama.
 // Treść i zachowanie: landing/LANDING_PAGE_SPEC.md, rozdz. 7.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckIcon, PlusIcon, SparkIcon, ToolIcon } from "../components/icons";
 import { ArrowRightIcon, DocumentIcon, LockIcon, PhoneIcon, ShieldIcon, WindowsIcon } from "../shell/icons";
 import {
+  FILMY,
   GWARANCJE,
   KARTY,
   KROKI,
@@ -17,6 +18,7 @@ import {
   ZASADY,
   ZDANIA_TOR_1,
   ZDANIA_TOR_2,
+  type FilmPromocyjny,
 } from "./tresc";
 import { LICZBA_NARZEDZI } from "../dane/narzedzia";
 import { PASMO, tlo } from "./uzyj";
@@ -255,53 +257,112 @@ export function SekcjaFunkcje() {
   );
 }
 
-/** „Jeden dzień z Nexusem” — film promocyjny. */
-export function SekcjaDzien() {
-  const [gra, setGra] = useState(false);
+/** Kafel jednego filmu: plakat z zajawką w pętli, tytuł i zdanie opisu. */
+function KafelFilmu({ film, onOtworz }: { film: FilmPromocyjny; onOtworz: () => void }) {
   return (
-    <Sekcja id="dzien" className="landing-tlo" style={tlo("aurora-mgla", 0.85)}>
+    <article className="overflow-hidden rounded-2xl border border-line bg-app shadow-[var(--shadow-floating)]">
+      <button
+        type="button"
+        onClick={onOtworz}
+        className="group relative block aspect-video w-full cursor-pointer"
+        aria-label={`Odtwórz film „${film.tytul}” (60 sekund, lektor i napisy)`}
+      >
+        <video className="size-full object-cover" src={film.zajawka} poster={film.plakat} autoPlay muted loop playsInline aria-hidden="true" />
+        <span className="absolute inset-0 grid place-items-center bg-scrim">
+          <span className="aurora-tlo grid size-20 place-items-center rounded-full text-white shadow-[var(--shadow-glow-ai)] transition-transform group-hover:scale-105">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.5v13l11-6.5z" />
+            </svg>
+          </span>
+        </span>
+        <span className="absolute right-4 bottom-4 rounded-full bg-app/80 px-3 py-1 text-xs text-fg backdrop-blur">
+          60 s · lektor PL · napisy PL i EN
+        </span>
+      </button>
+      <div className="p-6">
+        <h3 className="font-heading text-xl font-bold tracking-tight text-balance">{film.tytul}</h3>
+        <p className="mt-2.5 leading-relaxed text-muted text-pretty">{film.opis}</p>
+      </div>
+    </article>
+  );
+}
+
+/** Powiększenie wybranego filmu: odtwarzacz na przyciemnionym tle, zamykany Esc i tłem. */
+function PowiekszenieFilmu({ film, onZamknij }: { film: FilmPromocyjny; onZamknij: () => void }) {
+  useEffect(() => {
+    const klawisz = (zdarzenie: KeyboardEvent) => {
+      if (zdarzenie.key === "Escape") onZamknij();
+    };
+    document.addEventListener("keydown", klawisz);
+    const poprzedni = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", klawisz);
+      document.body.style.overflow = poprzedni;
+    };
+  }, [onZamknij]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Film „${film.tytul}”`}
+      className="fixed inset-0 z-(--z-dialog) grid place-items-center bg-scrim p-4 backdrop-blur-sm md:p-10"
+      onClick={onZamknij}
+    >
+      <div className="w-full max-w-(--container-page)" onClick={(zdarzenie) => zdarzenie.stopPropagation()}>
+        <div className="flex items-center justify-between gap-4 pb-3">
+          <h3 className="font-heading text-lg font-bold tracking-tight text-fg md:text-2xl">{film.tytul}</h3>
+          <button
+            type="button"
+            autoFocus
+            onClick={onZamknij}
+            className="rounded-md border border-line-strong px-3 py-1.5 text-sm text-fg hover:bg-hover"
+          >
+            Zamknij
+          </button>
+        </div>
+        <video
+          className="aspect-video w-full overflow-hidden rounded-2xl border border-line bg-app shadow-[var(--shadow-floating)]"
+          controls
+          autoPlay
+          preload="metadata"
+          poster={film.plakat}
+          crossOrigin="anonymous"
+        >
+          {film.zrodla.map((zrodlo) => (
+            <source key={zrodlo.plik} src={zrodlo.plik} type={zrodlo.typ} />
+          ))}
+          {film.napisy.map((napis, indeks) => (
+            <track key={napis.jezyk} kind="captions" srcLang={napis.jezyk} label={napis.etykieta} src={napis.plik} default={indeks === 0} />
+          ))}
+        </video>
+      </div>
+    </div>
+  );
+}
+
+/** Dwa filmy promocyjne: zwykły dzień i dzień pracy. */
+export function SekcjaFilmy() {
+  const [otwarty, setOtwarty] = useState<FilmPromocyjny | null>(null);
+  return (
+    <Sekcja id="filmy" className="landing-tlo" style={tlo("aurora-mgla", 0.85)}>
       {/* Ziarno filmowe nad sekcją ze statyczną grafiką — tła na żywo mają je w złożeniu.
           Na czas odtwarzania gaśnie: film ma własne ziarno w materiale, a nakładanie
           drugiej warstwy brudzi obraz. */}
-      <WarstwaZiarna ukryta={gra} />
+      <WarstwaZiarna ukryta={otwarty !== null} />
       <Naglowek
-        nad="Jeden dzień z Nexusem"
-        tytul="Od porannej kawy do wieczornej bajki."
-        akapit="Barwy w znaku Nexusa to pora dnia: ciepło poranka, spokój wieczoru. Tak wygląda zwykły wtorek."
+        nad="Filmy"
+        tytul="Zobacz Nexusa w działaniu."
+        akapit="Dwie minuty: pierwszy film o zwykłym dniu w domu, drugi o dniu pracy. Oba pokazują wyłącznie to, co Nexus potrafi dziś."
         srodek
       />
-      <div className="mt-14 overflow-hidden rounded-2xl border border-line bg-app shadow-[var(--shadow-floating)]">
-        {gra ? (
-          <video className="aspect-video w-full" controls autoPlay preload="metadata" poster="/film/okladka.png" crossOrigin="anonymous">
-            <source src="/film/nexus-60s.webm" type="video/webm" />
-            <source src="/film/nexus-60s.mp4" type="video/mp4" />
-            <track kind="captions" srcLang="pl" label="Polski" src="/film/nexus-60s.pl.vtt" default />
-            <track kind="captions" srcLang="en" label="English" src="/film/nexus-60s.en.vtt" />
-          </video>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setGra(true)}
-            className="group relative block aspect-video w-full cursor-pointer"
-            aria-label="Odtwórz film „Jeden dzień z Nexusem” (60 sekund, z napisami)"
-          >
-            <video className="size-full object-cover" src="/film/zajawka.webm" poster="/film/okladka.png" autoPlay muted loop playsInline aria-hidden="true" />
-            <span className="absolute inset-0 grid place-items-center bg-scrim">
-              <span className="aurora-tlo grid size-20 place-items-center rounded-full text-white shadow-[var(--shadow-glow-ai)] transition-transform group-hover:scale-105">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M8 5.5v13l11-6.5z" />
-                </svg>
-              </span>
-            </span>
-            <span className="absolute right-4 bottom-4 rounded-full bg-app/80 px-3 py-1 text-xs text-fg backdrop-blur">
-              Film · 60 s · napisy PL i EN
-            </span>
-          </button>
-        )}
+      <div className="mt-14 grid gap-8 md:grid-cols-2">
+        {FILMY.map((film) => (
+          <KafelFilmu key={film.id} film={film} onOtworz={() => setOtwarty(film)} />
+        ))}
       </div>
-      {/* Trzy kolumny z rozpisaniem pór dnia stały tu wcześniej — powtarzały zdanie po
-          zdaniu to, co film pokazuje na ekranie. Materiał ma własne napisy i własny tekst
-          w kadrze, więc druga wersja tej samej treści obok niego tylko rozmywa przekaz. */}
+      {otwarty && <PowiekszenieFilmu film={otwarty} onZamknij={() => setOtwarty(null)} />}
     </Sekcja>
   );
 }

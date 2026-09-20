@@ -12,6 +12,7 @@ type IdStanu = (typeof STANY)[number]["id"];
 /** Narzędzie → identyfikator nagrania w `STANY`. */
 const PRZYPISANIE: Record<string, IdStanu> = {
   colorize_photo: "odnawianie",
+  find_faces: "odnawianie",
   animate_photo: "ilustracja",
   clean_audio: "transkrypcja",
   split_audio_tracks: "transkrypcja",

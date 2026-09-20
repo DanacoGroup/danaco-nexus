@@ -25,6 +25,7 @@ from test_api import HEADERS, login, set_password
 
 from nexus.api.app import create_app
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 from nexus.pulpit import MEMORY_BROKER, PcError, choose_computer, online_computers
 from nexus.tools.base import ToolCancelled, ToolError, registry
 
@@ -254,15 +255,19 @@ def test_choose_computer_and_stale_entries() -> None:
     with pytest.raises(PcError, match="Żaden komputer"):
         choose_computer([], "")
 
+    konto = str(ADMIN_OWNER)
+
     class Fixed:
         def online_sync(self) -> dict[str, str]:
             return {
-                "a": '{"name": "stary", "seen": 0, "connected_at": 0}',
-                "b": '{"name": "nowy", "seen": 1000, "connected_at": 5}',
-                "c": "nie-json",
+                "a": f'{{"owner": "{konto}", "name": "stary", "seen": 0, "connected_at": 0}}',
+                "b": f'{{"owner": "{konto}", "name": "nowy", "seen": 1000, "connected_at": 5}}',
+                "c": '{"owner": "inne-konto", "name": "cudzy", "seen": 1000, "connected_at": 6}',
+                "d": "nie-json",
             }
 
-    assert [c["name"] for c in online_computers(Fixed(), now=1010)] == ["nowy"]  # type: ignore[arg-type]
+    widoczne = online_computers(Fixed(), now=1010, owner=konto)  # type: ignore[arg-type]
+    assert [c["name"] for c in widoczne] == ["nowy"]
 
 
 def test_tools_are_registered() -> None:

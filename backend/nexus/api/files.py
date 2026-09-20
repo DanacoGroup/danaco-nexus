@@ -25,6 +25,14 @@ router = APIRouter(prefix="/api/files", tags=["files"], dependencies=[Depends(re
 
 THUMBNAIL_SIDE = 320
 INLINE_MIME_PREFIXES = ("image/", "application/pdf", "text/plain", "audio/", "video/")
+# Dokumenty, które przeglądarka wykonuje jak stronę (skrypt, odsyłacz zewnętrzny), nigdy
+# nie wyświetlają się w oknie aplikacji — idą wyłącznie jako pobranie.
+INLINE_ZABRONIONE = frozenset({"image/svg+xml", "image/svg", "text/html", "text/xml", "application/xml"})
+
+
+def typ_nosnika(mime: str) -> str:
+    """Sam typ nośnika, bez parametrów: ``image/svg+xml; charset=utf-8`` → ``image/svg+xml``."""
+    return mime.split(";", 1)[0].strip().lower()
 
 
 def _content_disposition(name: str, inline: bool) -> str:
@@ -83,6 +91,7 @@ async def upload(
             "Usuń niepotrzebne pliki albo przejdź na wyższy plan.",
         )
     name = safe_filename(file.filename or "plik")
+    zadeklarowany = typ_nosnika(file.content_type or "")
     try:
         file_id, relative, size, digest = await asyncio.to_thread(
             storage.save_stream, file.file, name, settings.upload_limit_mb * 1024 * 1024
@@ -97,9 +106,11 @@ async def upload(
         owner_id=owner,
         origin="upload",
         name=name,
-        mime=guess_mime(name)
-        if (file.content_type or "").startswith("application/octet") or not file.content_type
-        else file.content_type,
+        # Rodzaj zapisujemy bez parametrów podanych przez klienta: w bazie ma zostać sam
+        # typ nośnika, bo po nim rozstrzyga się podgląd, miniatura i konwersje.
+        mime=zadeklarowany
+        if zadeklarowany and not zadeklarowany.startswith("application/octet")
+        else guess_mime(name),
         size=size,
         sha256=digest,
         storage_path=relative,
@@ -123,10 +134,13 @@ async def download(
     path = storage.path_of(record)
     if not path.is_file():
         raise HTTPException(status.HTTP_410_GONE, "Plik nie jest już dostępny.")
-    show_inline = inline and record.mime.startswith(INLINE_MIME_PREFIXES) and record.mime != "image/svg+xml"
+    # Rodzaj pliku rozstrzyga sam typ nośnika: z parametrem (``; charset=utf-8``) porównanie
+    # z pełną wartością przepuszczało dokument SVG do wyświetlenia w domenie aplikacji.
+    typ = typ_nosnika(record.mime)
+    show_inline = inline and typ.startswith(INLINE_MIME_PREFIXES) and typ not in INLINE_ZABRONIONE
     return FileResponse(
         path,
-        media_type=record.mime if show_inline else "application/octet-stream",
+        media_type=typ if show_inline else "application/octet-stream",
         headers={
             "Content-Disposition": _content_disposition(record.name, show_inline),
             "X-Content-Type-Options": "nosniff",

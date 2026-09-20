@@ -59,6 +59,21 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   `design_compose` składa kadr z warstw (baner, post, miniatura) z warstwą wektorową na
   wierzchu. Rysunek nie może pobierać zasobów z sieci ani zawierać kodu. Rejestr ma teraz
   61 narzędzi w dziewięciu dziedzinach. Testy: `backend/tests/test_projekt.py`.
+- **Przybornik zaznaczenia w przeglądarce — praca bez otwierania okna.** Panel boczny
+  jest dobry, gdy ktoś chce rozmawiać; częściej wystarczy jedna czynność na zaznaczonym
+  fragmencie. Rozszerzenie pokazuje teraz przy kursorze pasek ze skrótami użytkownika —
+  niewidoczny, dopóki nic nie jest zaznaczone — a wynik wraca do banera obok, z kopiowaniem
+  jednym kliknięciem. Kliknięcie gdziekolwiek indziej zamyka wszystko. Skróty układa sobie
+  użytkownik w opcjach rozszerzenia: każdy to zwykłe zdanie dla modelu, więc tłumacz ustawi
+  sobie inne niż programista. Zestaw startowy: przetłumacz, wyjaśnij, skróć, popraw, rozwiń,
+  odpowiedz, sprawdź kod. Po stronie serwera obsługuje to `POST /api/rozszerzenie/szybka-akcja`:
+  jedno pytanie bez narzędzi, bez zapisu w historii rozmów, rozliczane kredytami. Zaznaczenie
+  trafia do modelu opisane jako dane, nigdy jako polecenie — pochodzi z obcej strony.
+  Testy: `extension/testy/przybornik.test.ts`, `backend/tests/test_przybornik.py`.
+- **Rozpoznawanie twarzy** (`find_faces`): wykrywanie twarzy i grupowanie zdjęć tej samej
+  osoby — do porządkowania archiwum rodzinnego. Czynność jest opisana w rejestrze RODO
+  (CZ-14) wraz z dwiema sprawami do zamknięcia przed wejściem do sklepów z aplikacjami:
+  licencją modeli InsightFace i podstawą przetwarzania danych biometrycznych.
 - **Trzy sposoby mówienia do Nexusa.** Obok pisania i rozmowy głosowej doszło dyktowanie:
   mikrofon w polu wiadomości nagrywa wypowiedź, a rozpoznany tekst dopisuje się do tego, co
   już jest w polu — zostaje do poprawienia przed wysłaniem. Kto nie chce pisać na klawiaturze,
