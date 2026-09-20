@@ -22,6 +22,41 @@ async def _set_password(username: str, password: str) -> None:
         await database.close()
 
 
+async def _konto_testowe(email: str, haslo: str, plan: str, kredyty_dodatkowe: int) -> str:
+    """Zakłada konto klienta z kredytami, z pominięciem płatności.
+
+    Do wydania testerom i na własne konto właściciela: pełna przestrzeń i pełne możliwości,
+    bez przechodzenia przez Stripe. Konto jest zwykłym kontem portalu — testerzy pracują
+    dokładnie tak, jak będą pracować klienci.
+    """
+    from nexus.platnosci import kredyty
+    from nexus.portal.konta import BladKonta, utworz_konto, znajdz_konto
+
+    settings = get_settings()
+    database = Database(settings.database_url)
+    try:
+        await database.create_schema()
+        async with database.session() as session:
+            istniejace = await znajdz_konto(session, email.strip().lower())
+            if istniejace is not None:
+                user = istniejace
+                utworzone = False
+            else:
+                try:
+                    user = await utworz_konto(session, email=email, haslo=haslo, name="Konto testowe")
+                except BladKonta as error:
+                    raise ValueError(str(error)) from error
+                utworzone = True
+        await kredyty.przydziel_z_planu(database, user.id, plan, "konto-testowe")
+        if kredyty_dodatkowe > 0:
+            await kredyty.przydziel(database, user.id, kredyty_dodatkowe, "konto-testowe", "Przydział ręczny")
+        saldo = (await kredyty.stan(database, user.id)).saldo
+    finally:
+        await database.close()
+    stan_konta = "założone" if utworzone else "już istniało"
+    return f"Konto {email} ({stan_konta}). Plan {plan}, saldo kredytów: {saldo}."
+
+
 def main(argv: list[str] | None = None) -> int:
     """Punkt wejścia poleceń administracyjnych."""
     parser = argparse.ArgumentParser(prog="nexus.cli", description="Administracja Danaco Nexus")
@@ -33,6 +68,14 @@ def main(argv: list[str] | None = None) -> int:
         "--online",
         action="store_true",
         help="Wykonaj krótkie zapytanie testowe przez Claude Code CLI",
+    )
+    konto = commands.add_parser(
+        "konto-testowe", help="Załóż konto z kredytami bez przechodzenia przez płatność"
+    )
+    konto.add_argument("--email", required=True)
+    konto.add_argument("--plan", default="pro", help="Kod planu z katalogu (domyślnie pro)")
+    konto.add_argument(
+        "--kredyty", type=int, default=0, help="Kredyty ponad przydział planu (domyślnie 0)"
     )
     arguments = parser.parse_args(argv)
 
@@ -56,6 +99,21 @@ def main(argv: list[str] | None = None) -> int:
             print(str(error), file=sys.stderr)
             return 1
         print(f"Ustawiono hasło administratora „{arguments.username}”. Wszystkie sesje wylogowano.")
+
+    if arguments.command == "konto-testowe":
+        haslo = getpass.getpass("Hasło konta (min. 12 znaków): ")
+        if haslo != getpass.getpass("Powtórz hasło: "):
+            print("Hasła nie są identyczne.", file=sys.stderr)
+            return 1
+        try:
+            print(
+                asyncio.run(
+                    _konto_testowe(arguments.email, haslo, arguments.plan, max(arguments.kredyty, 0))
+                )
+            )
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 1
     return 0
 
 

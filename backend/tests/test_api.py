@@ -104,7 +104,7 @@ def test_session_cookie_and_csrf(client: TestClient, settings: Settings) -> None
     login(client)
     cookie = client.cookies.get("nexus_session")
     assert cookie and len(cookie) > 30
-    assert client.get("/api/auth/me").json() == {"username": "admin", "cloud_url": ""}
+    assert client.get("/api/auth/me").json() == {"username": "admin", "cloud_url": "", "gosc": ""}
     assert client.post("/api/conversations", json={}).status_code == 403
     assert client.post("/api/conversations", json={}, headers=HEADERS).status_code == 201
     client.post("/api/auth/logout", headers=HEADERS)

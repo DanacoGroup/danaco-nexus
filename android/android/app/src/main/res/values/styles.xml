@@ -21,7 +21,7 @@
         <item name="android:background">@null</item>
     </style>
 
-    <!-- Ekran startowy: tło #171717 i ikona Nexusa (Android 12+ SplashScreen, zgodność przez core-splashscreen). -->
+    <!-- Ekran startowy: tło z roli `side` i ikona Nexusa (Android 12+ SplashScreen, zgodność przez core-splashscreen). -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/nexus_side</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>

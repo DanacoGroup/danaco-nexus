@@ -1,6 +1,6 @@
 // Nawigacja modułów: pionowy pasek na komputerze, dolny pasek z arkuszem „Więcej” na telefonie.
 
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode, type RefObject } from "react";
 import { Logo, WaveIcon } from "../components/icons";
 import type { NexusModule } from "../modules/registry";
 import { ChatIcon, GridIcon, type IconProps } from "./icons";
@@ -66,16 +66,70 @@ function useTyping(): boolean {
   return typing;
 }
 
+
+/** Czy lista modułów ma coś jeszcze nad i pod widocznym fragmentem. */
+function useKrawedzie(element: RefObject<HTMLElement | null>, zaleznosc: unknown) {
+  const [krawedzie, setKrawedzie] = useState({ gora: false, dol: false });
+  useEffect(() => {
+    const cel = element.current;
+    if (!cel) return;
+    const policz = () =>
+      setKrawedzie({
+        gora: cel.scrollTop > 4,
+        dol: cel.scrollHeight - cel.scrollTop - cel.clientHeight > 4,
+      });
+    policz();
+    cel.addEventListener("scroll", policz, { passive: true });
+    const obserwator = typeof ResizeObserver === "function" ? new ResizeObserver(policz) : null;
+    obserwator?.observe(cel);
+    return () => {
+      cel.removeEventListener("scroll", policz);
+      obserwator?.disconnect();
+    };
+  }, [element, zaleznosc]);
+  return krawedzie;
+}
+
 export function NavRail({ entries, activeId, onSelect, railFooter }: Props) {
+  const lista = useRef<HTMLDivElement>(null);
+  // Modułów jest więcej, niż mieści się na ekranie laptopa. Bez znaku, że lista sięga
+  // dalej, połowa z nich wygląda na nieistniejącą — stąd cieniowanie przy krawędziach.
+  const { gora, dol } = useKrawedzie(lista, entries.length);
+
+  // Wybrany moduł ma być widoczny także wtedy, gdy trafił poza widoczny fragment listy
+  // (wybór z palety poleceń, powrót pod adres modułu).
+  useEffect(() => {
+    const wybrany = lista.current?.querySelector('[aria-current="page"]');
+    // `scrollIntoView` nie istnieje w każdym środowisku (np. w testach jsdom).
+    if (wybrany instanceof HTMLElement && typeof wybrany.scrollIntoView === "function") {
+      wybrany.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeId]);
+
   return (
     <nav
       aria-label="Moduły"
-      className="safe-top titlebar-drag hidden w-[72px] shrink-0 flex-col items-center gap-1 border-r border-line/60 bg-side py-3 md:flex"
+      className="safe-top titlebar-drag relative hidden w-[72px] shrink-0 flex-col items-center gap-1 border-r border-line/60 bg-side py-3 md:flex"
     >
       <button type="button" onClick={() => onSelect("chat")} aria-label="Danaco Nexus – czat" className="mb-3">
         <Logo size={34} className="rounded-xl shadow-md shadow-accent/20" />
       </button>
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-1.5">
+      {/* Cieniowanie przypięte do samej listy, nie do paska — inaczej rozjeżdża się,
+          gdy stopka paska (zadania w toku) zmienia wysokość. */}
+      <div className="relative flex min-h-0 w-full flex-1 flex-col">
+        {gora && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-side to-transparent"
+          />
+        )}
+        {dol && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-t from-side to-transparent"
+          />
+        )}
+        <div ref={lista} className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-1.5">
         {entries.map((entry) => {
           const active = entry.id === activeId;
           const EntryIcon = entry.icon;
@@ -86,21 +140,22 @@ export function NavRail({ entries, activeId, onSelect, railFooter }: Props) {
               title={entry.description}
               aria-current={active ? "page" : undefined}
               onClick={() => onSelect(entry.id)}
-              className={`group flex w-full flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium transition-colors ${
+              className={`group flex w-full flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-medium transition-colors ${
                 active ? "text-fg" : "text-muted hover:text-fg"
               }`}
             >
               <span
-                className={`grid size-10 place-items-center rounded-xl transition-colors ${
+                className={`grid size-9 place-items-center rounded-lg transition-colors ${
                   active ? "bg-accent-soft text-accent" : "group-hover:bg-hover"
                 }`}
               >
-                <EntryIcon size={21} />
+                <EntryIcon size={20} />
               </span>
               <span className="max-w-full truncate px-0.5">{entry.label}</span>
             </button>
           );
         })}
+        </div>
       </div>
       {railFooter && <div className="flex flex-col items-center gap-1 pt-2">{railFooter}</div>}
     </nav>

@@ -1,0 +1,117 @@
+{
+  "$description": "Odstępy w siatce 4 px. Klucz = wielokrotność 4 px (zgodnie z numeracją Tailwind).",
+  "space": {
+    "0": {
+      "$type": "dimension",
+      "$value": "0px"
+    },
+    "0-5": {
+      "$type": "dimension",
+      "$value": "2px"
+    },
+    "1": {
+      "$type": "dimension",
+      "$value": "4px"
+    },
+    "2": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "3": {
+      "$type": "dimension",
+      "$value": "12px"
+    },
+    "4": {
+      "$type": "dimension",
+      "$value": "16px"
+    },
+    "5": {
+      "$type": "dimension",
+      "$value": "20px"
+    },
+    "6": {
+      "$type": "dimension",
+      "$value": "24px"
+    },
+    "8": {
+      "$type": "dimension",
+      "$value": "32px"
+    },
+    "10": {
+      "$type": "dimension",
+      "$value": "40px"
+    },
+    "12": {
+      "$type": "dimension",
+      "$value": "48px"
+    },
+    "16": {
+      "$type": "dimension",
+      "$value": "64px"
+    },
+    "20": {
+      "$type": "dimension",
+      "$value": "80px"
+    },
+    "24": {
+      "$type": "dimension",
+      "$value": "96px"
+    },
+    "32": {
+      "$type": "dimension",
+      "$value": "128px"
+    }
+  },
+  "space-role": {
+    "inline-tight": {
+      "$type": "dimension",
+      "$value": "{space.1}",
+      "$description": "Ikona–tekst w małym elemencie"
+    },
+    "inline": {
+      "$type": "dimension",
+      "$value": "{space.2}",
+      "$description": "Ikona–tekst, elementy w wierszu"
+    },
+    "stack-tight": {
+      "$type": "dimension",
+      "$value": "{space.2}",
+      "$description": "Etykieta–pole"
+    },
+    "stack": {
+      "$type": "dimension",
+      "$value": "{space.4}",
+      "$description": "Elementy w karcie"
+    },
+    "inset-control": {
+      "$type": "dimension",
+      "$value": "{space.3}",
+      "$description": "Wewnętrzny odstęp poziomy kontrolki"
+    },
+    "inset-card": {
+      "$type": "dimension",
+      "$value": "{space.5}",
+      "$description": "Wewnętrzny odstęp karty"
+    },
+    "inset-panel": {
+      "$type": "dimension",
+      "$value": "{space.6}",
+      "$description": "Wewnętrzny odstęp panelu, okna"
+    },
+    "gap-message": {
+      "$type": "dimension",
+      "$value": "{space.6}",
+      "$description": "Odstęp między wiadomościami w rozmowie"
+    },
+    "section": {
+      "$type": "dimension",
+      "$value": "{space.24}",
+      "$description": "Odstęp sekcji strony produktu (desktop)"
+    },
+    "section-mobile": {
+      "$type": "dimension",
+      "$value": "{space.16}",
+      "$description": "Odstęp sekcji strony produktu (telefon)"
+    }
+  }
+}

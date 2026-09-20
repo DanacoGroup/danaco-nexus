@@ -24,6 +24,7 @@ from PIL import Image
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +94,13 @@ class ToolContext:
         cancel: threading.Event,
         progress: Callable[[str], None],
         mark_indexed: Callable[[uuid.UUID], None] | None = None,
+        owner_id: uuid.UUID | None = None,
     ) -> None:
         self.settings = settings
         self.run_id = run_id
+        # Konto, w którego przestrzeni pracuje narzędzie: skrzynka pocztowa, chmura
+        # i baza wiedzy należą do konta użytkownika, nie do serwera.
+        self.owner_id = owner_id or ADMIN_OWNER
         self._resolve_file = resolve_file
         self.cancel = cancel
         self._progress = progress

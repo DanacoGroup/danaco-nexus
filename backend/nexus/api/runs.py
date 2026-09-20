@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, update
 
-from nexus.api.auth import require_session
-from nexus.db import Database, Run, RunEvent
+from nexus.api.auth import require_session, wlasciciel
+from nexus.db import Conversation, Database, Run, RunEvent
 from nexus.events import EventBus, channel
 
 router = APIRouter(prefix="/api/runs", tags=["runs"], dependencies=[Depends(require_session)])
@@ -24,19 +24,24 @@ WAIT_SECONDS = 5.0
 KEEPALIVE_SECONDS = 15.0
 
 
-async def _run(request: Request, run_id: uuid.UUID) -> Run:
+async def _run(request: Request, run_id: uuid.UUID, owner: uuid.UUID) -> Run:
+    """Przebieg z rozmowy należącej do ``owner``; cudzy daje 404 jak nieistniejący."""
     database: Database = request.app.state.database
     async with database.session() as session:
         run = await session.get(Run, run_id)
-    if run is None:
+        if run is not None:
+            rozmowa = await session.get(Conversation, run.conversation_id)
+    if run is None or rozmowa is None or rozmowa.owner_id != owner:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono zadania.")
     return run
 
 
 @router.get("/{run_id}")
-async def get_run(run_id: uuid.UUID, request: Request) -> dict[str, Any]:
+async def get_run(
+    run_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Stan zadania."""
-    run = await _run(request, run_id)
+    run = await _run(request, run_id, owner)
     return {
         "id": str(run.id),
         "status": run.status,
@@ -47,9 +52,11 @@ async def get_run(run_id: uuid.UUID, request: Request) -> dict[str, Any]:
 
 
 @router.post("/{run_id}/cancel")
-async def cancel_run(run_id: uuid.UUID, request: Request) -> dict[str, str]:
+async def cancel_run(
+    run_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, str]:
     """Zgłasza anulowanie zadania (oczekujące jest anulowane od razu)."""
-    await _run(request, run_id)
+    await _run(request, run_id, owner)
     database: Database = request.app.state.database
     async with database.session() as session:
         await session.execute(
@@ -73,10 +80,14 @@ def _sse(event_id: int, event_type: str, data: dict[str, Any]) -> str:
 
 @router.get("/{run_id}/events")
 async def run_events(
-    run_id: uuid.UUID, request: Request, after: int = 0, last_event_id: str | None = Header(None)
+    run_id: uuid.UUID,
+    request: Request,
+    after: int = 0,
+    last_event_id: str | None = Header(None),
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> StreamingResponse:
     """Strumień zdarzeń zadania; wznowienie od ``Last-Event-ID`` lub parametru ``after``."""
-    await _run(request, run_id)
+    await _run(request, run_id, owner)
     database: Database = request.app.state.database
     bus: EventBus = request.app.state.events
     start = max(after, int(last_event_id) if last_event_id and last_event_id.isdigit() else 0)

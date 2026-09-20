@@ -36,11 +36,20 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 JsonType = JSON().with_variant(JSONB(), "postgresql")
 IdType = BigInteger().with_variant(Integer(), "sqlite")
 SCHEMA_LOCK_ID = 7_314_225
+_ADMIN_OWNER_TEXT = "00000000-0000-0000-0000-0000000000a1"
+_WLASCICIEL_PG = f"UUID NOT NULL DEFAULT '{_ADMIN_OWNER_TEXT}'"
+_WLASCICIEL_SQLITE = f"TEXT NOT NULL DEFAULT '{_ADMIN_OWNER_TEXT}'"
 # Kolumny dodane do istniejących tabel po pierwszym wdrożeniu: (tabela, kolumna, typ PostgreSQL,
 # typ SQLite). create_all nie zmienia istniejących tabel – te kolumny dodaje create_schema.
 # Moduły dopisują własne w nexus/models/<moduł>.py jako COLUMNS.
 COLUMNS: list[tuple[str, str, str, str]] = [
     ("conversations", "meta", "JSONB NOT NULL DEFAULT '{}'::jsonb", "JSON NOT NULL DEFAULT '{}'"),
+    # Właściciel wpisu. Domyślna wartość to konto administratora: istniejące rozmowy,
+    # pliki i klucze urządzeń powstały przed podziałem na konta i należą do niego.
+    *(
+        (tabela, "owner_id", _WLASCICIEL_PG, _WLASCICIEL_SQLITE)
+        for tabela in ("conversations", "files", "sessions", "device_tokens")
+    ),
 ]
 
 
@@ -80,6 +89,11 @@ class Base(DeclarativeBase):
     """Klasa bazowa modeli."""
 
 
+# Konto administratora serwera. Stały identyfikator, bo administrator nie ma wpisu
+# w ``portal_users``, a jego rozmowy i pliki muszą mieć właściciela jak każde inne.
+ADMIN_OWNER = uuid.UUID(_ADMIN_OWNER_TEXT)
+
+
 class Setting(Base):
     """Ustawienie klucz–wartość (np. skrót hasła administratora)."""
 
@@ -96,6 +110,10 @@ class UserSession(Base):
     __tablename__ = "sessions"
 
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Konto, do którego należy sesja: konto portalu (``portal_users.id``) albo
+    # ``ADMIN_OWNER`` dla administratora serwera. Rozmowy, pliki i przebiegi widzi
+    # wyłącznie ich właściciel — bez tego każdy zalogowany czytałby cudzą historię.
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UtcDateTime())
     last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
@@ -115,6 +133,7 @@ class DeviceToken(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(100))
     kind: Mapped[str] = mapped_column(String(20), default="inne")
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -126,6 +145,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     title: Mapped[str] = mapped_column(String(200), default="Nowa rozmowa")
     claude_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # Ustawienia rozmowy zależne od modułu, np. {"mode": "code", "workspace": "sklep"}.
@@ -166,12 +186,17 @@ class StoredFile(Base):
         Uuid, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True, index=True
     )
     run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     origin: Mapped[str] = mapped_column(String(20))
     name: Mapped[str] = mapped_column(String(300))
     mime: Mapped[str] = mapped_column(String(150))
     size: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64))
     storage_path: Mapped[str] = mapped_column(String(300))
+    # Katalog w przestrzeni plików konta (nexus/models/pliki.py) i własna nazwa nadana
+    # przez użytkownika. Puste znaczy „nieuporządkowany” — plik i tak jest widoczny.
+    katalog_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    tytul: Mapped[str] = mapped_column(String(300), default="")
     meta: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     indexed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)

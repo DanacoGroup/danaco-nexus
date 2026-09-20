@@ -103,12 +103,37 @@ export interface MailState {
   address: string;
   accounts: MailAccount[];
   name?: string;
-  setup?: string;
   error?: string;
+}
+
+/** Dane konta podawane w module. Hasło nigdy nie wraca z serwera. */
+export interface KontoPocztowe {
+  login: string;
+  haslo: string;
+  adres: string;
+  nazwa: string;
+  etykieta: string;
+  imap_host: string;
+  imap_port: number;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_security: "ssl" | "starttls";
+  podpis_html: string;
+}
+
+export interface WynikSprawdzenia {
+  ok: boolean;
+  imap: boolean;
+  smtp: boolean;
+  folders: number;
 }
 
 export const mailApi = {
   state: () => call<MailState>("GET", "/api/poczta/stan"),
+  sprawdzKonto: (konto: KontoPocztowe) => call<WynikSprawdzenia>("POST", "/api/poczta/konta/sprawdz", konto),
+  zapiszKonto: (konto: KontoPocztowe) =>
+    call<{ ok: boolean; id: string; konta: number }>("POST", "/api/poczta/konta", konto),
+  usunKonto: (id: string) => call<{ ok: boolean; konta: number }>("DELETE", `/api/poczta/konta/${encodeURIComponent(id)}`),
   folders: (konto: string) => call<MailFolder[]>("GET", `/api/poczta/foldery${qs({ konto })}`),
   messages: (konto: string, folder: string, beforeUid?: number, unread = false) =>
     call<MailListing>("GET", `/api/poczta/wiadomosci${qs({ konto, folder, before_uid: beforeUid, unread })}`),

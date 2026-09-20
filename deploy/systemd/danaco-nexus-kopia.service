@@ -1,0 +1,24 @@
+[Unit]
+Description=Danaco Nexus — kopia zapasowa baz, plików, wektorów i sekretów
+Documentation=file:///danaco/projekty/danaco-nexus/README.md
+Requires=danaco-nexus-postgres.service
+After=danaco-nexus-postgres.service
+
+[Service]
+Type=oneshot
+User=danaco-serwis
+Group=danaco-user
+UMask=0007
+WorkingDirectory=/danaco/projekty/danaco-nexus
+Environment=TMPDIR=/danaco/projekty/danaco-nexus/dane/tmp
+# Ile dni trzymać kopie; starsze katalogi kasuje sam skrypt.
+Environment=NEXUS_KOPIE_DNI=14
+ExecStart=/danaco/projekty/danaco-nexus/deploy/kopia-zapasowa.sh
+TimeoutStartSec=2h
+Nice=15
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane

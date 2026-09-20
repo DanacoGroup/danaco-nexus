@@ -83,7 +83,7 @@ def compose_background(
     mode: BackgroundMode,
     *,
     color: str = "#ffffff",
-    color2: str = "#e4e4e7",
+    color2: str = "#E0E3EC",
     angle: float = 90.0,
     background: Image.Image | None = None,
     original: Image.Image | None = None,

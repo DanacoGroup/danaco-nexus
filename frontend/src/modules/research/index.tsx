@@ -1,4 +1,4 @@
-// Moduł Research: Deep Research (sieć) i Scholar Research (prace naukowe) z raportem i przypisami.
+// Moduł Badania: przegląd sieci i prac naukowych zakończony raportem z przypisami.
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ApiError } from "../../api";
@@ -18,9 +18,14 @@ import { GlobeIcon, HistoryIcon, ResearchIcon, ScholarIcon } from "./icons";
 import { ReportView } from "./ReportView";
 
 const KINDS: { id: ResearchKind; label: string; hint: string; icon: typeof GlobeIcon }[] = [
-  { id: "deep", label: "Deep Research", hint: "Sieć: strony, raporty, media, dokumentacja", icon: GlobeIcon },
-  { id: "scholar", label: "Scholar", hint: "Tylko prace naukowe, cytowania APA", icon: ScholarIcon },
+  { id: "deep", label: "Sieć", hint: "Strony, raporty, media, dokumentacja", icon: GlobeIcon },
+  { id: "scholar", label: "Prace naukowe", hint: "Tylko publikacje naukowe, cytowania APA", icon: ScholarIcon },
 ];
+/** Nazwa rodzaju badania w historii — ta sama etykieta, którą widać przy wyborze rodzaju. */
+export function nazwaRodzaju(kind: ResearchKind): string {
+  return KINDS.find((rodzaj) => rodzaj.id === kind)?.label ?? KINDS[0].label;
+}
+
 const DEPTHS: { id: ResearchDepth; label: string; hint: string }[] = [
   { id: "quick", label: "Szybkie", hint: "4–6 źródeł, kilka minut" },
   { id: "standard", label: "Standardowe", hint: "10–15 źródeł" },
@@ -110,12 +115,12 @@ function NewResearch({
           <ResearchIcon size={24} />
         </span>
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Research</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Badania</h2>
           <p className="text-sm text-muted">Badanie tematu w wielu źródłach i raport z przypisami.</p>
         </div>
       </div>
       <form onSubmit={submit} className="mt-7 space-y-5">
-        <div className="rounded-3xl border border-line bg-raised/40 p-2 focus-within:border-line-strong">
+        <div className="rounded-2xl border border-line bg-raised/40 p-2 focus-within:border-line-strong">
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
@@ -161,7 +166,7 @@ function NewResearch({
                 aria-pressed={depth === option.id}
                 onClick={() => setDepth(option.id)}
                 className={`rounded-xl px-2 py-2 text-center transition-colors ${
-                  depth === option.id ? "bg-accent text-on-accent" : "hover:bg-raised"
+                  depth === option.id ? "bg-accent-fill text-on-accent" : "hover:bg-raised"
                 }`}
               >
                 <span className="block text-sm font-medium">{option.label}</span>
@@ -198,7 +203,7 @@ function NewResearch({
         <button
           type="submit"
           disabled={busy || question.trim().length < 3}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 font-medium text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-fill px-4 py-3 font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:opacity-50"
         >
           {busy ? <span className="spinner" /> : <ResearchIcon size={18} />}
           Rozpocznij badanie
@@ -290,7 +295,7 @@ function ResearchPage({ openConversation }: ModulePageProps) {
             <span className="min-w-0 flex-1">
               <span className="line-clamp-2 text-sm">{report.question}</span>
               <span className="text-xs text-muted">
-                {report.kind === "scholar" ? "Scholar" : "Deep"} · {shortDate(report.created_at)}
+                {nazwaRodzaju(report.kind)} · {shortDate(report.created_at)}
               </span>
             </span>
           </button>
@@ -313,7 +318,7 @@ function ResearchPage({ openConversation }: ModulePageProps) {
           <button type="button" className="icon-btn" onClick={() => setHistoryOpen(true)} aria-label="Historia badań">
             <HistoryIcon size={19} />
           </button>
-          <span className="text-sm font-medium">Research</span>
+          <span className="text-sm font-medium">Badania</span>
         </div>
         {error && (
           <div role="alert" onClick={() => setError("")} className="m-3 rounded-xl border border-danger/40 bg-danger-soft px-3.5 py-2 text-sm text-danger">
@@ -352,8 +357,8 @@ function ResearchPage({ openConversation }: ModulePageProps) {
 
 export const module: NexusModule = {
   id: "research",
-  label: "Research",
-  description: "Deep Research i Scholar Research: badanie tematu w wielu źródłach, raport z przypisami.",
+  label: "Badania",
+  description: "Przegląd sieci i prac naukowych: badanie tematu w wielu źródłach, raport z przypisami.",
   icon: ResearchIcon,
   order: 30,
   Page: ResearchPage,

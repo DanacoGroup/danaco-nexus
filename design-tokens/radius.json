@@ -1,0 +1,45 @@
+{
+  "$description": "Promienie zaokrągleń. Reguła zagnieżdżenia: promień wewnętrzny = promień zewnętrzny − odstęp wewnętrzny.",
+  "radius": {
+    "xs": {
+      "$type": "dimension",
+      "$value": "4px",
+      "$description": "Znacznik, pole wyboru, kod śródtekstowy"
+    },
+    "sm": {
+      "$type": "dimension",
+      "$value": "6px",
+      "$description": "Mały przycisk, pozycja menu"
+    },
+    "md": {
+      "$type": "dimension",
+      "$value": "10px",
+      "$description": "Przycisk, pole, pozycja listy"
+    },
+    "lg": {
+      "$type": "dimension",
+      "$value": "14px",
+      "$description": "Karta, menu rozwijane, blok kodu"
+    },
+    "xl": {
+      "$type": "dimension",
+      "$value": "20px",
+      "$description": "Okno dialogowe, pole wiadomości (composer), paleta poleceń"
+    },
+    "2xl": {
+      "$type": "dimension",
+      "$value": "28px",
+      "$description": "Panel wysuwany na telefonie, duży kafel strony"
+    },
+    "pill": {
+      "$type": "dimension",
+      "$value": "9999px",
+      "$description": "Znacznik stanu, przełącznik, awatar"
+    },
+    "icon": {
+      "$type": "dimension",
+      "$value": "22.5%",
+      "$description": "Ikona aplikacji w formie superelipsy n = 4,6 — przybliżenie w CSS; plik SVG ma kształt dokładny"
+    }
+  }
+}

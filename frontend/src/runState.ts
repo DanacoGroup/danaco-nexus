@@ -1,6 +1,6 @@
 // Nakładanie zdarzeń strumienia zadania na turę asystenta (funkcja czysta, testowalna).
 //
-// Zdarzenia podagentów (narzędzie Agent Claude Code) mają pole parent_tool_use_id –
+// Zdarzenia podagentów mają pole parent_tool_use_id –
 // trafiają wtedy do elementu podagenta (agent.items), a nie na najwyższy poziom tury.
 
 import type { AssistantTurn, FileInfo, RunEvent, TurnItem } from "./api";

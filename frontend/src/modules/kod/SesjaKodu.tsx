@@ -1,4 +1,4 @@
-// Panel rozmowy z Claude Code w trybie „code” dla projektu (zwykłe API rozmów z meta trybu).
+// Panel sesji programistycznej w trybie „code” dla projektu (zwykłe API rozmów z meta trybu).
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, downloadUrl, FINAL_EVENTS, subscribeRun, type FileInfo, type Turn } from "../../api";
@@ -138,7 +138,7 @@ export function SesjaKodu({
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col" aria-label="Sesja Claude Code">
+    <section className="flex min-h-0 flex-1 flex-col" aria-label="Sesja kodu">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2">
         <select
           value={conversationId ?? ""}
@@ -173,7 +173,7 @@ export function SesjaKodu({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4">
         {turns.length === 0 && (
           <p className="text-sm text-muted">
-            Claude Code pracuje w katalogu projektu: czyta i zmienia pliki, uruchamia testy i polecenia git. Opisz,
+            Nexus pracuje w katalogu projektu: czyta i zmienia pliki, uruchamia testy i polecenia git. Opisz,
             co zrobić – np. „Dodaj walidację formularza i testy”.
           </p>
         )}
@@ -193,7 +193,7 @@ export function SesjaKodu({
           onChange={(event) => setText(event.target.value)}
           onKeyDown={onKey}
           rows={2}
-          placeholder="Polecenie dla Claude Code…"
+          placeholder="Polecenie dla Nexusa…"
           className="min-h-10 flex-1 resize-none rounded-xl border border-line bg-app px-3 py-2 text-sm outline-none focus:border-accent"
           aria-label="Polecenie"
         />
@@ -210,7 +210,7 @@ export function SesjaKodu({
           <button
             type="submit"
             disabled={!text.trim()}
-            className="grid size-10 place-items-center rounded-full bg-accent text-on-accent disabled:opacity-40"
+            className="grid size-10 place-items-center rounded-full bg-accent-fill text-on-accent disabled:opacity-40"
             aria-label="Wyślij"
           >
             <SendIcon size={18} />

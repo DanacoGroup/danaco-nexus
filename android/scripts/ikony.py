@@ -1,4 +1,4 @@
-"""Ikony aplikacji Android z ikon PWA (frontend/public/icons).
+"""Ikony aplikacji Android z pakietu marki (logo/pwa).
 
 Tworzy mipmapy ``ic_launcher.png`` i ``ic_launcher_round.png`` (ikona zwykła) we wszystkich
 gęstościach. Ikona adaptacyjna (Android 8+) jest wektorowa (``drawable/ic_launcher_*.xml``)
@@ -14,13 +14,16 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 REPO = Path(__file__).resolve().parents[2]
-SOURCE = REPO / "frontend" / "public" / "icons" / "icon-512.png"
+SOURCE = REPO / "logo" / "pwa" / "icon-1024.png"
+# Ikona okrągła powstaje z wariantu maskowalnego: ma zapas przy krawędzi, więc znak nie jest ścinany.
+SOURCE_ROUND = REPO / "logo" / "pwa" / "icon-maskable-1024.png"
 RES = REPO / "android" / "android" / "app" / "src" / "main" / "res"
 DENSITIES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
 
 def main() -> None:
     source = Image.open(SOURCE).convert("RGBA")
+    source_round = Image.open(SOURCE_ROUND).convert("RGBA")
     for density, size in DENSITIES.items():
         folder = RES / f"mipmap-{density}"
         folder.mkdir(parents=True, exist_ok=True)
@@ -29,7 +32,11 @@ def main() -> None:
         mask = Image.new("L", (size * 4, size * 4), 0)
         ImageDraw.Draw(mask).ellipse((0, 0, size * 4 - 1, size * 4 - 1), fill=255)
         round_icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        round_icon.paste(icon, (0, 0), mask.resize((size, size), Image.Resampling.LANCZOS))
+        round_icon.paste(
+            source_round.resize((size, size), Image.Resampling.LANCZOS),
+            (0, 0),
+            mask.resize((size, size), Image.Resampling.LANCZOS),
+        )
         round_icon.save(folder / "ic_launcher_round.png", optimize=True)
         stale = folder / "ic_launcher_foreground.png"
         if stale.exists():

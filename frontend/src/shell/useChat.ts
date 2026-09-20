@@ -27,6 +27,8 @@ export function useChat({ onUnauthorized, onOpened }: Options) {
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [activeRun, setActiveRun] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // Odmowa z braku kredytów ma własny widok; sam czerwony pasek wyglądałby na awarię.
+  const [brakKredytow, setBrakKredytow] = useState(false);
   const activeRunRef = useRef<string | null>(null);
   activeRunRef.current = activeRun;
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -38,6 +40,7 @@ export function useChat({ onUnauthorized, onOpened }: Options) {
       callbacks.current.onUnauthorized();
       return;
     }
+    if (failure instanceof ApiError && failure.status === 402) setBrakKredytow(true);
     setError(failure instanceof Error ? failure.message : String(failure));
   }, []);
 
@@ -127,6 +130,7 @@ export function useChat({ onUnauthorized, onOpened }: Options) {
 
   /** Wysyła wiadomość (tworzy rozmowę, gdy żadna nie jest otwarta); zwraca identyfikator zadania. */
   const send = async (text: string, files: FileInfo[], voice = false): Promise<string | null> => {
+    setBrakKredytow(false);
     try {
       let conversationId = currentId;
       if (!conversationId) {
@@ -190,6 +194,8 @@ export function useChat({ onUnauthorized, onOpened }: Options) {
     activeRun,
     error,
     setError,
+    brakKredytow,
+    setBrakKredytow,
     handleError,
     refreshList,
     open,

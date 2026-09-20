@@ -35,7 +35,7 @@ class BackgroundRequest(BaseModel):
     file_id: str
     mode: Literal["color", "gradient", "image", "blur", "transparent"]
     color: str = "#ffffff"
-    color2: str = "#e4e4e7"
+    color2: str = "#E0E3EC"
     angle: float = Field(90, ge=0, le=360)
     background_file_id: str | None = None
     original_file_id: str | None = None

@@ -65,16 +65,11 @@ export interface TaskSummary {
   activity: string;
 }
 
-export interface LimitWindow {
-  utilization: number | null;
-  resets_at: number | null;
-}
 
 export interface TasksOverview {
   active: TaskSummary[];
   finished: TaskSummary[];
   config: { concurrency: number; queued: number; subagents: boolean; max_subagents: number; web_tools: boolean };
-  limits: { status: string; updated_at: string; windows: Record<string, LimitWindow>; warning: string } | null;
 }
 
 export const agenciApi = {

@@ -28,7 +28,7 @@ const KIND_LABELS = { strona: "Strona", plik: "Plik", praca: "Praca naukowa", te
 const BUTTON =
   "inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-raised disabled:opacity-50";
 const PRIMARY =
-  "inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-50";
+  "inline-flex items-center gap-1.5 rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:opacity-50";
 
 function IndexBadge({ item }: { item: { indexed: boolean; index_error?: string } }) {
   if (item.index_error) return <span className="text-xs text-danger">Błąd indeksu</span>;
@@ -766,7 +766,7 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
                     </ul>
                     {tab === "zrodla" && sources.length === 0 && (
                       <p className="py-8 text-center text-sm text-muted">
-                        Dodaj stronę, plik lub zapisz źródła z badania w module Research.
+                        Dodaj stronę, plik lub zapisz źródła z badania w module Badania.
                       </p>
                     )}
                     {tab === "notatki" && notes.length === 0 && (
@@ -823,7 +823,7 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
 
 export const module: NexusModule = {
   id: "wiedza",
-  label: "Baza wiedzy",
+  label: "Wiedza",
   description: "Kolekcje stron, plików, prac i notatek; wyszukiwanie po znaczeniu i rozmowa z dokumentami.",
   icon: LibraryIcon,
   order: 31,

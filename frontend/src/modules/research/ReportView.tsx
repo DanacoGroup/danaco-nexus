@@ -30,7 +30,7 @@ const CITE_STYLES =
   "[&_sup.cite-group]:ml-0.5 [&_sup.cite-group]:whitespace-nowrap [&_a.cite]:inline-block [&_a.cite]:min-w-[1.25rem] " +
   "[&_a.cite]:rounded-md [&_a.cite]:bg-accent-soft [&_a.cite]:px-1 [&_a.cite]:text-center [&_a.cite]:text-[11px] " +
   "[&_a.cite]:leading-4 [&_a.cite]:font-semibold [&_a.cite]:text-accent [&_a.cite]:no-underline " +
-  "[&_a.cite:hover]:bg-accent [&_a.cite:hover]:text-on-accent [&_span.cite-sep]:hidden";
+  "[&_a.cite:hover]:bg-accent-fill [&_a.cite:hover]:text-on-accent [&_span.cite-sep]:hidden";
 
 function toolName(name: string): string {
   const short = name.replace(/^mcp__nexus__/, "");

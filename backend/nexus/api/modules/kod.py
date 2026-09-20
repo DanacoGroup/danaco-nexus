@@ -491,6 +491,7 @@ async def create_conversation(name: str, payload: NewConversation, request: Requ
     _project(request, name)
     conversation = Conversation(
         id=uuid.uuid4(),
+        owner_id=(await require_session(request)).owner_id,
         title=(payload.title or "").strip() or f"Kod: {name}",
         meta={"mode": "code", "workspace": name},
     )

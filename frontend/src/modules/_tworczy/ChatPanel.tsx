@@ -153,7 +153,7 @@ export function ChatPanel({ conversation, conversationId, placeholder, empty, pr
           ) : (
             <button
               type="button"
-              className="icon-btn bg-accent text-on-accent hover:bg-accent-hover hover:text-on-accent"
+              className="icon-btn bg-accent-fill text-on-accent hover:bg-accent-fill-hover hover:text-on-accent"
               onClick={submit}
               disabled={(!text.trim() && !files.length) || uploading > 0 || !conversationId}
               aria-label="Wyślij"

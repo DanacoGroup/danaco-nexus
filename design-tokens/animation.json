@@ -1,0 +1,208 @@
+{
+  "$description": "Ruch. Zasada: ruch tłumaczy zmianę stanu, nigdy nie opóźnia pracy. Przy prefers-reduced-motion: reduce czasy > 200 ms skracane do 0 ms, pozostają zmiany przezroczystości.",
+  "duration": {
+    "instant": {
+      "$type": "duration",
+      "$value": "80ms",
+      "$description": "Zmiana koloru pod kursorem, wciśnięcie"
+    },
+    "fast": {
+      "$type": "duration",
+      "$value": "140ms",
+      "$description": "Pojawienie podpowiedzi, przełącznik"
+    },
+    "base": {
+      "$type": "duration",
+      "$value": "200ms",
+      "$description": "Menu, rozwinięcie elementu, wejście wiadomości w rozmowie (z easing.enter)"
+    },
+    "moderate": {
+      "$type": "duration",
+      "$value": "280ms",
+      "$description": "Pasek boczny, okno dialogowe"
+    },
+    "slow": {
+      "$type": "duration",
+      "$value": "420ms",
+      "$description": "Zmiana widoku, wejście ekranu powitalnego"
+    },
+    "slower": {
+      "$type": "duration",
+      "$value": "640ms",
+      "$description": "Animacja znaku, ekran powitalny"
+    },
+    "ambient": {
+      "$type": "duration",
+      "$value": "2400ms",
+      "$description": "Pętla oddechu wskaźnika pracy agenta"
+    }
+  },
+  "easing": {
+    "standard": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.2,
+        0,
+        0,
+        1
+      ],
+      "$description": "Ruch w obrębie ekranu"
+    },
+    "enter": {
+      "$type": "cubicBezier",
+      "$value": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "$description": "Wejście elementu (hamowanie): menu, okno, wiadomość w rozmowie"
+    },
+    "exit": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.3,
+        0,
+        1,
+        1
+      ],
+      "$description": "Wyjście elementu (przyspieszenie)"
+    },
+    "emphasized": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.2,
+        0,
+        0,
+        1.25
+      ],
+      "$description": "Wejście z wyczuwalnym, spokojnym przebiegiem ok. 3,3% (poprzednio [0.2, 0, 0, 1.1] — 0,65%, niewidoczny): znak, dymek powiadomienia, elementy pracy AI. Nie dla wiadomości w rozmowie."
+    },
+    "linear": {
+      "$type": "cubicBezier",
+      "$value": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "$description": "Postęp, pętle ambient"
+    }
+  },
+  "distance": {
+    "nudge": {
+      "$type": "dimension",
+      "$value": "2px",
+      "$description": "Wciśnięcie, uniesienie karty"
+    },
+    "small": {
+      "$type": "dimension",
+      "$value": "6px",
+      "$description": "Wejście wiadomości, podpowiedzi"
+    },
+    "medium": {
+      "$type": "dimension",
+      "$value": "16px",
+      "$description": "Wejście panelu, powiadomienia"
+    }
+  },
+  "spring": {
+    "default": {
+      "$type": "object",
+      "$value": {
+        "stiffness": 380,
+        "damping": 34,
+        "mass": 1
+      },
+      "$description": "Sprężyna dla interakcji z gestem (przeciąganie, szuflada na telefonie); ζ ≈ 0,87, czas ustalenia ok. 250 ms. W CSS jako --spring-default-stiffness, -damping, -mass"
+    }
+  },
+  "delay": {
+    "tooltip": {
+      "$type": "duration",
+      "$value": "500ms",
+      "$description": "Opóźnienie pojawienia dymka podpowiedzi po wskazaniu kursorem"
+    },
+    "tooltip-skip": {
+      "$type": "duration",
+      "$value": "300ms",
+      "$description": "Okno, w którym kolejny dymek podpowiedzi pojawia się bez opóźnienia"
+    },
+    "skeleton": {
+      "$type": "duration",
+      "$value": "300ms",
+      "$description": "Szkielet pokazywany dopiero po tym czasie oczekiwania"
+    },
+    "copied": {
+      "$type": "duration",
+      "$value": "2000ms",
+      "$description": "Czas potwierdzenia „Skopiowano” na przycisku"
+    },
+    "toast": {
+      "$type": "duration",
+      "$value": "5000ms",
+      "$description": "Czas wyświetlania dymka powiadomienia sukcesu i informacji"
+    },
+    "toast-long": {
+      "$type": "duration",
+      "$value": "8000ms",
+      "$description": "Czas wyświetlania ostrzeżenia i dymka z działaniem „Cofnij”"
+    },
+    "load-timeout": {
+      "$type": "duration",
+      "$value": "10000ms",
+      "$description": "Po tym czasie wczytywania szkielet ustępuje komunikatowi z „Spróbuj ponownie”"
+    }
+  },
+  "scale": {
+    "press": {
+      "$type": "number",
+      "$value": 0.97,
+      "$description": "Wciśnięcie przycisku, karty, pozycji"
+    },
+    "press-strong": {
+      "$type": "number",
+      "$value": 0.94,
+      "$description": "Wciśnięcie przycisku wysyłki w polu wiadomości"
+    },
+    "enter": {
+      "$type": "number",
+      "$value": 0.98,
+      "$description": "Skala początkowa wejścia okna, palety poleceń, nakładki upuszczania"
+    },
+    "pop": {
+      "$type": "number",
+      "$value": 0.6,
+      "$description": "Skala początkowa wejścia znacznika sukcesu i błędu, podmiany ikony"
+    },
+    "dot-min": {
+      "$type": "number",
+      "$value": 0.85,
+      "$description": "Najmniejsza skala w pętli oddechu wskaźnika pracy agenta (zakres 0,85–1)"
+    }
+  },
+  "stagger": {
+    "step": {
+      "$type": "duration",
+      "$value": "80ms",
+      "$description": "Odstęp kolejnych elementów w kaskadzie wejścia"
+    },
+    "max": {
+      "$type": "number",
+      "$value": 4,
+      "$description": "Najwięcej kroków kaskady; dalsze elementy wchodzą razem z czwartym"
+    }
+  },
+  "gesture": {
+    "drawer-distance": {
+      "$type": "number",
+      "$value": 0.4,
+      "$description": "Próg otwarcia szuflady po puszczeniu: ułamek drogi (40%)"
+    },
+    "drawer-velocity": {
+      "$type": "number",
+      "$value": 500,
+      "$description": "Próg prędkości puszczenia szuflady w px/s"
+    }
+  }
+}

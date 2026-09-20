@@ -1,0 +1,254 @@
+/* Danaco Nexus — ruch i stany biblioteki frontend/src/ui.
+   Wartości wyłącznie z tokenów (design-tokens/dist/tokens.css → src/tokens.css).
+   Podłączenie: @import "./ui/ruch.css"; w frontend/src/styles.css.
+   Czasy, krzywe i choreografia: motion/MOTION_GUIDELINES.md. */
+
+/* ── Stany kontrolek ─────────────────────────────────────────────── */
+
+.ui-przejscie {
+  transition-property: background-color, border-color, color, box-shadow, opacity, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--easing-standard);
+}
+
+.ui-przejscie-tresc {
+  transition-property: opacity, transform, inset-inline-start, inline-size;
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--easing-standard);
+}
+
+.ui-nacisk:not(:disabled):not([aria-disabled="true"]):active {
+  transform: scale(var(--scale-press));
+}
+
+.ui-nacisk-mocny:not(:disabled):not([aria-disabled="true"]):active {
+  transform: scale(var(--scale-press-strong));
+}
+
+.ui-kontrolka:disabled,
+.ui-kontrolka[aria-disabled="true"] {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Wariant AI: jasna nakładka zamiast zmiany gradientu (Aurora nie zmienia barw). */
+.ui-warstwa {
+  position: relative;
+  isolation: isolate;
+}
+.ui-warstwa::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-white);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-instant) var(--easing-standard);
+}
+.ui-warstwa:hover::after {
+  opacity: var(--opacity-overlay-hover);
+}
+.ui-warstwa:active::after {
+  opacity: var(--opacity-overlay-press);
+}
+
+/* Obszar trafienia na ekranie dotykowym — bez zmiany układu (WCAG 2.5.8). */
+@media (pointer: coarse) {
+  .ui-cel-dotyku::before {
+    content: "";
+    position: absolute;
+    inset: 50% 50%;
+    inline-size: var(--control-touch-target);
+    block-size: var(--control-touch-target);
+    translate: -50% -50%;
+  }
+}
+
+/* ── Wejścia i kaskada ───────────────────────────────────────────── */
+
+/* Jedyna kaskada wejścia sterowana widocznością. Treść znika wyłącznie wtedy, gdy zaczep
+   jawnie ogłosi „jeszcze nie w kadrze” — bez skryptu i bez atrybutu zostaje widoczna. */
+.ui-ujawnij {
+  transition:
+    opacity var(--duration-slow) var(--easing-enter),
+    transform var(--duration-slow) var(--easing-enter);
+  transition-delay: var(--ui-opoznienie, 0ms);
+}
+.ui-ujawnij[data-widoczny="false"] {
+  opacity: 0;
+  transform: translateY(var(--distance-medium));
+}
+
+.ui-wejscie {
+  animation: ui-wejscie var(--duration-base) var(--easing-enter) both;
+  animation-delay: var(--ui-opoznienie, 0ms);
+}
+@keyframes ui-wejscie {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-small));
+  }
+}
+
+.ui-widok {
+  animation: ui-wejscie var(--duration-slow) var(--easing-enter) both;
+}
+
+/* ── Nakładki ────────────────────────────────────────────────────── */
+
+.ui-okno {
+  padding: 0;
+  border: 0;
+  max-width: none;
+  max-height: none;
+  background: transparent;
+  color: inherit;
+}
+.ui-okno::backdrop {
+  background: var(--scrim);
+  animation: ui-zaslona var(--duration-moderate) var(--easing-enter);
+}
+@keyframes ui-zaslona {
+  from {
+    opacity: 0;
+  }
+}
+.ui-okno[open] > .ui-okno-panel {
+  animation: ui-okno-panel var(--duration-moderate) var(--easing-enter);
+}
+@keyframes ui-okno-panel {
+  from {
+    opacity: 0;
+    transform: scale(var(--scale-enter));
+  }
+}
+
+.ui-szuflada[open] > .ui-szuflada-prawo {
+  animation: ui-szuflada-prawo var(--duration-moderate) var(--easing-enter);
+}
+.ui-szuflada[open] > .ui-szuflada-lewo {
+  animation: ui-szuflada-lewo var(--duration-moderate) var(--easing-enter);
+}
+.ui-szuflada[open] > .ui-szuflada-dol {
+  animation: ui-szuflada-dol var(--duration-moderate) var(--easing-enter);
+}
+@keyframes ui-szuflada-prawo {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+@keyframes ui-szuflada-lewo {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+@keyframes ui-szuflada-dol {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+.ui-wysuw {
+  animation: ui-wejscie var(--duration-base) var(--easing-enter);
+}
+
+.ui-dymek {
+  animation: ui-dymek var(--duration-fast) var(--easing-enter);
+}
+@keyframes ui-dymek {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-nudge));
+  }
+}
+
+.ui-powiadomienie {
+  animation: ui-powiadomienie var(--duration-moderate) var(--easing-emphasized);
+}
+@keyframes ui-powiadomienie {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-medium));
+  }
+}
+
+/* ── Wskaźniki stanu ─────────────────────────────────────────────── */
+
+.ui-szkielet {
+  background: linear-gradient(90deg, var(--hover) 0%, var(--line) 50%, var(--hover) 100%);
+  background-size: 200% 100%;
+  animation: ui-blysk var(--duration-ambient) var(--easing-linear) infinite;
+}
+@keyframes ui-blysk {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.ui-pasek-nieokreslony {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 35%;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-aurora-cool);
+  animation: ui-pasek var(--duration-ambient) var(--easing-linear) infinite;
+}
+@keyframes ui-pasek {
+  from {
+    inset-inline-start: -35%;
+  }
+  to {
+    inset-inline-start: 100%;
+  }
+}
+
+.ui-oddech {
+  animation: ui-oddech var(--duration-ambient) var(--easing-standard) infinite;
+}
+@keyframes ui-oddech {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: var(--opacity-pending);
+    transform: scale(var(--scale-dot-min));
+  }
+}
+
+/* ── Porównanie przed i po ───────────────────────────────────────── */
+
+.ui-porownanie-uchwyt {
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+/* ── Ograniczenie ruchu (motion, rozdz. 14) ──────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-oddech,
+  .ui-szkielet,
+  .ui-pasek-nieokreslony {
+    animation: none;
+  }
+  .ui-pasek-nieokreslony {
+    inset-inline-start: 0;
+    inline-size: 100%;
+    opacity: var(--opacity-pending);
+  }
+  .ui-ujawnij[data-widoczny="false"],
+  .ui-wejscie,
+  .ui-widok {
+    transform: none;
+  }
+  .ui-nacisk:active,
+  .ui-nacisk-mocny:active {
+    transform: none;
+  }
+}

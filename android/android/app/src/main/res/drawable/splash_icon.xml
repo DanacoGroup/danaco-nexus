@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ikona ekranu startowego: logo Nexusa (zaokrąglony kwadrat z gradientem) w kole 192 dp z 288 dp. -->
+<!-- Ikona ekranu startowego: sygnet Nexusa z pakietu marki (logo/pwa/android/adaptive-*.svg)
+     w polu 192 dp wewnątrz kanwy 288 dp wymaganej przez Android 12+. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="288dp"
@@ -7,33 +8,40 @@
     android:viewportWidth="288"
     android:viewportHeight="288">
     <group
-        android:translateX="69"
-        android:translateY="69"
-        android:scaleX="0.29296875"
-        android:scaleY="0.29296875">
-        <path android:pathData="M116,0h280a116,116 0,0 1,116,116v280a116,116 0,0 1,-116,116h-280a116,116 0,0 1,-116,-116v-280a116,116 0,0 1,116,-116z">
+        android:translateX="48"
+        android:translateY="48"
+        android:scaleX="1.7777778"
+        android:scaleY="1.7777778">
+        <path android:pathData="M24.3,0h59.4a24.3,24.3 0 0 1 24.3,24.3v59.4a24.3,24.3 0 0 1 -24.3,24.3h-59.4a24.3,24.3 0 0 1 -24.3,-24.3v-59.4a24.3,24.3 0 0 1 24.3,-24.3z">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
                     android:startX="0"
                     android:startY="0"
-                    android:endX="512"
-                    android:endY="512"
-                    android:startColor="#8B7CF6"
-                    android:endColor="#4F46E5" />
+                    android:endX="108"
+                    android:endY="108">
+                    <item android:offset="0" android:color="#FF8A5B" />
+                    <item android:offset="0.38" android:color="#F2528F" />
+                    <item android:offset="0.72" android:color="#7B5CFF" />
+                    <item android:offset="1" android:color="#3BA7FF" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:pathData="M0,0h108v108h-108z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="27"
+                    android:centerY="12.96"
+                    android:gradientRadius="81">
+                    <item android:offset="0" android:color="#3DFFFFFF" />
+                    <item android:offset="1" android:color="#00FFFFFF" />
+                </gradient>
             </aapt:attr>
         </path>
         <path
-            android:pathData="M164,352V160l184,192V160"
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="46"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round" />
-        <path
             android:fillColor="#FFFFFF"
-            android:pathData="M130,352a34,34 0,1 0,68,0a34,34 0,1 0,-68,0z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M314,160a34,34 0,1 0,68,0a34,34 0,1 0,-68,0z" />
+            android:fillType="evenOdd"
+            android:pathData="M31.5,72.9V53.1A22.5,22.5 0 0 1 76.5,53.1V72.9A5.4,5.4 0 0 1 65.7,72.9V53.1A11.7,11.7 0 0 0 42.3,53.1V72.9A5.4,5.4 0 0 1 31.5,72.9ZM48.15,53.1A5.85,5.85 0 1 0 59.85,53.1A5.85,5.85 0 1 0 48.15,53.1Z" />
     </group>
 </vector>

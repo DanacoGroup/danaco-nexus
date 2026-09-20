@@ -14,8 +14,18 @@ import pytest
 from biuro_pomoc import HEADERS, api, biuro_settings  # noqa: F401
 from fastapi.testclient import TestClient
 
-from nexus.cloud_service import CloudError, CloudService, check_name
+from nexus.cloud_service import CloudError, CloudService, check_name, katalog_konta
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
+
+
+def konto(sciezka: str) -> str:
+    """Ścieżka w przestrzeni konta administratora — tak widzi ją Nextcloud.
+
+    API chmury zawęża konto do folderu `/Konta/<owner>`, więc atrapa Nextclouda
+    przechowuje pliki pod pełną ścieżką, a nie w korzeniu.
+    """
+    return f"{katalog_konta(ADMIN_OWNER)}{sciezka}"
 
 TOKEN_FILE = os.environ.get("NEXUS_TEST_CHMURA_TOKEN_FILE", "")
 CHMURA_URL = os.environ.get("NEXUS_TEST_CHMURA_URL", "http://127.0.0.1:8940")
@@ -285,7 +295,7 @@ def test_browse_folders_and_files(api: TestClient, cloud: FakeNextcloud) -> None
         json={"paths": ["/Archiwum/Notatka.txt"], "destination": "/Dokumenty", "copy": True},
         headers=HEADERS,
     )
-    assert copied.status_code == 200 and "/Dokumenty/Notatka.txt" in cloud.files
+    assert copied.status_code == 200 and konto("/Dokumenty/Notatka.txt") in cloud.files
     into_itself = api.post(
         "/api/cloud/przenies", json={"paths": ["/Archiwum"], "destination": "/Archiwum"}, headers=HEADERS
     )
@@ -294,7 +304,7 @@ def test_browse_folders_and_files(api: TestClient, cloud: FakeNextcloud) -> None
     assert favorite.status_code == 200
     assert [e["path"] for e in api.get("/api/cloud/ulubione").json()] == ["/Archiwum"]
     deleted = api.post("/api/cloud/usun", json={"paths": ["/Archiwum/Notatka.txt"]}, headers=HEADERS)
-    assert deleted.json()["deleted"] == 1 and "/Archiwum/Notatka.txt" not in cloud.files
+    assert deleted.json()["deleted"] == 1 and konto("/Archiwum/Notatka.txt") not in cloud.files
     assert api.post("/api/cloud/usun", json={"paths": ["/"]}, headers=HEADERS).status_code == 400
     thumb = api.get("/api/cloud/miniatura", params={"fileid": 5, "size": 200})
     assert thumb.headers["content-type"] == "image/jpeg"
@@ -320,7 +330,7 @@ def test_chunked_upload(api: TestClient, cloud: FakeNextcloud) -> None:  # noqa:
         headers=HEADERS,
     )
     assert finished.status_code == 200, finished.text
-    assert cloud.files["/Film.mp4"] == b"".join(parts)
+    assert cloud.files[konto("/Film.mp4")] == b"".join(parts)
     assert finished.json()["size"] == 2010
     bad = api.put("/api/cloud/przesylanie/zly-id/1", params={"path": "/x"}, content=b"x", headers=HEADERS)
     assert bad.status_code == 400
@@ -332,7 +342,8 @@ def test_chunked_upload(api: TestClient, cloud: FakeNextcloud) -> None:  # noqa:
 
 
 def test_shares(api: TestClient, cloud: FakeNextcloud) -> None:  # noqa: F811
-    cloud.files["/Umowa.pdf"] = b"%PDF"
+    cloud.folders.update({katalog_konta(None) or "/", "/Konta", konto("")})
+    cloud.files[konto("/Umowa.pdf")] = b"%PDF"
     expires = (date.today() + timedelta(days=7)).isoformat()
     created = api.post(
         "/api/cloud/udostepnienia",
@@ -361,9 +372,9 @@ def test_shares(api: TestClient, cloud: FakeNextcloud) -> None:  # noqa: F811
 
 
 def test_send_to_conversation(api: TestClient, cloud: FakeNextcloud) -> None:  # noqa: F811
-    cloud.folders.add("/Faktury")
-    cloud.files["/Faktury/FV 1.txt"] = b"Faktura 1"
-    cloud.files["/Faktury/FV 2.txt"] = b"Faktura 2"
+    cloud.folders.update({"/Konta", konto(""), konto("/Faktury")})
+    cloud.files[konto("/Faktury/FV 1.txt")] = b"Faktura 1"
+    cloud.files[konto("/Faktury/FV 2.txt")] = b"Faktura 2"
     response = api.post(
         "/api/cloud/do-rozmowy",
         json={"paths": ["/Faktury/FV 1.txt", "/Faktury/FV 2.txt"], "text": "Zsumuj kwoty"},
@@ -505,3 +516,32 @@ def test_ocs_error_is_reported(biuro_settings: Settings) -> None:  # noqa: F811
                 await service.create_share("/a.txt", password="1")
 
     asyncio.run(run())
+
+
+def test_chmura_nie_przecieka_miedzy_kontami(api: TestClient, cloud: FakeNextcloud) -> None:  # noqa: F811
+    """Konto klienta nie widzi w chmurze plików innego konta.
+
+    Instalacja ma w Nextcloud jedno konto techniczne, więc rozdział robi ścieżka. Test
+    zakłada plik w przestrzeni administratora i sprawdza, że konto klienta go nie widzi
+    ani listowaniem, ani wyszukiwaniem, ani pobraniem.
+    """
+    import uuid as _uuid
+
+    from nexus.cloud_service import katalog_konta
+
+    obcy = _uuid.uuid4()
+    cloud.folders.update({"/Konta", konto(""), f"{katalog_konta(obcy)}"})
+    cloud.files[konto("/Tajne.txt")] = b"tresc administratora"
+
+    wlasne = api.get("/api/cloud/lista").json()
+    assert [wpis["name"] for wpis in wlasne["entries"]] == ["Tajne.txt"], "właściciel widzi swój plik"
+
+    # Ścieżka wyjścia poza własny folder nie może przejść — ani przez „..”, ani wprost.
+    assert api.get("/api/cloud/lista", params={"path": "/../.."}).status_code == 400
+    assert api.get("/api/cloud/pobierz", params={"path": "/../Tajne.txt"}).status_code == 400
+
+    # Adresy WebDAV klienta muszą zaczynać się w jego własnym folderze.
+    usluga = CloudService(api.app.state.settings, transport=cloud.transport(), owner=obcy)
+    assert usluga.url("/Tajne.txt").endswith(f"{katalog_konta(obcy)}/Tajne.txt")
+    assert usluga.sciezka_konta("/Tajne.txt") == f"{katalog_konta(obcy)}/Tajne.txt"
+    asyncio.run(usluga.close())

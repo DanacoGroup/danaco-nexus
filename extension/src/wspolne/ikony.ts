@@ -9,13 +9,18 @@ function ikona(tresc: string, rozmiar = 18): string {
 
 /** Znak Nexusa (litera N z kropkami, jak w favicon.svg). */
 export function logo(rozmiar = 22): string {
+  // Sygnet z pakietu marki (logo/pwa/android/adaptive-*.svg): gradient Aurora i łuk z punktem.
   return (
-    `<svg width="${rozmiar}" height="${rozmiar}" viewBox="0 0 512 512" aria-hidden="true">` +
-    `<defs><linearGradient id="nxg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b7cf6"/>` +
-    `<stop offset="1" stop-color="#4f46e5"/></linearGradient></defs>` +
-    `<rect width="512" height="512" rx="116" fill="url(#nxg)"/>` +
-    `<path d="M164 352V160l184 192V160" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>` +
-    `<circle cx="164" cy="352" r="34" fill="#fff"/><circle cx="348" cy="160" r="34" fill="#fff"/></svg>`
+    `<svg width="${rozmiar}" height="${rozmiar}" viewBox="0 0 108 108" aria-hidden="true">` +
+    '<defs><linearGradient id="nxg" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0" stop-color="#FF8A5B"/><stop offset="0.38" stop-color="#F2528F"/>' +
+    '<stop offset="0.72" stop-color="#7B5CFF"/><stop offset="1" stop-color="#3BA7FF"/></linearGradient>' +
+    '<radialGradient id="nxb" cx="0.25" cy="0.12" r="0.75">' +
+    '<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/>' +
+    '<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient></defs>' +
+    '<rect width="108" height="108" rx="24.3" fill="url(#nxg)"/>' +
+    '<rect width="108" height="108" rx="24.3" fill="url(#nxb)"/>' +
+    '<path fill="#FFFFFF" fill-rule="evenodd" d="M31.5 72.9V53.1A22.5 22.5 0 0 1 76.5 53.1V72.9A5.4 5.4 0 0 1 65.7 72.9V53.1A11.7 11.7 0 0 0 42.3 53.1V72.9A5.4 5.4 0 0 1 31.5 72.9ZM48.15 53.1A5.85 5.85 0 1 0 59.85 53.1A5.85 5.85 0 1 0 48.15 53.1Z"/></svg>'
   );
 }
 

@@ -1,10 +1,35 @@
-/* Danaco Nexus – style (Tailwind CSS 4). Motyw ciemny domyślnie, jasny opcjonalnie.
-   Kolory są zmiennymi CSS, więc przełączenie motywu to zmiana klasy .dark na <html>. */
+/* Danaco Nexus — arkusz aplikacji (Tailwind CSS 4).
+   Wszystkie wartości wizualne pochodzą z tokenów (design-tokens/dist/tokens.css → tokens.css).
+   Reguły użycia: design-system/DESIGN_SYSTEM.md. Motyw ciemny domyślnie, jasny opcjonalnie. */
 
 @import "tailwindcss";
+@import "./tokens.css";
+@import "./ui/ruch.css";
+@import "./ruch/tla.css";
+@import "./ruch/znak.css";
+@import "./ruch/wejscia.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: Figtree;
+  src: url("/kroje/figtree.woff2") format("woff2");
+  font-weight: 500 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: Inter;
+  src: url("/kroje/inter.woff2") format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("/kroje/cascadia.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 
 @theme inline {
   --color-app: var(--app);
@@ -12,23 +37,65 @@
   --color-raised: var(--raised);
   --color-hover: var(--hover);
   --color-bubble: var(--bubble);
+  --color-glass: var(--glass);
+  --color-scrim: var(--scrim);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-line-control: var(--line-control);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-fill: var(--accent-fill);
+  --color-accent-fill-hover: var(--accent-fill-hover);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
+  --color-focus-ring: var(--focus-ring);
   --color-danger: var(--danger);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-fill-hover: var(--danger-fill-hover);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-code: var(--code);
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, "SF Mono", monospace;
-  --animate-shimmer: shimmer 1.8s linear infinite;
-  --animate-blink: blink 1.2s ease-in-out infinite;
-  --animate-rise: rise 0.18s ease-out;
+  --color-iris: var(--color-brand-iris);
+  --color-sky: var(--color-brand-sky);
+
+  --font-sans: var(--font-family-ui);
+  --font-heading: var(--font-family-heading);
+  --font-mono: var(--font-family-code);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-medium: var(--shadow-medium);
+  --shadow-floating: var(--shadow-floating);
+  --shadow-glow-ai: var(--shadow-glow-ai);
+
+  --container-chat: var(--layout-chat);
+  --container-prose: var(--layout-prose);
+  --container-page: var(--layout-page);
+  --container-panel: var(--layout-panel);
+
+  --ease-standard: var(--easing-standard);
+  --ease-enter: var(--easing-enter);
+  --ease-exit: var(--easing-exit);
+  --ease-emphasized: var(--easing-emphasized);
+
+  --animate-shimmer: shimmer var(--duration-ambient) var(--easing-linear) infinite;
+  --animate-blink: blink calc(var(--duration-ambient) * 0.5) var(--easing-standard) infinite;
+  --animate-rise: rise var(--duration-base) var(--easing-enter);
+  --animate-aurora: aurora calc(var(--duration-ambient) * 3) var(--easing-linear) infinite;
 
   @keyframes shimmer {
     to {
@@ -40,7 +107,7 @@
     80%,
     100% {
       opacity: 0.25;
-      transform: scale(0.85);
+      transform: scale(var(--scale-dot-min));
     }
     40% {
       opacity: 1;
@@ -50,51 +117,14 @@
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(var(--distance-small));
     }
   }
-}
-
-:root {
-  --app: #ffffff;
-  --side: #f7f7f8;
-  --raised: #f4f4f5;
-  --hover: #ececef;
-  --bubble: #f1f1f3;
-  --line: #e4e4e7;
-  --line-strong: #d4d4d8;
-  --fg: #111113;
-  --muted: #6b6b73;
-  --accent: #6d5dfc;
-  --accent-hover: #5b4ae8;
-  --accent-soft: #efedff;
-  --on-accent: #ffffff;
-  --danger: #c2410c;
-  --danger-soft: #fff1ea;
-  --success: #15803d;
-  --code: #f4f4f5;
-  color-scheme: light;
-}
-
-.dark {
-  --app: #212121;
-  --side: #171717;
-  --raised: #2a2a2a;
-  --hover: #333336;
-  --bubble: #303030;
-  --line: #363638;
-  --line-strong: #4a4a4e;
-  --fg: #ececec;
-  --muted: #a1a1aa;
-  --accent: #8b7cf6;
-  --accent-hover: #9d90f8;
-  --accent-soft: #2c2748;
-  --on-accent: #ffffff;
-  --danger: #fb923c;
-  --danger-soft: #3a2418;
-  --success: #4ade80;
-  --code: #1a1a1a;
-  color-scheme: dark;
+  @keyframes aurora {
+    to {
+      background-position: 200% 50%;
+    }
+  }
 }
 
 @layer base {
@@ -104,13 +134,27 @@
     height: 100%;
   }
   body {
-    @apply bg-app font-sans text-[15px] leading-relaxed text-fg antialiased;
+    @apply bg-app font-sans text-fg antialiased;
+    font-size: var(--font-size-base);
+    line-height: var(--font-line-height-relaxed);
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-family-heading);
+    letter-spacing: var(--font-letter-spacing-tight);
   }
   button,
   a {
     -webkit-touch-callout: none;
+  }
+  /* Jeden pierścień fokusu w całym produkcie (DESIGN_SYSTEM, rozdz. 10). */
+  :focus-visible {
+    outline: var(--border-width-focus) solid var(--focus-ring);
+    outline-offset: var(--border-width-focus-offset);
+    border-radius: var(--radius-sm);
   }
   ::selection {
     background: color-mix(in srgb, var(--accent) 35%, transparent);
@@ -119,12 +163,17 @@
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
   }
+  [hidden] {
+    display: none !important;
+  }
 }
 
 @layer components {
   /* Treść odpowiedzi (Markdown) – typografia dopasowana do motywu. */
   .markdown {
-    @apply prose max-w-none text-[15px] leading-7 text-fg;
+    @apply prose max-w-none text-fg;
+    font-size: var(--font-size-base);
+    line-height: var(--font-line-height-relaxed);
     --tw-prose-body: var(--fg);
     --tw-prose-headings: var(--fg);
     --tw-prose-bold: var(--fg);
@@ -140,6 +189,9 @@
     --tw-prose-th-borders: var(--line-strong);
     --tw-prose-td-borders: var(--line);
   }
+  .markdown :where(h1, h2, h3, h4) {
+    font-family: var(--font-family-heading);
+  }
   .markdown > :first-child {
     margin-top: 0;
   }
@@ -147,17 +199,19 @@
     margin-bottom: 0;
   }
   .markdown :where(code):not(:where(pre code)) {
-    @apply rounded-md bg-code px-1.5 py-0.5 font-mono text-[0.86em] font-normal;
+    @apply rounded-sm bg-code px-1.5 py-0.5 font-mono text-[0.86em] font-normal;
   }
   .markdown :where(code):not(:where(pre code))::before,
   .markdown :where(code):not(:where(pre code))::after {
     content: none;
   }
   .markdown pre {
-    @apply rounded-xl border border-line text-[13px];
+    @apply rounded-lg border border-line;
+    font-size: var(--font-size-sm);
   }
   .markdown table {
-    @apply block overflow-x-auto text-sm;
+    @apply block overflow-x-auto;
+    font-size: var(--font-size-md);
   }
 
   .spinner {
@@ -174,81 +228,323 @@
   }
 
   .icon-btn {
-    @apply inline-grid size-9 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40;
+    @apply inline-grid shrink-0 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-40;
+    width: var(--control-md);
+    height: var(--control-md);
+  }
+
+  /* Aurora = „AI pracuje”. Wyłącznie znak, awatar asystenta, wysyłka i stan agenta. */
+  .aurora-tekst {
+    background: var(--color-brand-aurora);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .aurora-tlo {
+    background: var(--color-brand-aurora);
+  }
+  .aurora-chlodna {
+    background: var(--color-brand-aurora-cool-fill);
+  }
+  /* Obrys w Aurorze bez tekstu na gradiencie (DESIGN_SYSTEM, rozdz. 4.2). */
+  .aurora-obrys {
+    position: relative;
+    isolation: isolate;
+  }
+  .aurora-obrys::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    padding: var(--border-width-thin);
+    border-radius: inherit;
+    background: var(--color-brand-aurora-cool);
+    background-size: 200% 100%;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    @apply animate-aurora;
+  }
+  .glow-ai {
+    box-shadow: var(--shadow-glow-ai);
   }
 
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
   .safe-bottom {
-    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+    padding-bottom: max(env(safe-area-inset-bottom), var(--space-2));
   }
 }
 
-/* Strona startowa (publiczna). */
-html:has(.landing) {
-  scroll-behavior: smooth;
-  background: #0d0d10;
-}
+/* Strona produktu (publiczna) – warstwa światła pod treścią, landing/tla/README.md. */
 @layer components {
-  /* Siatka w pseudoelemencie – maska wygasza tylko tło, nie treść sekcji. */
-  .landing-grid {
+  /* Tło sekcji z pakietu grafik (landing/tla). Warstwa światła pod treścią, nigdy nad nią. */
+  .landing-tlo {
+    position: relative;
     isolation: isolate;
   }
-  .landing-grid::before {
+  .landing-tlo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background: var(--tlo, none) center / cover no-repeat;
+    opacity: var(--tlo-krycie, 0.7);
+    mask-image: radial-gradient(ellipse 110% 95% at 50% 40%, #000 70%, transparent 100%);
+  }
+  /* W motywie jasnym tło musi być słabsze — inaczej zjada kontrast tekstu. */
+  :root:not(.dark) .landing-tlo::before {
+    opacity: calc(var(--tlo-krycie, 0.7) * 0.45);
+  }
+  /* Przygaszenie wyłącznie przy krawędziach: styk z paskiem i z sąsiednią sekcją. */
+  .landing-tlo::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background-image:
-      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+    background: linear-gradient(
+      to bottom,
+      var(--app) 0%,
+      transparent 16%,
+      transparent 80%,
+      color-mix(in srgb, var(--app) 85%, transparent) 100%
+    );
   }
-  .landing-glow {
-    background:
-      radial-gradient(40% 50% at 30% 30%, rgb(139 124 246 / 0.35), transparent 70%),
-      radial-gradient(35% 45% at 75% 40%, rgb(79 70 229 / 0.3), transparent 70%);
-    filter: blur(40px);
+  /* Hero: styk z paskiem nawigacji wygaszamy krócej i łagodniej niż w sekcjach.
+     Pełna barwa tła przez pierwsze 16% wysokości gasiła zorzę dokładnie tam, gdzie
+     stoi nagłówek — pierwszy ekran wyglądał na przyciemniony bez powodu. */
+  /* Nakładka otwarcia gaśnie, zanim zniknie — strona nie „wyskakuje” spod niej. */
+  .otwarcie {
+    transition: opacity var(--duration-slower) var(--easing-exit);
   }
-  .landing-gradient-text {
-    background: linear-gradient(100deg, #c4b8ff 0%, #8b7cf6 45%, #5b8cff 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .otwarcie[data-gasnie="true"] {
+    opacity: 0;
   }
-  .landing-card {
-    background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
-    border: 1px solid rgb(255 255 255 / 0.08);
+
+  /* Poświata pod kolumną treści hero: kontrast tekstu bez ściemniania całego ekranu.
+     Elipsa sięga poza kolumnę, więc jej krawędź nie rysuje się na tle zorzy. */
+  .hero-tresc {
+    position: relative;
+    isolation: isolate;
+  }
+  .hero-tresc::before {
+    content: "";
+    position: absolute;
+    inset: -12% -8%;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse 70% 60% at 50% 45%,
+      color-mix(in srgb, var(--app) 72%, transparent) 0%,
+      transparent 72%
+    );
+  }
+
+  .hero-tlo::after {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--app) 70%, transparent) 0%,
+      transparent 9%,
+      transparent 84%,
+      color-mix(in srgb, var(--app) 85%, transparent) 100%
+    );
+  }
+
+  /* Wejście hero bez przewijania (LANDING_PAGE_SPEC, rozdz. 7.2).
+     Słowa nagłówka wynurzają się z maski kaskadą, reszta wchodzi za nimi. */
+  .wejscie {
+    animation: wejscie var(--czas-wejscia, var(--duration-slower)) var(--easing-emphasized) both;
+    animation-delay: var(--opoznienie, 0ms);
+  }
+  /* Hero ma własną skalę wejścia. Przy wspólnych tokenach (16 px w 640 ms) ruch na
+     ekranie wysokości okna był niedostrzegalny — pierwsze wrażenie wyglądało tak,
+     jakby strona nie miała animacji otwarcia w ogóle. */
+  .hero-wejscie {
+    --dystans-wejscia: calc(var(--distance-medium) * 2.5);
+    --czas-wejscia: calc(var(--duration-slower) * 1.6);
+    --krok-wejscia: calc(var(--stagger-step) * 1.4);
+  }
+  .wejscie-slowo {
+    display: inline-block;
+    animation: wejscie-slowo var(--czas-wejscia, var(--duration-slower)) var(--easing-emphasized) both;
+    animation-delay: var(--opoznienie, 0ms);
+  }
+  .maska-slowa {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    padding-bottom: 0.12em;
+  }
+  @keyframes wejscie {
+    from {
+      opacity: 0;
+      transform: translateY(var(--dystans-wejscia, var(--distance-medium)));
+    }
+  }
+  @keyframes wejscie-slowo {
+    from {
+      transform: translateY(105%) rotate(5deg);
+    }
+  }
+  /* Łuk znaku rysuje się nad treścią hero, punkt opada i oddycha.
+     Czasy są ułamkami tokenu ruchu ciągłego — w kodzie nie ma liczby milisekund. */
+  .luk-rysuje {
+    animation: luk-rysuje calc(var(--duration-ambient) * 0.75) var(--easing-standard) both;
+  }
+  @keyframes luk-rysuje {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .punkt-opada {
+    --czas-opadania: calc(var(--duration-ambient) * 0.6);
+    --opoznienie-opadania: calc(var(--duration-ambient) * 0.25);
+    /* Punkt spada z wysokości łuku hero — wielokrotność tokenu przesunięcia, żeby przy
+       ograniczonym ruchu zerowała ją ta sama reguła co resztę przesunięć. */
+    --dystans-opadania: calc(var(--distance-medium) * 7.5);
+    animation:
+      punkt-opada var(--czas-opadania) var(--easing-exit) var(--opoznienie-opadania) both,
+      punkt-oddycha var(--duration-ambient) var(--easing-standard)
+        calc(var(--opoznienie-opadania) + var(--czas-opadania)) infinite;
+  }
+  @keyframes punkt-opada {
+    from {
+      opacity: 0;
+      transform: translateY(calc(var(--dystans-opadania) * -1)) scale(var(--scale-pop));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes punkt-oddycha {
+    0%,
+    100% {
+      opacity: 0.75;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.12);
+    }
+  }
+
+  /* Szerokie ekrany: pasmo treści rośnie (LANDING_PAGE_SPEC, rozdz. 14). Ta sama
+     reguła obejmuje portal — inaczej przejście ze strony produktu do portalu
+     przesuwałoby całą treść w bok. */
+  @media (min-width: 1680px) {
+    .landing,
+    .portal {
+      --container-page: 1360px;
+    }
+  }
+  @media (min-width: 2400px) {
+    .landing,
+    .portal {
+      --container-page: 1680px;
+    }
+  }
+
+  .landing-karta {
+    position: relative;
+    background: color-mix(in srgb, var(--raised) 72%, transparent);
+    border: var(--border-width-thin) solid var(--line);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(var(--blur-sm));
     transition:
-      border-color 0.2s,
-      transform 0.2s;
+      border-color var(--duration-base) var(--easing-standard),
+      transform var(--duration-base) var(--easing-standard);
   }
-  .landing-card:hover {
-    border-color: rgb(139 124 246 / 0.35);
+  /* Cień karty idzie kryciem osobnej warstwy, nie animacją box-shadow (motion, rozdz. 11). */
+  .landing-karta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    box-shadow: var(--shadow-floating);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-base) var(--easing-standard);
   }
-  .landing-code {
-    @apply rounded bg-code px-1 py-0.5 font-mono text-[0.85em] text-fg;
+  .landing-karta:hover,
+  .landing-karta:focus-within {
+    border-color: color-mix(in srgb, var(--color-brand-iris) 45%, transparent);
+    transform: translateY(calc(var(--distance-nudge) * -1));
   }
-  .landing-cta {
-    background:
-      radial-gradient(60% 80% at 50% 0%, rgb(139 124 246 / 0.28), transparent 70%),
-      linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.01));
-    border: 1px solid rgb(255 255 255 / 0.09);
+  .landing-karta:hover::after,
+  .landing-karta:focus-within::after {
+    opacity: 1;
   }
+  /* Pasek zdań: dwa tory w przeciwnych kierunkach; zatrzymują się pod kursorem i przy fokusie. */
+  .pasek-tor {
+    animation: przesuw var(--czas, calc(var(--duration-ambient) * 30)) var(--easing-linear) infinite;
+    animation-direction: var(--kierunek, normal);
+  }
+  .pasek-tor:hover,
+  .pasek-tor:focus-within {
+    animation-play-state: paused;
+  }
+  @keyframes przesuw {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Pasek nieokreślonego postępu (zakładanie konta próbnego). */
+  .pasek-czekania {
+    animation: czekanie 1.1s var(--easing-standard, ease-in-out) infinite;
+  }
+  @keyframes czekanie {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(300%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pasek-czekania {
+      animation: none;
+      width: 100%;
+    }
+  }
+
   .voice-orb {
-    background: radial-gradient(circle at 35% 30%, #b3a8ff, #6d5dfc 55%, #3b2fb8);
+    background: var(--color-brand-aurora);
     box-shadow:
-      0 0 0 10px rgb(139 124 246 / 0.12),
-      0 0 40px rgb(139 124 246 / 0.55);
+      0 0 0 10px color-mix(in srgb, var(--color-brand-iris) 12%, transparent),
+      var(--shadow-glow-ai);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html:has(.landing) {
-    scroll-behavior: auto;
+  /* Przesunięcia znikają w jednym miejscu, bez rozgałęzień w komponentach
+     (motion/MOTION_GUIDELINES.md, rozdz. 14). Zostaje sama zmiana krycia. */
+  :root {
+    --distance-nudge: 0px;
+    --distance-small: 0px;
+    --distance-medium: 0px;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -39,7 +39,20 @@ NO_CACHE_FILES = frozenset(
     {"sw.js", "registerSW.js", "share-target.js", "manifest.webmanifest", "index.html"}
 )
 IMMUTABLE = "public, max-age=31536000, immutable"
-MEDIA_TYPES = {".webmanifest": "application/manifest+json", ".js": "text/javascript"}
+# Typy podawane wprost: `mimetypes` zależy od pliku mime.types systemu, a bez poprawnego
+# typu przeglądarka nie narysuje tła AVIF ani nie wczyta kroju i napisów.
+MEDIA_TYPES = {
+    ".webmanifest": "application/manifest+json",
+    ".js": "text/javascript",
+    ".avif": "image/avif",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".woff2": "font/woff2",
+    ".vtt": "text/vtt",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+}
 
 
 class ImmutableStatic(StaticFiles):
@@ -74,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.database = database
         app.state.storage = FileStorage(settings.files_dir)
         app.state.login_throttle = auth.LoginThrottle(settings.login_attempts_per_15_min)
+        app.state.goscie = auth.LimitKontGoscia(auth.GOSC_NA_ADRES)
         app.state.events = EventBus(settings.redis_url)
         app.state.voice = VoiceEngine(settings)
         if settings.voice_warm_up:

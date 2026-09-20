@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # --- moduł biuro ---
     # Poczta: plik z loginem, hasłem i serwerami (deploy/zapisz-poczte.sh; ścieżka względna = w data_dir).
     poczta_config_file: Path = Path("poczta.json")
+    # Zapasowa przestrzeń konta, gdy plan nie podaje własnej (katalog planów w
+    # nexus/platnosci/plany.py rozstrzyga pierwszy: 100 MB w okresie próbnym, 1 GB
+    # w planie Osobistym, 2 GB w Pro, 10 GB w Zespole).
+    konto_limit_mb: int = 1024
     poczta_timeout_s: int = 30
     poczta_attachments_limit_mb: int = 25
     # Kalendarz (CalDAV Nextcloud, konto chmura_user): kalendarz domyślny i strefa czasowa.

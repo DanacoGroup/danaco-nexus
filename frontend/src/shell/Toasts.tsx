@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { CheckIcon, CloseIcon } from "../components/icons";
+import { NagranieStartu, ograniczonyRuch } from "../ruch";
 
 export interface Toast {
   id: string;
@@ -20,9 +21,15 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   }, [toast.id, onDismiss]);
   return (
     <div role="status" className="pointer-events-auto flex w-full animate-rise items-start gap-3 rounded-2xl border border-line bg-side px-4 py-3 shadow-2xl shadow-black/30">
-      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
-        <CheckIcon size={14} />
-      </span>
+      {/* Zakończone zadanie ma w pakiecie ruchu własne ujęcie (moment-sukces); przy
+          ograniczonym ruchu zostaje znacznik. */}
+      {ograniczonyRuch() ? (
+        <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
+          <CheckIcon size={14} />
+        </span>
+      ) : (
+        <NagranieStartu nazwa="moment-sukces" className="mt-0.5 size-6 shrink-0 object-contain" />
+      )}
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{toast.title}</div>
         <div className="truncate text-sm text-muted">{toast.body}</div>

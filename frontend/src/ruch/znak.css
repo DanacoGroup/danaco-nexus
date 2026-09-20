@@ -1,0 +1,477 @@
+/* Momenty znaku Danaco Nexus — ruch znaku w stanach aplikacji.
+   Choreografia: motion/start/README.md, rozdz. 6 i 8. Czasy i krzywe wyłącznie z tokenów;
+   czasy spoza siatki tokenów składane są z tokenów działaniem `calc`.
+   Ruch stoi poza polem widzenia (`data-widoczny="false"`) i przy ograniczonym ruchu. */
+
+.znak-ruch {
+  display: block;
+  overflow: visible;
+
+  /* Czasy całkowite momentów z tabeli przekazania (motion/start/README.md, rozdz. 8),
+     złożone z tokenów. Fazy niżej biorą ułamki tych czasów, więc ostatni tor momentu kończy
+     się dokładnie na czasie z tabeli — podanym w nawiasie. Tokeny mają własną siatkę
+     (80, 140, 200, 280, 420, 640, 2400 ms), więc część czasów wymaga sumy albo ułamka;
+     rodzina `--duration-moment-*` w pakiecie tokenów usunęłaby te działania. */
+  --znak-uruchomienie: var(--duration-ambient); /* 2400 ms */
+  --znak-uruchomienie-krotkie: calc(
+    var(--duration-slower) + var(--duration-fast) + var(--duration-instant) * 0.5
+  ); /* 820 ms */
+  --znak-logowanie: calc(var(--duration-ambient) * 0.6); /* 1440 ms */
+  --znak-sukces: calc(var(--duration-ambient) * 0.375); /* 900 ms */
+  --znak-blad: calc(var(--duration-ambient) / 3); /* 800 ms */
+  --znak-brak-polaczenia: calc(var(--duration-base) * 5); /* 1000 ms */
+  --znak-wylogowanie: calc(
+    var(--duration-slow) + var(--duration-slower) + var(--duration-instant) * 0.5
+  ); /* 1100 ms */
+  --znak-instalacja: calc(var(--duration-ambient) * 0.5); /* 1200 ms */
+}
+
+.znak-ruch__luk-szary,
+.znak-ruch__polowa,
+.znak-ruch__rozblysk,
+.znak-ruch__iskra {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.znak-ruch__calosc,
+.znak-ruch__luk,
+.znak-ruch__polowa {
+  transform-box: view-box;
+}
+.znak-ruch__calosc {
+  transform-origin: 42px 42px;
+}
+.znak-ruch__polowa {
+  stroke-dasharray: 100 300;
+}
+.znak-ruch__polowa-lewa {
+  transform-origin: 23px 63px;
+}
+.znak-ruch__polowa-prawa {
+  transform-origin: 61px 63px;
+}
+.znak-ruch__luk-szary,
+.znak-ruch__rozblysk,
+.znak-ruch__iskra,
+.znak-ruch__aura {
+  opacity: 0;
+}
+.znak-ruch__iskra {
+  stroke-dasharray: 14 86;
+}
+.znak-ruch__punkt {
+  translate: 42px 41px;
+}
+
+/* ── Agent myśli — pętla ─────────────────────────────────────────── */
+
+.znak-ruch[data-moment="mysli"] .znak-ruch__punkt {
+  animation: znak-orbita var(--duration-ambient) var(--easing-linear) infinite;
+}
+.znak-ruch[data-moment="mysli"] .znak-ruch__aura {
+  animation: znak-aura var(--duration-ambient) var(--easing-standard) infinite;
+}
+.znak-ruch[data-moment="mysli"] .znak-ruch__iskra {
+  animation: znak-iskra var(--duration-ambient) var(--easing-linear) infinite;
+}
+
+/* Orbita punktu pod łukiem w perspektywie: z tyłu mniejszy, z przodu większy. */
+@keyframes znak-orbita {
+  0%,
+  100% {
+    translate: 42px 41px;
+    scale: 0.9;
+  }
+  25% {
+    translate: 46.2px 42.6px;
+    scale: 0.97;
+  }
+  50% {
+    translate: 42px 44.2px;
+    scale: 1.04;
+  }
+  75% {
+    translate: 37.8px 42.6px;
+    scale: 0.97;
+  }
+}
+@keyframes znak-aura {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+@keyframes znak-iskra {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+  12%,
+  88% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -100;
+  }
+}
+
+/* ── Sukces zadania ──────────────────────────────────────────────── */
+
+.znak-ruch[data-moment="sukces"] .znak-ruch__punkt {
+  animation: znak-skok var(--znak-sukces) var(--easing-standard) both;
+}
+.znak-ruch[data-moment="sukces"] .znak-ruch__calosc {
+  animation: znak-puls var(--znak-sukces) var(--easing-standard) both;
+}
+.znak-ruch[data-moment="sukces"] .znak-ruch__rozblysk {
+  animation: znak-rozblysk var(--duration-slower) var(--easing-standard) both;
+}
+.znak-ruch[data-moment="sukces"] .znak-ruch__iskra {
+  animation: znak-iskra-raz var(--duration-slow) var(--easing-standard) var(--duration-moderate) both;
+}
+
+@keyframes znak-skok {
+  0% {
+    translate: 42px 41px;
+    scale: 1 1;
+  }
+  11% {
+    translate: 42px 42.5px;
+    scale: 1.12 0.88;
+  }
+  42% {
+    translate: 42px 35.5px;
+    scale: 0.9 1.16;
+  }
+  62% {
+    translate: 42px 41px;
+    scale: 1.14 0.86;
+  }
+  80% {
+    translate: 42px 40.2px;
+    scale: 0.98 1.03;
+  }
+  100% {
+    translate: 42px 41px;
+    scale: 1 1;
+  }
+}
+@keyframes znak-puls {
+  0%,
+  100% {
+    scale: 1;
+  }
+  45% {
+    scale: 1.05;
+  }
+}
+@keyframes znak-rozblysk {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.7;
+  }
+}
+@keyframes znak-iskra-raz {
+  from {
+    opacity: 0.9;
+    stroke-dashoffset: 0;
+  }
+  to {
+    opacity: 0;
+    stroke-dashoffset: -100;
+  }
+}
+
+/* ── Błąd ────────────────────────────────────────────────────────── */
+
+.znak-ruch[data-moment="blad"] .znak-ruch__luk-szary {
+  opacity: 1;
+}
+.znak-ruch[data-moment="blad"] .znak-ruch__punkt {
+  animation: znak-nie var(--znak-blad) var(--easing-linear) both;
+}
+.znak-ruch[data-moment="blad"] .znak-ruch__luk {
+  animation: znak-przygasa var(--duration-slow) var(--easing-standard) var(--duration-instant) both;
+}
+
+/* Punkt kręci „nie”: drganie o malejącej amplitudzie, bez powtórzenia. */
+@keyframes znak-nie {
+  0% {
+    translate: 42px 41px;
+  }
+  9% {
+    translate: 45.4px 41px;
+  }
+  18% {
+    translate: 38.9px 41px;
+  }
+  27% {
+    translate: 44.4px 41px;
+  }
+  36% {
+    translate: 39.8px 41px;
+  }
+  45% {
+    translate: 43.7px 41px;
+  }
+  54% {
+    translate: 40.4px 41px;
+  }
+  63% {
+    translate: 43.2px 41px;
+  }
+  72% {
+    translate: 40.9px 41px;
+  }
+  81% {
+    translate: 42.6px 41px;
+  }
+  100% {
+    translate: 42px 41px;
+  }
+}
+@keyframes znak-przygasa {
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* ── Brak połączenia ─────────────────────────────────────────────── */
+
+.znak-ruch[data-moment="brak-polaczenia"] .znak-ruch__luk-szary {
+  opacity: 1;
+}
+.znak-ruch[data-moment="brak-polaczenia"] .znak-ruch__polowa-lewa {
+  animation: znak-pekniecie-lewe var(--znak-brak-polaczenia) var(--easing-emphasized) both;
+}
+.znak-ruch[data-moment="brak-polaczenia"] .znak-ruch__polowa-prawa {
+  animation: znak-pekniecie-prawe var(--znak-brak-polaczenia) var(--easing-emphasized) both;
+}
+.znak-ruch[data-moment="brak-polaczenia"] .znak-ruch__punkt {
+  animation: znak-osiada var(--znak-brak-polaczenia) var(--easing-standard) both;
+}
+
+/* Dach pęka w szczycie: połowy cofają się i opadają o ±4° wokół stóp. */
+@keyframes znak-pekniecie-lewe {
+  0% {
+    stroke-dasharray: 100 300;
+    rotate: 0deg;
+  }
+  50% {
+    stroke-dasharray: 81 300;
+    rotate: 0deg;
+  }
+  100% {
+    stroke-dasharray: 81 300;
+    rotate: -4deg;
+  }
+}
+@keyframes znak-pekniecie-prawe {
+  0% {
+    stroke-dasharray: 100 300;
+    rotate: 0deg;
+  }
+  50% {
+    stroke-dasharray: 81 300;
+    rotate: 0deg;
+  }
+  100% {
+    stroke-dasharray: 81 300;
+    rotate: 4deg;
+  }
+}
+@keyframes znak-osiada {
+  to {
+    translate: 42px 44px;
+    scale: 0.85;
+    opacity: 0.4;
+  }
+}
+
+/* ── Uruchomienie i logowanie ────────────────────────────────────── */
+
+/* Uruchomienie pełne: łuk rysuje się, punkt opada, poświata zapala się na końcu. */
+.znak-ruch[data-moment="uruchomienie"] .znak-ruch__polowa {
+  animation: znak-rysuje calc(var(--znak-uruchomienie) * 0.4) var(--easing-standard) both;
+}
+.znak-ruch[data-moment="uruchomienie"] .znak-ruch__polowa-prawa {
+  animation-delay: var(--stagger-step);
+}
+.znak-ruch[data-moment="uruchomienie"] .znak-ruch__punkt {
+  animation: znak-opada calc(var(--znak-uruchomienie) * 0.35) var(--easing-emphasized)
+    calc(var(--znak-uruchomienie) * 0.4) both;
+}
+.znak-ruch[data-moment="uruchomienie"] .znak-ruch__aura {
+  animation: znak-zapala calc(var(--znak-uruchomienie) * 0.25) var(--easing-enter)
+    calc(var(--znak-uruchomienie) * 0.75) both;
+}
+
+/* Uruchomienie krótkie: ten sam ruch w skróconej osi — powrót z tła i ponowne otwarcie okna. */
+.znak-ruch[data-moment="uruchomienie-krotkie"] .znak-ruch__polowa {
+  animation: znak-rysuje calc(var(--znak-uruchomienie-krotkie) * 0.5) var(--easing-standard) both;
+}
+.znak-ruch[data-moment="uruchomienie-krotkie"] .znak-ruch__punkt {
+  animation: znak-opada calc(var(--znak-uruchomienie-krotkie) * 0.5) var(--easing-emphasized)
+    calc(var(--znak-uruchomienie-krotkie) * 0.25) both;
+}
+.znak-ruch[data-moment="uruchomienie-krotkie"] .znak-ruch__aura {
+  animation: znak-zapala calc(var(--znak-uruchomienie-krotkie) * 0.25) var(--easing-enter)
+    calc(var(--znak-uruchomienie-krotkie) * 0.75) both;
+}
+
+.znak-ruch[data-moment="logowanie"] .znak-ruch__polowa {
+  animation: znak-rysuje calc(var(--znak-logowanie) * 0.4) var(--easing-standard) both;
+}
+.znak-ruch[data-moment="logowanie"] .znak-ruch__punkt {
+  animation: znak-opada calc(var(--znak-logowanie) * 0.4) var(--easing-emphasized)
+    calc(var(--znak-logowanie) * 0.35) both;
+}
+.znak-ruch[data-moment="logowanie"] .znak-ruch__aura {
+  animation: znak-zapala calc(var(--znak-logowanie) * 0.25) var(--easing-enter)
+    calc(var(--znak-logowanie) * 0.75) both;
+}
+
+@keyframes znak-rysuje {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes znak-opada {
+  from {
+    translate: 42px 11px;
+    scale: 0.6;
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    translate: 42px 41px;
+    scale: 1;
+    opacity: 1;
+  }
+}
+@keyframes znak-zapala {
+  to {
+    opacity: 0.55;
+  }
+}
+
+/* ── Wylogowanie ─────────────────────────────────────────────────── */
+
+/* Aurora cofa się do punktu, dopiero potem punkt biegnie po łuku i gaśnie. */
+.znak-ruch[data-moment="wylogowanie"] .znak-ruch__polowa {
+  animation: znak-zwija var(--duration-slow) var(--easing-exit) both;
+}
+.znak-ruch[data-moment="wylogowanie"] .znak-ruch__punkt {
+  animation: znak-gasnie calc(var(--znak-wylogowanie) - var(--duration-slow)) var(--easing-exit)
+    var(--duration-slow) both;
+}
+
+@keyframes znak-zwija {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes znak-gasnie {
+  0% {
+    translate: 42px 41px;
+    scale: 1;
+    opacity: 1;
+  }
+  30% {
+    translate: 42px 38px;
+    scale: 1.08;
+    opacity: 1;
+  }
+  100% {
+    translate: 42px 41px;
+    scale: 0.6;
+    opacity: 0;
+  }
+}
+
+/* ── Instalacja zakończona ───────────────────────────────────────── */
+
+.znak-ruch[data-moment="instalacja"] .znak-ruch__calosc {
+  animation: znak-laduje calc(var(--znak-instalacja) * 0.7) var(--easing-emphasized) both;
+}
+.znak-ruch[data-moment="instalacja"] .znak-ruch__punkt {
+  animation: znak-podskok var(--duration-moderate) var(--easing-emphasized)
+    calc(var(--znak-instalacja) * 0.6) both;
+}
+.znak-ruch[data-moment="instalacja"] .znak-ruch__aura {
+  animation: znak-zapala calc(var(--znak-instalacja) * 0.5) var(--easing-enter)
+    calc(var(--znak-instalacja) * 0.5) both;
+}
+
+@keyframes znak-laduje {
+  from {
+    scale: var(--scale-pop);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+  }
+}
+@keyframes znak-podskok {
+  0%,
+  100% {
+    translate: 42px 41px;
+    scale: 1;
+  }
+  45% {
+    translate: 42px 36px;
+    scale: 0.94 1.08;
+  }
+}
+
+/* ── Poza polem widzenia i ograniczony ruch ──────────────────────── */
+
+/* Reguły momentów ustawiają skrót `animation`, który zeruje stan odtwarzania — zatrzymanie
+   poza polem widzenia musi być mocniejsze od nich, inaczej pętla biegnie niewidoczna. */
+.znak-ruch[data-widoczny="false"] * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Jak wyżej: skrót `animation` w regułach momentów jest bardziej szczegółowy, więc
+     wyłączenie ruchu musi być mocniejsze. Stan informacyjny zostaje w regułach poniżej. */
+  .znak-ruch * {
+    animation: none !important;
+  }
+  .znak-ruch[data-moment="mysli"] .znak-ruch__aura {
+    opacity: var(--opacity-pending);
+  }
+  .znak-ruch[data-moment="blad"] .znak-ruch__luk {
+    opacity: 0.35;
+  }
+  .znak-ruch[data-moment="brak-polaczenia"] .znak-ruch__polowa {
+    stroke-dasharray: 81 300;
+  }
+  .znak-ruch[data-moment="brak-polaczenia"] .znak-ruch__punkt {
+    opacity: 0.4;
+  }
+  .znak-ruch[data-moment="wylogowanie"] .znak-ruch__calosc {
+    opacity: 0;
+  }
+}

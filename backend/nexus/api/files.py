@@ -12,10 +12,12 @@ from urllib.parse import quote
 import pymupdf
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, Response
+from sqlalchemy import func, select
 
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.api.conversations import file_payload
 from nexus.db import Conversation, Database, StoredFile
+from nexus.platnosci.uprawnienia import limity_uzytkownika, opis_przestrzeni
 from nexus.storage import FileStorage, guess_mime, safe_filename
 from nexus.tools.common import open_image
 
@@ -32,18 +34,33 @@ def _content_disposition(name: str, inline: bool) -> str:
     return f"{kind}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
 
 
-async def _record(request: Request, file_id: uuid.UUID) -> StoredFile:
+async def _record(request: Request, file_id: uuid.UUID, owner: uuid.UUID) -> StoredFile:
+    """Plik należący do ``owner``; cudzy plik daje 404 jak nieistniejący."""
     database: Database = request.app.state.database
     async with database.session() as session:
         record = await session.get(StoredFile, file_id)
-    if record is None:
+    if record is None or record.owner_id != owner:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono pliku.")
     return record
 
 
+async def zajete_miejsce(database: Database, owner: uuid.UUID) -> int:
+    """Suma rozmiarów plików konta w bajtach."""
+    async with database.session() as session:
+        return int(
+            await session.scalar(
+                select(func.coalesce(func.sum(StoredFile.size), 0)).where(StoredFile.owner_id == owner)
+            )
+            or 0
+        )
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload(
-    request: Request, file: UploadFile = File(...), conversation_id: uuid.UUID | None = Form(None)
+    request: Request,
+    file: UploadFile = File(...),
+    conversation_id: uuid.UUID | None = Form(None),
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
     """Przesyła plik (opcjonalnie od razu przypisany do rozmowy)."""
     settings = request.app.state.settings
@@ -51,8 +68,20 @@ async def upload(
     database: Database = request.app.state.database
     if conversation_id is not None:
         async with database.session() as session:
-            if await session.get(Conversation, conversation_id) is None:
+            rozmowa = await session.get(Conversation, conversation_id)
+            if rozmowa is None or rozmowa.owner_id != owner:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono rozmowy.")
+    # Przestrzeń rozstrzyga plan konta, nie jedna wartość dla wszystkich: okres próbny
+    # ma 100 MB, plan Osobisty 1 GB, Pro 2 GB, Zespół 10 GB.
+    limity = await limity_uzytkownika(database, str(owner))
+    limit = limity.przestrzen_mb * 1024 * 1024
+    zajete = await zajete_miejsce(database, owner)
+    if limit > 0 and zajete >= limit:
+        raise HTTPException(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            f"Przestrzeń konta ({opis_przestrzeni(limity.przestrzen_mb)}) jest pełna. "
+            "Usuń niepotrzebne pliki albo przejdź na wyższy plan.",
+        )
     name = safe_filename(file.filename or "plik")
     try:
         file_id, relative, size, digest = await asyncio.to_thread(
@@ -65,6 +94,7 @@ async def upload(
     record = StoredFile(
         id=file_id,
         conversation_id=conversation_id,
+        owner_id=owner,
         origin="upload",
         name=name,
         mime=guess_mime(name)
@@ -81,9 +111,14 @@ async def upload(
 
 
 @router.get("/{file_id}/download")
-async def download(file_id: uuid.UUID, request: Request, inline: bool = False) -> FileResponse:
+async def download(
+    file_id: uuid.UUID,
+    request: Request,
+    inline: bool = False,
+    owner: uuid.UUID = Depends(wlasciciel),
+) -> FileResponse:
     """Pobiera plik (``inline=1`` – wyświetlenie w przeglądarce, gdy to bezpieczne)."""
-    record = await _record(request, file_id)
+    record = await _record(request, file_id, owner)
     storage: FileStorage = request.app.state.storage
     path = storage.path_of(record)
     if not path.is_file():
@@ -127,9 +162,11 @@ def _thumbnail(path: Path, mime: str, target: Path) -> bytes | None:
 
 
 @router.get("/{file_id}/thumbnail")
-async def thumbnail(file_id: uuid.UUID, request: Request) -> Response:
+async def thumbnail(
+    file_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> Response:
     """Miniatura obrazu lub pierwszej strony PDF (JPEG, z pamięci podręcznej)."""
-    record = await _record(request, file_id)
+    record = await _record(request, file_id, owner)
     settings = request.app.state.settings
     storage: FileStorage = request.app.state.storage
     cached = settings.cache_dir / "thumbnails" / f"{record.id.hex}.jpg"

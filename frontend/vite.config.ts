@@ -4,7 +4,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vitest/config";
 
 const DESCRIPTION =
-  "Prywatny asystent AI: rozmowa z Claude i przesyłanie plików – dokumenty, zdjęcia, PDF, OCR, audio, wideo i automatyzacja.";
+  "Osobisty asystent AI: rozmowa i przesyłanie plików – dokumenty, zdjęcia, PDF, OCR, audio, wideo i automatyzacja.";
 
 export default defineConfig({
   plugins: [
@@ -26,8 +26,8 @@ export default defineConfig({
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
         orientation: "any",
-        background_color: "#171717",
-        theme_color: "#171717",
+        background_color: "#0D0F17",
+        theme_color: "#0D0F17",
         categories: ["productivity", "utilities", "business"],
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
@@ -85,7 +85,17 @@ export default defineConfig({
         globIgnores: ["screenshots/**"],
         navigateFallback: "/index.html",
         // Instalatory i panel osadzany (inne nagłówki ramki) zawsze z sieci, nie z pamięci podręcznej.
-        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/, /^\/pobierz(\/|$)/, /[?&]widok=panel/, /^\/s\//],
+        // Kanały dla wyszukiwarek też: bez tego przejście pod /sitemap.xml zwracałoby powłokę aplikacji.
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/share-target/,
+          /^\/pobierz(\/|$)/,
+          /[?&]widok=panel/,
+          /^\/s\//,
+          /^\/robots\.txt$/,
+          /^\/sitemap\.xml$/,
+          /^\/portal\/(atom|rss)\.xml$/,
+        ],
         importScripts: ["/share-target.js"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,

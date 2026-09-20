@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import Boolean, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from nexus.db import Base, JsonType, UtcDateTime, utcnow
+from nexus.db import ADMIN_OWNER, Base, JsonType, UtcDateTime, utcnow
 
 
 class KnowledgeCollection(Base):
@@ -23,6 +23,9 @@ class KnowledgeCollection(Base):
     __tablename__ = "research_collections"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # Kolekcja należy do konta: baza wiedzy to prywatne dokumenty, a wyszukiwanie
+    # semantyczne po cudzych materiałach byłoby wyciekiem tej samej klasy co cudza rozmowa.
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
@@ -94,3 +97,15 @@ class ResearchReport(Base):
         Uuid, ForeignKey("research_collections.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
+
+
+# Kolumna dopisywana do istniejącej instalacji: kolekcje sprzed podziału na konta należą
+# do administratora, tak samo jak jego rozmowy i pliki.
+COLUMNS: list[tuple[str, str, str, str]] = [
+    (
+        "research_collections",
+        "owner_id",
+        "UUID NOT NULL DEFAULT '00000000-0000-0000-0000-0000000000a1'",
+        "TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-0000000000a1'",
+    ),
+]

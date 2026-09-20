@@ -11,6 +11,8 @@ export interface ModulePageProps {
   openConversation: (id: string) => void;
   /** Przechodzi do innego modułu. */
   openModule: (id: string) => void;
+  /** Otwiera nową rozmowę; podany tekst trafia do pola wiadomości gotowy do wysłania. */
+  openChat: (prefill?: string) => void;
 }
 
 export interface NexusModule {

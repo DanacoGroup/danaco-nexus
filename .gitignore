@@ -28,3 +28,46 @@ programy/
 
 # Robocze drzewa agentów Claude Code
 .claude/
+
+# Pakiety marki przeniesione do aplikacji przez frontend/scripts/zasoby.py
+frontend/public/kroje/
+frontend/public/icons/
+# Odznaka powiadomień jest potrzebna service workerowi także bez uruchomienia zasoby.py
+!frontend/public/icons/badge-96.png
+frontend/public/znak/
+frontend/public/tla/
+frontend/public/film/
+frontend/public/ruch/
+frontend/public/ladowanie/
+frontend/public/favicon.ico
+frontend/public/favicon.svg
+frontend/public/apple-touch-icon.png
+frontend/src/tokens.css
+
+# Kopie z telefonu omyłkowo wypakowane do katalogu projektu (SMS, połączenia, ustawienia aplikacji)
+design-system/Apps/
+
+# Plik konfiguracji NSS zostawiany przez przeglądarkę uruchamianą w testach
+backend/pkcs11.txt
+
+# Wydania: artefakty budowy i dane przedsionka (poza repozytorium).
+wydania/
+
+# Pakiety źródłowe marki i materiałów (ok. 1,9 GB renderów, nagrań i plików roboczych).
+# W repozytorium leży gotowy `frontend/public`, który buduje interfejs; pakiety źródłowe
+# zostają na serwerze i wchodzą do kopii zapasowej (deploy/kopia-zapasowa.sh).
+# Odświeżenie `frontend/public` z pakietów: frontend/scripts/zasoby.py.
+/branding/
+/design-system/
+/landing/
+/logo/
+/motion/
+/prezentacja/
+/product/
+/promocja/
+/ui-kit/
+# To samo dotyczy ciężkich katalogów w `frontend/public`: film, kampania i pakiet ruchu
+# to pół gigabajta wideo. Budowa bierze je z dysku, kopia zapasowa je zabezpiecza.
+/frontend/public/film/
+/frontend/public/kampania/
+/frontend/public/ruch/

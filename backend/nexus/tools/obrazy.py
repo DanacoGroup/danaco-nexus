@@ -126,7 +126,7 @@ class ChangeBackgroundInput(ToolInput):
         description="Nowe tło: jednolity kolor, gradient, inne zdjęcie, rozmyty oryginał albo przezroczyste."
     )
     color: str = Field("#ffffff", description="Kolor tła albo początek gradientu (#rrggbb).")
-    color2: str = Field("#e4e4e7", description="Koniec gradientu (#rrggbb).")
+    color2: str = Field("#E0E3EC", description="Koniec gradientu (#rrggbb).")
     angle: float = Field(90, ge=0, le=360, description="Kierunek gradientu w stopniach (90 = z góry na dół).")
     background_file_id: str | None = Field(None, description="Zdjęcie tła (mode='image').")
     original_file_id: str | None = Field(

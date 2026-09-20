@@ -13,8 +13,16 @@ from conftest import ToolHarness
 from fastapi.testclient import TestClient
 from icalendar import Calendar
 
-from nexus.calendar import CalendarClient, CalendarError, EventData, parse_when, split_event_id
+from nexus.calendar import (
+    CalendarClient,
+    CalendarError,
+    EventData,
+    parse_when,
+    przedrostek_konta,
+    split_event_id,
+)
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 from nexus.tools import kalendarz as kalendarz_tools
 from nexus.tools import registry
 from nexus.tools.base import ToolError
@@ -24,14 +32,20 @@ CHMURA_URL = os.environ.get("NEXUS_TEST_CHMURA_URL", "http://127.0.0.1:8940")
 WARSAW = ZoneInfo("Europe/Warsaw")
 
 
+#: Przedrostek kalendarzy konta właściciela instalacji — tak nazywa je rozdział kont.
+PRZEDROSTEK = przedrostek_konta(ADMIN_OWNER)
+OSOBISTY = f"{PRZEDROSTEK}personal"
+URODZINY = f"{PRZEDROSTEK}contact_birthdays"
+
+
 @pytest.fixture
 def caldav() -> FakeCalDAV:
-    return FakeCalDAV()
+    return FakeCalDAV(PRZEDROSTEK)
 
 
 @pytest.fixture
 def client(biuro_settings: Settings, caldav: FakeCalDAV) -> CalendarClient:  # noqa: F811
-    return CalendarClient(biuro_settings, transport=caldav.transport())
+    return CalendarClient(biuro_settings, transport=caldav.transport(), owner=ADMIN_OWNER)
 
 
 def call(harness: ToolHarness, name: str, /, **arguments: object):  # type: ignore[no-untyped-def]
@@ -54,8 +68,8 @@ def test_parse_when_and_event_ids() -> None:
 def test_calendars(client: CalendarClient) -> None:
     calendars = client.calendars()
     assert [(c["id"], c["name"], c["color"], c["writable"], c["default"]) for c in calendars] == [
-        ("personal", "Osobiste", "#00679e", True, True),
-        ("contact_birthdays", "Urodziny kontaktu", "#E9D859", False, False),
+        (OSOBISTY, "Osobiste", "#00679e", True, True),
+        (URODZINY, "Urodziny kontaktu", "#E9D859", False, False),
     ]
 
 
@@ -69,14 +83,14 @@ def test_create_list_update_delete(client: CalendarClient, caldav: FakeCalDAV) -
             reminder_minutes=30,
         ),
     )
-    assert event["id"].startswith("personal/") and event["id"].endswith(".ics")
+    assert event["id"].startswith(f"{OSOBISTY}/") and event["id"].endswith(".ics")
     assert event["start"] == "2026-09-21T10:00+02:00" and event["end"] == "2026-09-21T11:00+02:00"
     assert event["all_day"] is False and event["location"] == "Łódź"
-    stored = Calendar.from_ical(next(iter(caldav.objects["personal"].values()))[0])
+    stored = Calendar.from_ical(next(iter(caldav.objects[OSOBISTY].values()))[0])
     assert stored.walk("VTIMEZONE"), "strefa czasowa dołączona do pliku"
     assert stored.walk("VALARM")[0].decoded("TRIGGER") == timedelta(minutes=-30)
 
-    all_day = client.create("personal", EventData(summary="Urlop", start=date(2026, 9, 24), all_day=True))
+    all_day = client.create(OSOBISTY, EventData(summary="Urlop", start=date(2026, 9, 24), all_day=True))
     assert all_day["all_day"] is True and (all_day["start"], all_day["end"]) == ("2026-09-24", "2026-09-25")
 
     events = client.events(date(2026, 9, 21), date(2026, 9, 28))
@@ -100,6 +114,9 @@ def test_create_list_update_delete(client: CalendarClient, caldav: FakeCalDAV) -
     with pytest.raises(CalendarError, match="nie znaleziono"):
         client.delete(event["id"])
     with pytest.raises(CalendarError, match="brak uprawnień"):
+        client.create(URODZINY, EventData(summary="X", start=date(2026, 9, 1)))
+    # Kalendarz spoza przestrzeni konta jest dla klienta nieprawidłowy, a nie „tylko do odczytu”.
+    with pytest.raises(CalendarError, match="Nieprawidłowy kalendarz"):
         client.create("contact_birthdays", EventData(summary="X", start=date(2026, 9, 1)))
     with pytest.raises(CalendarError, match="Zakres dat"):
         client.events(date(2026, 1, 1), date(2027, 6, 1))
@@ -132,7 +149,7 @@ def test_calendar_tools(
     monkeypatch.setattr(
         kalendarz_tools,
         "CalendarClient",
-        lambda settings: CalendarClient(settings, transport=caldav.transport()),
+        lambda settings, owner=None: CalendarClient(settings, transport=caldav.transport(), owner=owner),
     )
     created = call(
         harness, "calendar_create", summary="Przegląd auta", start="2026-10-02T08:00", location="ASO"
@@ -142,16 +159,16 @@ def test_calendar_tools(
     assert all_day.data["all_day"] is True
     listing = call(harness, "calendar_list", start="2026-10-01", end="2026-10-08")
     assert [e["summary"] for e in listing.data["events"]] == ["Przegląd auta", "Imieniny"]
-    assert listing.data["calendars"][0]["id"] == "personal"
+    assert listing.data["calendars"][0]["id"] == OSOBISTY
     call(harness, "calendar_update", event_id=created.data["id"], location="Serwis Łódź")
     assert call(harness, "calendar_list", start="2026-10-02", end="2026-10-03").data["events"][0][
         "location"
     ] == ("Serwis Łódź")
     pending = call(harness, "calendar_delete", event_id=created.data["id"], reason="Przełożone")
     assert "Kalendarz" in pending.data["status"]
-    assert len(caldav.objects["personal"]) == 2, "agent nie usuwa bez zatwierdzenia"
+    assert len(caldav.objects[OSOBISTY]) == 2, "agent nie usuwa bez zatwierdzenia"
     with pytest.raises(ToolError, match="nie znaleziono"):
-        call(harness, "calendar_delete", event_id="personal/brak.ics")
+        call(harness, "calendar_delete", event_id=f"{OSOBISTY}/brak.ics")
 
 
 def test_calendar_tools_without_token(harness: ToolHarness, tmp_path: Path) -> None:
@@ -162,7 +179,7 @@ def test_calendar_tools_without_token(harness: ToolHarness, tmp_path: Path) -> N
 
 def test_calendar_api(api: TestClient, caldav: FakeCalDAV, harness: ToolHarness, monkeypatch) -> None:  # noqa: F811
     api.app.state.calendar_transport = caldav.transport()
-    assert [c["id"] for c in api.get("/api/kalendarz/kalendarze").json()] == ["personal", "contact_birthdays"]
+    assert [c["id"] for c in api.get("/api/kalendarz/kalendarze").json()] == [OSOBISTY, URODZINY]
     body = {
         "summary": "Dentysta",
         "start": "2026-09-22T15:00",
@@ -196,7 +213,7 @@ def test_calendar_api(api: TestClient, caldav: FakeCalDAV, harness: ToolHarness,
     monkeypatch.setattr(
         kalendarz_tools,
         "CalendarClient",
-        lambda settings: CalendarClient(settings, transport=caldav.transport()),
+        lambda settings, owner=None: CalendarClient(settings, transport=caldav.transport(), owner=owner),
     )
     pending_id = call(harness, "calendar_delete", event_id=event["id"]).data["pending_id"]
     queue = api.get("/api/kalendarz/oczekujace").json()
@@ -205,7 +222,7 @@ def test_calendar_api(api: TestClient, caldav: FakeCalDAV, harness: ToolHarness,
     assert api.post(f"/api/kalendarz/oczekujace/{pending_id}/zatwierdz").status_code == 403
     approved = api.post(f"/api/kalendarz/oczekujace/{pending_id}/zatwierdz", headers=HEADERS)
     assert approved.json()["status"] == "done"
-    assert caldav.objects["personal"] == {}
+    assert caldav.objects[OSOBISTY] == {}
     assert api.post(f"/api/kalendarz/oczekujace/{pending_id}/odrzuc", headers=HEADERS).status_code == 409
 
     second = api.post("/api/kalendarz/wydarzenia", json=body, headers=HEADERS).json()
@@ -213,7 +230,7 @@ def test_calendar_api(api: TestClient, caldav: FakeCalDAV, harness: ToolHarness,
     assert api.post(f"/api/kalendarz/oczekujace/{rejected_id}/odrzuc", headers=HEADERS).json()["status"] == (
         "cancelled"
     )
-    assert len(caldav.objects["personal"]) == 1
+    assert len(caldav.objects[OSOBISTY]) == 1
     calendar_id, name = second["id"].split("/")
     assert api.delete(f"/api/kalendarz/wydarzenia/{calendar_id}/{name}", headers=HEADERS).json() == {
         "ok": True

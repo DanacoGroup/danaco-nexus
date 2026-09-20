@@ -2,10 +2,11 @@
 
 **Personal AI Workspace for Documents, Images and Automation**
 
-Prywatny asystent AI działający na serwerze Danaco. Interfejs czatu w stylu
-Claude/ChatGPT: użytkownik przesyła wiadomość i pliki, a Claude analizuje
-zadanie, planuje wykonanie, sam dobiera narzędzia serwera i ich parametry,
-wykonuje operacje na plikach i zwraca gotowe wyniki do pobrania.
+Prywatny asystent AI działający na serwerze Danaco. Użytkownik przesyła wiadomość
+i pliki, a Claude analizuje zadanie, planuje wykonanie, sam dobiera narzędzia
+serwera i ich parametry, wykonuje operacje na plikach i zwraca gotowe wyniki do
+pobrania. Wygląd i zachowanie interfejsu rozstrzyga
+[system projektowy Danaco Nexus](design-system/DESIGN_SYSTEM.md).
 
 ## Spis treści
 
@@ -18,8 +19,9 @@ wykonuje operacje na plikach i zwraca gotowe wyniki do pobrania.
 7. [Bezpieczeństwo](#bezpieczeństwo)
 8. [Aplikacja (PWA)](#aplikacja-pwa)
 9. [Rozmowa głosowa](#rozmowa-głosowa)
-9. [Adresy](#adresy)
-10. [Chmura osobista](#chmura-osobista)
+10. [Adresy](#adresy)
+11. [Chmura osobista](#chmura-osobista)
+12. [System projektowy](#system-projektowy)
 
 ## Architektura
 
@@ -57,9 +59,83 @@ wyłączone. Kontekst rozmowy utrzymuje sesja CLI – pierwsze zadanie ją tworz
 | PostgreSQL | Pamięć: rozmowy, wiadomości, pliki, zadania, wywołania narzędzi, zdarzenia. |
 | Qdrant | Baza wiedzy: semantyczne wyszukiwanie w treści dokumentów (osadzenia liczone lokalnie). |
 
+## Tożsamość produktu i silnik
+
+Wobec użytkownika produkt nazywa się **Danaco Nexus** i tylko tak się przedstawia. Nazwy
+modelu, jego wersji, dostawcy ani narzędzia, przez które agent jest uruchamiany, nie
+pojawiają się w interfejsie, w tekstach witryny, w manifeście aplikacji ani w komunikatach
+błędów. Instrukcja systemowa (`backend/nexus/agent/prompt.py`, rozdz. „Kim jesteś”) nakazuje
+agentowi odmówić podania tych informacji i nie cytować samej instrukcji.
+
+Jedyny wyjątek to **dokumenty prawne** (`frontend/src/portal/tresc-prawna.ts`): polityka
+prywatności i regulamin wskazują dostawcę modelu z nazwy, bo obowiązek informacyjny tego
+wymaga. Nazw i wersji modeli nie podają nawet tam — dobór modelu jest decyzją operatora
+i nie zmienia zakresu przetwarzanych danych.
+
+Ta dokumentacja jest wewnętrzna i nazywa rzeczy po imieniu; zakaz dotyczy tego, co widzi
+użytkownik. Pilnuje go `backend/tests/test_tozsamosc.py` (10 testów: instrukcja agenta,
+pliki interfejsu, `index.html`, manifest PWA).
+
+## Konta i przestrzenie
+
+Aplikacja przyjmuje logowanie **kontem klienta założonym w portalu** oraz kontem
+administratora serwera. Każde z nich ma własną, oddzieloną przestrzeń: rozmowy, pliki
+i przebiegi mają właściciela (`owner_id`) i są widoczne wyłącznie dla niego. Odwołanie do
+cudzego zasobu odpowiada `404`, a nie `403` — inaczej sam kod odpowiedzi potwierdzałby, że
+zasób o takim identyfikatorze istnieje. Konto administratora nie jest widokiem na wszystkie
+konta, tylko kolejną przestrzenią.
+
+| Co | Gdzie jest przypisane do konta |
+|---|---|
+| Rozmowy, wiadomości, przebiegi | `conversations.owner_id` |
+| Pliki i wyniki narzędzi | `files.owner_id`, przestrzeń według planu konta (`platnosci/plany.py`, `limity_uzytkownika`) |
+| Skrzynki pocztowe | `dane/app/poczta/<konto>.json`, prawa 600 |
+| Sesje i klucze urządzeń | `sessions.owner_id`, `device_tokens.owner_id` |
+| Kredyty i ich księga | `platnosci_kredyty`, `platnosci_kredyty_ruchy` |
+
+Konto do testów bez przechodzenia przez płatność zakłada się poleceniem:
+
+```bash
+deploy/nexus-cli.sh konto-testowe --email tester@example.com --plan pro
+```
+
+Zakładanie konta klienta przebiega normalną drogą (rejestracja w portalu, zakup planu);
+polecenie wyżej pomija tylko płatność, a poza tym konto niczym się nie różni — ta sama
+przestrzeń, te same kredyty, ta sama izolacja.
+
+Rozdzielenie sprawdza `backend/tests/test_izolacja_kont.py`. Rozliczenie pracy opisuje
+[`docs/platnosci/KREDYTY.md`](docs/platnosci/KREDYTY.md); silnik, jego konta i limity nie
+pojawiają się nigdzie w interfejsie ani w komunikatach dla użytkownika.
+
+## Wydania: strefa robocza → przedsionek → produkcja
+
+Repozytorium nie jest produkcją. Kod, który widzą użytkownicy, bierze się z niezmiennego
+wydania wskazanego dowiązaniem `wydania/produkcja`; podgląd przed wypuszczeniem stoi pod
+`https://test.danaco-nexus.pl` (hasło, `noindex`, własna baza i własne dane).
+
+```bash
+deploy/wydania/zbuduj.sh              # bramka + artefakt w wydania/wersje/<znacznik>
+deploy/wydania/wypchnij.sh przedsionek  # podgląd: https://test.danaco-nexus.pl
+deploy/wydania/wypchnij.sh produkcja    # promocja tego, co stoi w przedsionku
+deploy/wydania/cofnij.sh              # powrót do poprzedniego sprawnego wydania
+deploy/wydania/wersje.sh              # co gdzie stoi
+```
+
+Szczegóły, w tym cofanie i hasło do przedsionka: [`deploy/wydania/README.md`](deploy/wydania/README.md).
+
 ## Narzędzia agenta
 
-Claude sam decyduje, których narzędzi użyć i z jakimi parametrami.
+Rejestr `backend/nexus/tools/` liczy **61 narzędzi**. Claude sam decyduje, których użyć
+i z jakimi parametrami; wbudowane narzędzia CLI są wyłączone.
+
+Wykaz nie jest przepisywany ręcznie w trzech miejscach. `frontend/scripts/narzedzia.py`
+czyta ten sam rejestr i wypisuje `frontend/src/dane/narzedzia.ts` (dziewięć dziedzin, polska
+nazwa, zdanie opisu i przykładowe polecenie). Z tego pliku korzystają: sekcja „Dziewięć
+dziedzin” na stronie produktu, strona `/portal/narzedzia` i moduł „Narzędzia” w aplikacji.
+Nowe narzędzie bez przypisanej dziedziny i polskiej nazwy zatrzymuje budowę — dzięki temu
+witryna nie może obiecać czegoś, czego agent nie ma, ani przemilczeć tego, co doszło.
+
+### Rdzeń: pliki, dokumenty, obraz, dźwięk
 
 | Narzędzie | Działanie | Technologia |
 |---|---|---|
@@ -74,6 +150,8 @@ Claude sam decyduje, których narzędzi użyć i z jakimi parametrami.
 | `imagemagick` | Dowolna obróbka z bezpiecznej listy operatorów | ImageMagick |
 | `convert_images` | Konwersje formatów, łączenie obrazów w PDF | Pillow |
 | `convert_documents` | DOC/DOCX/XLSX/PPTX/ODT/RTF/HTML ⇄ PDF itd., SVG → PDF/PNG | LibreOffice, Inkscape |
+| `design_vector` | Projekt grafiki od zera (logo, plakat, okładka, ikona, infografika): SVG pisany przez model, wynik jako PNG, SVG i PDF do druku | Inkscape |
+| `design_compose` | Skład kadru z warstw (baner, post, miniatura, kolaż) z pozycją, skalą, kryciem i warstwą wektorową na wierzchu | Pillow, Inkscape |
 | `write_document` | Raporty i pisma przygotowane przez asystenta (DOCX, PDF, MD, TXT, XLSX, CSV) | python-docx, LibreOffice |
 | `check_grammar` | Pisownia, gramatyka, interpunkcja, styl | LanguageTool |
 | `pdf_split`, `pdf_merge`, `pdf_edit_pages` | Podział, łączenie, kolejność, obrót i usuwanie stron | PyMuPDF |
@@ -83,6 +161,21 @@ Claude sam decyduje, których narzędzi użyć i z jakimi parametrami.
 | `cloud_browse`, `cloud_import`, `cloud_save` | Pliki w chmurze osobistej: przeglądanie, pobieranie, zapis wyników | Nextcloud (WebDAV) |
 | `create_archive`, `extract_archive` | Archiwa ZIP (z ochroną przed zip-slip i bombami ZIP) | zipfile |
 | `index_documents`, `search_documents` | Indeksowanie i wyszukiwanie semantyczne dokumentów | Qdrant, fastembed |
+| `remove_background`, `change_background`, `erase_objects` | Usuwanie i zmiana tła, gumka obiektów | rembg, OpenCV |
+
+### Moduły: wiedza, poczta, kalendarz, strony, tłumaczenie, komputer
+
+| Narzędzie | Działanie | Moduł |
+|---|---|---|
+| `web_fetch_page`, `web_search` | Pobranie strony i wyszukiwanie w sieci | Research |
+| `scholar_search`, `scholar_paper` | Wyszukiwanie prac naukowych i odczyt pracy | Research |
+| `knowledge_save`, `knowledge_notes`, `knowledge_read` | Zapis źródła, notatki i odczyt w bazie wiedzy | Baza wiedzy |
+| `mail_list`, `mail_search`, `mail_read`, `mail_draft`, `mail_send` | Skrzynka: przegląd, wyszukiwanie, odczyt, szkic, wysyłka po zatwierdzeniu | Poczta |
+| `calendar_list`, `calendar_create`, `calendar_update`, `calendar_delete` | Terminy i spotkania | Kalendarz |
+| `site_list`, `site_read_file`, `site_write_file`, `site_import_file`, `site_delete_file`, `site_save_version`, `site_publish`, `site_unpublish` | Twórca stron: pliki, wersje, publikacja | Strony |
+| `translate_document` | Tłumaczenie dokumentu z zachowaniem układu | Tłumacz |
+| `pc_info`, `pc_find_files`, `pc_read_file`, `pc_screenshot` | Odczyt stanu komputera użytkownika przez Nexus Desktop | Pulpit |
+| `pc_powershell` | Polecenie systemowe na komputerze użytkownika — zawsze po jego zatwierdzeniu i monicie UAC | Pulpit |
 
 ## Wymagania
 
@@ -129,6 +222,7 @@ zakłada klaster PostgreSQL i bazę `nexus`, podłącza jednostki systemd z
 | `danaco-nexus-worker` | proces roboczy agenta |
 | `danaco-nexus-chmura` | chmura osobista Nextcloud (127.0.0.1:8940) |
 | `danaco-nexus-chmura-cron.timer` | zadania w tle Nextcloud co 5 minut |
+| `danaco-nexus-kopia.timer` | kopia zapasowa raz na dobę o 3:20 |
 | `danaco-nexus-valkey` | Redis (Valkey): zdarzenia zadań Nexusa, pamięć podręczna i blokady chmury |
 | `danaco-nexus.target` | wszystkie powyższe razem |
 
@@ -142,6 +236,31 @@ claude setup-token                                   # na koncie Claude właści
 sudo -u danaco-serwis deploy/zapisz-token.sh         # wklejenie tokenu (bez echa)
 deploy/nexus-cli.sh set-password                     # login: admin
 deploy/nexus-cli.sh doctor --online
+```
+
+Timer kopii zapasowej włącza sam `deploy/instalacja.sh`.
+
+### Kopia zapasowa i odtworzenie
+
+`deploy/kopia-zapasowa.sh` podnosi się do konta `danaco-serwis` (klaster wpuszcza tylko je —
+`deploy/postgres/pg_hba.conf`) i zapisuje do `dane/kopie/<znacznik>/`: zrzuty baz `nexus`
+i `nextcloud` (`pg_dump --format=custom`), role klastra, pliki użytkownika, wektory bazy
+wiedzy oraz sekrety (`.env`, klucze, profil CLI) — ostatnie z prawami 600. Do każdej kopii
+powstają sumy kontrolne `SUMY.sha256`. Kopie starsze niż `NEXUS_KOPIE_DNI` (domyślnie 14)
+są kasowane. Timer `danaco-nexus-kopia.timer` uruchamia to raz na dobę.
+
+Sprawdzenie kopii bez odtwarzania: `pg_restore --list dane/kopie/<znacznik>/nexus.dump`
+oraz `sha256sum -c SUMY.sha256` uruchomione jako `danaco-serwis` (plik z sekretami ma prawa 600).
+
+Odtworzenie przy zatrzymanych usługach:
+
+```bash
+systemctl --user stop danaco-nexus.target
+systemctl --user start danaco-nexus-postgres.service
+pg_restore -h dane/run -p 5433 -d nexus --clean --if-exists dane/kopie/<znacznik>/nexus.dump
+tar --extract --zstd --file dane/kopie/<znacznik>/pliki.tar.zst -C dane/app
+tar --extract --zstd --file dane/kopie/<znacznik>/qdrant.tar.zst -C dane/qdrant
+systemctl --user start danaco-nexus.target
 ```
 
 Polecenie `doctor` sprawdza bazę, katalog danych, czcionkę warstwy tekstowej,
@@ -178,12 +297,13 @@ przeglądarki.
 | iPhone / iPad (Safari) | Udostępnij → „Do ekranu początkowego” (instrukcja w panelu bocznym) |
 | Windows (Edge, Chrome) | przycisk „Zainstaluj aplikację” albo ikona instalacji w pasku adresu; okno bez paska tytułu (Window Controls Overlay) |
 
-Elementy PWA: manifest (`display: standalone`, skrót „Nowa rozmowa”), ikony zwykłe
-i maskowalne (`frontend/scripts/ikony.py`), ikona iOS, service worker (Workbox) z
-powłoką aplikacji dostępną offline i komunikatem o nowej wersji. API, pliki
-i strumień zadań nigdy nie są buforowane. Interfejs: Tailwind CSS 4, motyw ciemny
-domyślnie (jasny i systemowy do wyboru), układ w stylu Claude/ChatGPT, obsługa
-wycięć ekranu (safe area) na telefonach.
+Elementy PWA: manifest (`display: standalone`, skrót „Nowa rozmowa”), pełny zestaw
+ikon z pakietu marki (`logo/pwa/` — zwykłe, maskowalne, jednobarwna dla ikon
+motywowanych Androida), ikona iOS, service worker (Workbox) z powłoką aplikacji
+dostępną offline i komunikatem o nowej wersji. API, pliki, strumień zadań, tła
+strony produktu i materiały wideo nigdy nie są buforowane. Interfejs: Tailwind
+CSS 4 na tokenach systemu projektowego, motyw ciemny domyślnie (jasny i systemowy
+do wyboru), obsługa wycięć ekranu (safe area) na telefonach.
 
 ## Rozmowa głosowa
 
@@ -191,13 +311,22 @@ Przycisk z falą dźwięku obok pola wiadomości otwiera tryb rozmowy: Nexus sł
 sam wykrywa koniec wypowiedzi, rozpoznaje mowę na serwerze, przekazuje ją Claude
 (z dostępem do wszystkich narzędzi i plików rozmowy) i czyta odpowiedź zdanie po
 zdaniu, zanim cała zostanie wygenerowana. Potem słucha dalej. Odpowiedź można
-przerwać głosem albo dotknięciem kuli; mikrofon można wyciszyć, a głos zmienić
-(Gosia, Magda, Marek). W trakcie rozmowy ekran się nie wygasza.
+przerwać głosem albo dotknięciem kuli; mikrofon można wyciszyć, a głos zmienić.
+W trakcie rozmowy ekran się nie wygasza.
+
+Mowa idzie dwutorowo. Gdy zapisany jest klucz Google (`dane/app/google-api-key`),
+pierwszeństwo ma usługa Google: rozpoznawanie Cloud Speech i 30 polskich głosów
+Chirp3-HD — domyślnie `pl-PL-Chirp3-HD-Achernar`. Modele na serwerze są zapasem
+i przejmują pracę, gdy klucza nie ma albo usługa odpowie błędem; dzięki temu
+rozmowa głosowa działa również bez sieci. Lista głosów z obu źródeł wraca
+z `/api/voice/config`, a wybór zapamiętuje się w ustawieniach.
 
 | Element | Technologia | Położenie |
 |---|---|---|
-| Rozpoznawanie mowy | Whisper large-v3-turbo (faster-whisper, CTranslate2, int8, CPU) | `programy/modele/whisper-large-v3-turbo` |
-| Synteza mowy | Piper, polskie głosy gosia, mc_speech, darkman | `programy/modele/piper` |
+| Rozpoznawanie mowy — pierwsze | Google Cloud Speech | klucz `dane/app/google-api-key` |
+| Rozpoznawanie mowy — zapas | Whisper large-v3-turbo (faster-whisper, CTranslate2, int8, CPU) | `programy/modele/whisper-large-v3-turbo` |
+| Synteza mowy — pierwsza | Google Chirp3-HD, 30 głosów polskich | klucz `dane/app/google-api-key` |
+| Synteza mowy — zapas | Piper, polskie głosy gosia, mc_speech, darkman (Gosia, Magda, Marek) | `programy/modele/piper` |
 | API | `/api/voice/config`, `/api/voice/transcribe`, `/api/voice/speak` | proces API (modele w pamięci) |
 
 Wypowiedzi z rozmowy głosowej trafiają do tej samej rozmowy co tekst; Claude
@@ -272,6 +401,12 @@ Ustawienia z pliku `.env` (pełna lista z opisami w `.env.example`):
 | `NEXUS_TIKA_URL` | Serwer Tika; puste = tika-app w trybie wsadowym | puste |
 | `NEXUS_UPLOAD_LIMIT_MB` | Limit rozmiaru przesyłanego pliku | `2048` |
 
+Moduły dołożone później mają własne rodziny zmiennych — opisy i wartości domyślne
+są w `.env.example` oraz w dokumentacji modułu: `NEXUS_PORTAL_*`
+([portal](docs/portal/README.md)) i `NEXUS_PLATNOSCI_*` ([płatności](docs/platnosci/README.md)).
+Piaskownica „Wypróbuj teraz” ([opis](docs/demo/README.md)) nie ma własnych zmiennych —
+limity gościa są stałymi w kodzie.
+
 ## Rozwój i testy
 
 ```bash
@@ -291,6 +426,44 @@ CSRF, limity, kolejka, SSE) i przebieg agenta z atrapą Claude Code CLI
 narzędzie przez prawdziwy serwer MCP. Testy wymagające programów narzędziowych
 są pomijane, gdy programu brak; testy PostgreSQL wymagają zmiennej
 `NEXUS_TEST_POSTGRES_URL` (pusta baza testowa).
+
+## System projektowy
+
+Wszystkie wartości wizualne aplikacji — barwy, kroje, odstępy, promienie, cienie,
+czasy i krzywe ruchu — pochodzą z tokenów w `design-tokens/`. Komponenty odwołują
+się wyłącznie do ról semantycznych (`bg-app`, `text-muted`, `border-line`,
+`bg-accent-fill`), nigdy do wartości wpisanej wprost.
+
+```bash
+python3 design-tokens/build.py     # *.json → design-tokens/dist/tokens.css
+cd frontend && npm run zasoby      # tokeny, kroje, znak, tła, nagrania i film do public/
+```
+
+`npm run zasoby` uruchamia się samo przed `npm run dev` i `npm run build`. Wyniki
+(`frontend/src/tokens.css`, `frontend/public/{kroje,icons,znak,tla,ruch,film,ladowanie}`)
+są pomijane w repozytorium — źródłem prawdy pozostają pakiety marki.
+
+| Dokument | Zakres |
+|---|---|
+| [System projektowy](design-system/DESIGN_SYSTEM.md) | zasady, role, kontrast, typografia, stany |
+| [Wdrożenie systemu](design-system/WDROZENIE.md) | jak tokeny i pakiety są użyte w kodzie |
+| [Audyt interfejsu](docs/AUDYT-INTERFEJSU.md) | ustalenia i naprawy warstwy wizualnej i treści |
+| [Tokeny projektowe](design-tokens/README.md) | architektura tokenów i generator |
+| [Biblioteka komponentów](ui-kit/COMPONENT_LIBRARY.md) | specyfikacja komponentów |
+| [Wytyczne ruchu](motion/MOTION_GUIDELINES.md) | czasy, krzywe, choreografia |
+| [Znak i logotyp](logo/LOGO_CONCEPTS.md) · [Wytyczne ikon](logo/ICON_GUIDELINES.md) | marka i ikony |
+| [Strona produktu](landing/LANDING_PAGE_SPEC.md) | treść i zachowanie strony `danaco-nexus.pl` |
+
+Dokumentacja techniczna poza warstwą projektową:
+
+| Dokument | Zakres |
+|---|---|
+| [Architektura](docs/architektura/README.md) | stan obecny, architektura docelowa, roadmapa, backlog |
+| [Moduły](docs/moduly/) | opisy poszczególnych modułów aplikacji i klientów |
+| [Portal produktowy](docs/portal/README.md) | witryna `/portal`: treść, konta, kanały dla wyszukiwarek |
+| [Płatności](docs/platnosci/README.md) | plany, subskrypcje i rozliczenia na Stripe |
+| [Piaskownica](docs/demo/README.md) | pokaz „Wypróbuj teraz” bez konta |
+| [Kampania promocyjna](promocja/kampania/README.md) | filmy i animacje kampanii, odtworzenie renderu |
 
 ## Bezpieczeństwo
 

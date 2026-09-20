@@ -1,0 +1,37 @@
+/* Przejścia widoków i zatrzymanie pętli ozdobnych strony produktu i portalu.
+   Kaskadę wejścia prowadzi jedna klasa `.ui-ujawnij` z `ui/ruch.css` — tutaj jej nie ma.
+   Wytyczne: motion/MOTION_GUIDELINES.md, rozdz. 5 (choreografia), 13 (przejścia widoków). */
+
+/* ── Przejście między widokami ───────────────────────────────────── */
+
+/* Przejście obejmuje wyłącznie podmieniany obszar. Korzeń traci nazwę na czas przebiegu,
+   więc nie powstaje grupa `root` i reszta strony — w tym odtwarzane nagranie — nie jest
+   przenikana. Nazwę `ruch-widok` nadaje elementowi skrypt `PrzejscieWidoku.tsx`. */
+.ruch-przejscie {
+  view-transition-name: none;
+}
+
+/* Migawki obszaru dostają te same tokeny co wejście zastępcze `.ui-widok`. */
+::view-transition-old(ruch-widok) {
+  animation-duration: var(--duration-fast);
+  animation-timing-function: var(--easing-exit);
+}
+::view-transition-new(ruch-widok) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--easing-enter);
+}
+
+/* Dopóki trwa przejście, wejście zastępcze milczy — dwa ruchy na jednej zmianie czytają się
+   jak usterka, nie jak choreografia. */
+.ruch-widok[data-przejscie="true"] > .ui-widok {
+  animation: none;
+}
+
+/* ── Mikrointerakcje ─────────────────────────────────────────────── */
+
+/* Pasek zdań i inne pętle ozdobne stoją poza polem widzenia (WCAG 2.2.2). */
+[data-widoczny="false"].pasek-tor,
+[data-widoczny="false"] .pasek-tor,
+[data-widoczny="false"] .punkt-opada {
+  animation-play-state: paused;
+}

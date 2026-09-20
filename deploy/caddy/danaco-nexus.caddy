@@ -7,6 +7,14 @@
 (danaco-nexus-naglowki) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}
+
+# Wyszukiwarki widzą wyłącznie stronę produktu; wszystko za logowaniem jest zamknięte.
+(danaco-nexus-bez-indeksu) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Robots-Tag "noindex, nofollow"
 		-Server
 	}
@@ -14,6 +22,9 @@
 
 danaco-nexus.pl {
 	import danaco-nexus-naglowki
+	# Ekrany za logowaniem, pobieranie i API poza indeksem; strona produktu („/”) indeksowana.
+	@zamkniete path /api/* /zaloguj* /c/* /m/* /pobierz/* /share-target
+	header @zamkniete X-Robots-Tag "noindex, nofollow"
 	encode zstd gzip
 	request_body {
 		max_size 2GB
@@ -37,8 +48,38 @@ danaco-nexus.pl {
 	}
 }
 
-api.danaco-nexus.pl {
+# Przedsionek: wydanie po bramce, przed produkcją. Nigdy nie trafia do wyszukiwarek
+# i jest zamknięty hasłem — to podgląd dla właściciela, a nie druga publiczna witryna.
+test.danaco-nexus.pl {
 	import danaco-nexus-naglowki
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+	respond /robots.txt 200 {
+		body "User-agent: *\nDisallow: /\n"
+	}
+	basic_auth {
+		import /etc/danaco/przedsionek-haslo
+	}
+	encode zstd gzip
+	request_body {
+		max_size 2GB
+	}
+	log {
+		output file /var/log/caddy/danaco-nexus-przedsionek.access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+	reverse_proxy 127.0.0.1:8950 {
+		flush_interval -1
+		transport http {
+			read_timeout 30m
+			write_timeout 30m
+		}
+	}
+}
+
+api.danaco-nexus.pl {
+	import danaco-nexus-bez-indeksu
 	request_body {
 		max_size 2GB
 	}
@@ -69,7 +110,7 @@ www.danaco-nexus.pl {
 }
 
 cloud.danaco-nexus.pl {
-	import danaco-nexus-naglowki
+	import danaco-nexus-bez-indeksu
 	request_body {
 		max_size 20GB
 	}

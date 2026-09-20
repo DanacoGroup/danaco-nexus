@@ -1,0 +1,26 @@
+{
+  "$description": "Efekty: krycie, rozmycie tła, grubości obrysów. Krycie nie służy do budowy kolorów tekstu — tekst zawsze bierze kolor roli semantycznej.",
+  "opacity": {
+    "disabled": { "$type": "number", "$value": 0.4, "$description": "Kontrolka wyłączona (WCAG zwalnia ją z wymogu kontrastu); zawsze razem z cursor: not-allowed i aria-disabled" },
+    "pending": { "$type": "number", "$value": 0.6, "$description": "Treść w trakcie odświeżania, element przeciągany" },
+    "glass": { "$type": "number", "$value": 0.72, "$description": "Krycie powierzchni szklanej (rola glass)" },
+    "overlay-hover": { "$type": "number", "$value": 0.06, "$description": "Biel lub czerń nałożona na obraz, miniaturę albo gradient pod kursorem" },
+    "overlay-press": { "$type": "number", "$value": 0.1, "$description": "Jak wyżej, stan wciśnięcia" }
+  },
+  "blur": {
+    "sm": { "$type": "dimension", "$value": "8px", "$description": "Tło pod dymkiem podpowiedzi, lekkie odcięcie" },
+    "md": { "$type": "dimension", "$value": "20px", "$description": "Powierzchnia szklana: pasek górny, pole wiadomości, paleta poleceń" },
+    "lg": { "$type": "dimension", "$value": "48px", "$description": "Poświata Aurory na ekranie powitalnym" }
+  },
+  "border": {
+    "width": {
+      "thin": { "$type": "dimension", "$value": "1px", "$description": "Obrys domyślny: karta, pole, linia podziału" },
+      "thick": { "$type": "dimension", "$value": "2px", "$description": "Obrys wyróżniony: zaznaczona karta, strefa upuszczania, pierścień AI" },
+      "focus": { "$type": "dimension", "$value": "2px", "$description": "Grubość obrysu fokusu (outline)" },
+      "focus-offset": { "$type": "dimension", "$value": "2px", "$description": "Odsunięcie obrysu fokusu od krawędzi" }
+    },
+    "style": {
+      "drop": { "$type": "string", "$value": "dashed", "$description": "Styl obrysu strefy upuszczania w spoczynku" }
+    }
+  }
+}

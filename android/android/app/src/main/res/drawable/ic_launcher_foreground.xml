@@ -1,26 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Znak Nexusa (litera N z dwoma węzłami) w strefie widocznej ikony adaptacyjnej (72 dp z 108 dp). -->
+<!-- Znak Nexusa (łuk z punktem) z logo/pwa/android/adaptive-foreground.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:translateX="18"
-        android:translateY="18"
-        android:scaleX="0.140625"
-        android:scaleY="0.140625">
-        <path
-            android:pathData="M164,352V160l184,192V160"
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="46"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M130,352a34,34 0,1 0,68,0a34,34 0,1 0,-68,0z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M314,160a34,34 0,1 0,68,0a34,34 0,1 0,-68,0z" />
-    </group>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M31.5,72.9V53.1A22.5,22.5 0 0 1 76.5,53.1V72.9A5.4,5.4 0 0 1 65.7,72.9V53.1A11.7,11.7 0 0 0 42.3,53.1V72.9A5.4,5.4 0 0 1 31.5,72.9ZM48.15,53.1A5.85,5.85 0 1 0 59.85,53.1A5.85,5.85 0 1 0 48.15,53.1Z" />
 </vector>

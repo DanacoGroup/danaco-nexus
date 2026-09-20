@@ -1,0 +1,32 @@
+[Unit]
+Description=Danaco Nexus — przedsionek (test.danaco-nexus.pl, 127.0.0.1:8950)
+Documentation=file:///danaco/projekty/danaco-nexus/deploy/wydania/README.md
+After=network.target danaco-nexus-postgres.service
+Requires=danaco-nexus-postgres.service
+RequiresMountsFor=/danaco/projekty/danaco-nexus
+PartOf=danaco-nexus.target
+
+[Service]
+Type=simple
+User=danaco-serwis
+Group=danaco-user
+UMask=0007
+# Kod bierze się z wydania, nie ze strefy roboczej — edycja pliku w repozytorium
+# niczego tu nie zmienia, dopóki nie powstanie i nie zostanie wypchnięte nowe wydanie.
+WorkingDirectory=/danaco/projekty/danaco-nexus/wydania/przedsionek/backend
+EnvironmentFile=/danaco/projekty/danaco-nexus/.env
+EnvironmentFile=/danaco/projekty/danaco-nexus/deploy/wydania/przedsionek.env
+Environment=HOME=/danaco/projekty/danaco-nexus/wydania/dane-przedsionek
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/danaco/projekty/danaco-nexus/.venv/bin/python -m uvicorn nexus.api.app:app --host 127.0.0.1 --port 8950 --proxy-headers --forwarded-allow-ips 127.0.0.1 --timeout-keep-alive 75 --no-server-header
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/danaco/projekty/danaco-nexus/wydania/dane-przedsionek
+ReadWritePaths=/danaco/projekty/danaco-nexus/dane/run
+
+[Install]
+WantedBy=danaco-nexus.target

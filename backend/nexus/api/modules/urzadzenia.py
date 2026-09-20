@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
-from nexus.api.auth import COOKIE_NAME, DEVICE_TOKEN_PREFIX, require_session, token_hash
+from nexus.api.auth import COOKIE_NAME, DEVICE_TOKEN_PREFIX, require_session, token_hash, wlasciciel
 from nexus.db import Database, DeviceToken
 
 router = APIRouter(prefix="/api/urzadzenia", tags=["urzadzenia"], dependencies=[Depends(require_session)])
@@ -45,20 +45,37 @@ def _payload(record: DeviceToken) -> dict[str, Any]:
 
 
 @router.get("")
-async def list_devices(request: Request) -> list[dict[str, Any]]:
-    """Klucze urządzeń (bez samych kluczy)."""
+async def list_devices(
+    request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> list[dict[str, Any]]:
+    """Klucze urządzeń konta (bez samych kluczy)."""
     database: Database = request.app.state.database
     async with database.session() as session:
-        rows = (await session.scalars(select(DeviceToken).order_by(DeviceToken.created_at.desc()))).all()
+        rows = (
+            await session.scalars(
+                select(DeviceToken)
+                .where(DeviceToken.owner_id == owner)
+                .order_by(DeviceToken.created_at.desc())
+            )
+        ).all()
     return [_payload(row) for row in rows]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_device(payload: NewDevice, request: Request) -> dict[str, Any]:
-    """Tworzy klucz urządzenia; zwraca go jednorazowo w polu ``token``."""
+async def create_device(
+    payload: NewDevice, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
+    """Tworzy klucz urządzenia konta; zwraca go jednorazowo w polu ``token``.
+
+    Klucz urządzenia daje dostęp do rozmów i plików konta, więc musi mieć właściciela.
+    Bez niego wpadałby domyślny administrator i telefon jednego użytkownika otwierałby
+    cudzą przestrzeń.
+    """
     _require_browser_login(request)
     token = DEVICE_TOKEN_PREFIX + secrets.token_urlsafe(32)
-    record = DeviceToken(token_hash=token_hash(token), name=payload.name.strip(), kind=payload.kind)
+    record = DeviceToken(
+        token_hash=token_hash(token), owner_id=owner, name=payload.name.strip(), kind=payload.kind
+    )
     database: Database = request.app.state.database
     async with database.session() as session:
         session.add(record)
@@ -66,13 +83,17 @@ async def create_device(payload: NewDevice, request: Request) -> dict[str, Any]:
 
 
 @router.delete("/{device_id}")
-async def revoke_device(device_id: uuid.UUID, request: Request) -> dict[str, bool]:
-    """Cofa klucz urządzenia."""
+async def revoke_device(
+    device_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, bool]:
+    """Cofa klucz urządzenia należący do konta."""
     _require_browser_login(request)
     database: Database = request.app.state.database
     async with database.session() as session:
         result = await session.execute(
-            update(DeviceToken).where(DeviceToken.id == device_id).values(revoked=True)
+            update(DeviceToken)
+            .where(DeviceToken.id == device_id, DeviceToken.owner_id == owner)
+            .values(revoked=True)
         )
     if not result.rowcount:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono urządzenia.")

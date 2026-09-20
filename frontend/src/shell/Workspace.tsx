@@ -9,35 +9,72 @@ import { PreviewModal } from "../components/PreviewModal";
 import { Sidebar } from "../components/Sidebar";
 import { AssistantMessage, UserMessage } from "../components/Turns";
 import { findModule, MODULES } from "../modules/registry";
+import { BrakKredytow } from "../platnosci/BrakKredytow";
 import { takeSharedContent } from "../share";
-import { applyTheme, storedTheme, type ThemeChoice } from "../theme";
+import { applyTheme, nextTheme, saveTheme, storedTheme, type ThemeChoice } from "../theme";
+import { useEscZatrzymaj } from "./useEscZatrzymaj";
 import { unlockAudio } from "../voice/player";
 import { VoiceMode } from "../voice/VoiceMode";
 import { BottomBar, NavRail, navEntries } from "./ModuleNav";
+import { BezPolaczenia } from "./BezPolaczenia";
+import { Paleta } from "./Paleta";
+import { PasekKontaProbnego } from "./PasekKontaProbnego";
 import type { Route } from "./route";
 import { TasksButton, TasksPanel, useActiveTasks } from "./TasksPanel";
 import { Toasts, type Toast } from "./Toasts";
 import { displayTurn } from "./turnDisplay";
 import { useChat } from "./useChat";
 
+// Podpowiedzi mają pokazać zakres aplikacji i brzmieć tak, jak mówi człowiek, który
+// czegoś potrzebuje — a nie jak polecenie dla maszyny. Każda dotyka innej dziedziny
+// z rejestru narzędzi: projektu graficznego, zdjęć, dokumentów, poczty i terminarza,
+// nagrań, badania ze źródłami, strony internetowej i własnego komputera.
 const SUGGESTIONS = [
-  { title: "Uporządkuj dokumenty", text: "Ten PDF zawiera wiele dokumentów – podziel go na osobne pliki i nazwij je według treści." },
-  { title: "Popraw zdjęcie", text: "Popraw to zdjęcie tak, aby wyglądało jak do profesjonalnego ogłoszenia." },
-  { title: "Przeszukiwalny PDF", text: "Zrób z tych skanów jeden przeszukiwalny PDF w najlepszej jakości." },
-  { title: "Audio i wideo", text: "Wytnij z tego nagrania fragment 00:30–02:00 i zapisz go jako MP3 z wyrównaną głośnością." },
-  { title: "Streszczenie i pismo", text: "Przeczytaj te dokumenty, streść najważniejsze ustalenia i przygotuj pismo w DOCX." },
-  { title: "Z chmury", text: "Pobierz z chmury katalog Faktury i zestaw kwoty z wszystkich faktur w tabeli XLSX." },
+  {
+    title: "Zaprojektuj logo",
+    text: "Zaprojektuj logo dla mojej firmy — nazwa i prosty znak, w ciemnej i jasnej wersji. Daj plik do druku i do sieci.",
+  },
+  {
+    title: "Popraw stare zdjęcie",
+    text: "To zdjęcie jest wyblakłe i krzywo zeskanowane. Wyprostuj je, popraw kolory i przygotuj wersję do powiększenia.",
+  },
+  {
+    title: "Zrób porządek w dokumentach",
+    text: "Tu jest plik ze skanami kilku dokumentów naraz. Rozdziel je, rozpoznaj tekst i nazwij każdy po tym, czym jest.",
+  },
+  {
+    title: "Napisz pismo",
+    text: "Przeczytaj te dokumenty i napisz na ich podstawie pismo do ubezpieczyciela. Chcę je dostać w Wordzie.",
+  },
+  {
+    title: "Ogarnij pocztę i termin",
+    text: "Sprawdź, na co nie odpisałem w tym tygodniu. Przygotuj odpowiedzi i wpisz do kalendarza terminy, które się pojawią.",
+  },
+  {
+    title: "Notatka z nagrania",
+    text: "Z tego nagrania ze spotkania zrób notatkę: o czym rozmawialiśmy, co zostało ustalone i kto co ma zrobić.",
+  },
+  {
+    title: "Sprawdź temat i podaj źródła",
+    text: "Zastanawiam się nad pompą ciepła w domu z lat 90. Sprawdź, czy to ma sens, i napisz raport z linkami do źródeł.",
+  },
+  {
+    title: "Zrób i opublikuj stronę",
+    text: "Zrób jednostronicową wizytówkę mojej firmy — kontakt, oferta, zdjęcia — i opublikuj ją pod moim adresem.",
+  },
 ];
 
 interface Props {
   username: string;
   cloudUrl: string;
+  /** Sesja konta próbnego (wejście bez rejestracji) — okno dokłada pasek zachęty. */
+  gosc?: boolean;
   route: Route;
   navigate: (path: string, replace?: boolean) => void;
   onLoggedOut: () => void;
 }
 
-export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: Props) {
+export function Workspace({ username, cloudUrl, gosc = false, route, navigate, onLoggedOut }: Props) {
   const [theme, setTheme] = useState<ThemeChoice>(storedTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [preview, setPreview] = useState<FileInfo | null>(null);
@@ -70,6 +107,15 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
   const openConversation = useCallback(
     (id: string) => {
       navigate(`/c/${id}`);
+    },
+    [navigate],
+  );
+
+  /** Nowa rozmowa z gotowym zdaniem w polu wiadomości (moduł „Możliwości”, podpowiedzi). */
+  const openChat = useCallback(
+    (tekst?: string) => {
+      navigate("/");
+      if (tekst) setPrefill(tekst);
     },
     [navigate],
   );
@@ -131,8 +177,20 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
 
   useEffect(() => {
     const element = scroller.current;
-    if (element && stickToBottom.current) element.scrollTop = element.scrollHeight;
+    if (!element || !stickToBottom.current) return;
+    // Przy pustej rozmowie przewinięcie do dołu ucinałoby powitanie i podpowiedzi —
+    // na ekranie 720 px znikał cały nagłówek. Do dołu wracamy dopiero z wypowiedziami.
+    if (!(chat.detail?.turns ?? []).length) {
+      element.scrollTop = 0;
+      return;
+    }
+    element.scrollTop = element.scrollHeight;
   }, [chat.detail]);
+
+  // Esc zatrzymuje pracującego agenta (DESIGN_SYSTEM, rozdz. 2). Warunek zatrzymania
+  // jest funkcją czystą w `useEscZatrzymaj`, więc da się go sprawdzić testem bez powłoki.
+  const biegTrwa = chat.activeRun !== null;
+  useEscZatrzymaj(biegTrwa, chat.stop);
 
   const startVoice = () => {
     if (!voiceConfig?.available) {
@@ -142,6 +200,17 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
     unlockAudio();
     setVoiceOpen(true);
   };
+
+  // Adres /m/glos nie jest modułem rejestru, tylko nakładką otwieraną z paska. Wejście
+  // pod ten adres (zakładka, odświeżenie) ma otworzyć rozmowę głosową, a nie ekran
+  // „moduł niedostępny”.
+  useEffect(() => {
+    if (activeId !== "glos") return;
+    navigate(chat.currentId ? `/c/${chat.currentId}` : "/", true);
+    startVoice();
+    // Uruchamiane przy wejściu pod adres modułu głosu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, voiceConfig]);
 
   const selectEntry = (id: string) => {
     if (id === "glos") {
@@ -232,6 +301,8 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
             <PlusIcon />
           </button>
         </header>
+        <BezPolaczenia />
+        {gosc && <PasekKontaProbnego onZaloz={() => window.location.assign("/portal/konto")} />}
         <div
           className="min-h-0 flex-1 overflow-y-auto"
           ref={scroller}
@@ -262,6 +333,10 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
                     </button>
                   ))}
                 </div>
+                <p className="mt-6 text-sm text-subtle">
+                  Naciśnij <kbd className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd>{" "}
+                  <kbd className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-xs">K</kbd>, aby otworzyć paletę poleceń.
+                </p>
               </div>
             ) : (
               <div className="space-y-7">
@@ -277,14 +352,27 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
           </div>
         </div>
         <div className="safe-bottom relative mx-auto w-full max-w-3xl px-3 md:px-6">
-          {chat.error && (
-            <div
-              role="alert"
-              onClick={() => chat.setError("")}
-              className="absolute inset-x-3 bottom-full mb-2 cursor-pointer rounded-xl border border-danger/40 bg-danger-soft px-4 py-2.5 text-sm text-danger shadow-lg md:inset-x-6"
-            >
-              {chat.error}
+          {chat.brakKredytow ? (
+            <div className="absolute inset-x-3 bottom-full mb-2 md:inset-x-6">
+              <BrakKredytow
+                komunikat={chat.error}
+                onDokup={() => navigate("/m/platnosci")}
+                onZamknij={() => {
+                  chat.setBrakKredytow(false);
+                  chat.setError("");
+                }}
+              />
             </div>
+          ) : (
+            chat.error && (
+              <div
+                role="alert"
+                onClick={() => chat.setError("")}
+                className="absolute inset-x-3 bottom-full mb-2 cursor-pointer rounded-xl border border-danger/40 bg-danger-soft px-4 py-2.5 text-sm text-danger shadow-lg md:inset-x-6"
+              >
+                {chat.error}
+              </div>
+            )
           )}
           <Composer
             conversationId={chat.currentId}
@@ -298,11 +386,11 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
             onVoice={voiceConfig?.available ? startVoice : undefined}
           />
           <div className="py-1.5 text-center text-xs text-muted">
-            Danaco Nexus korzysta z Claude. Wyniki warto sprawdzić przed użyciem.
+            Danaco Nexus może się pomylić. Wyniki warto sprawdzić przed użyciem.
           </div>
         </div>
         {dragging && (
-          <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-accent bg-accent-soft/90 text-lg font-medium text-accent">
+          <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent bg-accent-soft/90 text-lg font-medium text-accent">
             <PaperclipIcon size={32} />
             Upuść pliki, aby je dodać
           </div>
@@ -320,12 +408,12 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
       </header>
       <div className="min-h-0 flex-1">
         {module ? (
-          <module.Page openConversation={openConversation} openModule={(id) => navigate(`/m/${id}`)} />
+          <module.Page openConversation={openConversation} openModule={(id) => navigate(`/m/${id}`)} openChat={openChat} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <h2 className="text-xl font-semibold">Ten moduł nie jest dostępny</h2>
             <p className="max-w-sm text-sm text-muted">Moduł „{activeId}” nie jest zainstalowany w tej wersji Nexusa.</p>
-            <button type="button" className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-on-accent" onClick={() => navigate("/")}>
+            <button type="button" className="rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent" onClick={() => navigate("/")}>
               Wróć do czatu
             </button>
           </div>
@@ -354,6 +442,25 @@ export function Workspace({ username, cloudUrl, route, navigate, onLoggedOut }: 
           onChanged={() => void refreshTasks()}
         />
       )}
+      <Paleta
+        entries={entries}
+        conversations={chat.conversations}
+        onSelectEntry={selectEntry}
+        onOpenConversation={openConversation}
+        onNewConversation={() => {
+          navigate("/");
+          chat.open(null);
+        }}
+        onToggleTheme={() => {
+          const wybor = nextTheme(theme);
+          setTheme(wybor);
+          saveTheme(wybor);
+        }}
+        onAsk={(pytanie) => {
+          if (activeId !== "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : "/");
+          setPrefill(pytanie);
+        }}
+      />
       <Toasts toasts={toasts} onDismiss={dismissToast} />
       {voiceOpen && voiceConfig && (
         <VoiceMode

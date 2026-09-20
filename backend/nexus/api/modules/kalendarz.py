@@ -25,12 +25,18 @@ def _settings(request: Request) -> Settings:
 
 
 async def _calendar[T](request: Request, work: Callable[[CalendarClient], T]) -> T:
-    """Operacja CalDAV w wątku; błędy kalendarza jako odpowiedzi HTTP."""
+    """Operacja CalDAV w wątku; błędy kalendarza jako odpowiedzi HTTP.
+
+    Kalendarze są rozdzielone nazwą kolekcji — konto widzi i adresuje wyłącznie te,
+    które zaczynają się jego przedrostkiem (`calendar.przedrostek_konta`).
+    """
     settings = _settings(request)
     transport = getattr(request.app.state, "calendar_transport", None)
+    owner = (await require_session(request)).owner_id
 
     def run() -> T:
-        with CalendarClient(settings, transport=transport) as client:
+        with CalendarClient(settings, transport=transport, owner=owner) as client:
+            client.zapewnij_kalendarz()
             return work(client)
 
     try:
@@ -178,11 +184,16 @@ async def plan_with_nexus(payload: PlanRequest, request: Request) -> dict[str, A
         "(albo w zakresie, którego dotyczy prośba), unikaj kolizji, a potem dodaj wydarzenia narzędziem "
         "calendar_create. Na końcu krótko podsumuj, co i kiedy zaplanowałeś."
     )
+    wlasciciel_konta = (await require_session(request)).owner_id
     created = await conversations.create_conversation(
-        conversations.CreateConversation(title=f"Plan: {payload.text.strip()}"[:200]), request
+        conversations.CreateConversation(title=f"Plan: {payload.text.strip()}"[:200]),
+        request,
+        wlasciciel_konta,
     )
     conversation_id = uuid.UUID(created["id"])
-    result = await conversations.send_message(conversation_id, conversations.SendMessage(text=text), request)
+    result = await conversations.send_message(
+        conversation_id, conversations.SendMessage(text=text), request, wlasciciel_konta
+    )
     return {"conversation_id": str(conversation_id), "run_id": result["run_id"]}
 
 

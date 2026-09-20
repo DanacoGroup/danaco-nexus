@@ -114,7 +114,7 @@ class PanelController {
       maximizable: false,
       skipTaskbar: true,
       alwaysOnTop: true,
-      backgroundColor: '#212121',
+      backgroundColor: '#0D0F17',
       title: 'Nexus – panel',
     });
     this.window.setAlwaysOnTop(true, 'floating');
@@ -131,8 +131,8 @@ class PanelController {
         spellcheck: true,
       },
     });
-    this.toolbar.setBackgroundColor('#171717');
-    this.content.setBackgroundColor('#212121');
+    this.toolbar.setBackgroundColor('#191B25');
+    this.content.setBackgroundColor('#0D0F17');
     this.window.contentView.addChildView(this.toolbar);
     this.window.contentView.addChildView(this.content);
     this.layout();

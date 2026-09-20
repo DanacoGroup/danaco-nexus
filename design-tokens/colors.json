@@ -1,0 +1,903 @@
+{
+  "$description": "Kolory Danaco Nexus. Warstwa 1: skale bazowe (OKLCH, sRGB HEX). Warstwa 2: kolory marki. Warstwa 3: role semantyczne dla motywu ciemnego (domyślnego) i jasnego. Komponenty używają wyłącznie warstwy 3. Wartości OKLCH skal bazowych w $extensions.pl.danaco.oklch.",
+  "color": {
+    "neutral": {
+      "$description": "Neutralna, granatowo-grafitowa (hue 272)",
+      "50": {
+        "$type": "color",
+        "$value": "#F9FAFE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.985 0.005 275.0)"
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#EFF2FB",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.961 0.012 271.3)"
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#E0E3EC",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.916 0.013 271.3)"
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#C8CCD6",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.845 0.015 268.5)"
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#9A9EA9",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.699 0.017 269.9)"
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#787B87",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.584 0.019 274.6)"
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#595D69",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.479 0.020 271.0)"
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#3F4350",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.384 0.023 271.8)"
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#292C37",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.295 0.020 273.1)"
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#191B25",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.225 0.020 275.9)"
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#0D0F17",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.170 0.017 273.6)"
+        }
+      }
+    },
+    "primary": {
+      "$description": "Główna — Iris (hue 287)",
+      "50": {
+        "$type": "color",
+        "$value": "#F6F6FE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.975 0.011 286.2)"
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#EBEBFF",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.946 0.027 285.9)"
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#D8D6FE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.890 0.055 287.5)"
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#BFBBFE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.819 0.094 286.9)"
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#A298FE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.730 0.145 286.7)"
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#8A72FE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.644 0.200 287.3)"
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#754DF7",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.566 0.238 286.9)"
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#5F3ACD",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.485 0.212 287.2)"
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#4928A5",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.404 0.186 286.9)"
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#34177B",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.321 0.154 287.3)"
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#210C55",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.246 0.120 286.9)"
+        }
+      }
+    },
+    "success": {
+      "$description": "Powodzenie (hue 158)",
+      "50": {
+        "$type": "color",
+        "$value": "#E3FFEE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.975 0.037 159.0)"
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#BFFED8",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.945 0.082 157.9)"
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#9DF0C0",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.889 0.105 158.0)"
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#76DDA5",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.820 0.126 158.2)"
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#44C384",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.731 0.145 157.8)"
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#06A869",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.645 0.150 157.9)"
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#028C57",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.564 0.131 158.1)"
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#037146",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.484 0.111 158.4)"
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#025835",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.406 0.094 158.0)"
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#023E24",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.321 0.074 157.9)"
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#002816",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.244 0.056 158.9)"
+        }
+      }
+    },
+    "warning": {
+      "$description": "Ostrzeżenie (hue 72)",
+      "50": {
+        "$type": "color",
+        "$value": "#FFF5EA",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.975 0.018 70.2)"
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#FFE9CF",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.945 0.042 71.9)"
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#FED29C",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.889 0.085 72.1)"
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#F6B662",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.819 0.125 72.0)"
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#DF9728",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.731 0.145 72.1)"
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#C07D02",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.644 0.138 71.9)"
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#A16804",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.565 0.120 71.5)"
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#825403",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.485 0.103 72.4)"
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#654001",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.405 0.086 72.2)"
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#482C01",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.320 0.068 71.4)"
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#2F1C01",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.245 0.051 72.8)"
+        }
+      }
+    },
+    "error": {
+      "$description": "Błąd (hue 12)",
+      "50": {
+        "$type": "color",
+        "$value": "#FEF4F5",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.975 0.011 10.3)"
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#FEE6E8",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.945 0.026 11.9)"
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#FFCCD0",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.891 0.058 13.0)"
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#FEA9B3",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.820 0.101 11.8)"
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#FE758B",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.730 0.168 12.2)"
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#ED496D",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.646 0.200 12.0)"
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#D02A56",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.566 0.200 12.0)"
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#AC1A43",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.486 0.178 12.3)"
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#880A32",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.404 0.155 11.9)"
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#640021",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.321 0.128 12.0)"
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#430014",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.244 0.098 11.4)"
+        }
+      }
+    },
+    "info": {
+      "$description": "Informacja — Sky (hue 248)",
+      "50": {
+        "$type": "color",
+        "$value": "#F1F8FE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.976 0.011 243.7)"
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#DFEFFF",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.945 0.028 248.1)"
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#BFDFFE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.890 0.055 247.6)"
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#93CAFE",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.820 0.093 247.6)"
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#54AEFD",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.730 0.144 247.7)"
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#2193EA",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.646 0.161 247.8)"
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#017ACA",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.566 0.152 248.0)"
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#0062A4",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.484 0.130 248.0)"
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#024C80",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.406 0.108 247.8)"
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#01355C",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.321 0.085 248.0)"
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#00223E",
+        "$extensions": {
+          "pl.danaco.oklch": "oklch(0.246 0.066 247.8)"
+        }
+      }
+    },
+    "brand": {
+      "$description": "Kolory znaku. Gradient Aurora należy do znaku, ikony, ekranu startowego i elementów AI; nie do tekstu ani dużych powierzchni.",
+      "apricot": {
+        "$type": "color",
+        "$value": "#FF8A5B",
+        "$description": "Aurora, przystanek 1 — ciepło"
+      },
+      "rose": {
+        "$type": "color",
+        "$value": "#F2528F",
+        "$description": "Aurora, przystanek 2 — energia"
+      },
+      "iris": {
+        "$type": "color",
+        "$value": "#7B5CFF",
+        "$description": "Aurora, przystanek 3 — akcent marki"
+      },
+      "sky": {
+        "$type": "color",
+        "$value": "#3BA7FF",
+        "$description": "Aurora, przystanek 4 — spokój"
+      },
+      "ink": {
+        "$type": "color",
+        "$value": "#1D1B22",
+        "$description": "Tekst logotypu na jasnym tle"
+      },
+      "night": {
+        "$type": "color",
+        "$value": "#15131A",
+        "$description": "Tło ekranu startowego"
+      },
+      "cream": {
+        "$type": "color",
+        "$value": "#FBF9F7",
+        "$description": "Jasne tło materiałów marki"
+      },
+      "aurora": {
+        "$type": "gradient",
+        "$value": [
+          {
+            "color": "{color.brand.apricot}",
+            "position": 0
+          },
+          {
+            "color": "{color.brand.rose}",
+            "position": 0.38
+          },
+          {
+            "color": "{color.brand.iris}",
+            "position": 0.72
+          },
+          {
+            "color": "{color.brand.sky}",
+            "position": 1
+          }
+        ],
+        "$description": "Kąt 135°. Kolejność przystanków stała."
+      },
+      "aurora-cool": {
+        "$type": "gradient",
+        "$value": [
+          {
+            "color": "{color.brand.iris}",
+            "position": 0
+          },
+          {
+            "color": "{color.brand.sky}",
+            "position": 1
+          }
+        ],
+        "$description": "Chłodny wycinek Aurory — wskaźniki pracy agenta, obrys fokusu elementów AI."
+      },
+      "aurora-cool-fill": {
+        "$type": "gradient",
+        "$value": [
+          {
+            "color": "{color.primary.600}",
+            "position": 0
+          },
+          {
+            "color": "{color.info.700}",
+            "position": 1
+          }
+        ],
+        "$description": "Przyciemniony wycinek chłodny — wypełnienie przycisku AI z tekstem on-accent (biel ≥ 4,5:1 na całej długości). Czysta aurora-cool z bielą nie spełnia progu przy Sky."
+      },
+      "logotype-secondary-on-light": {
+        "$type": "color",
+        "$value": "{color.neutral.500}",
+        "$description": "Człon „danaco” logotypu na jasnym tle"
+      },
+      "logotype-secondary-on-dark": {
+        "$type": "color",
+        "$value": "{color.neutral.400}",
+        "$description": "Człon „danaco” logotypu na ciemnym tle"
+      }
+    },
+    "white": {
+      "$type": "color",
+      "$value": "#FFFFFF"
+    },
+    "dark": {
+      "$description": "Role semantyczne — motyw ciemny (domyślny)",
+      "app": {
+        "$type": "color",
+        "$value": "{color.neutral.950}",
+        "$description": "Tło aplikacji"
+      },
+      "side": {
+        "$type": "color",
+        "$value": "{color.neutral.900}",
+        "$description": "Tło paska bocznego"
+      },
+      "raised": {
+        "$type": "color",
+        "$value": "{color.neutral.900}",
+        "$description": "Powierzchnia wyniesiona: karta, okno, menu [korekta etapu 1: 800 zlewał się z hover, line i bubble — linia podziału i wskazanie kursorem w menu były niewidoczne]"
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{color.neutral.800}",
+        "$description": "Tło elementu pod kursorem"
+      },
+      "bubble": {
+        "$type": "color",
+        "$value": "{color.neutral.800}",
+        "$description": "Dymek wiadomości użytkownika"
+      },
+      "line": {
+        "$type": "color",
+        "$value": "{color.neutral.800}",
+        "$description": "Linia podziału, obrys spoczynkowy"
+      },
+      "line-strong": {
+        "$type": "color",
+        "$value": "{color.neutral.700}",
+        "$description": "Obrys wyraźny o charakterze dekoracyjnym: przycisk wtórny, karta pod kursorem, separator mocny; nie jako jedyny wyznacznik kontrolki (do tego line-control)"
+      },
+      "line-control": {
+        "$type": "color",
+        "$value": "{color.neutral.500}",
+        "$description": "Obrys kontrolki formularza (pole, pole wyboru, przełącznik) — co najmniej 3:1 wobec app, side i raised (WCAG 1.4.11)"
+      },
+      "fg": {
+        "$type": "color",
+        "$value": "{color.neutral.50}",
+        "$description": "Tekst podstawowy"
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{color.neutral.300}",
+        "$description": "Tekst drugorzędny [korekta etapu 1: przesunięcie hierarchii tekstu, aby subtle spełniał 4,5:1 na side i raised]"
+      },
+      "subtle": {
+        "$type": "color",
+        "$value": "{color.neutral.400}",
+        "$description": "Tekst pomocniczy: tekst podpowiedzi pola, znacznik czasu, licznik [korekta etapu 1: neutral.500 dawał 4,07:1 na side i 3,30:1 na raised]"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": "{color.primary.400}",
+        "$description": "Akcent: link, fokus, zaznaczenie"
+      },
+      "accent-hover": {
+        "$type": "color",
+        "$value": "{color.primary.300}",
+        "$description": "Akcent pod kursorem"
+      },
+      "accent-fill": {
+        "$type": "color",
+        "$value": "{color.primary.600}",
+        "$description": "Wypełnienie przycisku głównego"
+      },
+      "accent-fill-hover": {
+        "$type": "color",
+        "$value": "{color.primary.700}",
+        "$description": "Wypełnienie przycisku głównego pod kursorem [korekta etapu 1: biel na primary.500 dawała 3,55:1]"
+      },
+      "accent-soft": {
+        "$type": "color",
+        "$value": "#7B5CFF29",
+        "$description": "Tło zaznaczenia, aktywnego elementu listy [korekta etapu 1: Iris 16% zamiast primary.950 — pełne nasycenie dawało ciężki fiolet w zaznaczonych wierszach; przezroczystość dopasowuje się do app, side i raised]"
+      },
+      "on-accent": {
+        "$type": "color",
+        "$value": "{color.white}",
+        "$description": "Tekst na wypełnieniu akcentu"
+      },
+      "success": {
+        "$type": "color",
+        "$value": "{color.success.400}",
+        "$description": "Powodzenie — tekst i ikona"
+      },
+      "success-soft": {
+        "$type": "color",
+        "$value": "{color.success.950}",
+        "$description": "Powodzenie — tło"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "{color.warning.400}",
+        "$description": "Ostrzeżenie — tekst i ikona"
+      },
+      "warning-soft": {
+        "$type": "color",
+        "$value": "{color.warning.950}",
+        "$description": "Ostrzeżenie — tło"
+      },
+      "danger": {
+        "$type": "color",
+        "$value": "{color.error.400}",
+        "$description": "Błąd, działanie nieodwracalne — tekst i ikona"
+      },
+      "danger-fill": {
+        "$type": "color",
+        "$value": "{color.error.600}",
+        "$description": "Wypełnienie przycisku destrukcyjnego"
+      },
+      "danger-fill-hover": {
+        "$type": "color",
+        "$value": "{color.error.700}",
+        "$description": "Wypełnienie przycisku destrukcyjnego pod kursorem [dodano w etapie 1: brakowało stanu wskazania]"
+      },
+      "danger-soft": {
+        "$type": "color",
+        "$value": "{color.error.950}",
+        "$description": "Błąd — tło"
+      },
+      "info": {
+        "$type": "color",
+        "$value": "{color.info.400}",
+        "$description": "Informacja — tekst i ikona"
+      },
+      "info-soft": {
+        "$type": "color",
+        "$value": "{color.info.950}",
+        "$description": "Informacja — tło"
+      },
+      "code": {
+        "$type": "color",
+        "$value": "{color.neutral.900}",
+        "$description": "Tło bloku kodu"
+      },
+      "focus-ring": {
+        "$type": "color",
+        "$value": "{color.primary.400}",
+        "$description": "Obrys fokusu klawiatury, 2 px, odsunięty o 2 px"
+      },
+      "scrim": {
+        "$type": "color",
+        "$value": "#0D0F17B3",
+        "$description": "Przyciemnienie pod oknem dialogowym i paletą poleceń"
+      },
+      "glass": {
+        "$type": "color",
+        "$value": "#0D0F17B8",
+        "$description": "Powierzchnia szklana: app z kryciem 72%, zawsze z backdrop-filter blur i saturate"
+      }
+    },
+    "light": {
+      "$description": "Role semantyczne — motyw jasny",
+      "app": {
+        "$type": "color",
+        "$value": "{color.neutral.50}",
+        "$description": "Tło aplikacji"
+      },
+      "side": {
+        "$type": "color",
+        "$value": "{color.neutral.100}",
+        "$description": "Tło paska bocznego"
+      },
+      "raised": {
+        "$type": "color",
+        "$value": "{color.white}",
+        "$description": "Powierzchnia wyniesiona: karta, okno, menu"
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{color.neutral.200}",
+        "$description": "Tło elementu pod kursorem"
+      },
+      "bubble": {
+        "$type": "color",
+        "$value": "{color.neutral.100}",
+        "$description": "Dymek wiadomości użytkownika"
+      },
+      "line": {
+        "$type": "color",
+        "$value": "{color.neutral.200}",
+        "$description": "Linia podziału, obrys spoczynkowy"
+      },
+      "line-strong": {
+        "$type": "color",
+        "$value": "{color.neutral.300}",
+        "$description": "Obrys wyraźny o charakterze dekoracyjnym: przycisk wtórny, karta pod kursorem, separator mocny; nie jako jedyny wyznacznik kontrolki (do tego line-control)"
+      },
+      "line-control": {
+        "$type": "color",
+        "$value": "{color.neutral.500}",
+        "$description": "Obrys kontrolki formularza (pole, pole wyboru, przełącznik) — co najmniej 3:1 wobec app, side i raised (WCAG 1.4.11)"
+      },
+      "fg": {
+        "$type": "color",
+        "$value": "{color.neutral.900}",
+        "$description": "Tekst podstawowy"
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{color.neutral.700}",
+        "$description": "Tekst drugorzędny [korekta etapu 1: przesunięcie hierarchii tekstu, aby subtle spełniał 4,5:1]"
+      },
+      "subtle": {
+        "$type": "color",
+        "$value": "{color.neutral.600}",
+        "$description": "Tekst pomocniczy: tekst podpowiedzi pola, znacznik czasu, licznik [korekta etapu 1: neutral.500 dawał 3,77–4,22:1]"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": "{color.primary.700}",
+        "$description": "Akcent: link, fokus, zaznaczenie [korekta etapu 1: primary.600 dawał 4,29:1 na accent-soft i 3,93:1 na hover]"
+      },
+      "accent-hover": {
+        "$type": "color",
+        "$value": "{color.primary.800}",
+        "$description": "Akcent pod kursorem [korekta etapu 1: następstwo zmiany accent]"
+      },
+      "accent-fill": {
+        "$type": "color",
+        "$value": "{color.primary.600}",
+        "$description": "Wypełnienie przycisku głównego"
+      },
+      "accent-fill-hover": {
+        "$type": "color",
+        "$value": "{color.primary.700}",
+        "$description": "Wypełnienie przycisku głównego pod kursorem"
+      },
+      "accent-soft": {
+        "$type": "color",
+        "$value": "{color.primary.100}",
+        "$description": "Tło zaznaczenia, aktywnego elementu listy [korekta etapu 1: primary.50 był nieodróżnialny od app (1,03:1)]"
+      },
+      "on-accent": {
+        "$type": "color",
+        "$value": "{color.white}",
+        "$description": "Tekst na wypełnieniu akcentu"
+      },
+      "success": {
+        "$type": "color",
+        "$value": "{color.success.700}",
+        "$description": "Powodzenie — tekst i ikona"
+      },
+      "success-soft": {
+        "$type": "color",
+        "$value": "{color.success.50}",
+        "$description": "Powodzenie — tło"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "{color.warning.700}",
+        "$description": "Ostrzeżenie — tekst i ikona"
+      },
+      "warning-soft": {
+        "$type": "color",
+        "$value": "{color.warning.50}",
+        "$description": "Ostrzeżenie — tło"
+      },
+      "danger": {
+        "$type": "color",
+        "$value": "{color.error.600}",
+        "$description": "Błąd, działanie nieodwracalne — tekst i ikona"
+      },
+      "danger-fill": {
+        "$type": "color",
+        "$value": "{color.error.600}",
+        "$description": "Wypełnienie przycisku destrukcyjnego"
+      },
+      "danger-fill-hover": {
+        "$type": "color",
+        "$value": "{color.error.700}",
+        "$description": "Wypełnienie przycisku destrukcyjnego pod kursorem [dodano w etapie 1: brakowało stanu wskazania]"
+      },
+      "danger-soft": {
+        "$type": "color",
+        "$value": "{color.error.50}",
+        "$description": "Błąd — tło"
+      },
+      "info": {
+        "$type": "color",
+        "$value": "{color.info.700}",
+        "$description": "Informacja — tekst i ikona [korekta etapu 1: info.600 dawał 4,34:1 na app i 4,23:1 na info-soft]"
+      },
+      "info-soft": {
+        "$type": "color",
+        "$value": "{color.info.50}",
+        "$description": "Informacja — tło"
+      },
+      "code": {
+        "$type": "color",
+        "$value": "{color.neutral.100}",
+        "$description": "Tło bloku kodu"
+      },
+      "focus-ring": {
+        "$type": "color",
+        "$value": "{color.primary.600}",
+        "$description": "Obrys fokusu klawiatury, 2 px, odsunięty o 2 px"
+      },
+      "scrim": {
+        "$type": "color",
+        "$value": "#191B2566",
+        "$description": "Przyciemnienie pod oknem dialogowym i paletą poleceń"
+      },
+      "glass": {
+        "$type": "color",
+        "$value": "#F9FAFEB8",
+        "$description": "Powierzchnia szklana: app z kryciem 72%, zawsze z backdrop-filter blur i saturate"
+      }
+    }
+  }
+}

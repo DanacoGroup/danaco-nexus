@@ -1,0 +1,17 @@
+{
+  "scenariusz": "wyszukiwanie",
+  "kroki": [
+    {
+      "etykieta": "Indeksowanie dokumentów",
+      "czas_ms": 1980,
+      "opis": "Zaindeksowano dokumenty: 3"
+    },
+    {
+      "etykieta": "Wyszukiwanie po znaczeniu",
+      "czas_ms": 640,
+      "opis": "Wyszukiwanie: 3 fragmentów"
+    }
+  ],
+  "odpowiedz": "Za przegląd techniczny odpowiada kierownik serwisu Halina Ostrowska, a termin pierwszego przeglądu to 30 listopada 2026 r. Wskazują na to protokół odbioru i notatki z rozruchu.",
+  "pliki": []
+}

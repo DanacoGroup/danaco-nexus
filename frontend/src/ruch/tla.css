@@ -1,0 +1,64 @@
+/* Warstwy teł na żywo (landing/tla). Arkusze samych teł dochodzą leniwie razem ze skryptem —
+   te reguły muszą działać wcześniej, żeby sekcja nie skakała i nie stała pusta. */
+
+/* Warstwa światła pod treścią sekcji. Klatka zastępcza widoczna od pierwszej chwili;
+   płótno WebGL wchodzi nad nią kryciem (arkusz pakietu). */
+.ruch-tlo {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--klatka, none);
+  background-color: var(--app);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+@media (max-aspect-ratio: 4/5) {
+  .ruch-tlo {
+    background-image: var(--klatka-pion, var(--klatka, none));
+  }
+}
+/* Zasłona czytelności: tło żyje przy krawędziach sekcji, pod kolumną tekstu ustępuje barwie
+   aplikacji. Bez niej wstęga zorzy schodzi pod akapitem poniżej progu WCAG 2.2 AA
+   (landing/tla/README.md, zasada nadrzędna). Pomiar w raporcie pary. */
+.ruch-tlo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 54% 72% at 50% 46%,
+    color-mix(in srgb, var(--app) 88%, transparent) 0%,
+    color-mix(in srgb, var(--app) 62%, transparent) 62%,
+    transparent 100%
+  );
+}
+/* W motywie jasnym tło ustępuje treści — inaczej zjada kontrast tekstu. */
+:root:not(.dark) .ruch-tlo {
+  opacity: var(--opacity-glass);
+}
+
+/* Pas świtu między sekcjami. Wysokość ustawiona tutaj, bo arkusz pakietu dochodzi później. */
+.ruch-pas {
+  --dn-swit-wysokosc: clamp(var(--space-24), 28vh, calc(var(--space-32) * 3));
+  position: relative;
+  block-size: var(--dn-swit-wysokosc);
+  inline-size: 100%;
+}
+
+/* Warstwa ziarna nad sekcją: faktura filmowa, nigdy przeszkoda dla wskaźnika. */
+.ruch-ziarno {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raised);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity var(--duration-slow) var(--easing-standard);
+}
+
+/* Ziarno nad odtwarzanym filmem to brud na cudzym obrazie — gaśnie z chwilą
+   uruchomienia i wraca dopiero, gdy film schodzi z ekranu. */
+.ruch-ziarno[data-ukryta="true"] {
+  opacity: 0;
+}

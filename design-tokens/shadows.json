@@ -1,0 +1,209 @@
+{
+  "$description": "Cienie. W motywie ciemnym głębię buduje głównie jaśniejsza powierzchnia i obrys 1 px (color.dark.line); cień dopełnia. Wartości osobno dla motywów.",
+  "shadow": {
+    "dark": {
+      "soft": {
+        "$type": "shadow",
+        "$description": "Karta, element listy",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "1px",
+            "blur": "2px",
+            "spread": "0px",
+            "color": "#0000004C"
+          }
+        ]
+      },
+      "medium": {
+        "$type": "shadow",
+        "$description": "Menu rozwijane, podpowiedź",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "4px",
+            "blur": "12px",
+            "spread": "-2px",
+            "color": "#00000066"
+          },
+          {
+            "offsetX": "0px",
+            "offsetY": "1px",
+            "blur": "3px",
+            "spread": "0px",
+            "color": "#00000040"
+          }
+        ]
+      },
+      "hard": {
+        "$type": "shadow",
+        "$description": "Element wciśnięty, krawędź kontrolki",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "2px",
+            "blur": "0px",
+            "spread": "0px",
+            "color": "#0000008C"
+          }
+        ]
+      },
+      "floating": {
+        "$type": "shadow",
+        "$description": "Okno dialogowe, paleta poleceń, pole wiadomości",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "16px",
+            "blur": "40px",
+            "spread": "-8px",
+            "color": "#00000099"
+          },
+          {
+            "offsetX": "0px",
+            "offsetY": "4px",
+            "blur": "12px",
+            "spread": "-4px",
+            "color": "#00000059"
+          }
+        ]
+      },
+      "glass": {
+        "$type": "shadow",
+        "$description": "Powierzchnia szklana: rgba tła 72% + backdrop-filter blur(20px) saturate(140%); obrys wewnętrzny 1 px",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "0px",
+            "blur": "0px",
+            "spread": "1px",
+            "color": "#FFFFFF14",
+            "inset": true
+          },
+          {
+            "offsetX": "0px",
+            "offsetY": "8px",
+            "blur": "32px",
+            "spread": "-8px",
+            "color": "#00000073"
+          }
+        ]
+      },
+      "glow-ai": {
+        "$type": "shadow",
+        "$description": "Poświata elementu AI w pracy (Iris 35%)",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "0px",
+            "blur": "24px",
+            "spread": "-6px",
+            "color": "#7B5CFF59"
+          }
+        ]
+      }
+    },
+    "light": {
+      "soft": {
+        "$type": "shadow",
+        "$description": "Karta, element listy",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "1px",
+            "blur": "2px",
+            "spread": "0px",
+            "color": "#191B251B"
+          }
+        ]
+      },
+      "medium": {
+        "$type": "shadow",
+        "$description": "Menu rozwijane, podpowiedź",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "4px",
+            "blur": "12px",
+            "spread": "-2px",
+            "color": "#191B2524"
+          },
+          {
+            "offsetX": "0px",
+            "offsetY": "1px",
+            "blur": "3px",
+            "spread": "0px",
+            "color": "#191B2516"
+          }
+        ]
+      },
+      "hard": {
+        "$type": "shadow",
+        "$description": "Element wciśnięty, krawędź kontrolki",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "2px",
+            "blur": "0px",
+            "spread": "0px",
+            "color": "#191B2531"
+          }
+        ]
+      },
+      "floating": {
+        "$type": "shadow",
+        "$description": "Okno dialogowe, paleta poleceń, pole wiadomości",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "16px",
+            "blur": "40px",
+            "spread": "-8px",
+            "color": "#191B2536"
+          },
+          {
+            "offsetX": "0px",
+            "offsetY": "4px",
+            "blur": "12px",
+            "spread": "-4px",
+            "color": "#191B251F"
+          }
+        ]
+      },
+      "glass": {
+        "$type": "shadow",
+        "$description": "Powierzchnia szklana: rgba tła 72% + backdrop-filter blur(20px) saturate(140%); obrys wewnętrzny 1 px",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "0px",
+            "blur": "0px",
+            "spread": "1px",
+            "color": "#FFFFFFB3",
+            "inset": true
+          },
+          {
+            "offsetX": "0px",
+            "offsetY": "8px",
+            "blur": "32px",
+            "spread": "-8px",
+            "color": "#191B2528"
+          }
+        ]
+      },
+      "glow-ai": {
+        "$type": "shadow",
+        "$description": "Poświata elementu AI w pracy (Iris 35%)",
+        "$value": [
+          {
+            "offsetX": "0px",
+            "offsetY": "0px",
+            "blur": "24px",
+            "spread": "-6px",
+            "color": "#7B5CFF59"
+          }
+        ]
+      }
+    }
+  }
+}

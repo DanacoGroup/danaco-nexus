@@ -24,21 +24,25 @@ from sqlalchemy import select
 
 from nexus import oczekujace
 from nexus.api import conversations
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.api.files import _content_disposition
 from nexus.config import Settings
 from nexus.db import Database, StoredFile
 from nexus.mail import (
     Attachment,
     MailClient,
+    MailConfig,
     MailError,
     MailNotConfigured,
     UnknownAccount,
+    account_from_dict,
     attachment_part,
     build_message,
+    check_account,
     is_configured,
     load_accounts,
     load_config,
+    save_accounts,
     send_message,
     valid_addresses,
 )
@@ -55,12 +59,21 @@ def _settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
-async def _mail[T](request: Request, work: Callable[[MailClient], T], account: str = "") -> T:
+async def _wlasciciel(request: Request) -> uuid.UUID:
+    """Konto zalogowanego użytkownika — skrzynka należy do niego, nie do serwera."""
+    sesja = await require_session(request)
+    return sesja.owner_id
+
+
+async def _mail[T](
+    request: Request, work: Callable[[MailClient], T], account: str = "", owner: uuid.UUID | None = None
+) -> T:
     """Wykonuje operację IMAP na koncie ``account`` w wątku; błędy poczty zamienia na odpowiedzi HTTP."""
     settings = _settings(request)
+    wlasciciel_konta = owner or await _wlasciciel(request)
 
     def run() -> T:
-        config = load_config(settings, account)
+        config = load_config(settings, account, wlasciciel_konta)
         with MailClient(config, settings.poczta_timeout_s) as client:
             return work(client)
 
@@ -142,18 +155,17 @@ def _summary(data: dict[str, Any]) -> str:
 
 
 @router.get("/stan")
-async def mail_state(request: Request) -> dict[str, Any]:
-    """Czy poczta jest skonfigurowana (bez łączenia z serwerem) i lista kont (pierwsze – domyślne)."""
+async def mail_state(request: Request, owner: uuid.UUID = Depends(wlasciciel)) -> dict[str, Any]:
+    """Czy poczta konta jest podłączona (bez łączenia z serwerem) i lista skrzynek."""
     settings = _settings(request)
-    if not is_configured(settings):
+    if not is_configured(settings, owner):
         return {
             "configured": False,
             "address": "",
             "accounts": [],
-            "setup": "sudo -u danaco-serwis deploy/zapisz-poczte.sh",
         }
     try:
-        accounts = await asyncio.to_thread(load_accounts, settings)
+        accounts = await asyncio.to_thread(load_accounts, settings, owner)
     except MailError as error:
         return {"configured": False, "address": "", "accounts": [], "error": str(error)}
     return {
@@ -173,12 +185,111 @@ async def mail_state(request: Request) -> dict[str, Any]:
     }
 
 
+class KontoBody(BaseModel):
+    """Dane konta pocztowego podane w module Poczta."""
+
+    login: str = Field(min_length=1, max_length=320)
+    haslo: str = Field(min_length=1, max_length=500)
+    adres: str = Field(default="", max_length=320)
+    nazwa: str = Field(default="", max_length=200)
+    etykieta: str = Field(default="", max_length=200)
+    imap_host: str = Field(min_length=1, max_length=255)
+    imap_port: int = Field(default=993, ge=1, le=65535)
+    smtp_host: str = Field(default="", max_length=255)
+    smtp_port: int = Field(default=0, ge=0, le=65535)
+    smtp_security: str = Field(default="ssl", pattern="^(ssl|starttls)$")
+    podpis_html: str = Field(default="", max_length=20000)
+
+
+def _konto(payload: KontoBody) -> MailConfig:
+    """Konto z danych formularza; walidację prowadzi ta sama funkcja co przy odczycie pliku."""
+    adres = payload.adres.strip() or payload.login.strip()
+    smtp_host = payload.smtp_host.strip() or payload.imap_host.strip()
+    smtp_port = payload.smtp_port or (465 if payload.smtp_security == "ssl" else 587)
+    try:
+        return account_from_dict(
+            {
+                "login": payload.login.strip(),
+                "password": payload.haslo,
+                "address": adres,
+                "name": payload.nazwa.strip(),
+                "label": payload.etykieta.strip() or adres,
+                "imap_host": payload.imap_host.strip(),
+                "imap_port": payload.imap_port,
+                "smtp_host": smtp_host,
+                "smtp_port": smtp_port,
+                "smtp_security": payload.smtp_security,
+                "signature_html": payload.podpis_html,
+                "id": adres.lower(),
+            }
+        )
+    except MailError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+
+
+def _biezace(settings: Settings, owner: uuid.UUID) -> list[MailConfig]:
+    """Zapisane skrzynki konta albo pusta lista, gdy poczta nie jest jeszcze podłączona."""
+    try:
+        return load_accounts(settings, owner)
+    except MailError:
+        return []
+
+
+@router.post("/konta/sprawdz")
+async def check_mail_account(payload: KontoBody, request: Request) -> dict[str, Any]:
+    """Sprawdza logowanie do skrzynki bez zapisywania czegokolwiek."""
+    config = _konto(payload)
+    try:
+        wynik = await asyncio.to_thread(check_account, config)
+    except MailError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+    return {"ok": True, **wynik}
+
+
+@router.post("/konta")
+async def save_mail_account(
+    payload: KontoBody, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
+    """Dodaje konto albo zastępuje istniejące o tym samym adresie.
+
+    Konto zapisujemy dopiero po udanym logowaniu — inaczej moduł Poczta wyglądałby
+    na zepsuty, a przyczyną byłaby literówka w haśle.
+    """
+    settings = _settings(request)
+    config = _konto(payload)
+    try:
+        await asyncio.to_thread(check_account, config)
+    except MailError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+    konta = [istniejace for istniejace in _biezace(settings, owner) if istniejace.id != config.id]
+    konta.append(config)
+    await asyncio.to_thread(save_accounts, settings, konta, konta[0].id, owner)
+    return {"ok": True, "id": config.id, "konta": len(konta)}
+
+
+@router.delete("/konta/{identyfikator}")
+async def delete_mail_account(
+    identyfikator: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
+    """Odłącza konto. Ostatnie konto zostawia plik konfiguracji pusty, nie usuwa go."""
+    settings = _settings(request)
+    szukane = identyfikator.strip().lower()
+    konta = _biezace(settings, owner)
+    zostaja = [konto for konto in konta if konto.id != szukane and konto.address.lower() != szukane]
+    if len(zostaja) == len(konta):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Nie ma konta {identyfikator}.")
+    await asyncio.to_thread(save_accounts, settings, zostaja, "", owner)
+    return {"ok": True, "konta": len(zostaja)}
+
+
 @router.get("/podpis")
-async def signature(request: Request, konto: str = ACCOUNT) -> Response:
-    """Podgląd podpisu konta (HTML oczyszcza interfejs)."""
+async def signature(
+    request: Request, konto: str = ACCOUNT, owner: uuid.UUID = Depends(wlasciciel)
+) -> Response:
+    """Podgląd podpisu skrzynki (HTML oczyszcza interfejs)."""
     settings = _settings(request)
     try:
-        config = await asyncio.to_thread(load_config, settings, konto)
+        config = await asyncio.to_thread(load_config, settings, konto, owner)
     except UnknownAccount as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
     except MailError as error:
@@ -406,8 +517,10 @@ async def _attachments(request: Request, file_ids: list[str]) -> list[Attachment
     return result
 
 
-def _message(settings: Settings, data: dict[str, Any], attachments: list[Attachment]) -> Any:
-    config = load_config(settings, data.get("account") or "")
+def _message(
+    settings: Settings, data: dict[str, Any], attachments: list[Attachment], owner: uuid.UUID
+) -> Any:
+    config = load_config(settings, data.get("account") or "", owner)
     return config, build_message(
         config,
         data.get("to") or [],
@@ -422,7 +535,9 @@ def _message(settings: Settings, data: dict[str, Any], attachments: list[Attachm
 
 
 @router.post("/oczekujace/{action_id}/szkic")
-async def pending_to_drafts(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
+async def pending_to_drafts(
+    action_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Zapisuje oczekującą wiadomość jako szkic w skrzynce (folder Szkice)."""
     record = await _pending(request, action_id)
     data = dict(record.payload or {})
@@ -430,15 +545,17 @@ async def pending_to_drafts(action_id: uuid.UUID, request: Request) -> dict[str,
     settings = _settings(request)
 
     def work(client: MailClient) -> str:
-        _config, message = _message(settings, data, attachments)
+        _config, message = _message(settings, data, attachments, owner)
         return client.append("\\Drafts", message, "(\\Draft \\Seen)")
 
-    folder = await _mail(request, work, data.get("account") or "")
+    folder = await _mail(request, work, data.get("account") or "", owner)
     return {"ok": True, "folder": folder}
 
 
 @router.post("/wyslij/{action_id}")
-async def send(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
+async def send(
+    action_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Wysyła oczekującą wiadomość – wyłącznie na polecenie użytkownika."""
     database = _database(request)
     await _pending(request, action_id)
@@ -451,7 +568,7 @@ async def send(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
         if not data.get("to"):
             raise MailError("Wiadomość nie ma adresata.")
         attachments = await _attachments(request, data.get("file_ids") or [])
-        config, message = await asyncio.to_thread(_message, settings, data, attachments)
+        config, message = await asyncio.to_thread(_message, settings, data, attachments, owner)
         await asyncio.to_thread(
             send_message, config, message, data.get("bcc") or [], settings.poczta_timeout_s
         )
@@ -504,10 +621,14 @@ async def reply_with_nexus(payload: NexusReply, request: Request) -> dict[str, A
     )
     if payload.instruction.strip():
         text += f"\n\nMoje wskazówki do odpowiedzi: {payload.instruction.strip()}"
+    wlasciciel_konta = (await require_session(request)).owner_id
     created = await conversations.create_conversation(
         conversations.CreateConversation(title=f"Odpowiedź: {header.get('subject') or 'e-mail'}"[:200]),
         request,
+        wlasciciel_konta,
     )
     conversation_id = uuid.UUID(created["id"])
-    result = await conversations.send_message(conversation_id, conversations.SendMessage(text=text), request)
+    result = await conversations.send_message(
+        conversation_id, conversations.SendMessage(text=text), request, wlasciciel_konta
+    )
     return {"conversation_id": str(conversation_id), "run_id": result["run_id"]}

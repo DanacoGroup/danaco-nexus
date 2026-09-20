@@ -20,6 +20,7 @@ import {
   type PendingMail,
 } from "./api";
 import { ComposeDialog } from "./ComposeDialog";
+import { UstawieniaKonta } from "./UstawieniaKonta";
 import { MessageView } from "./MessageView";
 
 const PENDING = "__oczekujace__";
@@ -27,17 +28,17 @@ const EMPTY_DRAFT: DraftPayload = { to: [], cc: [], bcc: [], subject: "", body: 
 
 type Compose = { initial: DraftPayload; pending?: PendingMail } | null;
 
-function NotConfigured({ state }: { state: MailState }) {
+function NotConfigured({ state, onPodlacz }: { state: MailState; onPodlacz: () => void }) {
   return (
     <EmptyState icon={<MailIcon size={26} />} title="Poczta nie jest jeszcze podłączona">
       <p>
-        Na serwerze uruchom polecenie i podaj adres oraz hasło skrzynki (hasło jest wczytywane bez wyświetlania i zapisywane
-        tylko na serwerze):
+        Podaj adres i hasło swojej skrzynki, a Nexus zacznie czytać, szukać i przygotowywać odpowiedzi.
+        Hasło zapisuje się po Twojej stronie konta i nie wraca do przeglądarki.
       </p>
-      <code className="mt-3 block rounded-lg bg-code px-3 py-2 text-left font-mono text-xs text-fg">
-        {state.setup ?? "sudo -u danaco-serwis deploy/zapisz-poczte.sh"}
-      </code>
       {state.error && <p className="mt-3 text-danger">{state.error}</p>}
+      <button type="button" onClick={onPodlacz} className={`mt-5 ${buttonClass.primary}`}>
+        Podłącz skrzynkę
+      </button>
     </EmptyState>
   );
 }
@@ -58,6 +59,7 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
   const [compose, setCompose] = useState<Compose>(null);
   const [nexusReply, setNexusReply] = useState<MailMessage | null>(null);
   const [error, setError] = useState("");
+  const [ustawienia, setUstawienia] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
   const [toast, toastNode] = useToast();
 
@@ -183,8 +185,30 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
     }
   };
 
+  const odswiezStan = () => {
+    setUstawienia(false);
+    mailApi
+      .state()
+      .then((swiezy) => {
+        setState(swiezy);
+        setAccount(swiezy.accounts?.[0]?.id ?? "");
+      })
+      .catch((failure) => setError(describe(failure)));
+  };
+
   if (!state) return error ? <div className="p-6"><ErrorBanner message={error} /></div> : <Loading />;
-  if (!state.configured) return <NotConfigured state={state} />;
+  if (ustawienia) {
+    return (
+      <div className="h-full overflow-y-auto bg-app">
+        <UstawieniaKonta
+          konta={state.accounts ?? []}
+          onZmiana={odswiezStan}
+          onZamknij={state.configured ? () => setUstawienia(false) : undefined}
+        />
+      </div>
+    );
+  }
+  if (!state.configured) return <NotConfigured state={state} onPodlacz={() => setUstawienia(true)} />;
 
   const current = folders.find((item) => item.name === folder);
   const accounts = state.accounts ?? [];
@@ -224,6 +248,9 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
           <button type="button" className={`${buttonClass.primary} mt-3 w-full`} onClick={() => setCompose({ initial: newDraft() })}>
             <PlusIcon size={18} /> Nowa wiadomość
           </button>
+          <button type="button" className={`${buttonClass.ghost} mt-1.5 w-full`} onClick={() => setUstawienia(true)}>
+            Skrzynki i ustawienia
+          </button>
         </div>
         <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
           <button
@@ -236,7 +263,7 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
             <ClockIcon size={18} className="text-accent" />
             <span className="flex-1">Oczekujące</span>
             {pending.length > 0 && (
-              <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">{pending.length}</span>
+              <span className="rounded-full bg-accent-fill px-1.5 text-xs font-semibold text-on-accent">{pending.length}</span>
             )}
           </button>
           {folders.map((item) => (
@@ -344,7 +371,7 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
                         onClick={() => read(item)}
                       >
                         <span className="flex items-center gap-2">
-                          {!item.seen && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label="Nieprzeczytana" />}
+                          {!item.seen && <span className="size-2 shrink-0 rounded-full bg-accent-fill" aria-label="Nieprzeczytana" />}
                           <span className={`min-w-0 flex-1 truncate text-sm ${item.seen ? "" : "font-semibold"}`}>
                             {folder === folders.find((f) => f.role === "\\Sent")?.name ? `Do: ${displayName(item.to)}` : displayName(item.from)}
                           </span>

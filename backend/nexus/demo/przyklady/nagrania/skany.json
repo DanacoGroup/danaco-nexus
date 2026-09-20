@@ -1,0 +1,22 @@
+{
+  "scenariusz": "skany",
+  "kroki": [
+    {
+      "etykieta": "Złożenie stron w jeden PDF",
+      "czas_ms": 940,
+      "opis": "Skonwertowano: 1"
+    },
+    {
+      "etykieta": "Rozpoznanie tekstu (warstwa tekstowa)",
+      "czas_ms": 11260,
+      "opis": "OCR: 1 plik, 2 strony, język pol"
+    }
+  ],
+  "odpowiedz": "Dwie strony umowy zostały złożone w jeden PDF i opatrzone niewidoczną warstwą tekstową — w pliku da się szukać tekstu i kopiować go, a wygląd stron pozostał bez zmian.",
+  "pliki": [
+    {
+      "nazwa": "umowa_polaczone_OCR.pdf",
+      "plik": "skany/umowa_polaczone_OCR.pdf"
+    }
+  ]
+}

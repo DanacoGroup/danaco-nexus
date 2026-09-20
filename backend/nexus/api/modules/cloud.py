@@ -44,16 +44,36 @@ def _settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
-def _service(request: Request) -> CloudService:
+async def _service(request: Request) -> CloudService:
+    """Klient chmury zawężony do przestrzeni konta, które wykonuje to żądanie.
+
+    Instalacja ma w Nextcloud jedno konto techniczne, więc rozdział robi ścieżka:
+    ``/Konta/<owner>``. Folder zakładamy przy pierwszym wejściu — inaczej pierwsze
+    listowanie kończyłoby się błędem 404 zamiast pustym katalogiem.
+    """
+    sesja = await require_session(request)
     try:
-        return CloudService(_settings(request), transport=getattr(request.app.state, "cloud_transport", None))
+        service = CloudService(
+            _settings(request),
+            transport=getattr(request.app.state, "cloud_transport", None),
+            owner=sesja.owner_id,
+        )
     except CloudError as error:
         raise HTTPException(error.status, str(error)) from error
+    try:
+        await service.przygotuj_przestrzen()
+    except CloudError as error:
+        await service.close()
+        raise HTTPException(error.status, str(error)) from error
+    except httpx.HTTPError as error:
+        await service.close()
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Brak połączenia z chmurą: {error}") from error
+    return service
 
 
 async def _call(request: Request, operation: Any) -> Any:
     """Wykonuje operację na kliencie chmury, zamienia błędy na odpowiedzi HTTP."""
-    service = _service(request)
+    service = await _service(request)
     try:
         return await operation(service)
     except CloudError as error:
@@ -181,7 +201,7 @@ async def set_favorite(payload: FavoriteBody, request: Request) -> dict[str, boo
 
 
 async def _stream(request: Request, path: str, inline: bool, version: str | None = None) -> StreamingResponse:
-    service = _service(request)
+    service = await _service(request)
     try:
         version_url = await service.version_url(path, version) if version else None
         response = await service.open_download(path, version_url)
@@ -497,9 +517,12 @@ async def to_conversation(payload: ToConversation, request: Request) -> dict[str
         return [await _import(request, cloud, path, payload.conversation_id) for path in payload.paths]
 
     records = await _call(request, run)
+    wlasciciel_konta = (await require_session(request)).owner_id
     conversation_id = payload.conversation_id
     if conversation_id is None:
-        created = await conversations.create_conversation(conversations.CreateConversation(), request)
+        created = await conversations.create_conversation(
+            conversations.CreateConversation(), request, wlasciciel_konta
+        )
         conversation_id = uuid.UUID(created["id"])
     async with database.session() as session:
         for record in records:
@@ -515,6 +538,7 @@ async def to_conversation(payload: ToConversation, request: Request) -> dict[str
             conversation_id,
             conversations.SendMessage(text=text, file_ids=[record.id for record in records]),
             request,
+            wlasciciel_konta,
         )
         run_id = result["run_id"]
     return {

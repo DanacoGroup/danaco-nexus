@@ -9,7 +9,7 @@
     <item>
         <shape>
             <corners android:radius="12dp" />
-            <solid android:color="@color/nexus_accent" />
+            <solid android:color="@color/nexus_accent_fill" />
         </shape>
     </item>
 </selector>

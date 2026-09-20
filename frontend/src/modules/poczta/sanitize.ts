@@ -88,13 +88,13 @@ export function sanitizeEmailHtml(html: string, options: SanitizeOptions): Sanit
 /** Styl bazowy treści e-maila w izolowanym drzewie (Shadow DOM). */
 export const EMAIL_BASE_STYLE = `
 :host { all: initial; display: block; contain: content; }
-.nexus-mail { background: #ffffff; color: #111113; font: 14px/1.55 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+.nexus-mail { background: #FFFFFF; color: #191B25; font: 14px/1.55 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
   padding: 16px; overflow-wrap: anywhere; overflow-x: auto; border-radius: 12px; }
 .nexus-mail img { max-width: 100%; height: auto; }
-.nexus-mail img[data-nexus-blocked] { display: inline-block; min-width: 24px; min-height: 16px; background: #f1f1f3;
-  outline: 1px dashed #c4c4cc; }
+.nexus-mail img[data-nexus-blocked] { display: inline-block; min-width: 24px; min-height: 16px; background: #EFF2FB;
+  outline: 1px dashed #C8CCD6; }
 .nexus-mail table { max-width: 100%; }
-.nexus-mail a { color: #4f46e5; }
-.nexus-mail blockquote { margin: 0 0 0 8px; padding-left: 10px; border-left: 3px solid #d4d4d8; color: #52525b; }
+.nexus-mail a { color: #5F3ACD; }
+.nexus-mail blockquote { margin: 0 0 0 8px; padding-left: 10px; border-left: 3px solid #C8CCD6; color: #595D69; }
 .nexus-mail pre { white-space: pre-wrap; }
 `;

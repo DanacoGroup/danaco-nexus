@@ -65,28 +65,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function LimitBar({ label, value, resetsAt }: { label: string; value: number | null; resetsAt: number | null }) {
-  const percent = Math.round((value ?? 0) * 100);
-  const reset = resetsAt
-    ? new Date(resetsAt * 1000).toLocaleString("pl-PL", { weekday: "short", hour: "2-digit", minute: "2-digit" })
-    : "";
-  return (
-    <div className="min-w-40 flex-1">
-      <div className="mb-1 flex justify-between text-xs text-muted">
-        <span>{label}</span>
-        <span className="tabular-nums">
-          {percent}%{reset && ` · odnowienie ${reset}`}
-        </span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-hover">
-        <div
-          className={`h-full rounded-full ${percent >= 90 ? "bg-danger" : percent >= 70 ? "bg-accent" : "bg-success"}`}
-          style={{ width: `${Math.min(100, percent)}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 function TaskCard({
   task,
@@ -253,7 +231,7 @@ function NewTaskForm({ onCreated }: { onCreated: (conversationId: string) => voi
         <button
           type="submit"
           disabled={!text.trim() || busy || (mode === "code" && !workspace)}
-          className="ml-auto rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+          className="ml-auto rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-fill-hover disabled:opacity-50"
         >
           {busy ? "Uruchamiam…" : "Uruchom w tle"}
         </button>
@@ -295,7 +273,6 @@ export function AgenciPage({ openConversation }: ModulePageProps) {
   };
 
   const running = overview?.active.filter((task) => task.status === "running").length ?? 0;
-  const windows = overview?.limits?.windows ?? {};
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 px-4 py-6">
       <header className="flex flex-wrap items-end gap-3">
@@ -309,18 +286,6 @@ export function AgenciPage({ openConversation }: ModulePageProps) {
           </p>
         </div>
       </header>
-
-      {overview?.limits && Object.keys(windows).length > 0 && (
-        <section className="flex flex-wrap gap-4 rounded-2xl border border-line p-4" aria-label="Limity konta Claude">
-          {windows.five_hour && (
-            <LimitBar label="Limit 5-godzinny" value={windows.five_hour.utilization} resetsAt={windows.five_hour.resets_at} />
-          )}
-          {windows.seven_day && (
-            <LimitBar label="Limit tygodniowy" value={windows.seven_day.utilization} resetsAt={windows.seven_day.resets_at} />
-          )}
-          {overview.limits.warning && <p className="w-full text-sm text-danger">{overview.limits.warning}</p>}
-        </section>
-      )}
 
       <NewTaskForm
         onCreated={() => {
@@ -359,7 +324,7 @@ export function AgenciPage({ openConversation }: ModulePageProps) {
 export const module: NexusModule = {
   id: "agenci",
   label: "Agenci",
-  description: "Wiele sesji naraz, podagenci i zadania w tle",
+  description: "Kilka zadań naraz, każde z własnym postępem — zlecasz i wracasz po gotowy wynik.",
   icon: AgentsIcon,
   order: 70,
   Page: AgenciPage,

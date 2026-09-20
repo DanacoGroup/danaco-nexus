@@ -24,7 +24,7 @@ from mcp.server.stdio import stdio_server
 
 from nexus import __version__
 from nexus.config import get_settings
-from nexus.db import Database, RunEvent
+from nexus.db import ADMIN_OWNER, Database, RunEvent
 from nexus.events import EventBus
 from nexus.file_service import FileService
 from nexus.logging_setup import configure_logging
@@ -70,6 +70,8 @@ class ToolServer:
         self._run_id = uuid.UUID(os.environ["NEXUS_RUN_ID"])
         conversation = os.environ.get("NEXUS_CONVERSATION_ID", "")
         self._conversation_id = uuid.UUID(conversation) if conversation else None
+        wlasciciel = os.environ.get("NEXUS_OWNER_ID", "")
+        self._owner_id = uuid.UUID(wlasciciel) if wlasciciel else ADMIN_OWNER
         self._cancel = threading.Event()
         self._events = EventBus(self._settings.redis_url)
 
@@ -113,6 +115,7 @@ class ToolServer:
             mark_indexed=lambda file_id: asyncio.run_coroutine_threadsafe(
                 self._files.mark_indexed(file_id), loop
             ).result(),
+            owner_id=self._owner_id,
         )
 
     async def call_tool(self, _ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:

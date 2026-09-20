@@ -9,7 +9,7 @@
 #   programy/android-sdk   – Android SDK: cmdline-tools, platform-tools, platforma i build-tools,
 #   .cache/gradle, .cache/npm – pamięć podręczna Gradle i npm.
 # Klucz podpisu wydania (keystore + keystore.properties z hasłem) powstaje raz w katalogu
-# $KLUCZE (domyślnie .tmp/android/keystore) z prawami 600 – hasło nie jest nigdzie wypisywane.
+# $KLUCZE (domyślnie dane/app/android-keystore) z prawami 600 – hasło nie jest nigdzie wypisywane.
 # Utrata klucza oznacza, że kolejnych wersji nie da się zainstalować jako aktualizacji.
 #
 # Zmienne (opcjonalne): NEXUS_PROJEKT, JDK21_HOME, ANDROID_HOME, WYJSCIE, KLUCZE, NODE_BIN.
@@ -21,7 +21,10 @@ PROGRAMY="$PROJEKT/programy"
 JDK="${JDK21_HOME:-$PROGRAMY/jdk-21}"
 SDK="${ANDROID_HOME:-$PROGRAMY/android-sdk}"
 WYJSCIE="${WYJSCIE:-$PROJEKT/.tmp/android/out}"
-KLUCZE="${KLUCZE:-$PROJEKT/.tmp/android/keystore}"
+# Klucz podpisu musi przetrwać sprzątanie katalogu roboczego — jego utrata oznacza,
+# że kolejnej wersji nie da się zainstalować jako aktualizacji. Stąd katalog danych,
+# a nie .tmp; kopia zapasowa zabiera go razem z resztą sekretów.
+KLUCZE="${KLUCZE:-$PROJEKT/dane/app/android-keystore}"
 NODE_BIN="${NODE_BIN:-/danaco/programy/node/bin}"
 
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-16111833_latest.zip"
@@ -142,7 +145,13 @@ zadania=(lintRelease assembleRelease)
 if [ "$TESTY" = 1 ]; then
     zadania=(testReleaseUnitTest "${zadania[@]}")
 fi
-./gradlew --no-daemon --console=plain -Pnexus.keystore="$KLUCZE/keystore.properties" "${zadania[@]}"
+# Liczba równoległych procesów roboczych Gradle. Domyślnie Gradle bierze tyle, ile rdzeni
+# (tu 24) i uruchamia tyle samo demonów AAPT2. Na maszynie zajętej innymi budowami kończy
+# się to „AAPT2 … Daemon startup failed” — proces nie ma się gdzie rozwidlić. Ograniczenie
+# kosztuje kilkanaście sekund, a zdejmuje całą klasę nieodtwarzalnych awarii.
+ROBOTNICY="${NEXUS_GRADLE_ROBOTNICY:-4}"
+./gradlew --no-daemon --console=plain --max-workers="$ROBOTNICY" \
+  -Pnexus.keystore="$KLUCZE/keystore.properties" "${zadania[@]}"
 
 krok "Weryfikacja podpisu i kopiowanie wyniku"
 apk="app/build/outputs/apk/release/app-release.apk"

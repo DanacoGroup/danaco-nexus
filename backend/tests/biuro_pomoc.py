@@ -314,8 +314,14 @@ class FakeCalDAV:
 
     ROOT = "/remote.php/dav/calendars/admin/"
 
-    def __init__(self) -> None:
-        self.objects: dict[str, dict[str, tuple[str, str]]] = {"personal": {}, "contact_birthdays": {}}
+    def __init__(self, przedrostek: str = "") -> None:
+        # Kalendarze konta mają w nazwie przedrostek właściciela — tak działa rozdział
+        # kont w jednym koncie Nextcloud (`nexus.calendar.przedrostek_konta`).
+        self.przedrostek = przedrostek
+        self.objects: dict[str, dict[str, tuple[str, str]]] = {
+            f"{przedrostek}personal": {},
+            f"{przedrostek}contact_birthdays": {},
+        }
         self.counter = 0
         self.requests: list[tuple[str, str]] = []
 
@@ -335,6 +341,11 @@ class FakeCalDAV:
             return httpx.Response(207, content=self._calendars())
         relative = path.removeprefix(self.ROOT).strip("/")
         calendar, _, name = relative.partition("/")
+        if request.method == "MKCALENDAR":
+            if calendar in self.objects:
+                return httpx.Response(405)
+            self.objects[calendar] = {}
+            return httpx.Response(201)
         if calendar not in self.objects:
             return httpx.Response(404)
         store = self.objects[calendar]
@@ -346,7 +357,7 @@ class FakeCalDAV:
             data, etag = store[name]
             return httpx.Response(200, text=data, headers={"etag": etag})
         if request.method == "PUT":
-            if calendar == "contact_birthdays":
+            if calendar.endswith("contact_birthdays"):
                 return httpx.Response(403)
             if request.headers.get("if-none-match") == "*" and name in store:
                 return httpx.Response(412)
@@ -386,8 +397,12 @@ class FakeCalDAV:
             'xmlns:x1="http://apple.com/ns/ical/">'
             f"<d:response><d:href>{self.ROOT}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/>"
             "</d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
-            + entry("personal", "Osobiste", "#00679e", True)
-            + entry("contact_birthdays", "Urodziny kontaktu", "#E9D859", False)
+            + "".join(
+                entry(nazwa, "Osobiste" if nazwa.endswith("personal") else "Urodziny kontaktu",
+                      "#00679e" if nazwa.endswith("personal") else "#E9D859",
+                      not nazwa.endswith("contact_birthdays"))
+                for nazwa in self.objects
+            )
             + f"<d:response><d:href>{self.ROOT}inbox/</d:href><d:propstat><d:prop><d:resourcetype>"
             "<d:collection/><cal:schedule-inbox/></d:resourcetype></d:prop>"
             "<d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"

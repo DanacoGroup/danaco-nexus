@@ -164,7 +164,7 @@ Test sprawdza wstrzyknięcie panelu, `nexus:auth`, kontekst strony i opinii, pol
 (textarea, contenteditable, zastąpienie treści), zrzut karty, akcję z menu kontekstowego, izolację
 od skryptów strony, skróty, nagłówki `frame-ancestors` oraz ekran opcji z prawdziwym serwerem.
 
-Wersja rozszerzenia pochodzi z `extension/manifest.json`; ikony z `frontend/public/icons`.
+Wersja rozszerzenia pochodzi z `extension/manifest.json`; ikony z pakietu marki (`logo/pwa`).
 
 ## Pliki
 

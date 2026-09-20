@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Ustawia rekordy DNS Danaco Nexus w strefie OVH (idempotentnie).
 
-Rekordy: danaco-nexus.pl, www, api i cloud → adres IPv4/IPv6 serwera.
+Rekordy: danaco-nexus.pl, www, api, cloud i test → adres IPv4/IPv6 serwera.
 Poświadczenia API OVH: /etc/danaco/ovh.env (OVH_ENDPOINT, OVH_AK, OVH_AS, OVH_CK).
 
 Użycie:  deploy/dns/ustaw-dns.py [--sprawdz]
@@ -19,7 +19,8 @@ import urllib.request
 STREFA = "danaco-nexus.pl"
 IPV4 = "193.70.46.37"
 IPV6 = "2001:41d0:303:c25::"
-NAZWY = ("", "www", "api", "cloud")
+# „test” to przedsionek: wydanie po bramce, przed produkcją (deploy/wydania/README.md).
+NAZWY = ("", "www", "api", "cloud", "test")
 TTL = 3600
 PLIK_POSWIADCZEN = "/etc/danaco/ovh.env"
 ENDPOINTY = {"ovh-eu": "https://eu.api.ovh.com/1.0"}

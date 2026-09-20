@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.db import Conversation, Database, Message, Run, StoredFile, ToolCall, utcnow
+from nexus.platnosci import kredyty
+from nexus.platnosci.uprawnienia import limity_uzytkownika
 from nexus.storage import FileStorage
 
 router = APIRouter(
@@ -54,23 +56,41 @@ def _database(request: Request) -> Database:
     return request.app.state.database
 
 
-async def _conversation(database: Database, conversation_id: uuid.UUID) -> Conversation:
+async def _conversation(database: Database, conversation_id: uuid.UUID, owner: uuid.UUID) -> Conversation:
+    """Rozmowa należąca do ``owner``.
+
+    Cudza rozmowa daje 404, a nie 403: inaczej sam kod odpowiedzi potwierdzałby, że
+    rozmowa o takim identyfikatorze istnieje.
+    """
     async with database.session() as session:
         conversation = await session.get(Conversation, conversation_id)
-    if conversation is None:
+    if conversation is None or conversation.owner_id != owner:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono rozmowy.")
     return conversation
 
 
 @router.get("")
-async def list_conversations(request: Request) -> list[dict[str, Any]]:
-    """Rozmowy od najnowszej, z informacją o trwającym zadaniu."""
+async def list_conversations(
+    request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> list[dict[str, Any]]:
+    """Rozmowy konta od najnowszej, z informacją o trwającym zadaniu."""
     async with _database(request).session() as session:
         rows = (
-            await session.scalars(select(Conversation).order_by(Conversation.updated_at.desc()).limit(500))
+            await session.scalars(
+                select(Conversation)
+                .where(Conversation.owner_id == owner)
+                .order_by(Conversation.updated_at.desc())
+                .limit(500)
+            )
         ).all()
         active = set(
-            (await session.scalars(select(Run.conversation_id).where(Run.status.in_(ACTIVE_STATUSES)))).all()
+            (
+                await session.scalars(
+                    select(Run.conversation_id)
+                    .join(Conversation, Conversation.id == Run.conversation_id)
+                    .where(Run.status.in_(ACTIVE_STATUSES), Conversation.owner_id == owner)
+                )
+            ).all()
         )
     return [
         {
@@ -84,9 +104,13 @@ async def list_conversations(request: Request) -> list[dict[str, Any]]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_conversation(payload: CreateConversation, request: Request) -> dict[str, Any]:
-    """Tworzy rozmowę."""
-    conversation = Conversation(title=(payload.title or DEFAULT_TITLE).strip() or DEFAULT_TITLE)
+async def create_conversation(
+    payload: CreateConversation, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
+    """Tworzy rozmowę na koncie zalogowanego użytkownika."""
+    conversation = Conversation(
+        owner_id=owner, title=(payload.title or DEFAULT_TITLE).strip() or DEFAULT_TITLE
+    )
     async with _database(request).session() as session:
         session.add(conversation)
     return {
@@ -99,10 +123,13 @@ async def create_conversation(payload: CreateConversation, request: Request) -> 
 
 @router.patch("/{conversation_id}")
 async def rename_conversation(
-    conversation_id: uuid.UUID, payload: RenameConversation, request: Request
+    conversation_id: uuid.UUID,
+    payload: RenameConversation,
+    request: Request,
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, str]:
     """Zmienia tytuł rozmowy."""
-    await _conversation(_database(request), conversation_id)
+    await _conversation(_database(request), conversation_id, owner)
     async with _database(request).session() as session:
         await session.execute(
             update(Conversation).where(Conversation.id == conversation_id).values(title=payload.title.strip())
@@ -111,11 +138,13 @@ async def rename_conversation(
 
 
 @router.delete("/{conversation_id}")
-async def delete_conversation(conversation_id: uuid.UUID, request: Request) -> dict[str, bool]:
+async def delete_conversation(
+    conversation_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, bool]:
     """Usuwa rozmowę wraz z jej plikami i wpisami w bazie wiedzy."""
     database = _database(request)
     storage: FileStorage = request.app.state.storage
-    await _conversation(database, conversation_id)
+    await _conversation(database, conversation_id, owner)
     async with database.session() as session:
         busy = await session.scalar(
             select(func.count())
@@ -225,10 +254,12 @@ def build_turns(
 
 
 @router.get("/{conversation_id}")
-async def get_conversation(conversation_id: uuid.UUID, request: Request) -> dict[str, Any]:
+async def get_conversation(
+    conversation_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Rozmowa z historią tur, plikami i stanem bieżącego zadania."""
     database = _database(request)
-    conversation = await _conversation(database, conversation_id)
+    conversation = await _conversation(database, conversation_id, owner)
     async with database.session() as session:
         messages = (
             await session.scalars(
@@ -281,13 +312,24 @@ def _attachment_manifest(records: list[StoredFile]) -> str:
 
 
 @router.post("/{conversation_id}/messages", status_code=status.HTTP_202_ACCEPTED)
-async def send_message(conversation_id: uuid.UUID, payload: SendMessage, request: Request) -> dict[str, Any]:
+async def send_message(
+    conversation_id: uuid.UUID,
+    payload: SendMessage,
+    request: Request,
+    owner: uuid.UUID = Depends(wlasciciel),
+) -> dict[str, Any]:
     """Zapisuje wiadomość użytkownika i zleca jej obsługę agentowi (kolejka)."""
     database = _database(request)
-    conversation = await _conversation(database, conversation_id)
+    conversation = await _conversation(database, conversation_id, owner)
     text = payload.text.strip()
     if not text and not payload.file_ids:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Wiadomość jest pusta.")
+    # Brak kredytów zatrzymuje zlecenie, zanim ruszy praca. Dowiedzenie się o pustym
+    # saldzie w połowie zadania byłoby gorsze niż odmowa na wejściu.
+    try:
+        await kredyty.sprawdz_przed_zleceniem(database, owner)
+    except kredyty.BrakKredytow as blad:
+        raise HTTPException(blad.status, str(blad)) from blad
     async with database.session() as session:
         busy = await session.scalar(
             select(func.count())
@@ -296,8 +338,35 @@ async def send_message(conversation_id: uuid.UUID, payload: SendMessage, request
         )
         if busy:
             raise HTTPException(status.HTTP_409_CONFLICT, "Poprzednie zadanie jeszcze trwa.")
+        # Zadania równoległe to obietnica z cennika, więc musi być egzekwowana: inaczej
+        # plan wyższy sprzedaje coś, czego nie dostarcza, a jeden użytkownik potrafi
+        # zająć cały silnik.
+        trwajace = int(
+            await session.scalar(
+                select(func.count())
+                .select_from(Run)
+                .join(Conversation, Conversation.id == Run.conversation_id)
+                .where(Run.status.in_(ACTIVE_STATUSES), Conversation.owner_id == owner)
+            )
+            or 0
+        )
+    limity = await limity_uzytkownika(database, str(owner))
+    if trwajace >= max(1, limity.zadania_rownolegle):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Plan {limity.nazwa_planu} pozwala na {limity.zadania_rownolegle} "
+            f"{'zadanie' if limity.zadania_rownolegle == 1 else 'zadania'} naraz. "
+            "Poczekaj na zakończenie albo przejdź na wyższy plan.",
+        )
+    async with database.session() as session:
         records = (
-            (await session.scalars(select(StoredFile).where(StoredFile.id.in_(payload.file_ids)))).all()
+            (
+                await session.scalars(
+                    select(StoredFile).where(
+                        StoredFile.id.in_(payload.file_ids), StoredFile.owner_id == owner
+                    )
+                )
+            ).all()
             if payload.file_ids
             else []
         )

@@ -114,7 +114,7 @@ def test_load_config_errors(tmp_path: Path) -> None:
     settings = Settings(
         poczta_config_file=tmp_path / "brak.json", database_url="sqlite+aiosqlite:///:memory:"
     )
-    with pytest.raises(MailNotConfigured, match="zapisz-poczte"):
+    with pytest.raises(MailNotConfigured, match="Dodaj konto w module Poczta"):
         load_config(settings)
     with pytest.raises(MailNotConfigured, match="loginu i hasła"):
         load_config_from({"login": "a@b.pl"}, tmp_path)
@@ -196,7 +196,7 @@ def test_mail_tools(mail_server: MailServer, tool_harness: ToolHarness, tmp_path
 
 def test_mail_tools_without_configuration(harness: ToolHarness, tmp_path: Path) -> None:
     harness.settings.poczta_config_file = tmp_path / "brak.json"
-    with pytest.raises(ToolError, match="nie jest skonfigurowana"):
+    with pytest.raises(ToolError, match="nie jest jeszcze podłączona"):
         call(harness, "mail_list")
 
 
@@ -451,3 +451,85 @@ def test_api_multiple_accounts_send_with_signature(
     message = email.message_from_bytes(mail_server.sent[0][1], policy=default_policy)
     assert message["From"] == "Dariusz <dn@danaco-group.pl>"
     assert SIGNATURE in message.get_body(preferencelist=("html",)).get_content()
+
+
+# --- podłączanie skrzynki z poziomu aplikacji ---
+
+
+KONTO = {
+    "login": "biuro@danaco-group.pl",
+    "haslo": "",
+    "adres": "biuro@danaco-group.pl",
+    "nazwa": "Biuro Danaco",
+    "imap_host": "mail.test",
+    "imap_port": 993,
+    "smtp_host": "mail.test",
+    "smtp_port": 465,
+    "smtp_security": "ssl",
+}
+
+
+def test_api_podlacza_skrzynke_z_aplikacji(
+    api: TestClient,  # noqa: F811
+    mail_server: MailServer,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    """Konto dodane przez moduł ma trafić do pliku z prawami 600 i od razu działać."""
+    plik = Path(biuro_settings.poczta_config_file)
+    plik.write_text("{}", encoding="utf-8")
+    assert api.get("/api/poczta/stan").json()["configured"] is False
+
+    dane = {**KONTO, "haslo": mail_server.password}
+    zapis = api.post("/api/poczta/konta", json=dane, headers=HEADERS)
+    assert zapis.status_code == 200, zapis.text
+    assert zapis.json()["id"] == "biuro@danaco-group.pl"
+    assert plik.stat().st_mode & 0o777 == 0o600, "plik z hasłem skrzynki nie może być czytelny dla innych"
+
+    stan = api.get("/api/poczta/stan").json()
+    assert stan["configured"] is True
+    assert stan["address"] == "biuro@danaco-group.pl"
+
+
+def test_api_odrzuca_bledne_haslo_i_nic_nie_zapisuje(
+    api: TestClient,  # noqa: F811
+    mail_server: MailServer,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    plik = Path(biuro_settings.poczta_config_file)
+    plik.write_text("{}", encoding="utf-8")
+    odpowiedz = api.post("/api/poczta/konta", json={**KONTO, "haslo": "nie-to-haslo"}, headers=HEADERS)
+    assert odpowiedz.status_code == 400
+    assert "login" in odpowiedz.json()["detail"].lower() or "hasło" in odpowiedz.json()["detail"].lower()
+    assert plik.read_text(encoding="utf-8") == "{}", "nieudane logowanie nie może nadpisać konfiguracji"
+
+
+def test_api_sprawdza_polaczenie_bez_zapisu(
+    api: TestClient,  # noqa: F811
+    mail_server: MailServer,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    plik = Path(biuro_settings.poczta_config_file)
+    plik.write_text("{}", encoding="utf-8")
+    wynik = api.post(
+        "/api/poczta/konta/sprawdz", json={**KONTO, "haslo": mail_server.password}, headers=HEADERS
+    )
+    assert wynik.status_code == 200, wynik.text
+    assert wynik.json()["imap"] is True and wynik.json()["smtp"] is True
+    assert plik.read_text(encoding="utf-8") == "{}", "samo sprawdzenie niczego nie zapisuje"
+
+
+def test_api_odlacza_skrzynke(
+    api: TestClient,  # noqa: F811
+    mail_server: MailServer,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    assert api.get("/api/poczta/stan").json()["configured"] is True
+    usuniecie = api.delete("/api/poczta/konta/biuro@danaco-group.pl", headers=HEADERS)
+    assert usuniecie.status_code == 200, usuniecie.text
+    assert usuniecie.json()["konta"] == 0
+    assert api.get("/api/poczta/stan").json()["configured"] is False
+
+
+def test_api_konta_wymagaja_naglowka_csrf(api: TestClient, mail_server: MailServer) -> None:  # noqa: F811
+    assert api.post("/api/poczta/konta", json=KONTO).status_code == 403
+    assert api.delete("/api/poczta/konta/biuro@danaco-group.pl").status_code == 403

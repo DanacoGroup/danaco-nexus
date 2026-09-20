@@ -1,5 +1,5 @@
 // Tryb rozmowy głosowej: słuchanie z wykrywaniem mowy, rozpoznanie na serwerze,
-// odpowiedź Claude czytana zdanie po zdaniu, przerywanie odpowiedzi głosem.
+// odpowiedź czytana zdanie po zdaniu, przerywanie odpowiedzi głosem.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { speakText, transcribeAudio, type VoiceConfig } from "../api";
@@ -56,12 +56,38 @@ function storedVoice(config: VoiceConfig): string {
   return config.default_voice;
 }
 
+/** Komunikat o nieudanym dostępie do mikrofonu — po polsku i z podpowiedzią, co zrobić. */
+export function bladMikrofonu(failure: unknown): string {
+  const nazwa = failure instanceof DOMException ? failure.name : "";
+  switch (nazwa) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Brak zgody na mikrofon. Zezwól na mikrofon w ustawieniach przeglądarki i spróbuj ponownie.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "Nie znaleziono mikrofonu. Podłącz mikrofon albo wybierz inne urządzenie wejściowe w ustawieniach systemu.";
+    case "NotReadableError":
+      return "Mikrofon jest zajęty przez inny program. Zamknij go i spróbuj ponownie.";
+    case "AbortError":
+      return "Dostęp do mikrofonu został przerwany. Spróbuj ponownie.";
+    default:
+      break;
+  }
+  if (!window.isSecureContext) {
+    return "Mikrofon działa tylko przez HTTPS albo na 127.0.0.1. Otwórz Nexusa pod adresem https://danaco-nexus.pl.";
+  }
+  return "Nie udało się uruchomić mikrofonu. Sprawdź uprawnienia przeglądarki i urządzenie wejściowe.";
+}
+
 export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>("starting");
   const [level, setLevel] = useState(0);
   const [heard, setHeard] = useState("");
   const [error, setError] = useState("");
   const [voice, setVoice] = useState(() => storedVoice(config));
+  // Zmiana licznika uruchamia ponownie zdobywanie mikrofonu — po podłączeniu
+  // urządzenia albo po udzieleniu zgody nie trzeba wychodzić z trybu rozmowy.
+  const [proba, setProba] = useState(0);
 
   const phaseRef = useRef<Phase>("starting");
   const context = useRef<AudioContext | null>(null);
@@ -298,13 +324,7 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
         }
         listen();
       } catch (failure) {
-        setError(
-          failure instanceof DOMException && failure.name === "NotAllowedError"
-            ? "Brak zgody na mikrofon. Zezwól na mikrofon w ustawieniach przeglądarki."
-            : failure instanceof Error
-              ? failure.message
-              : String(failure),
-        );
+        setError(bladMikrofonu(failure));
         go("error");
       }
     })();
@@ -317,8 +337,8 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
       void context.current?.close();
       void wakeLock.current?.release().catch(() => undefined);
     };
-    // Uruchamiane raz – przy otwarciu trybu rozmowy.
-  }, []);
+    // Uruchamiane przy otwarciu trybu rozmowy i przy ponowieniu po błędzie mikrofonu.
+  }, [proba]);
 
   useEffect(() => {
     if (timer.current) {
@@ -398,7 +418,7 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
           className="relative grid size-52 place-items-center rounded-full outline-none"
         >
           <span
-            className={`absolute inset-0 rounded-full bg-gradient-to-br from-[#8b7cf6] to-[#4f46e5] transition-transform duration-100 ${
+            className={`voice-orb absolute inset-0 rounded-full transition-transform duration-100 ${
               phase === "thinking" || phase === "transcribing" ? "animate-pulse" : ""
             } ${phase === "paused" || phase === "error" ? "opacity-40 grayscale" : ""}`}
             style={{ transform: `scale(${scale})` }}
@@ -410,9 +430,15 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
           />
         </button>
         <div className="min-h-24 w-full text-center">
-          <div className={`text-lg font-medium ${phase === "thinking" ? "shimmer-text" : ""}`}>
-            {error && phase === "error" ? error : PHASE_LABELS[phase]}
-          </div>
+          {error && phase === "error" ? (
+            <p role="alert" className="text-balance text-lg font-medium text-danger">
+              {error}
+            </p>
+          ) : (
+            <div className={`text-lg font-medium ${phase === "thinking" ? "shimmer-text" : ""}`}>
+              {PHASE_LABELS[phase]}
+            </div>
+          )}
           <p className="mt-1 text-xs text-muted">
             {phase === "speaking"
               ? "Dotknij kuli lub zacznij mówić, aby przerwać"
@@ -426,10 +452,23 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
       </div>
 
       <div className="flex w-full max-w-md items-center justify-center gap-6 pb-6">
+        {phase === "error" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setError("");
+              go("starting");
+              setProba((numer) => numer + 1);
+            }}
+            className="rounded-full bg-accent-fill px-6 py-4 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
+          >
+            Spróbuj ponownie
+          </button>
+        ) : (
         <button
           type="button"
           onClick={toggleMute}
-          disabled={phase === "starting" || phase === "error"}
+          disabled={phase === "starting"}
           className={`grid size-16 place-items-center rounded-full border border-line transition-colors ${
             phase === "paused" ? "bg-fg text-app" : "bg-raised text-fg hover:bg-hover"
           }`}
@@ -437,6 +476,7 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
         >
           <MicIcon muted={phase === "paused"} />
         </button>
+        )}
         <button
           type="button"
           onClick={onClose}

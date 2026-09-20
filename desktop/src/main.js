@@ -153,7 +153,7 @@ function createMainWindow(show) {
     show: false,
     title: 'Nexus',
     icon: ICON,
-    backgroundColor: '#212121',
+    backgroundColor: '#0D0F17',
     autoHideMenuBar: true,
     webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true, spellcheck: true },
   });

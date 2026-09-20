@@ -591,7 +591,7 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
                   </div>
                   {upload.status === "uploading" && (
                     <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-line">
-                      <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${upload.progress * 100}%` }} />
+                      <div className="h-full rounded-full bg-accent-fill transition-[width]" style={{ width: `${upload.progress * 100}%` }} />
                     </div>
                   )}
                   {upload.status === "error" && <p className="mt-1 text-xs text-danger">{upload.error}</p>}
@@ -602,7 +602,7 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
         )}
 
         {dragging && (
-          <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-accent bg-accent-soft/90 text-lg font-medium text-accent">
+          <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent bg-accent-soft/90 text-lg font-medium text-accent">
             <UploadIcon size={32} />
             Upuść pliki, aby wgrać je do {path === "/" ? "chmury" : path}
           </div>

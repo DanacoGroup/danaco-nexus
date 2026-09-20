@@ -157,7 +157,9 @@ export async function speakText(text: string, voice: string, signal?: AbortSigna
 }
 
 export const api = {
-  me: () => request<{ username: string; cloud_url?: string }>("GET", "/api/auth/me"),
+  me: () => request<{ username: string; cloud_url?: string; gosc?: string }>("GET", "/api/auth/me"),
+  // Wejście bez rejestracji: serwer zakłada własne konto próbne i wydaje sesję.
+  gosc: () => request<{ username: string; gosc: string }>("POST", "/api/auth/gosc"),
   login: (username: string, password: string) =>
     request<{ username: string }>("POST", "/api/auth/login", { username, password }),
   logout: () => request<{ ok: boolean }>("POST", "/api/auth/logout"),

@@ -18,11 +18,13 @@ import email
 import html as html_lib
 import imaplib
 import json
+import os
 import re
 import smtplib
 import ssl
 import sys
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from email.headerregistry import Address
@@ -35,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 
 MAX_LIST = 200
 MAX_TEXT = 200_000
@@ -93,15 +96,22 @@ class MailConfig:
         return formataddr((self.name, self.address)) if self.name else self.address
 
 
-def config_path(settings: Settings) -> Path:
-    """Plik konta pocztowego (ścieżka względna liczona od katalogu danych)."""
+def config_path(settings: Settings, owner: uuid.UUID | None = None) -> Path:
+    """Plik kont pocztowych danego konta użytkownika.
+
+    Skrzynka należy do konta, nie do serwera: gdyby plik był jeden, każdy zalogowany
+    czytałby cudzą pocztę. Konto administratora zostaje przy pliku sprzed podziału,
+    żeby nie stracić ustawień; pozostałe mają ``poczta/<konto>.json`` obok niego.
+    """
     path = Path(settings.poczta_config_file)
-    return path if path.is_absolute() else settings.data_dir / path
+    if not path.is_absolute():
+        path = settings.data_dir / path
+    if owner is None or owner == ADMIN_OWNER:
+        return path
+    return path.parent / "poczta" / f"{owner}.json"
 
 
-SETUP_HINT = (
-    "Poczta nie jest skonfigurowana. Na serwerze uruchom: sudo -u danaco-serwis deploy/zapisz-poczte.sh"
-)
+SETUP_HINT = "Poczta nie jest jeszcze podłączona. Dodaj konto w module Poczta → Ustawienia."
 
 
 def _account(raw: Any) -> MailConfig:
@@ -129,9 +139,9 @@ def _account(raw: Any) -> MailConfig:
     )
 
 
-def load_accounts(settings: Settings) -> list[MailConfig]:
+def load_accounts(settings: Settings, owner: uuid.UUID | None = None) -> list[MailConfig]:
     """Wszystkie konta z pliku (pierwsze – domyślne); brak lub błąd pliku: ``MailNotConfigured``."""
-    path = config_path(settings)
+    path = config_path(settings, owner)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as error:
@@ -160,14 +170,76 @@ def find_account(accounts: list[MailConfig], account: str | None) -> MailConfig:
     raise UnknownAccount(f"Nie ma konta {account}. Dostępne konta: {names}.")
 
 
-def load_config(settings: Settings, account: str | None = None) -> MailConfig:
+def load_config(
+    settings: Settings, account: str | None = None, owner: uuid.UUID | None = None
+) -> MailConfig:
     """Konto ``account`` (identyfikator lub adres; puste – domyślne)."""
-    return find_account(load_accounts(settings), account)
+    return find_account(load_accounts(settings, owner), account)
 
 
-def is_configured(settings: Settings) -> bool:
-    """Czy plik konfiguracji poczty istnieje."""
-    return config_path(settings).is_file()
+def is_configured(settings: Settings, owner: uuid.UUID | None = None) -> bool:
+    """Czy da się wczytać choć jedno konto.
+
+    Sam plik nie wystarcza: pusty albo wyczyszczony plik (``{}``) zostaje po odłączeniu
+    konta i wtedy poczta ma być zgłoszona jako niepodłączona, a nie jako zepsuta.
+    """
+    try:
+        return bool(load_accounts(settings, owner))
+    except MailError:
+        return False
+
+
+def _zapis_konta(config: MailConfig) -> dict[str, Any]:
+    """Konto w postaci zapisywanej do pliku (z hasłem)."""
+    return {
+        "id": config.id,
+        "login": config.login,
+        "password": config.password,
+        "address": config.address,
+        "name": config.name,
+        "label": config.label,
+        "imap_host": config.imap_host,
+        "imap_port": config.imap_port,
+        "smtp_host": config.smtp_host,
+        "smtp_port": config.smtp_port,
+        "smtp_security": config.smtp_security,
+        "signature_html": config.signature_html,
+    }
+
+
+def save_accounts(
+    settings: Settings, accounts: list[MailConfig], default: str = "", owner: uuid.UUID | None = None
+) -> None:
+    """Zapisuje konta do pliku konfiguracji z prawami 600.
+
+    Plik zawiera hasła skrzynek, więc powstaje od razu z prawami właściciela i jest
+    podmieniany atomowo — przerwany zapis nie zostawia połowy konfiguracji.
+    """
+    path = config_path(settings, owner)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    domyslne = default or (accounts[0].id if accounts else "")
+    tresc = json.dumps(
+        {"default": domyslne, "accounts": [_zapis_konta(konto) for konto in accounts]},
+        ensure_ascii=False,
+        indent=2,
+    )
+    tymczasowy = path.with_suffix(path.suffix + ".nowy")
+    deskryptor = os.open(tymczasowy, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(deskryptor, "w", encoding="utf-8") as plik:
+            plik.write(tresc)
+            plik.flush()
+            os.fsync(plik.fileno())
+    except BaseException:
+        tymczasowy.unlink(missing_ok=True)
+        raise
+    os.replace(tymczasowy, path)
+    os.chmod(path, 0o600)
+
+
+def account_from_dict(raw: dict[str, Any]) -> MailConfig:
+    """Konto z danych formularza (ta sama walidacja co przy odczycie pliku)."""
+    return _account(raw)
 
 
 # --- zmodyfikowane UTF-7 (RFC 3501) dla nazw folderów, gdy serwer nie obsługuje UTF8=ACCEPT ---
@@ -797,6 +869,37 @@ def send_message(
         raise MailError(f"Serwer odrzucił odbiorców: {', '.join(error.recipients)}") from error
     except (smtplib.SMTPException, OSError) as error:
         raise MailError(f"Wysłanie nie powiodło się: {error}") from error
+
+
+def check_account(config: MailConfig, timeout: float = 20) -> dict[str, Any]:
+    """Sprawdza logowanie IMAP i SMTP przed zapisaniem konta.
+
+    Konto zapisane z błędnym hasłem kończy się tym, że moduł Poczta wygląda na zepsuty.
+    Lepiej powiedzieć od razu, który z dwóch serwerów odmówił.
+    """
+    wynik: dict[str, Any] = {"imap": False, "smtp": False, "folders": 0}
+    with MailClient(config, timeout=timeout) as klient:
+        wynik["imap"] = True
+        wynik["folders"] = len(klient.folders())
+    context = ssl.create_default_context()
+    try:
+        if config.smtp_security == "ssl":
+            smtp: smtplib.SMTP = smtplib.SMTP_SSL(
+                config.smtp_host, config.smtp_port, context=context, timeout=timeout
+            )
+        else:
+            smtp = smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=timeout)
+            smtp.starttls(context=context)
+        with smtp:
+            smtp.login(config.login, config.password)
+    except smtplib.SMTPAuthenticationError as error:
+        raise MailError("Serwer wysyłkowy (SMTP) odrzucił login lub hasło.") from error
+    except (smtplib.SMTPException, OSError) as error:
+        raise MailError(
+            f"Nie można połączyć się z serwerem wysyłkowym {config.smtp_host}: {error}"
+        ) from error
+    wynik["smtp"] = True
+    return wynik
 
 
 def reply_headers(original: dict[str, Any]) -> dict[str, str]:

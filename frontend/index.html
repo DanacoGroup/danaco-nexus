@@ -1,15 +1,40 @@
 <!doctype html>
-<html lang="pl" class="dark">
+<html lang="pl" dir="ltr" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="description" content="Prywatny asystent AI do dokumentów, zdjęć, PDF, audio, wideo i automatyzacji." />
-    <meta name="theme-color" content="#171717" />
+    <title>Danaco Nexus — osobisty asystent AI w chmurze</title>
+    <meta
+      name="description"
+      content="Osobisty asystent AI: stare zdjęcia jak nowe, plany, notatki z nagrań, rozmowa głosowa po polsku i porządek w dokumentach. Piszesz, co ma powstać — odbierasz gotowy plik."
+    />
+    <!-- Znaczniki poniżej opisują witrynę, nie pojedynczą stronę; przy zmianie ekranu podmienia je
+         src/seo.ts, a w portalu src/portal/seo.ts. -->
+    <!-- Kanonicznego ani „og:url” nie ma tu celowo: robot społecznościowy nie wykonuje skryptów,
+         więc statyczny wpis dawałby kartę strony głównej pod każdym adresem. Bez „og:url” serwis
+         bierze adres, spod którego pobrał stronę. -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Danaco Nexus" />
+    <meta property="og:locale" content="pl_PL" />
+    <meta property="og:title" content="Danaco Nexus — powiedz, co zrobić. Odbierz gotowe." />
+    <meta property="og:description" content="Twój osobisty agent AI do pracy i do życia. Własna przestrzeń w chmurze, 2 GB na start." />
+    <meta property="og:image" content="https://danaco-nexus.pl/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Znak Danaco Nexus i hasło „Powiedz, co zrobić. Odbierz gotowe.”" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Danaco Nexus — powiedz, co zrobić. Odbierz gotowe." />
+    <meta name="twitter:description" content="Twój osobisty agent AI do pracy i do życia. Własna przestrzeń w chmurze, 2 GB na start." />
+    <meta name="twitter:image" content="https://danaco-nexus.pl/og.png" />
+    <meta name="twitter:image:alt" content="Znak Danaco Nexus i hasło „Powiedz, co zrobić. Odbierz gotowe.”" />
+    <!-- Barwa paska systemowego; po starcie ustawia ją wybrany motyw (src/theme.ts). -->
+    <meta name="theme-color" content="#0D0F17" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="robots" content="noindex, nofollow" />
     <!-- Instalacja na iPhonie/iPadzie („Do ekranu początkowego”). -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -17,11 +42,65 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <!-- Znak w przypiętej karcie Safari. Barwa to token marki brand.iris (design-tokens/colors.json);
+         atrybut „color” przyjmuje wyłącznie wartość literalną, więc zmiennej CSS użyć tu nie można. -->
+    <link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#7B5CFF" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <title>Danaco Nexus</title>
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="alternate" type="application/atom+xml" title="Blog Danaco Nexus" href="/portal/atom.xml" />
+    <!-- Kroje marki: bez nich pierwszy rysunek trafia na krój zastępczy (Figtree → nagłówki, Inter → treść).
+         Kroje i ekran ładowania pochodzą z pakietów marki; do frontend/public kopiuje je
+         frontend/scripts/zasoby.py (wiersze 23–24 i 47–48). Tutaj jest wyłącznie ich wpięcie. -->
+    <link rel="preload" href="/kroje/inter.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/kroje/figtree.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/ladowanie/ladowanie.css" />
+    <!-- Trzy węzły niżej to byty całej witryny (wydawca, witryna, aplikacja), nie opis bieżącej
+         strony: ich „@id” i „url” wskazują korzeń z definicji i są poprawne pod każdym adresem.
+         Dane strukturalne konkretnej strony dopisują moduły seo.ts pod atrybutami data-seo-*. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://danaco-nexus.pl/#wydawca",
+            "name": "Danaco Holding Group Sp. z o.o.",
+            "url": "https://danaco-nexus.pl/",
+            "logo": "https://danaco-nexus.pl/icons/icon-512.png",
+            "email": "support@danaco-group.pl"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://danaco-nexus.pl/#witryna",
+            "name": "Danaco Nexus",
+            "url": "https://danaco-nexus.pl/",
+            "inLanguage": "pl-PL",
+            "publisher": { "@id": "https://danaco-nexus.pl/#wydawca" }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://danaco-nexus.pl/#aplikacja",
+            "name": "Danaco Nexus",
+            "url": "https://danaco-nexus.pl/",
+            "applicationCategory": "LifestyleApplication",
+            "operatingSystem": "Android, iOS, Windows",
+            "browserRequirements": "Przeglądarka z obsługą JavaScript",
+            "inLanguage": "pl-PL",
+            "screenshot": "https://danaco-nexus.pl/screenshots/wide.png",
+            "publisher": { "@id": "https://danaco-nexus.pl/#wydawca" },
+            "isPartOf": { "@id": "https://danaco-nexus.pl/#witryna" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
+    <!-- Ekran ładowania z pakietu marki: pokazuje się tylko wtedy, gdy start trwa dłużej niż 150 ms.
+         „defer” zdejmuje blokadę rysowania (22 kB skryptu przed #root), a kolejność wykonania
+         zostaje: skrypty odroczone i moduły idą w kolejności zapisu, więc ekran nadal startuje
+         przed main.tsx. -->
+    <script src="/ladowanie/ladowanie.js" data-raz="sesja" defer></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

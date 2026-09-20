@@ -38,7 +38,7 @@ class OverlayHost {
     const view = new WebContentsView({
       webPreferences: { preload: this.options.preload, contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
-    view.setBackgroundColor('#212121');
+    view.setBackgroundColor('#0D0F17');
     return view;
   }
 
@@ -63,11 +63,11 @@ class OverlayHost {
     this.close();
     const { WebContentsView } = this.options.electron;
     const bar = this.localView();
-    bar.setBackgroundColor('#171717');
+    bar.setBackgroundColor('#191B25');
     const content = new WebContentsView({
       webPreferences: { partition: this.options.partition, contextIsolation: true, sandbox: true, spellcheck: true },
     });
-    content.setBackgroundColor('#212121');
+    content.setBackgroundColor('#0D0F17');
     this.options.guardContents(content.webContents);
     this.attach({ kind: 'strona', view: bar, content });
     bar.webContents.loadFile(path.join(__dirname, 'ui', 'browser.html'));

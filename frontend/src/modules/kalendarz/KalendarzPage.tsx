@@ -312,7 +312,7 @@ function MonthView({
             >
               <div
                 className={`mb-0.5 grid size-6 place-items-center rounded-full text-xs ${
-                  sameDay(day, today) ? "bg-accent font-semibold text-on-accent" : outside ? "text-muted" : ""
+                  sameDay(day, today) ? "bg-accent-fill font-semibold text-on-accent" : outside ? "text-muted" : ""
                 }`}
               >
                 {day.getDate()}
@@ -359,7 +359,7 @@ function WeekView({
             <div className="text-xs text-muted">{WEEKDAYS[(day.getDay() + 6) % 7]}</div>
             <div
               className={`mx-auto grid size-7 place-items-center rounded-full text-sm ${
-                sameDay(day, today) ? "bg-accent font-semibold text-on-accent" : ""
+                sameDay(day, today) ? "bg-accent-fill font-semibold text-on-accent" : ""
               }`}
             >
               {day.getDate()}
@@ -558,7 +558,7 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
           <section>
             <h3 className="font-semibold">Android – DAVx⁵</h3>
             <ol className="mt-1 list-decimal space-y-1 pl-5 text-muted">
-              <li>Zainstaluj aplikację Nextcloud i zaloguj się (zakładka Cloud → Synchronizacja).</li>
+              <li>Zainstaluj aplikację Nextcloud i zaloguj się (moduł Chmura → Synchronizacja).</li>
               <li>Zainstaluj DAVx⁵ (Google Play lub F-Droid).</li>
               <li>W aplikacji Nextcloud: Ustawienia → „Synchronizuj kalendarz i kontakty” – DAVx⁵ skonfiguruje konto sam.</li>
               <li>Albo w DAVx⁵: „Zaloguj się adresem URL” → adres CalDAV powyżej, użytkownik i hasło aplikacji.</li>

@@ -17,7 +17,7 @@ from typing import Any, Protocol
 from sqlalchemy import func, select
 
 from nexus.config import Settings
-from nexus.db import Database, utcnow
+from nexus.db import ADMIN_OWNER, Database, utcnow
 from nexus.models.research import KnowledgeCollection, KnowledgeNote, KnowledgeSource
 from nexus.research.web import extract_html, normalize_text
 
@@ -115,26 +115,39 @@ def _uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
 
 
 async def resolve_collection(
-    database: Database, reference: str | uuid.UUID | None, create: bool = True
+    database: Database,
+    reference: str | uuid.UUID | None,
+    create: bool = True,
+    owner: uuid.UUID | None = None,
 ) -> KnowledgeCollection | None:
-    """Kolekcja wskazana identyfikatorem albo nazwą (brak nazwy = kolekcja „Ogólne”)."""
+    """Kolekcja konta wskazana identyfikatorem albo nazwą (brak nazwy = kolekcja „Ogólne”).
+
+    Wyszukiwanie po nazwie obejmuje wyłącznie kolekcje właściciela: dwa konta mogą mieć
+    „Ogólne” i nie mogą na siebie trafić.
+    """
+    wlasciciel = owner or ADMIN_OWNER
     identifier = _uuid(reference)
     async with database.session() as session:
         if identifier is not None:
             found = await session.get(KnowledgeCollection, identifier)
+            if found is not None and found.owner_id != wlasciciel:
+                found = None
             if found is not None or not create:
                 return found
         name = " ".join(str(reference or "").split())[:120] if identifier is None else ""
         name = name or DEFAULT_COLLECTION
         found = await session.scalar(
             select(KnowledgeCollection)
-            .where(func.lower(KnowledgeCollection.name) == name.lower())
+            .where(
+                func.lower(KnowledgeCollection.name) == name.lower(),
+                KnowledgeCollection.owner_id == wlasciciel,
+            )
             .order_by(KnowledgeCollection.created_at)
             .limit(1)
         )
         if found is not None or not create:
             return found
-        record = KnowledgeCollection(name=name)
+        record = KnowledgeCollection(owner_id=wlasciciel, name=name)
         session.add(record)
     return record
 

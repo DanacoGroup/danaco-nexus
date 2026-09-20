@@ -41,8 +41,19 @@ from sqlalchemy import select, update
 from nexus.agent.prompt import SUBAGENT_PROMPT, system_prompt
 from nexus.agent.przestrzenie import existing_project
 from nexus.config import Settings
-from nexus.db import Conversation, Database, Message, Run, RunEvent, Setting, ToolCall, utcnow
+from nexus.db import (
+    ADMIN_OWNER,
+    Conversation,
+    Database,
+    Message,
+    Run,
+    RunEvent,
+    Setting,
+    ToolCall,
+    utcnow,
+)
 from nexus.events import EventBus
+from nexus.platnosci import kredyty
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +178,15 @@ class CliFailure(Exception):
     """CLI zakończył działanie bez wyniku albo nie mógł wystartować."""
 
 
+class BladZlecenia(CliFailure):
+    """Powód niepowodzenia, który dotyczy zlecenia użytkownika, a nie silnika.
+
+    Taki komunikat trafia do użytkownika bez zmian: mówi, co poprawić (np. brakujący
+    projekt w module Kod). Wszystko, co pochodzi z silnika, przechodzi przez
+    ``friendly_error`` i jest zastępowane komunikatem ogólnym.
+    """
+
+
 @dataclass(frozen=True)
 class RunOptions:
     """Ustawienia przebiegu wynikające z rozmowy i wiadomości."""
@@ -254,15 +274,23 @@ def cli_environment(settings: Settings, run_dir: Path, code: bool = False) -> di
     return env
 
 
-def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID) -> dict[str, Any]:
-    """Konfiguracja serwera MCP narzędzi dla jednego zadania."""
+def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID, owner_id: uuid.UUID) -> dict[str, Any]:
+    """Konfiguracja serwera MCP narzędzi dla jednego zadania.
+
+    ``NEXUS_OWNER_ID`` wskazuje konto, w którego przestrzeni pracują narzędzia: skrzynka
+    pocztowa, chmura i baza wiedzy należą do konta, a nie do serwera.
+    """
     return {
         "mcpServers": {
             MCP_SERVER_NAME: {
                 "type": "stdio",
                 "command": sys.executable,
                 "args": ["-m", "nexus.mcp_server"],
-                "env": {"NEXUS_RUN_ID": str(run_id), "NEXUS_CONVERSATION_ID": str(conversation_id)},
+                "env": {
+                    "NEXUS_RUN_ID": str(run_id),
+                    "NEXUS_CONVERSATION_ID": str(conversation_id),
+                    "NEXUS_OWNER_ID": str(owner_id),
+                },
             }
         }
     }
@@ -476,17 +504,18 @@ def agent_output(text: str) -> str:
 
 
 def friendly_error(text: str) -> str:
-    """Czytelny komunikat błędu CLI dla użytkownika."""
+    """Komunikat błędu pokazywany użytkownikowi.
+
+    Użytkownik ma widzieć wyłącznie to, co dotyczy jego konta. Stan kont silnika, ich limity
+    i sposób logowania są sprawą operatora: trafiają do dziennika, nie na ekran. Inaczej
+    tester zamiast „spróbuj za chwilę” dostaje informację, ile zostało cudzego limitu.
+    """
     lowered = text.lower()
     if any(pattern in lowered for pattern in LIMIT_PATTERNS):
-        return "Osiągnięto limit użycia konta Claude. Spróbuj ponownie później."
+        return "Usługa jest chwilowo przeciążona. Zadanie można ponowić za kilka minut."
     if any(pattern in lowered for pattern in AUTH_PATTERNS):
-        return (
-            "Claude Code CLI nie jest zalogowany – brak lub nieważny token w pliku oauth-token "
-            "profilu (polecenie: claude setup-token)."
-        )
-    tail = text.strip().splitlines()[-1] if text.strip() else ""
-    return f"Błąd Claude Code CLI: {tail[:400]}" if tail else "Błąd Claude Code CLI."
+        return "Usługa jest chwilowo niedostępna. Pracujemy nad przywróceniem jej działania."
+    return "Zadanie nie zostało ukończone. Spróbuj ponownie; jeśli wróci, napisz do nas."
 
 
 def input_preview(raw: Any) -> dict[str, Any]:
@@ -563,6 +592,7 @@ class _RunState:
 
     run_id: uuid.UUID
     conversation_id: uuid.UUID
+    owner_id: uuid.UUID = ADMIN_OWNER
     text: _Buffer = field(default_factory=lambda: _Buffer("text.delta"))
     thinking: _Buffer = field(default_factory=lambda: _Buffer("thinking.delta"))
     calls: dict[str, _Call] = field(default_factory=dict)
@@ -637,6 +667,7 @@ class AgentRunner:
                 select(Message).where(Message.run_id == run_id, Message.kind == "user").order_by(Message.id)
             )
         state = _RunState(run_id, run.conversation_id)
+        state.owner_id = conversation.owner_id if conversation else ADMIN_OWNER
         state.voice = bool(prompt_message is not None and (prompt_message.meta or {}).get("voice"))
         meta = (conversation.meta if conversation else None) or {}
         mode = conversation_mode(meta)
@@ -661,7 +692,10 @@ class AgentRunner:
         except RunInterrupted:
             status, error_text = "failed", "Zadanie przerwane (restart procesu roboczego)."
         except CliFailure as error:
-            status, error_text = "failed", friendly_error(str(error))
+            # Błąd zlecenia mówi użytkownikowi, co poprawić — zostaje bez zmian.
+            status, error_text = "failed", (
+                str(error) if isinstance(error, BladZlecenia) else friendly_error(str(error))
+            )
             logger.error("Błąd CLI w przebiegu %s: %s", run_id, str(error)[-2000:])
         except Exception as error:  # noqa: BLE001 - błąd przebiegu raportowany w interfejsie
             status, error_text = "failed", f"Błąd wewnętrzny: {error}"
@@ -673,8 +707,25 @@ class AgentRunner:
                 .where(Run.id == run_id)
                 .values(status=status, error=error_text, usage=usage, finished_at=utcnow())
             )
+        # Praca jest już wykonana, więc naliczamy ją także wtedy, gdy przebieg padł:
+        # model i narzędzia zużyły czas maszyny niezależnie od wyniku. Anulowanie przez
+        # użytkownika też kosztuje tyle, ile zdążyło policzyć.
+        saldo_po = None
+        try:
+            async with self._db.session() as session:
+                uzyte_narzedzia = list(
+                    (await session.scalars(select(ToolCall.name).where(ToolCall.run_id == run_id))).all()
+                )
+            koszt = kredyty.koszt_przebiegu(usage, uzyte_narzedzia)
+            saldo_po = await kredyty.obciaz(self._db, state.owner_id, koszt, run_id, usage)
+        except Exception:  # noqa: BLE001 - brak naliczenia nie może przerwać zamknięcia przebiegu
+            logger.exception("Nie udało się naliczyć kredytów za przebieg %s", run_id)
         final_type = {"done": "run.completed", "cancelled": "run.cancelled"}.get(status, "run.failed")
-        await self.emit(run_id, final_type, {"error": error_text, "usage": usage})
+        await self.emit(
+            run_id,
+            final_type,
+            {"error": error_text, "usage": usage, **({"saldo": saldo_po} if saldo_po is not None else {})},
+        )
         async with self._db.session() as session:
             title = await session.scalar(
                 select(Conversation.title).where(Conversation.id == run.conversation_id)
@@ -698,7 +749,7 @@ class AgentRunner:
             name = str(meta.get("workspace") or "")
             workspace = existing_project(self._settings, name)
             if workspace is None:
-                raise CliFailure(f"projekt „{name}” nie istnieje w module Kod")
+                raise BladZlecenia(f"projekt „{name}” nie istnieje w module Kod")
         return RunOptions(mode=mode, workspace=workspace, voice=voice)
 
     async def _session_for(
@@ -710,6 +761,21 @@ class AgentRunner:
             return existing, True, ""
         session_id = str(uuid.uuid4())
         digest = await self._history_digest(state) if existing else ""
+        if existing:
+            # Zapis sesji CLI zniknął: rozmowa dostaje streszczenie zamiast pełnego kontekstu.
+            # Bez tego wpisu degradacja przechodzi bez śladu, bo nie jest błędem.
+            logger.warning(
+                "Przebieg %s: brak zapisu sesji CLI %s w %s — kontekst zastąpiony streszczeniem (%s znaków)",
+                state.run_id,
+                existing,
+                self._settings.claude_profile_dir,
+                len(digest),
+            )
+            await self.emit(
+                state.run_id,
+                "notice",
+                {"text": "Zapis poprzedniej sesji wygasł — pracuję na streszczeniu wcześniejszej rozmowy."},
+            )
         async with self._db.session() as session:
             await session.execute(
                 update(Conversation)
@@ -766,7 +832,9 @@ class AgentRunner:
         cwd = options.workspace or settings.data_dir / "agent"
         cwd.mkdir(parents=True, exist_ok=True)
         config_path = run_dir / "mcp.json"
-        config_path.write_text(json.dumps(mcp_config(state.run_id, state.conversation_id)), encoding="utf-8")
+        config_path.write_text(
+            json.dumps(mcp_config(state.run_id, state.conversation_id, state.owner_id)), encoding="utf-8"
+        )
         command = build_command(settings, config_path, session_id, resume, options=options)
         process = await asyncio.create_subprocess_exec(
             *command,
@@ -1073,10 +1141,13 @@ class AgentRunner:
                 await session.merge(Setting(key=RATE_LIMIT_KEY, value=payload, updated_at=utcnow()))
         except Exception:  # noqa: BLE001 - informacja pomocnicza, równoległe zapisy mogą się zderzyć
             logger.debug("Nie zapisano stanu limitów konta", exc_info=True)
+        # Stan limitów kont silnika zostaje po stronie operatora: w ustawieniach i w dzienniku.
+        # Użytkownik nie może się z aplikacji dowiedzieć, z jakiego konta korzysta ani ile
+        # zostało jego limitu — widzi wyłącznie własne saldo kredytów.
         warning = rate_limit_warning(info)
         if warning and not state.limit_warned:
             state.limit_warned = True
-            await self.emit(state.run_id, "notice", {"text": warning})
+            logger.warning("Limity konta silnika (przebieg %s): %s", state.run_id, warning)
 
 
 def _status_text(status: str) -> str:

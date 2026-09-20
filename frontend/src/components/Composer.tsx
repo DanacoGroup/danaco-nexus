@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { uploadFile, type FileInfo } from "../api";
 import { formatSize } from "../runState";
-import { CloseIcon, FileIcon, PaperclipIcon, SendIcon, StopIcon, WaveIcon } from "./icons";
+import { CloseIcon, FileIcon, MicIcon, PaperclipIcon, SendIcon, StopIcon, WaveIcon } from "./icons";
+import { dyktowanieDostepne, useDyktowanie } from "../voice/useDyktowanie";
 
 export const ACCEPTED_FILES =
   ".pdf,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.txt,.md,.html,.jpg,.jpeg,.png,.heic,.tif,.tiff,.bmp,.webp,.gif,.svg,.zip,.mp4,.mov,.mkv,.webm,.mp3,.wav,.m4a,.ogg,.flac";
@@ -36,6 +37,11 @@ export function Composer(props: Props) {
   const { conversationId, running, onSend, onStop, droppedFiles, onDroppedConsumed, prefill, onPrefillConsumed, onVoice } =
     props;
   const [text, setText] = useState("");
+  // Dyktowanie dopisuje rozpoznaną wypowiedź do tego, co już jest w polu — tekst
+  // zostaje do poprawienia przed wysłaniem, w odróżnieniu od rozmowy głosowej.
+  const dyktowanie = useDyktowanie((rozpoznane) =>
+    setText((biezacy) => (biezacy.trim() ? `${biezacy.trimEnd()} ${rozpoznane}` : rozpoznane)),
+  );
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [sending, setSending] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -138,7 +144,22 @@ export function Composer(props: Props) {
   };
 
   return (
-    <div className="rounded-3xl border border-line bg-raised shadow-sm transition-colors focus-within:border-line-strong dark:shadow-black/20">
+    <div className="rounded-2xl border border-line bg-raised shadow-sm transition-colors focus-within:border-line-strong dark:shadow-black/20">
+      {dyktowanie.blad && (
+        <button
+          type="button"
+          role="alert"
+          onClick={dyktowanie.wyczyscBlad}
+          className="w-full rounded-t-2xl bg-danger-soft px-4 py-2 text-left text-sm text-danger"
+        >
+          {dyktowanie.blad}
+        </button>
+      )}
+      {dyktowanie.stan === "nagrywanie" && (
+        <p className="px-4 pt-2 text-sm text-muted" role="status" aria-live="polite">
+          Słucham — mów, a potem naciśnij mikrofon jeszcze raz.
+        </p>
+      )}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 px-3 pt-3">
           {attachments.map((item) => (
@@ -163,7 +184,7 @@ export function Composer(props: Props) {
               </button>
               {item.status === "uploading" && (
                 <span
-                  className="absolute bottom-0 left-0 h-0.5 bg-accent transition-[width]"
+                  className="absolute bottom-0 left-0 h-0.5 bg-accent-fill transition-[width]"
                   style={{ width: `${item.progress * 100}%` }}
                 />
               )}
@@ -186,6 +207,7 @@ export function Composer(props: Props) {
           type="file"
           multiple
           hidden
+          aria-label="Wybierz pliki do wysłania"
           accept={ACCEPTED_FILES}
           onChange={(event) => {
             addFiles(Array.from(event.target.files ?? []));
@@ -196,12 +218,27 @@ export function Composer(props: Props) {
           ref={textarea}
           rows={1}
           value={text}
-          placeholder="Napisz do Nexusa lub dodaj pliki…"
+          aria-label="Wiadomość do Nexusa"
+          placeholder="Napisz do Nexusa…"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
-          className="max-h-[260px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-fg outline-none placeholder:text-muted"
+          className="max-h-[260px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 leading-6 text-fg outline-none placeholder:truncate placeholder:text-muted"
         />
+        {dyktowanieDostepne() && !running && (
+          <button
+            type="button"
+            className={`icon-btn size-10 rounded-full ${
+              dyktowanie.stan === "nagrywanie" ? "glow-ai bg-danger-soft text-danger" : ""
+            }`}
+            onClick={dyktowanie.przelacz}
+            disabled={dyktowanie.stan === "rozpoznawanie"}
+            aria-label={dyktowanie.stan === "nagrywanie" ? "Zakończ dyktowanie" : "Dyktuj wiadomość"}
+            title={dyktowanie.stan === "nagrywanie" ? "Zakończ dyktowanie" : "Dyktuj wiadomość"}
+          >
+            {dyktowanie.stan === "rozpoznawanie" ? <span className="spinner" /> : <MicIcon />}
+          </button>
+        )}
         {onVoice && !running && (
           <button
             type="button"
@@ -225,7 +262,10 @@ export function Composer(props: Props) {
         ) : (
           <button
             type="button"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-on-accent transition-colors hover:bg-accent-hover disabled:bg-line-strong disabled:text-muted"
+            // Aurora na przycisku wysyłki oznacza „gotowe do wysłania” (DESIGN_SYSTEM, rozdz. 4.2).
+            className={`grid size-10 shrink-0 place-items-center rounded-full transition-all ${
+              canSend ? "aurora-tlo glow-ai text-white hover:brightness-110" : "bg-line-strong text-muted"
+            }`}
             disabled={!canSend}
             onClick={() => void submit()}
             aria-label="Wyślij"

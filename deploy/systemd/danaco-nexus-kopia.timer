@@ -1,0 +1,11 @@
+[Unit]
+Description=Danaco Nexus — kopia zapasowa raz na dobę
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+RandomizedDelaySec=20min
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

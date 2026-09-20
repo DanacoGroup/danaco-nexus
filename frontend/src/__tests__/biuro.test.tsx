@@ -33,8 +33,8 @@ const entry = (name: string, type: "file" | "folder", size = 0, modified = "2026
 });
 
 describe("rejestr modułów biura", () => {
-  it("rejestruje Cloud, Pocztę i Kalendarz", () => {
-    expect(findModule("cloud")?.label).toBe("Cloud");
+  it("rejestruje Chmurę, Pocztę i Kalendarz", () => {
+    expect(findModule("cloud")?.label).toBe("Chmura");
     expect(findModule("poczta")?.label).toBe("Poczta");
     expect(findModule("kalendarz")?.label).toBe("Kalendarz");
     const ids = MODULES.map((item) => item.id);
@@ -222,18 +222,21 @@ describe("Poczta – odpowiedzi i adresy", () => {
     expect(listDate(null, now)).toBe("");
   });
 
-  it("bez konfiguracji pokazuje polecenie skryptu", async () => {
+  it("bez konfiguracji proponuje podłączenie skrzynki w aplikacji", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
         url.includes("/stan")
-          ? new Response(JSON.stringify({ configured: false, address: "", setup: "sudo -u danaco-serwis deploy/zapisz-poczte.sh" }))
+          ? new Response(JSON.stringify({ configured: false, address: "", accounts: [] }))
           : new Response("[]"),
       ),
     );
-    render(<PocztaPage openConversation={() => undefined} openModule={() => undefined} />);
+    render(<PocztaPage openConversation={() => undefined} openModule={() => undefined} openChat={() => undefined} />);
     await waitFor(() => expect(screen.getByText("Poczta nie jest jeszcze podłączona")).toBeTruthy());
-    expect(screen.getByText("sudo -u danaco-serwis deploy/zapisz-poczte.sh")).toBeTruthy();
+    // Konto podaje się w module, a nie poleceniem na serwerze — inaczej każdy zalogowany
+    // czyta tę samą skrzynkę.
+    expect(screen.getByRole("button", { name: "Podłącz skrzynkę" })).toBeTruthy();
+    expect(screen.queryByText(/sudo -u danaco-serwis/)).toBeNull();
   });
 });
 

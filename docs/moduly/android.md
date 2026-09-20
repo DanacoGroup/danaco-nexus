@@ -20,7 +20,7 @@ szkice odpowiedzi na SMS i lokalne powiadomienia.
 
 | Funkcja | Jak działa | Wejście |
 |---|---|---|
-| Okno aplikacji | WebView Capacitor ładuje `https://danaco-nexus.pl`; ekran startowy `#171717`, ciemne paski systemowe, ikona z logo Nexusa (`frontend/public/icons`). `cloud.danaco-nexus.pl` i `api.` zostają w oknie, inne adresy otwiera przeglądarka systemowa, pliki pobiera DownloadManager (folder Pobrane). | ikona aplikacji, odnośniki `https://danaco-nexus.pl/c/<id>` |
+| Okno aplikacji | WebView Capacitor ładuje `https://danaco-nexus.pl`; ekran startowy w barwie `side` z tokenów, ciemne paski systemowe, ikona z pakietu marki (`logo/pwa`). `cloud.danaco-nexus.pl` i `api.` zostają w oknie, inne adresy otwiera przeglądarka systemowa, pliki pobiera DownloadManager (folder Pobrane). | ikona aplikacji, odnośniki `https://danaco-nexus.pl/c/<id>` |
 | Połączenie z Nexusem | Po zalogowaniu w oknie mostek JS tworzy klucz urządzenia `POST /api/urzadzenia {kind: "android"}` i przekazuje go do magazynu natywnego (EncryptedSharedPreferences). Moduły natywne używają `Authorization: Bearer nxd_…`. Klucz cofnięty na serwerze jest usuwany i tworzony ponownie po wejściu do aplikacji. | automatycznie |
 | Rozmowa głosowa w tle | Usługa pierwszoplanowa `microphone|mediaPlayback` z powiadomieniem „Nexus słucha” (Wstrzymaj/Wznów, Zakończ). Natywna pętla jak w `VoiceMode.tsx`: VAD energetyczny (te same progi), `/api/voice/transcribe` (WAV 16 kHz), wiadomość `voice=true`, strumień `/api/runs/<id>/events`, `/api/voice/speak` zdanie po zdaniu (2 zdania naprzód), przerywanie głosem, audio focus, wstrzymanie przy rozmowie telefonicznej, auto-koniec po 10 min ciszy. | kafelek szybkich ustawień, skrót ikony, panel, ustawienia, `window.nexusAndroid.startVoice()` |
 | Asystent systemowy | `VoiceInteractionService` + sesja z małym panelem (72% wysokości) zamiast pełnego okna. Tekst ekranu (`AssistStructure`, bez pól haseł) i zrzut ekranu trafiają do panelu jako `nexus:context` (`kind: "screen"`). | przytrzymanie przycisku zasilania / gest asystenta |
@@ -35,7 +35,7 @@ szkice odpowiedzi na SMS i lokalne powiadomienia.
 ```
 android/
 ├── package.json, capacitor.config.json, www/       projekt Capacitor (server.url = https://danaco-nexus.pl)
-├── scripts/ikony.py                                ikony mipmap z frontend/public/icons
+├── scripts/ikony.py                                ikony mipmap z logo/pwa
 ├── scripts/test-mostek.mjs                         testy skryptów wstrzykiwanych do WebView (Node)
 └── android/app/src/main/
     ├── assets/nexus/most.js                        mostek okna głównego (klucz, zadania, window.nexusAndroid)

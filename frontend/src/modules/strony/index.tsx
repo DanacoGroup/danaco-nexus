@@ -25,7 +25,7 @@ function SitesPage({ openConversation }: ModulePageProps) {
 export const module: NexusModule = {
   id: "strony",
   label: "Strony",
-  description: "Twórca stron WWW: opis → strona na żywo, wersje i publikacja pod własnym adresem.",
+  description: "Twórca stron WWW: opis → strona na żywo, wersje i publikacja pod adresem Nexusa.",
   icon: GlobeIcon,
   order: 60,
   Page: SitesPage,

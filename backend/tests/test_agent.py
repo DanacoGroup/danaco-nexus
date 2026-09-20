@@ -220,7 +220,8 @@ async def test_lost_cli_session_starts_new_one_with_digest(
 
 @pytest.mark.parametrize(
     ("scenario", "message"),
-    [("auth", "nie jest zalogowany"), ("crash", "Błąd Claude Code CLI")],
+    # Komunikat trafia do użytkownika, więc nie może wymieniać silnika ani stanu jego kont.
+    [("auth", "Usługa jest chwilowo niedostępna"), ("crash", "Zadanie nie zostało ukończone")],
 )
 async def test_cli_failures_mark_run_failed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str, message: str
@@ -287,7 +288,8 @@ def test_tool_result_helpers() -> None:
     assert parse_tool_result({"is_error": True, "content": "Błąd: brak pliku"}) == ("brak pliku", [])
     assert strip_images(block["content"])[1] == {"type": "text", "text": "[podgląd obrazu]"}
     assert tool_display_name("mcp__nexus__ocr_documents") == "ocr_documents"
-    assert "limit użycia" in friendly_error("Claude AI usage limit reached|1760000000")
+    przeciazenie = friendly_error("Claude AI usage limit reached|1760000000")
+    assert "przeciążona" in przeciazenie and "claude" not in przeciazenie.lower()
 
 
 @pytest.mark.parametrize("name", registry.names())
@@ -350,8 +352,9 @@ async def test_subagents_become_nested_events(tmp_path: Path, monkeypatch: pytes
     finished = {e.data["tool_use_id"]: e.data for e in evts if e.type == "tool.finished"}
     assert finished["toolu_s1"]["parent_tool_use_id"] == "toolu_a1"
     assert finished["toolu_a1"]["files"][0]["id"] == str(results[0].id)
+    # Stan limitów kont silnika nie może dotrzeć do użytkownika żadnym zdarzeniem.
     notices = [e.data["text"] for e in evts if e.type == "notice"]
-    assert len(notices) == 1 and "95% limitu 5-godzinnego" in notices[0]
+    assert not any("limitu" in tekst or "Claude" in tekst for tekst in notices)
     assert "ToolSearch" not in {d["name"] for d in started}
 
     (invocation,) = calls(log)

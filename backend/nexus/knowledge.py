@@ -95,8 +95,14 @@ class KnowledgeBase:
         name: str,
         conversation_id: uuid.UUID | None,
         pages: list[tuple[int | None, str]],
+        owner_id: uuid.UUID | None = None,
     ) -> int:
-        """Indeksuje dokument (poprzednia wersja indeksu pliku jest zastępowana)."""
+        """Indeksuje dokument (poprzednia wersja indeksu pliku jest zastępowana).
+
+        ``owner_id`` trafia do ładunku każdego fragmentu i jest jedynym, co rozdziela
+        konta w indeksie: kolekcja jest wspólna, więc bez tego pola wyszukiwanie
+        semantyczne zwracałoby fragmenty cudzych dokumentów.
+        """
         chunks = chunk_pages(pages)
         if not chunks:
             return 0
@@ -109,6 +115,7 @@ class KnowledgeBase:
                 vector=vector,
                 payload={
                     "file_id": str(file_id),
+                    "owner_id": str(owner_id) if owner_id else None,
                     "name": name,
                     "page": chunk.page,
                     "chunk": position,
@@ -135,15 +142,31 @@ class KnowledgeBase:
             ),
         )
 
-    def search(self, query: str, limit: int = 8, file_ids: list[str] | None = None) -> list[dict[str, Any]]:
-        """Wyszukiwanie semantyczne; opcjonalnie w obrębie wskazanych plików."""
+    def search(
+        self,
+        query: str,
+        limit: int = 8,
+        file_ids: list[str] | None = None,
+        owner_id: uuid.UUID | None = None,
+    ) -> list[dict[str, Any]]:
+        """Wyszukiwanie semantyczne w obrębie konta; opcjonalnie w wskazanych plikach.
+
+        Warunek na właściciela jest obowiązkowy w praktyce: kolekcja Qdranta jest jedna
+        dla całej instalacji, więc bez niego zapytanie jednego konta trafia we fragmenty
+        dokumentów wszystkich pozostałych.
+        """
         if not self._client.collection_exists(self._collection):
             return []
-        query_filter = None
-        if file_ids:
-            query_filter = models.Filter(
-                must=[models.FieldCondition(key="file_id", match=models.MatchAny(any=file_ids))]
+        warunki: list[models.FieldCondition] = []
+        if owner_id is not None:
+            warunki.append(
+                models.FieldCondition(key="owner_id", match=models.MatchValue(value=str(owner_id)))
             )
+        if file_ids:
+            warunki.append(
+                models.FieldCondition(key="file_id", match=models.MatchAny(any=file_ids))
+            )
+        query_filter = models.Filter(must=warunki) if warunki else None
         response = self._client.query_points(
             self._collection,
             query=self._embed([query])[0],

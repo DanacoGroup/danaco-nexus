@@ -1,0 +1,26 @@
+{
+  "scenariusz": "zdjecie",
+  "kroki": [
+    {
+      "etykieta": "Korekta zdjęcia",
+      "czas_ms": 2450,
+      "opis": "Poprawiono zdjęcia: 1"
+    },
+    {
+      "etykieta": "Powiększenie AI",
+      "czas_ms": 48200,
+      "opis": "Powiększono 2×: 1 obraz"
+    }
+  ],
+  "odpowiedz": "Zdjęcie ma wyrównany balans bieli, odzyskane cienie i mniej ziarna, a po powiększeniu 2× nadaje się do wydruku w formacie 15 × 21 cm.",
+  "pliki": [
+    {
+      "nazwa": "zdjecie-1974_poprawione.jpg",
+      "plik": "zdjecie/zdjecie-1974_poprawione.jpg"
+    },
+    {
+      "nazwa": "zdjecie-1974_powiekszone.png",
+      "plik": "zdjecie/zdjecie-1974_powiekszone.png"
+    }
+  ]
+}

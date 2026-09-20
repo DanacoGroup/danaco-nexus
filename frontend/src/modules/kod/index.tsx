@@ -1,5 +1,5 @@
 // Moduł Kod: przestrzenie projektów, drzewo plików z podglądem, zmiany i historia git,
-// sesja programistyczna z Claude Code (rozmowa w trybie „code”).
+// sesja programistyczna nad repozytorium (rozmowa w trybie „code”).
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type SVGProps } from "react";
 import { ChevronIcon, DownloadIcon, FileIcon, PlusIcon, RefreshIcon, TrashIcon } from "../../components/icons";
@@ -63,7 +63,7 @@ function FolderIcon({ size = 16, ...props }: SVGProps<SVGSVGElement> & { size?: 
 const errorText = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason));
 const WIDE = "(min-width: 1024px)";
 
-/** Szeroki ekran: sesja Claude Code w stałym panelu obok; wąski – w osobnej zakładce. */
+/** Szeroki ekran: sesja kodu w stałym panelu obok; wąski – w osobnej zakładce. */
 function useWide(): boolean {
   const [wide, setWide] = useState(() => window.matchMedia?.(WIDE).matches ?? true);
   useEffect(() => {
@@ -158,7 +158,7 @@ function Tree({
   );
 
   useEffect(() => {
-    // Odświeżenie (np. po zakończeniu zadania Claude Code) wczytuje ponownie otwarte katalogi;
+    // Odświeżenie (np. po zakończeniu zadania) wczytuje ponownie otwarte katalogi;
     // rozwinięcie katalogu wczytuje go samodzielnie, więc zbiór otwartych nie jest zależnością.
     for (const path of open) void loadDir(path);
   }, [loadDir, version]);
@@ -372,7 +372,7 @@ function NewProjectForm({ onCreated }: { onCreated: (project: Project) => void }
       <button
         type="submit"
         disabled={busy || (!name.trim() && !repo.trim())}
-        className="w-full rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+        className="w-full rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-fill-hover disabled:opacity-50"
       >
         {busy ? (repo.trim() ? "Klonuję…" : "Tworzę…") : repo.trim() ? "Klonuj" : "Utwórz"}
       </button>
@@ -434,7 +434,7 @@ export function KodPage({ openConversation }: ModulePageProps) {
     { id: "pliki", label: "Pliki" },
     { id: "zmiany", label: "Zmiany" },
     { id: "historia", label: "Historia" },
-    ...(wide ? [] : [{ id: "sesja" as const, label: "Claude Code" }]),
+    ...(wide ? [] : [{ id: "sesja" as const, label: "Sesja" }]),
   ];
   const activeTab: Tab = wide && tab === "sesja" ? "pliki" : tab;
 
@@ -558,7 +558,7 @@ export function KodPage({ openConversation }: ModulePageProps) {
             )}
           </main>
           {wide && (
-            <aside className="flex min-h-0 w-[26rem] shrink-0 flex-col border-l border-line" aria-label="Claude Code">
+            <aside className="flex min-h-0 w-[26rem] shrink-0 flex-col border-l border-line" aria-label="Sesja kodu">
               <SesjaKodu project={current} onRunFinished={refresh} openConversation={openConversation} />
             </aside>
           )}
@@ -567,7 +567,7 @@ export function KodPage({ openConversation }: ModulePageProps) {
         <main className="grid flex-1 place-items-center p-6 text-center text-sm text-muted">
           <div>
             <CodeIcon size={32} className="mx-auto mb-2" />
-            Projekty programistyczne na serwerze: Claude Code czyta i zmienia kod, uruchamia testy i git.
+            Projekty programistyczne w Twojej przestrzeni: Nexus czyta i zmienia kod, uruchamia testy i git.
           </div>
         </main>
       )}
@@ -578,7 +578,7 @@ export function KodPage({ openConversation }: ModulePageProps) {
 export const module: NexusModule = {
   id: "kod",
   label: "Kod",
-  description: "Projekty i sesje programistyczne z Claude Code",
+  description: "Praca nad repozytorium: zmiany, testy i historia sesji w jednym oknie.",
   icon: CodeIcon,
   order: 60,
   Page: KodPage,

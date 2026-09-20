@@ -6,7 +6,7 @@ import { CloseIcon } from "../../components/icons";
 import { UploadIcon } from "./icons";
 
 export const buttonPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:cursor-not-allowed disabled:opacity-50";
 export const buttonSecondary =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-line px-3.5 py-2 text-sm font-medium transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50";
 export const inputClass =
@@ -132,7 +132,7 @@ export function FileDrop({
       />
       {progress !== null && (
         <div className="absolute inset-x-4 bottom-2 h-1 overflow-hidden rounded-full bg-line">
-          <div className="h-full bg-accent transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <div className="h-full bg-accent-fill transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
         </div>
       )}
     </div>

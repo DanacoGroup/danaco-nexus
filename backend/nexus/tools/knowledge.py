@@ -57,7 +57,9 @@ def index_documents(ctx: ToolContext, args: IndexInput) -> ToolResult:
             report.append({"file": file.name, "status": "pominięto", "reason": "brak tekstu"})
             continue
         ctx.progress(f"Indeksowanie: {file.name}")
-        chunks = base.index(file.id, file.name, file.meta.get("conversation_id"), pages)
+        chunks = base.index(
+            file.id, file.name, file.meta.get("conversation_id"), pages, owner_id=ctx.owner_id
+        )
         if chunks == 0:
             report.append(
                 {"file": file.name, "status": "pominięto", "reason": "brak tekstu – najpierw wykonaj OCR"}
@@ -77,7 +79,9 @@ także z innych rozmów). Zwraca fragmenty z nazwą pliku, stroną i identyfikat
 )
 def search_documents(ctx: ToolContext, args: SearchInput) -> ToolResult:
     try:
-        hits = knowledge_base(ctx).search(args.query, args.limit, args.file_ids)
+        # Wyszukiwanie obejmuje wyłącznie dokumenty konta, w którego przestrzeni
+        # pracuje przebieg — kolekcja Qdranta jest wspólna dla instalacji.
+        hits = knowledge_base(ctx).search(args.query, args.limit, args.file_ids, ctx.owner_id)
     except Exception as error:  # noqa: BLE001 - błąd usługi zgłaszany modelowi
         raise ToolError(f"Baza wiedzy jest niedostępna: {error}") from error
     results = [

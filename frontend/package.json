@@ -4,7 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "zasoby": "python3 scripts/zasoby.py",
+    "narzedzia": "../.venv/bin/python scripts/narzedzia.py",
+    "predev": "npm run zasoby && npm run narzedzia",
     "dev": "vite",
+    "prebuild": "npm run zasoby && npm run narzedzia",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

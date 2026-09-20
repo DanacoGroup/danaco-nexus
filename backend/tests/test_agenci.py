@@ -351,7 +351,9 @@ def test_kod_requires_login(client: TestClient) -> None:  # noqa: F811
 
 def test_agenci_background_task(logged: TestClient) -> None:
     empty = logged.get("/api/agenci/zadania").json()
-    assert empty["active"] == [] and empty["config"]["concurrency"] >= 1 and empty["limits"] is None
+    assert empty["active"] == [] and empty["config"]["concurrency"] >= 1
+    # Stan limitów kont silnika nie należy do odpowiedzi dla użytkownika.
+    assert "limits" not in empty
     created = logged.post(
         "/api/agenci/zadania",
         json={"text": "Zbadaj rynek hoteli w Gdańsku", "mode": "research"},

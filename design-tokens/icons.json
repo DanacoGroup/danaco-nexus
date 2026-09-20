@@ -1,0 +1,77 @@
+{
+  "$description": "System ikon: kontur, siatka 24 px, obszar rysunku 20 px (margines 2 px), obrys 2 px, zakończenia i złącza zaokrąglone. Kolor = currentColor.",
+  "icon": {
+    "size": {
+      "xs": {
+        "$type": "dimension",
+        "$value": "14px",
+        "$description": "Znacznik, metadane"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "16px",
+        "$description": "Pozycja menu, przycisk mały"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "20px",
+        "$description": "Przycisk, pasek boczny"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "24px",
+        "$description": "Rozmiar wzorcowy, pasek narzędzi"
+      },
+      "xl": {
+        "$type": "dimension",
+        "$value": "32px",
+        "$description": "Pusty stan, karta pliku"
+      }
+    },
+    "stroke": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "1.5px",
+        "$description": "Obrys przy 14–16 px (skalowany wektorowo z 2 px / 24)"
+      },
+      "at-md": {
+        "$type": "dimension",
+        "$value": "1.67px",
+        "$description": "Obrys przy rozmiarze md 20 px — skalowanie wektorowe 2 j. siatki 24 (2 × 20/24); zgodne z zestawem ui-kit/ikony"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "2px",
+        "$description": "Obrys wzorcowy przy 24 px"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "2px",
+        "$description": "32 px — obrys nieskalowany"
+      }
+    },
+    "grid": {
+      "$type": "dimension",
+      "$value": "24px",
+      "$description": "Siatka wzorcowa"
+    },
+    "padding": {
+      "$type": "dimension",
+      "$value": "2px",
+      "$description": "Margines bezpieczeństwa"
+    },
+    "linecap": {
+      "$type": "string",
+      "$value": "round"
+    },
+    "linejoin": {
+      "$type": "string",
+      "$value": "round"
+    },
+    "corner-radius": {
+      "$type": "dimension",
+      "$value": "2px",
+      "$description": "Promień narożników prostokątów w ikonie"
+    }
+  }
+}

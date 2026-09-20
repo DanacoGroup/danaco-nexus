@@ -1,13 +1,21 @@
 // Aplikacja: trasy (strona startowa, logowanie, powłoka z modułami, panel osadzony) i stan logowania.
 
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { Login } from "./components/Login";
-import { Landing } from "./landing/Landing";
 import { isStandalone } from "./pwa";
-import { PanelApp } from "./shell/PanelApp";
+import { EkranStartowy } from "./shell/EkranStartowy";
 import { parseRoute, resolveScreen, safeNext } from "./shell/route";
-import { Workspace } from "./shell/Workspace";
+
+// Ekrany ładowane na żądanie: gość na stronie produktu nie pobiera powłoki aplikacji ani modułów.
+const Landing = lazy(() => import("./landing/Landing").then((m) => ({ default: m.Landing })));
+const Workspace = lazy(() => import("./shell/Workspace").then((m) => ({ default: m.Workspace })));
+const PanelApp = lazy(() => import("./shell/PanelApp").then((m) => ({ default: m.PanelApp })));
+const Portal = lazy(() => import("./portal/Portal").then((m) => ({ default: m.Portal })));
+const WejscieGoscia = lazy(() => import("./demo/WejscieGoscia").then((m) => ({ default: m.WejscieGoscia })));
+
+/** Pusta powierzchnia w barwie tła na czas pobierania ekranu. */
+const Pusto = () => <div className="h-full bg-app" />;
 
 interface Location {
   pathname: string;
@@ -19,13 +27,26 @@ const currentLocation = (): Location => ({ pathname: window.location.pathname, s
 export default function App() {
   const [location, setLocation] = useState<Location>(currentLocation);
   const route = parseRoute(location.pathname, location.search);
-  if (route.view === "panel") return <PanelApp />;
+  if (route.view === "panel")
+    return (
+      <Suspense fallback={<Pusto />}>
+        <PanelApp />
+      </Suspense>
+    );
+  // Portal produktowy jest publiczny i ma własną nawigację – nie przechodzi przez stan logowania.
+  if (route.view === "portal")
+    return (
+      <Suspense fallback={<Pusto />}>
+        <Portal />
+      </Suspense>
+    );
   return <MainApp location={location} setLocation={setLocation} />;
 }
 
 function MainApp({ location, setLocation }: { location: Location; setLocation: (location: Location) => void }) {
   const [user, setUser] = useState<string | null | undefined>(undefined);
   const [cloudUrl, setCloudUrl] = useState("");
+  const [gosc, setGosc] = useState(false);
   const route = parseRoute(location.pathname, location.search);
 
   const navigate = useCallback(
@@ -62,6 +83,7 @@ function MainApp({ location, setLocation }: { location: Location; setLocation: (
         .me()
         .then((me) => {
           setCloudUrl(me.cloud_url ?? "");
+          setGosc(Boolean(me.gosc));
           setUser(me.username);
         })
         .catch(() => setUser(null)),
@@ -86,13 +108,31 @@ function MainApp({ location, setLocation }: { location: Location; setLocation: (
     }
   }, [user, route.view]);
 
-  if (user === undefined) return <div className="h-full bg-app" />;
+  // Dopóki nie wiadomo, kto patrzy, okno gra ujęciem uruchomienia zamiast stać puste.
+  if (user === undefined) return <EkranStartowy />;
 
   let screen = resolveScreen(route, Boolean(user), location.search);
   // Zainstalowana aplikacja (PWA) otwiera się od razu na logowaniu, nie na stronie startowej.
   if (screen === "landing" && route.view !== "landing" && isStandalone()) screen = "login";
 
-  if (screen === "landing") return <Landing />;
+  if (screen === "landing")
+    return (
+      <Suspense fallback={<Pusto />}>
+        <Landing />
+      </Suspense>
+    );
+  // „Wypróbuj” nie otwiera pokazu obok produktu: zakłada konto próbne i wpuszcza do aplikacji.
+  if (screen === "demo")
+    return (
+      <Suspense fallback={<Pusto />}>
+        <WejscieGoscia
+          onWejscie={() => {
+            navigate("/", true);
+            void loadMe();
+          }}
+        />
+      </Suspense>
+    );
   if (screen === "login" || !user) {
     return (
       <div className="relative h-full">
@@ -106,15 +146,18 @@ function MainApp({ location, setLocation }: { location: Location; setLocation: (
     );
   }
   return (
-    <Workspace
-      username={user}
-      cloudUrl={cloudUrl}
-      route={route}
-      navigate={navigate}
-      onLoggedOut={() => {
-        setUser(null);
-        navigate("/zaloguj", true);
-      }}
-    />
+    <Suspense fallback={<Pusto />}>
+      <Workspace
+        username={user}
+        cloudUrl={cloudUrl}
+        gosc={gosc}
+        route={route}
+        navigate={navigate}
+        onLoggedOut={() => {
+          setUser(null);
+          navigate("/zaloguj", true);
+        }}
+      />
+    </Suspense>
   );
 }

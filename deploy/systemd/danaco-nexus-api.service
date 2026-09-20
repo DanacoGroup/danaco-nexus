@@ -11,8 +11,11 @@ Type=simple
 User=danaco-serwis
 Group=danaco-user
 UMask=0007
-WorkingDirectory=/danaco/projekty/danaco-nexus/backend
+# Produkcja serwuje wydanie, nie strefę roboczą: plik zmieniony w repozytorium
+# trafia do użytkownika dopiero przez deploy/wydania/zbuduj.sh i wypchnij.sh.
+WorkingDirectory=/danaco/projekty/danaco-nexus/wydania/produkcja/backend
 EnvironmentFile=/danaco/projekty/danaco-nexus/.env
+EnvironmentFile=/danaco/projekty/danaco-nexus/deploy/wydania/produkcja.env
 Environment=HOME=/danaco/projekty/danaco-nexus/dane
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/danaco/projekty/danaco-nexus/.venv/bin/python -m uvicorn nexus.api.app:app --host 127.0.0.1 --port 8930     --proxy-headers --forwarded-allow-ips 127.0.0.1 --timeout-keep-alive 75 --no-server-header

@@ -1,23 +1,44 @@
-/* Nexus Desktop – style lokalnych okien (tokeny kolorów jak w motywie ciemnym Nexusa). */
+/* Nexus Desktop – style lokalnych okien.
+   Barwy to role semantyczne z design-tokens/dist/tokens.css (motyw ciemny).
+   Kroje z pakietu marki (assets/kroje) — bez nich Windows podstawiłby Segoe UI. */
+
+@font-face {
+  font-family: Inter;
+  src: url(../../assets/kroje/inter.woff2) format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cascadia Code";
+  src: url(../../assets/kroje/cascadia.woff2) format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 :root {
-  --app: #212121;
-  --side: #171717;
-  --raised: #2a2a2a;
-  --hover: #333336;
-  --line: #363638;
-  --line-strong: #4a4a4e;
-  --fg: #ececec;
-  --muted: #a1a1aa;
-  --accent: #8b7cf6;
-  --accent-hover: #9d90f8;
-  --accent-soft: #2c2748;
-  --on-accent: #ffffff;
-  --danger: #fb923c;
-  --danger-soft: #3a2418;
-  --success: #4ade80;
-  --code: #1a1a1a;
+  --app: #0D0F17;
+  --side: #191B25;
+  --raised: #191B25;
+  --hover: #292C37;
+  --bubble: #292C37;
+  --line: #292C37;
+  --line-strong: #3F4350;
+  --line-control: #787B87;
+  --fg: #F9FAFE;
+  --muted: #C8CCD6;
+  --subtle: #9A9EA9;
+  --accent: #A298FE;
+  --accent-hover: #BFBBFE;
+  --accent-fill: #754DF7;
+  --accent-fill-hover: #5F3ACD;
+  --accent-soft: #7B5CFF29;
+  --on-accent: #FFFFFF;
+  --focus-ring: #A298FE;
+  --danger: #FE758B;
+  --danger-soft: #430014;
+  --success: #44C384;
+  --code: #191B25;
   color-scheme: dark;
-  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
 }
 
@@ -58,18 +79,18 @@ button {
 .btn:focus-visible,
 .icon-btn:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: var(--on-accent);
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: var(--accent-fill-hover);
 }
 
 .btn-danger {
@@ -132,7 +153,7 @@ input[type="url"] {
 
 pre,
 code {
-  font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
 
 /* Pasek narzędzi panelu (przeciągany jak belka okna). */

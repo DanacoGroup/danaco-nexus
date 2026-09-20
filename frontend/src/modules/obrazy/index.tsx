@@ -14,7 +14,7 @@ type Tool = "remove" | "background" | "erase" | "upscale";
 type BackgroundMode = "color" | "gradient" | "image" | "blur" | "transparent";
 
 const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.heic";
-const SWATCHES = ["#ffffff", "#f4f4f5", "#111113", "#e8dcc8", "#dbeafe", "#fde2e4", "#d1fae5"];
+const SWATCHES = ["#FFFFFF", "#EFF2FB", "#191B25", "#E8DCC8", "#DFEFFF", "#FEE6E8", "#BFFED8"];
 const BASE = "/api/obrazy";
 
 interface Capabilities {

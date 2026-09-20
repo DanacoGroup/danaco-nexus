@@ -150,23 +150,49 @@ export const ShareIcon = (p: IconProps) => (
   </Icon>
 );
 
-/** Znak Danaco Nexus (to samo logo co ikona aplikacji). */
+/** Znak Danaco Nexus — sygnet z pakietu marki (logo/svg/symbol.svg). */
 export function Logo({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 512 512" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="nexus-logo" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#8b7cf6" />
-          <stop offset="1" stopColor="#4f46e5" />
-        </linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="116" fill="url(#nexus-logo)" />
-      <path d="M164 352V160l184 192V160" fill="none" stroke="#fff" strokeWidth="46" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="164" cy="352" r="34" fill="#fff" />
-      <circle cx="348" cy="160" r="34" fill="#fff" />
+    <img
+      src="/znak/symbol.svg"
+      width={size}
+      height={size}
+      // Rozmiar wprost: reset Tailwind ustawia img {height:auto}, przez co znak rozciągał się w kolumnie.
+      style={{ width: size, height: size }}
+      className={`block shrink-0 ${className}`}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
+  );
+}
+
+/** Sam znak (łuk z punktem) w kolorze tekstu — do pasków, przycisków i druku jednobarwnego. */
+export function Mark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={(size * 50) / 53}
+      height={size}
+      viewBox="0 0 50 53"
+      className={className}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M0 47V25A25 25 0 0 1 50 25V47A6 6 0 0 1 38 47V25A13 13 0 0 0 12 25V47A6 6 0 0 1 0 47ZM18.5 25A6.5 6.5 0 1 0 31.5 25A6.5 6.5 0 1 0 18.5 25Z" />
     </svg>
   );
 }
+
+/** Logotyp poziomy (znak i napis) — wariant dobrany do motywu klasą `.dark`. */
+export function Logotype({ height = 24, className = "" }: { height?: number; className?: string }) {
+  return (
+    <span className={`inline-flex ${className}`} style={{ height }}>
+      <img src="/znak/logo-poziome-jasny.svg" style={{ height }} className="dark:hidden" alt="Danaco Nexus" draggable={false} />
+      <img src="/znak/logo-poziome-ciemny.svg" style={{ height }} className="hidden dark:block" alt="Danaco Nexus" draggable={false} />
+    </span>
+  );
+}
+
 export const WaveIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />

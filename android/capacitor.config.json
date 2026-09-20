@@ -9,7 +9,7 @@
     "errorPath": "blad.html"
   },
   "android": {
-    "backgroundColor": "#171717",
+    "backgroundColor": "#0D0F17",
     "allowMixedContent": false,
     "captureInput": false,
     "webContentsDebuggingEnabled": false,

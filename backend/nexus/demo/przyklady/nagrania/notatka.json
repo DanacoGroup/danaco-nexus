@@ -1,0 +1,27 @@
+{
+  "scenariusz": "notatka",
+  "kroki": [
+    {
+      "etykieta": "Transkrypcja nagrania",
+      "czas_ms": 14700,
+      "opis": "Transkrypcja narada.wav: 0,6 min, język pl"
+    },
+    {
+      "etykieta": "Ustalenia i zadania",
+      "czas_ms": 3900,
+      "opis": "Odpowiedź modelu"
+    },
+    {
+      "etykieta": "Zapis notatki",
+      "czas_ms": 210,
+      "opis": "Utworzono Notatka z narady.md"
+    }
+  ],
+  "odpowiedz": "# Notatka z narady serwisowej\n\n## Ustalenia\n- Przegląd instalacji w Łodzi musi się odbyć do 30 listopada 2026 r., inaczej wygasa gwarancja.\n- Protokół z przeglądu trafia do zamawiającego w formie elektronicznej.\n- Nieszczelność przy kratce w sali 2 zostaje usunięta w ciągu 7 dni.\n\n## Zadania\n- Halina Ostrowska — harmonogram przeglądu i ustalenie terminu z zamawiającym.\n- Serwis — lista części (filtry, uszczelki) do piątku.\n",
+  "pliki": [
+    {
+      "nazwa": "Notatka z narady.md",
+      "plik": "notatka/Notatka z narady.md"
+    }
+  ]
+}

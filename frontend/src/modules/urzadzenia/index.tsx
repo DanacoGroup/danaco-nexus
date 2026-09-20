@@ -6,8 +6,8 @@ import { DevicesPage } from "./DevicesPage";
 
 export const module: NexusModule = {
   id: "urzadzenia",
-  label: "Urządzenia",
-  description: "Telefon, Nexus Desktop i rozszerzenie połączone z Nexusem; powiadomienia push",
+  label: "Sprzęt",
+  description: "Telefon, Nexus Desktop i rozszerzenie przeglądarki: połączenia, powiadomienia i nadane zgody.",
   icon: DevicesIcon,
   order: 900,
   Page: DevicesPage,

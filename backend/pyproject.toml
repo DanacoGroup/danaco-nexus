@@ -62,3 +62,4 @@ markers = ["tools: test wymaga programów narzędziowych (LibreOffice, FFmpeg, u
 # Instrukcje trybów rozmów (nexus/agent/tryby/<tryb>.md) w instalacji nieedytowalnej.
 [tool.setuptools.package-data]
 "nexus.agent" = ["tryby/*.md"]
+"nexus.demo" = ["przyklady/*", "przyklady/nagrania/*.json", "przyklady/nagrania/pliki/**/*"]

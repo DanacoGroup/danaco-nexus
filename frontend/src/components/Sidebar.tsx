@@ -6,7 +6,6 @@ import { usePwa } from "../pwa";
 import { nextTheme, saveTheme, type ThemeChoice } from "../theme";
 import {
   CloseIcon,
-  CloudIcon,
   EditIcon,
   InstallIcon,
   LogoutIcon,
@@ -191,11 +190,6 @@ export function Sidebar(props: Props) {
               <RefreshIcon size={18} /> Nowa wersja – odśwież
             </button>
           )}
-          {props.cloudUrl && (
-            <a className={navItem} href={props.cloudUrl} target="_blank" rel="noopener noreferrer">
-              <CloudIcon size={18} /> Chmura osobista
-            </a>
-          )}
           {pwa.canInstall && (
             <button type="button" className={navItem} onClick={() => void pwa.install()}>
               <InstallIcon size={18} /> Zainstaluj aplikację
@@ -212,14 +206,21 @@ export function Sidebar(props: Props) {
               <b>Do ekranu początkowego</b>. Nexus otworzy się jak zwykła aplikacja, na pełnym ekranie.
             </p>
           )}
-          <button type="button" className={navItem} onClick={changeTheme} title="Zmień motyw">
-            <ThemeIcon size={18} /> {THEME_LABELS[props.theme]}
-          </button>
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-            <span className="grid size-8 place-items-center rounded-full bg-accent text-sm font-semibold text-on-accent">
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2">
+            <span className="grid size-8 place-items-center rounded-full bg-accent-fill text-sm font-semibold text-on-accent">
               {props.username.slice(0, 1).toUpperCase()}
             </span>
             <span className="flex-1 truncate text-sm font-medium">{props.username}</span>
+            {/* Motyw to przełącznik, nie pozycja menu — ikona obok konta, jak zwijanie panelu. */}
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={changeTheme}
+              aria-label={`${THEME_LABELS[props.theme]} — zmień`}
+              title={THEME_LABELS[props.theme]}
+            >
+              <ThemeIcon size={18} />
+            </button>
             <button type="button" className="icon-btn" onClick={props.onLogout} aria-label="Wyloguj">
               <LogoutIcon size={18} />
             </button>

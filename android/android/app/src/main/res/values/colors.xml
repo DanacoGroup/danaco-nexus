@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Tokeny kolorów ciemnego motywu z frontend/src/styles.css (.dark). -->
+<!-- Role semantyczne motywu ciemnego z design-tokens/dist/tokens.css (.dark). -->
 <resources>
-    <color name="nexus_side">#171717</color>
-    <color name="nexus_app">#212121</color>
-    <color name="nexus_raised">#2A2A2A</color>
-    <color name="nexus_hover">#333336</color>
-    <color name="nexus_line">#363638</color>
-    <color name="nexus_fg">#ECECEC</color>
-    <color name="nexus_muted">#A1A1AA</color>
-    <color name="nexus_accent">#8B7CF6</color>
-    <color name="nexus_accent_soft">#2C2748</color>
-    <color name="nexus_scrim">#99000000</color>
-    <color name="colorPrimary">#8B7CF6</color>
-    <color name="colorPrimaryDark">#171717</color>
-    <color name="colorAccent">#8B7CF6</color>
+    <color name="nexus_side">#191B25</color>
+    <color name="nexus_app">#0D0F17</color>
+    <color name="nexus_raised">#191B25</color>
+    <color name="nexus_hover">#292C37</color>
+    <color name="nexus_line">#292C37</color>
+    <color name="nexus_fg">#F9FAFE</color>
+    <color name="nexus_muted">#C8CCD6</color>
+    <color name="nexus_accent">#A298FE</color>
+    <color name="nexus_accent_fill">#754DF7</color>
+    <color name="nexus_accent_soft">#297B5CFF</color>
+    <color name="nexus_scrim">#B30D0F17</color>
+    <color name="colorPrimary">#754DF7</color>
+    <color name="colorPrimaryDark">#0D0F17</color>
+    <color name="colorAccent">#A298FE</color>
 </resources>

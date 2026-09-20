@@ -9,6 +9,7 @@ normalizowane tą samą funkcją co w narzędziach i nie wychodzą poza konto.
 from __future__ import annotations
 
 import re
+import uuid
 import xml.etree.ElementTree as ET
 from collections.abc import AsyncIterator
 from datetime import date
@@ -47,7 +48,7 @@ SEARCH_BODY = """<?xml version="1.0" encoding="UTF-8"?>
 <d:searchrequest xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
   <d:basicsearch>
     <d:select>{props}</d:select>
-    <d:from><d:scope><d:href>/files/{user}</d:href><d:depth>infinity</d:depth></d:scope></d:from>
+    <d:from><d:scope><d:href>{zakres}</d:href><d:depth>infinity</d:depth></d:scope></d:from>
     <d:where><d:like><d:prop><d:displayname/></d:prop><d:literal>%{term}%</d:literal></d:like></d:where>
     <d:orderby><d:order><d:prop><d:getlastmodified/></d:prop><d:descending/></d:order></d:orderby>
     <d:limit><d:nresults>{limit}</d:nresults></d:limit>
@@ -88,10 +89,30 @@ def check_name(name: str) -> str:
     return name
 
 
-class CloudService:
-    """Klient Nextcloud konta właściciela (httpx, asynchroniczny)."""
+#: Folder, w którym instalacja trzyma przestrzenie poszczególnych kont.
+KATALOG_KONT = "Konta"
 
-    def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
+
+def katalog_konta(owner: uuid.UUID | None) -> str:
+    """Przedrostek ścieżki WebDAV dla konta (pusty dla instalacji bez rozdziału)."""
+    return f"/{KATALOG_KONT}/{owner}" if owner is not None else ""
+
+
+class CloudService:
+    """Klient Nextcloud instalacji, zawężony do przestrzeni jednego konta.
+
+    Instalacja loguje się do Nextcloud jednym hasłem aplikacji — konta klientów nie mają
+    tam własnych loginów. Rozdział robi więc ścieżka: korzeniem widocznym dla konta jest
+    ``/Konta/<owner>``, a poza niego nie wychodzi ani listowanie, ani wyszukiwanie, ani
+    zapis. Bez tego każdy tester widziałby pliki wszystkich pozostałych.
+    """
+
+    def __init__(
+        self,
+        settings: Settings,
+        transport: httpx.AsyncBaseTransport | None = None,
+        owner: uuid.UUID | None = None,
+    ) -> None:
         try:
             token = settings.chmura_token_file.read_text(encoding="utf-8").strip()
         except OSError:
@@ -101,14 +122,27 @@ class CloudService:
                 503, "Chmura osobista nie jest skonfigurowana (brak adresu Nextcloud lub hasła aplikacji)."
             )
         self.user = settings.chmura_user
+        self.owner = owner
         self.base_url = settings.chmura_url.rstrip("/")
         self.public_url = (settings.chmura_public_url or "").rstrip("/")
         self.dav = f"{self.base_url}/remote.php/dav"
-        self.files_root = f"{self.dav}/files/{quote(self.user)}"
+        przedrostek = quote(katalog_konta(owner))
+        self.files_root = f"{self.dav}/files/{quote(self.user)}{przedrostek}"
         self._files_path = urlsplit(self.files_root).path
+        self._zakres_szukania = f"/files/{quote(self.user)}{przedrostek}"
         self.http = httpx.AsyncClient(
             auth=(self.user, token), timeout=TIMEOUT, follow_redirects=False, transport=transport
         )
+
+    async def przygotuj_przestrzen(self) -> None:
+        """Zakłada folder konta, gdy jeszcze go nie ma (pierwsze wejście do chmury)."""
+        if self.owner is None:
+            return
+        for sciezka in (f"{self.dav}/files/{quote(self.user)}/{quote(KATALOG_KONT)}", self.files_root):
+            response = await self.http.request("MKCOL", sciezka)
+            # 405 znaczy „już jest” — to nie błąd, tylko drugie wejście tego samego konta.
+            if response.status_code >= 400 and response.status_code != 405:
+                self._check(response, "przygotowanie przestrzeni konta")
 
     async def close(self) -> None:
         await self.http.aclose()
@@ -124,6 +158,21 @@ class CloudService:
     def url(self, path: str) -> str:
         """Adres WebDAV pliku lub folderu."""
         return self.files_root + quote(clean_path(path))
+
+    def sciezka_konta(self, path: str) -> str:
+        """Ścieżka liczona od korzenia konta Nextcloud — tego oczekuje API udostępnień.
+
+        WebDAV adresujemy pełnym adresem (``files_root`` zawiera już folder konta), ale
+        OCS przyjmuje samą ścieżkę, więc przedrostek trzeba dołożyć tutaj.
+        """
+        return f"{katalog_konta(self.owner)}{clean_path(path)}" or "/"
+
+    def sciezka_wzgledna(self, path: str) -> str:
+        """Odwrotność :meth:`sciezka_konta` — ścieżka pokazywana użytkownikowi."""
+        przedrostek = katalog_konta(self.owner)
+        if przedrostek and path.startswith(przedrostek):
+            return normalize_cloud_path(path.removeprefix(przedrostek))
+        return path
 
     def _check(self, response: httpx.Response, action: str, path: str = "") -> None:
         code = response.status_code
@@ -245,7 +294,7 @@ class CloudService:
         escaped = term.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         props = ENTRY_PROPS.removeprefix("<d:prop>").removesuffix("</d:prop>")
         body = SEARCH_BODY.format(
-            props=f"<d:prop>{props}</d:prop>", user=quote(self.user), term=escaped, limit=limit
+            props=f"<d:prop>{props}</d:prop>", zakres=self._zakres_szukania, term=escaped, limit=limit
         )
         response = await self.http.request(
             "SEARCH", f"{self.dav}/", headers={"Content-Type": "text/xml; charset=utf-8"}, content=body
@@ -474,7 +523,7 @@ class CloudService:
             "id": str(data.get("id")),
             "url": url,
             "token": token,
-            "path": data.get("path"),
+            "path": self.sciezka_wzgledna(str(data.get("path") or "")),
             "expires": expiration,
             "has_password": bool(data.get("password") or data.get("share_with")),
             "permissions": int(data.get("permissions") or 1),
@@ -485,7 +534,7 @@ class CloudService:
     async def shares(self, path: str) -> list[dict[str, Any]]:
         """Linki publiczne do pliku lub folderu."""
         data = await self._ocs(
-            "GET", params={"path": clean_path(path), "reshares": "false", "subfiles": "false"}
+            "GET", params={"path": self.sciezka_konta(path), "reshares": "false", "subfiles": "false"}
         )
         return [self._share(item) for item in data or [] if int(item.get("share_type", -1)) == SHARE_LINK]
 
@@ -499,7 +548,7 @@ class CloudService:
     ) -> dict[str, Any]:
         """Tworzy link publiczny (tylko do odczytu albo z wgrywaniem dla folderu)."""
         form: dict[str, str] = {
-            "path": clean_path(path),
+            "path": self.sciezka_konta(path),
             "shareType": str(SHARE_LINK),
             "permissions": str(SHARE_UPLOAD_EDIT if allow_upload else SHARE_READ),
         }

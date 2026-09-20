@@ -6,6 +6,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { PcTools, decodeText } = require('../src/agent/tools');
 
+// Narzędzia pc_* działają na ścieżkach Windows (path.win32) — Nexus Desktop jest programem
+// dla Windows. Na innych systemach testy dotykające plików są pomijane, nie czerwone.
+const TYLKO_WINDOWS = { skip: process.platform === 'win32' ? false : 'narzędzia plikowe działają na ścieżkach Windows' };
+
 function tools(overrides = {}) {
   const values = { allowFiles: true, allowPowershell: true, allowScreenshots: true, ...overrides };
   const asked = [];
@@ -45,7 +49,7 @@ test('dekodowanie tekstu: UTF-8, BOM, UTF-16LE, Windows-1250', () => {
   assert.equal(decodeText(Buffer.from([0x8c, 0xb9, 0xea, 0xf3, 0x9f, 0xbf, 0xb3, 0xe6])), 'Śąęóźżłć');
 });
 
-test('wyszukiwanie plików po nazwie i treści z pominięciem katalogów systemowych i poufnych', async () => {
+test('wyszukiwanie plików po nazwie i treści z pominięciem katalogów systemowych i poufnych', TYLKO_WINDOWS, async () => {
   const root = sandbox();
   const { instance } = tools();
   const byName = await instance.findFiles({ name: 'faktura-2026*', folders: [root] });
@@ -57,7 +61,7 @@ test('wyszukiwanie plików po nazwie i treści z pominięciem katalogów systemo
   await assert.rejects(blocked.findFiles({ name: 'x', folders: [root] }), /wyłączył/);
 });
 
-test('podgląd pliku, katalogu i przesyłanie', async () => {
+test('podgląd pliku, katalogu i przesyłanie', TYLKO_WINDOWS, async () => {
   const root = sandbox();
   const { instance } = tools();
   const text = await instance.readFile({ path: path.join(root, 'Faktury', 'faktura-2026-03.txt') });

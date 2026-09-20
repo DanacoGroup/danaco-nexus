@@ -89,7 +89,7 @@ export function TasksButton({ tasks, onClick, variant = "header" }: ButtonProps)
         <span className="relative grid size-10 place-items-center rounded-xl hover:bg-hover">
           <LayersIcon size={21} />
           {count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 grid min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[10px] leading-[18px] font-semibold text-on-accent">
+            <span className="absolute -top-0.5 -right-0.5 grid min-w-[18px] place-items-center rounded-full bg-accent-fill px-1 text-[10px] leading-[18px] font-semibold text-on-accent">
               {count}
             </span>
           )}
@@ -150,7 +150,7 @@ export function TasksPanel({ tasks, currentConversation, onOpen, onClose, onChan
       <section
         role="dialog"
         aria-label="Zadania w toku"
-        className="safe-bottom flex max-h-[80dvh] w-full animate-rise flex-col rounded-t-3xl border border-line bg-side shadow-2xl md:mt-12 md:max-w-md md:rounded-3xl md:pb-2"
+        className="safe-bottom flex max-h-[80dvh] w-full animate-rise flex-col rounded-t-3xl border border-line bg-side shadow-2xl md:mt-12 md:max-w-md md:rounded-2xl md:pb-2"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex items-center gap-2 px-5 pt-4 pb-2">

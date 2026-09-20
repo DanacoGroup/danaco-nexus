@@ -12,30 +12,32 @@ const STYL = `
 :host { all: initial; }
 .przycisk {
   position: fixed; right: 0; top: var(--nx-gora, 62%); z-index: 2147483646;
-  width: 40px; height: 44px; padding: 0 0 0 8px; border: 1px solid #363638; border-right: 0;
-  border-radius: 12px 0 0 12px; background: #212121; box-shadow: 0 4px 18px rgba(0,0,0,.28);
+  /* Barwy wpisane wprost: ten arkusz trafia do drzewa cienia obcej strony, bez zmiennych aplikacji.
+     Wartości odpowiadają rolom z design-tokens: app, line, hover, accent i barwie marki Iris. */
+  width: 40px; height: 44px; padding: 0 0 0 8px; border: 1px solid #292C37; border-right: 0;
+  border-radius: 12px 0 0 12px; background: #0D0F17; box-shadow: 0 4px 18px rgba(0,0,0,.28);
   display: flex; align-items: center; cursor: pointer; transform: translateX(10px);
   transition: transform .15s ease, background .15s ease; touch-action: none;
 }
-.przycisk:hover, .przycisk:focus-visible { transform: translateX(0); background: #2a2a2a; outline: none; }
-.przycisk:focus-visible { box-shadow: 0 0 0 2px #8b7cf6; }
+.przycisk:hover, .przycisk:focus-visible { transform: translateX(0); background: #292C37; outline: none; }
+.przycisk:focus-visible { box-shadow: 0 0 0 2px #A298FE; }
 .przycisk[hidden] { display: none; }
 .panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 2147483647;
-  width: var(--nx-szerokosc, 420px); max-width: 100vw; background: #212121;
-  border-left: 1px solid #363638; box-shadow: -8px 0 32px rgba(0,0,0,.35);
+  width: var(--nx-szerokosc, 420px); max-width: 100vw; background: #0D0F17;
+  border-left: 1px solid #292C37; box-shadow: -8px 0 32px rgba(0,0,0,.35);
   transform: translateX(105%); transition: transform .2s ease; visibility: hidden;
 }
 .panel.otwarty { transform: translateX(0); visibility: visible; }
 .panel.ukryty-na-chwile { visibility: hidden !important; transition: none; }
 .uchwyt { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: ew-resize; z-index: 1; }
-.uchwyt:hover, .uchwyt.aktywny { background: linear-gradient(90deg, transparent 3px, #8b7cf6 3px, #8b7cf6 5px, transparent 5px); }
+.uchwyt:hover, .uchwyt.aktywny { background: linear-gradient(90deg, transparent 3px, #7B5CFF 3px, #7B5CFF 5px, transparent 5px); }
 iframe { border: 0; width: 100%; height: 100%; display: block; color-scheme: normal; }
 .oslona { position: fixed; inset: 0; z-index: 2147483647; cursor: ew-resize; display: none; }
 .oslona.aktywna { display: block; }
 .podswietlenie {
-  position: fixed; z-index: 2147483645; pointer-events: none; border: 2px solid #8b7cf6;
-  border-radius: 8px; background: rgba(139,124,246,.10); display: none; transition: all .12s ease;
+  position: fixed; z-index: 2147483645; pointer-events: none; border: 2px solid #7B5CFF;
+  border-radius: 8px; background: rgba(123,92,255,.10); display: none; transition: all .12s ease;
 }
 @media (prefers-reduced-motion: reduce) { .panel, .przycisk, .podswietlenie { transition: none; } }
 @media print { .przycisk, .panel, .podswietlenie { display: none !important; } }

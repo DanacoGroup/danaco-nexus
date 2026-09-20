@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RunEvent } from "../../api";
 import { CloseIcon, RefreshIcon } from "../../components/icons";
+import { formatSize } from "../../runState";
 import { ChatPanel } from "../_tworczy/ChatPanel";
 import { errorText } from "../_tworczy/http";
 import {
@@ -330,7 +331,7 @@ export function SiteEditor({
                 site.files.map((file) => (
                   <li key={file.path} className="flex items-center gap-2 px-4 py-2 text-sm">
                     <span className="min-w-0 flex-1 truncate font-mono text-xs">{file.path}</span>
-                    <span className="text-xs text-muted tabular-nums">{(file.size / 1024).toFixed(1)} KB</span>
+                    <span className="text-xs text-muted tabular-nums">{formatSize(file.size)}</span>
                     {textFile(file.path) && (
                       <button type="button" className="icon-btn size-8" onClick={() => showSource(file.path)} aria-label={`Pokaż kod ${file.path}`}>
                         <CodeIcon size={16} />

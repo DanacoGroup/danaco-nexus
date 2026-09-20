@@ -149,7 +149,11 @@ def _site_payload(store: SiteStore, meta: dict[str, Any]) -> dict[str, Any]:
 
 async def _new_conversation(request: Request, address: str, title: str) -> str:
     database: Database = request.app.state.database
-    conversation = Conversation(title=f"Strona: {title}"[:200], meta={"mode": "strona", "site": address})
+    conversation = Conversation(
+        owner_id=(await require_session(request)).owner_id,
+        title=f"Strona: {title}"[:200],
+        meta={"mode": "strona", "site": address},
+    )
     async with database.session() as session:
         session.add(conversation)
     return str(conversation.id)

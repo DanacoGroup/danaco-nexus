@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Znak Nexusa w jednej barwie — ikona motywowana Androida 13 (logo/pwa/android/adaptive-monochrome.svg). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M31.5,72.9V53.1A22.5,22.5 0 0 1 76.5,53.1V72.9A5.4,5.4 0 0 1 65.7,72.9V53.1A11.7,11.7 0 0 0 42.3,53.1V72.9A5.4,5.4 0 0 1 31.5,72.9ZM48.15,53.1A5.85,5.85 0 1 0 59.85,53.1A5.85,5.85 0 1 0 48.15,53.1Z" />
+</vector>

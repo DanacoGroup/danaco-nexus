@@ -4,6 +4,8 @@
 import { useState } from "react";
 import type { AssistantTurn, FileInfo, TurnItem, UserTurn } from "../api";
 import { agentInfo, agentStats, toolDetail, toolLabel, type AgentInfo } from "../runState";
+import { NagranieKroku } from "./NagranieKroku";
+import { NagranieStartu, ograniczonyRuch } from "../ruch";
 import { FileCard } from "./FileCard";
 import { AlertIcon, CheckIcon, ChevronIcon, Logo, MicIcon, ToolIcon } from "./icons";
 import { Markdown } from "./Markdown";
@@ -22,7 +24,7 @@ export function UserMessage({ turn, onPreview }: { turn: UserTurn; onPreview: Pr
         </div>
       )}
       {turn.text && (
-        <div className="max-w-[85%] rounded-3xl bg-bubble px-4 py-2.5 break-words whitespace-pre-wrap">
+        <div className="max-w-[85%] rounded-2xl bg-bubble px-4 py-2.5 break-words whitespace-pre-wrap">
           {turn.voice && (
             <MicIcon size={14} className="mr-1.5 inline align-[-2px] text-muted" aria-label="Wypowiedź głosowa" />
           )}
@@ -61,14 +63,24 @@ function StatusMark({ running, failed }: { running: boolean; failed: boolean }) 
   );
 }
 
+/** Czas kroku po polsku: przecinek dziesiętny, cyfry tabelaryczne w miejscu użycia. */
+function sekundy(ms: number): string {
+  return `${(ms / 1000).toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
+}
+
 function ToolItem({ item, onPreview }: { item: ToolItemData; onPreview: Preview }) {
   const running = item.status === "running";
   const failed = item.status === "error" || item.status === "cancelled";
   const detail = toolDetail(item);
   return (
     <div
+      // Obrys w Aurorze i poświata tylko wtedy, gdy narzędzie pracuje (DESIGN_SYSTEM, rozdz. 4.2).
       className={`rounded-2xl border px-3.5 py-2.5 text-sm ${
-        failed ? "border-danger/40 bg-danger-soft/60" : "border-line bg-raised/60"
+        failed
+          ? "border-danger/40 bg-danger-soft/60"
+          : running
+            ? "aurora-obrys glow-ai border-transparent bg-raised/60"
+            : "border-line bg-raised/60"
       }`}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -77,7 +89,7 @@ function ToolItem({ item, onPreview }: { item: ToolItemData; onPreview: Preview 
         <span className={`shrink-0 font-medium ${running ? "shimmer-text" : ""}`}>{toolLabel(item.name)}</span>
         {detail && <span className="min-w-0 truncate font-mono text-xs text-muted">{detail}</span>}
         {!running && item.duration_ms ? (
-          <span className="ml-auto shrink-0 text-xs text-muted tabular-nums">{(item.duration_ms / 1000).toFixed(1)} s</span>
+          <span className="ml-auto shrink-0 text-xs text-muted tabular-nums">{sekundy(item.duration_ms)}</span>
         ) : null}
       </div>
       {(item.progress || item.summary) && (
@@ -85,6 +97,7 @@ function ToolItem({ item, onPreview }: { item: ToolItemData; onPreview: Preview 
           {running ? item.progress : item.summary}
         </div>
       )}
+      {running && <NagranieKroku narzedzie={item.name} />}
       {item.files.length > 0 && (
         <div className="mt-2.5 grid gap-2 pl-7 sm:grid-cols-2">
           {item.files.map((file) => (
@@ -115,7 +128,13 @@ function AgentItem({
     : item.summary;
   return (
     <div
-      className={`rounded-2xl border text-sm ${failed ? "border-danger/40 bg-danger-soft/60" : "border-line bg-raised/40"}`}
+      className={`rounded-2xl border text-sm ${
+        failed
+          ? "border-danger/40 bg-danger-soft/60"
+          : running
+            ? "aurora-obrys glow-ai border-transparent bg-raised/40"
+            : "border-line bg-raised/40"
+      }`}
     >
       <button
         type="button"
@@ -129,7 +148,7 @@ function AgentItem({
         <span className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted tabular-nums">
           {agent.background && <span className="rounded-md border border-line px-1.5 py-px">w tle</span>}
           {stats.total > 0 && <span>{stats.total} narz.</span>}
-          {!running && item.duration_ms ? <span>{(item.duration_ms / 1000).toFixed(1)} s</span> : null}
+          {!running && item.duration_ms ? <span>{sekundy(item.duration_ms)}</span> : null}
         </span>
       </button>
       {status && !open && (
@@ -196,14 +215,22 @@ export function AssistantMessage({ turn, onPreview }: { turn: AssistantTurn; onP
       <div className="min-w-0 flex-1 space-y-3">
         <TurnItems items={turn.items} live={live} onPreview={onPreview} />
         {live && turn.items.length === 0 && (
-          <div className="flex h-7 items-center gap-1.5" role="status" aria-label="Pracuję">
-            {[0, 1, 2].map((dot) => (
-              <span
-                key={dot}
-                className="size-2 animate-blink rounded-full bg-muted"
-                style={{ animationDelay: `${dot * 0.18}s` }}
-              />
-            ))}
+          // Chwila przed pierwszym słowem ma własne ujęcie w pakiecie ruchu (moment-mysli).
+          // Przy ograniczonym ruchu zostają trzy kropki — ten sam komunikat, bez animacji.
+          <div className="flex h-9 items-center" role="status" aria-label="Pracuję">
+            {ograniczonyRuch() ? (
+              <span className="flex items-center gap-1.5">
+                {[0, 1, 2].map((dot) => (
+                  <span
+                    key={dot}
+                    className="size-2 animate-blink rounded-full bg-muted"
+                    style={{ animationDelay: `${dot * 0.18}s` }}
+                  />
+                ))}
+              </span>
+            ) : (
+              <NagranieStartu nazwa="moment-mysli" petla className="h-9 w-24 object-contain" />
+            )}
           </div>
         )}
         {(turn.status === "failed" || turn.status === "cancelled") && turn.error && (

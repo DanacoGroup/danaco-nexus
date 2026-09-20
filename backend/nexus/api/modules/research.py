@@ -15,7 +15,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.api.conversations import ACTIVE_STATUSES, SendMessage, send_message
 from nexus.db import Conversation, Database, Message, Run, StoredFile, utcnow
 from nexus.models.research import KnowledgeCollection, KnowledgeNote, KnowledgeSource, ResearchReport
@@ -106,8 +106,14 @@ async def _get(database: Database, model: type, entry_id: uuid.UUID, missing: st
     return record
 
 
-async def _collection(database: Database, collection_id: uuid.UUID) -> KnowledgeCollection:
-    return await _get(database, KnowledgeCollection, collection_id, "Nie znaleziono kolekcji.")
+async def _collection(
+    database: Database, collection_id: uuid.UUID, owner: uuid.UUID | None = None
+) -> KnowledgeCollection:
+    """Kolekcja bazy wiedzy należąca do konta; cudza daje 404 jak nieistniejąca."""
+    record = await _get(database, KnowledgeCollection, collection_id, "Nie znaleziono kolekcji.")
+    if owner is not None and record.owner_id != owner:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono kolekcji.")
+    return record
 
 
 def _schedule_index(request: Request, tasks: BackgroundTasks, model: type, entry_id: uuid.UUID) -> None:
@@ -132,21 +138,33 @@ async def _fetch(request: Request, url: str) -> Any:
 
 
 @router.get("/kolekcje")
-async def list_collections(request: Request) -> list[dict[str, Any]]:
-    """Kolekcje od ostatnio zmienionej, z liczbą źródeł i notatek."""
+async def list_collections(
+    request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> list[dict[str, Any]]:
+    """Kolekcje konta od ostatnio zmienionej, z liczbą źródeł i notatek."""
     database = _database(request)
     counts = await store.collection_counts(database)
     async with database.session() as session:
         rows = (
-            await session.scalars(select(KnowledgeCollection).order_by(KnowledgeCollection.updated_at.desc()))
+            await session.scalars(
+                select(KnowledgeCollection)
+                .where(KnowledgeCollection.owner_id == owner)
+                .order_by(KnowledgeCollection.updated_at.desc())
+            )
         ).all()
     return [store.collection_payload(row, *counts.get(row.id, (0, 0))) for row in rows]
 
 
 @router.post("/kolekcje", status_code=status.HTTP_201_CREATED)
-async def create_collection(payload: CollectionInput, request: Request) -> dict[str, Any]:
-    """Tworzy kolekcję."""
-    record = KnowledgeCollection(name=" ".join(payload.name.split()), description=payload.description.strip())
+async def create_collection(
+    payload: CollectionInput, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
+    """Tworzy kolekcję na koncie zalogowanego użytkownika."""
+    record = KnowledgeCollection(
+        owner_id=owner,
+        name=" ".join(payload.name.split()),
+        description=payload.description.strip(),
+    )
     async with _database(request).session() as session:
         session.add(record)
     return store.collection_payload(record)
@@ -154,13 +172,16 @@ async def create_collection(payload: CollectionInput, request: Request) -> dict[
 
 @router.patch("/kolekcje/{collection_id}")
 async def update_collection(
-    collection_id: uuid.UUID, payload: CollectionPatch, request: Request
+    collection_id: uuid.UUID,
+    payload: CollectionPatch,
+    request: Request,
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
     """Zmienia nazwę lub opis kolekcji."""
     database = _database(request)
     async with database.session() as session:
         record = await session.get(KnowledgeCollection, collection_id)
-        if record is None:
+        if record is None or record.owner_id != owner:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono kolekcji.")
         if payload.name is not None:
             record.name = " ".join(payload.name.split())
@@ -172,10 +193,12 @@ async def update_collection(
 
 
 @router.delete("/kolekcje/{collection_id}")
-async def delete_collection(collection_id: uuid.UUID, request: Request) -> dict[str, bool]:
+async def delete_collection(
+    collection_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, bool]:
     """Usuwa kolekcję z jej źródłami i notatkami (także z indeksu)."""
     database = _database(request)
-    await _collection(database, collection_id)
+    await _collection(database, collection_id, owner)
     async with database.session() as session:
         source_ids = list(
             await session.scalars(
@@ -198,10 +221,12 @@ async def delete_collection(collection_id: uuid.UUID, request: Request) -> dict[
 
 
 @router.get("/kolekcje/{collection_id}/zrodla")
-async def list_sources(collection_id: uuid.UUID, request: Request) -> list[dict[str, Any]]:
+async def list_sources(
+    collection_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> list[dict[str, Any]]:
     """Źródła kolekcji (bez pełnej treści)."""
     database = _database(request)
-    await _collection(database, collection_id)
+    await _collection(database, collection_id, owner)
     async with database.session() as session:
         rows = (
             await session.scalars(
@@ -215,11 +240,15 @@ async def list_sources(collection_id: uuid.UUID, request: Request) -> list[dict[
 
 @router.post("/kolekcje/{collection_id}/zrodla", status_code=status.HTTP_201_CREATED)
 async def add_source(
-    collection_id: uuid.UUID, payload: SourceInput, request: Request, tasks: BackgroundTasks
+    collection_id: uuid.UUID,
+    payload: SourceInput,
+    request: Request,
+    tasks: BackgroundTasks,
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
     """Dodaje źródło: stronę po adresie, przesłany plik albo wklejony tekst; indeksuje w tle."""
     database = _database(request)
-    collection = await _collection(database, collection_id)
+    collection = await _collection(database, collection_id, owner)
     meta: dict[str, Any] = {"saved_by": "user"}
     if payload.file_id is not None:
         record = await _get(database, StoredFile, payload.file_id, "Nie znaleziono pliku.")
@@ -295,12 +324,16 @@ async def get_source(source_id: uuid.UUID, request: Request) -> dict[str, Any]:
 
 @router.patch("/zrodla/{source_id}")
 async def update_source(
-    source_id: uuid.UUID, payload: SourcePatch, request: Request, tasks: BackgroundTasks
+    source_id: uuid.UUID,
+    payload: SourcePatch,
+    request: Request,
+    tasks: BackgroundTasks,
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
     """Zmienia tytuł źródła lub przenosi je do innej kolekcji."""
     database = _database(request)
     if payload.collection_id is not None:
-        await _collection(database, payload.collection_id)
+        await _collection(database, payload.collection_id, owner)
     async with database.session() as session:
         record = await session.get(KnowledgeSource, source_id)
         if record is None:
@@ -349,10 +382,12 @@ async def delete_source(source_id: uuid.UUID, request: Request) -> dict[str, boo
 
 
 @router.get("/kolekcje/{collection_id}/notatki")
-async def list_notes(collection_id: uuid.UUID, request: Request) -> list[dict[str, Any]]:
+async def list_notes(
+    collection_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> list[dict[str, Any]]:
     """Notatki kolekcji od ostatnio zmienionej."""
     database = _database(request)
-    await _collection(database, collection_id)
+    await _collection(database, collection_id, owner)
     async with database.session() as session:
         rows = (
             await session.scalars(
@@ -366,11 +401,15 @@ async def list_notes(collection_id: uuid.UUID, request: Request) -> list[dict[st
 
 @router.post("/kolekcje/{collection_id}/notatki", status_code=status.HTTP_201_CREATED)
 async def add_note(
-    collection_id: uuid.UUID, payload: NoteInput, request: Request, tasks: BackgroundTasks
+    collection_id: uuid.UUID,
+    payload: NoteInput,
+    request: Request,
+    tasks: BackgroundTasks,
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
     """Dodaje notatkę do kolekcji."""
     database = _database(request)
-    collection = await _collection(database, collection_id)
+    collection = await _collection(database, collection_id, owner)
     if payload.source_id is not None:
         await _get(database, KnowledgeSource, payload.source_id, "Nie znaleziono źródła.")
     note = await store.save_note(
@@ -415,16 +454,36 @@ async def delete_note(note_id: uuid.UUID, request: Request) -> dict[str, bool]:
 
 @router.get("/szukaj")
 async def search(
-    request: Request, q: str, collection_id: uuid.UUID | None = None, limit: int = 12
+    request: Request,
+    q: str,
+    collection_id: uuid.UUID | None = None,
+    limit: int = 12,
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
-    """Wyszukiwanie semantyczne w bazie wiedzy (całej albo jednej kolekcji)."""
+    """Wyszukiwanie semantyczne w bazie wiedzy konta (całej albo jednej kolekcji).
+
+    Zakres wyznaczają dwie niezależne granice: lista wpisów z bazy relacyjnej zawężona
+    do kolekcji właściciela i warunek na koncie w samym indeksie wektorowym. Jedna
+    z nich by wystarczyła, ale indeks jest wspólny dla instalacji i nie chcę, żeby
+    rozdzielenie kont zależało od poprawności jednego zapytania.
+    """
     query = q.strip()
     if len(query) < 2:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Zapytanie jest zbyt krótkie.")
     database = _database(request)
+    if collection_id is not None:
+        await _collection(database, collection_id, owner)
     async with database.session() as session:
-        source_query = select(KnowledgeSource.id, KnowledgeSource.title, KnowledgeSource.collection_id)
-        note_query = select(KnowledgeNote.id, KnowledgeNote.title, KnowledgeNote.collection_id)
+        source_query = (
+            select(KnowledgeSource.id, KnowledgeSource.title, KnowledgeSource.collection_id)
+            .join(KnowledgeCollection, KnowledgeCollection.id == KnowledgeSource.collection_id)
+            .where(KnowledgeCollection.owner_id == owner)
+        )
+        note_query = (
+            select(KnowledgeNote.id, KnowledgeNote.title, KnowledgeNote.collection_id)
+            .join(KnowledgeCollection, KnowledgeCollection.id == KnowledgeNote.collection_id)
+            .where(KnowledgeCollection.owner_id == owner)
+        )
         if collection_id is not None:
             source_query = source_query.where(KnowledgeSource.collection_id == collection_id)
             note_query = note_query.where(KnowledgeNote.collection_id == collection_id)
@@ -438,7 +497,7 @@ async def search(
         return {"query": query, "results": []}
     try:
         hits = await asyncio.to_thread(
-            request.app.state.knowledge.search, query, max(1, min(limit, 30)), list(entries)
+            request.app.state.knowledge.search, query, max(1, min(limit, 30)), list(entries), owner
         )
     except Exception as error:  # noqa: BLE001 - usługa wektorowa niedostępna
         raise HTTPException(
@@ -540,19 +599,24 @@ def report_payload(report: ResearchReport, run: Run | None, title: str = "") -> 
 
 
 @router.post("/badania", status_code=status.HTTP_201_CREATED)
-async def start_research(payload: ResearchInput, request: Request) -> dict[str, Any]:
+async def start_research(
+    payload: ResearchInput, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Rozpoczyna badanie: rozmowa w trybie ``research`` i pytanie wysłane do agenta."""
     database = _database(request)
     collection = None
     if payload.collection_id is not None:
-        collection = await _collection(database, payload.collection_id)
+        collection = await _collection(database, payload.collection_id, owner)
     elif payload.save_sources:
-        collection = await store.resolve_collection(database, "Research")
+        collection = await store.resolve_collection(database, "Research", owner=owner)
     meta: dict[str, Any] = {"mode": "research", "depth": payload.depth, "research_kind": payload.kind}
     if collection is not None and payload.save_sources:
         meta["collection_id"] = str(collection.id)
     conversation = Conversation(
-        id=uuid.uuid4(), title=_report_title(payload.kind, payload.question), meta=meta
+        id=uuid.uuid4(),
+        owner_id=owner,
+        title=_report_title(payload.kind, payload.question),
+        meta=meta,
     )
     report = ResearchReport(
         conversation_id=conversation.id,
@@ -566,7 +630,7 @@ async def start_research(payload: ResearchInput, request: Request) -> dict[str, 
         await session.flush()
         session.add(report)
     sent = await send_message(
-        conversation.id, SendMessage(text=research_prompt(payload, collection)), request
+        conversation.id, SendMessage(text=research_prompt(payload, collection)), request, owner
     )
     return {
         **report_payload(report, None, conversation.title),
@@ -725,7 +789,9 @@ async def chat_with_documents(payload: ChatInput, request: Request) -> dict[str,
         collection.name if collection is not None else (first if count == 1 else f"{first} i inne ({count})")
     )
     title = f"Dokumenty: {name}"
+    wlasciciel_konta = (await require_session(request)).owner_id
     conversation = Conversation(
+        owner_id=wlasciciel_konta,
         title=title if len(title) <= 120 else title[:117].rstrip() + "…",
         meta={
             "mode": "chat",
@@ -739,6 +805,9 @@ async def chat_with_documents(payload: ChatInput, request: Request) -> dict[str,
     async with database.session() as session:
         session.add(conversation)
     sent = await send_message(
-        conversation.id, SendMessage(text=chat_prompt(payload.question, list(sources), list(notes))), request
+        conversation.id,
+        SendMessage(text=chat_prompt(payload.question, list(sources), list(notes))),
+        request,
+        wlasciciel_konta,
     )
     return {"conversation_id": str(conversation.id), "run_id": sent["run_id"], "title": conversation.title}

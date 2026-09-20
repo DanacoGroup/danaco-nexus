@@ -97,10 +97,25 @@ class EventData:
     rrule: str | None = None
 
 
+def przedrostek_konta(owner: uuid.UUID | None) -> str:
+    """Początek nazwy kalendarzy należących do konta (pusty przy braku rozdziału).
+
+    Instalacja ma w Nextcloud jedno konto, więc wszystkie kalendarze leżą w jednym
+    zbiorze. Rozdział robi nazwa kolekcji: konto widzi wyłącznie te, które zaczynają
+    się jego przedrostkiem, i tylko do takich wolno mu adresować żądania.
+    """
+    return f"konto-{owner}-" if owner is not None else ""
+
+
 class CalendarClient:
     """Klient CalDAV konta Nextcloud (synchroniczny; API wywołuje go w wątku)."""
 
-    def __init__(self, settings: Settings, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        transport: httpx.BaseTransport | None = None,
+        owner: uuid.UUID | None = None,
+    ) -> None:
         try:
             token = settings.chmura_token_file.read_text(encoding="utf-8").strip()
         except OSError:
@@ -110,8 +125,10 @@ class CalendarClient:
                 "Kalendarz nie jest skonfigurowany (brak adresu chmury lub hasła aplikacji)."
             )
         self.user = settings.chmura_user
+        self.owner = owner
         self.tz = ZoneInfo(settings.kalendarz_timezone)
-        self.default_calendar = settings.kalendarz_default
+        self.przedrostek = przedrostek_konta(owner)
+        self.default_calendar = f"{self.przedrostek}{settings.kalendarz_default}"
         self.root = f"{settings.chmura_url.rstrip('/')}/remote.php/dav/calendars/{quote(self.user)}/"
         self._root_path = urlsplit(self.root).path
         self.http = httpx.Client(
@@ -129,9 +146,40 @@ class CalendarClient:
 
     # --- pomocnicze ---
 
+    def _moj_kalendarz(self, calendar_id: str) -> str:
+        """Sprawdza identyfikator i to, że kalendarz należy do konta tego klienta."""
+        sprawdzony = _check_calendar_id(calendar_id)
+        if self.przedrostek and not sprawdzony.startswith(self.przedrostek):
+            raise CalendarError(f"Nieprawidłowy kalendarz: {calendar_id}")
+        return sprawdzony
+
     def _url(self, calendar_id: str, name: str | None = None) -> str:
-        url = self.root + quote(_check_calendar_id(calendar_id)) + "/"
+        url = self.root + quote(self._moj_kalendarz(calendar_id)) + "/"
         return url + quote(name) if name else url
+
+    def zapewnij_kalendarz(self) -> None:
+        """Zakłada domyślny kalendarz konta, gdy jeszcze go nie ma."""
+        if not self.przedrostek:
+            return
+        if any(kalendarz["id"] == self.default_calendar for kalendarz in self.calendars()):
+            return
+        response = self.http.request(
+            "MKCALENDAR",
+            self._url(self.default_calendar),
+            headers={"Content-Type": "application/xml; charset=utf-8"},
+            content=(
+                b'<?xml version="1.0" encoding="utf-8"?>'
+                b'<c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+                b"<d:set><d:prop><d:displayname>Kalendarz</d:displayname>"
+                b"<c:supported-calendar-component-set>"
+                b'<c:comp name="VEVENT"/>'
+                b"</c:supported-calendar-component-set>"
+                b"</d:prop></d:set></c:mkcalendar>"
+            ),
+        )
+        # 405 znaczy, że kalendarz już istnieje — to nie błąd.
+        if response.status_code >= 400 and response.status_code != 405:
+            self._check(response, "utworzenie kalendarza konta")
 
     def _check(self, response: httpx.Response, action: str) -> None:
         if response.status_code == 401:
@@ -179,6 +227,8 @@ class CalendarClient:
             if components and "VEVENT" not in components:
                 continue
             href = unquote(item.findtext(f"{DAV}href", "")).removeprefix(self._root_path).strip("/")
+            if self.przedrostek and not href.startswith(self.przedrostek):
+                continue
             privileges = {
                 child.tag
                 for privilege in props.findall(f"{DAV}current-user-privilege-set/{DAV}privilege")
@@ -191,8 +241,8 @@ class CalendarClient:
             result.append(
                 {
                     "id": href,
-                    "name": props.findtext(f"{DAV}displayname") or href,
-                    "color": color[:7] if color.startswith("#") else "#6d5dfc",
+                    "name": props.findtext(f"{DAV}displayname") or href.removeprefix(self.przedrostek),
+                    "color": color[:7] if color.startswith("#") else "#7B5CFF",
                     "writable": writable and href != "contact_birthdays",
                     "default": href == self.default_calendar,
                 }
@@ -302,7 +352,7 @@ class CalendarClient:
         """Wydarzenie (wzorzec serii dla wydarzeń cyklicznych)."""
         calendar_id, _name = split_event_id(event_id)
         parsed, etag = self._get(event_id)
-        cal = {"id": calendar_id, "name": calendar_id, "color": "#6d5dfc", "writable": True}
+        cal = {"id": calendar_id, "name": calendar_id, "color": "#7B5CFF", "writable": True}
         events = self._parse(parsed.to_ical().decode("utf-8"), event_id, etag, cal)
         master = next((event for event in events if event["recurrence_id"] is None), None)
         if master is None and not events:
@@ -384,7 +434,7 @@ class CalendarClient:
 
     def create(self, calendar_id: str | None, data: EventData) -> dict[str, Any]:
         """Tworzy wydarzenie; zwraca je w postaci z ``events``."""
-        calendar_id = _check_calendar_id(calendar_id or self.default_calendar)
+        calendar_id = self._moj_kalendarz(calendar_id or self.default_calendar)
         if data.start is None:
             raise CalendarError("Podaj początek wydarzenia.")
         uid = f"{uuid.uuid4()}@danaco-nexus"

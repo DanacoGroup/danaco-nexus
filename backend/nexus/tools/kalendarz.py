@@ -20,9 +20,15 @@ MAX_EVENTS = 300
 
 def _client(ctx: ToolContext) -> CalendarClient:
     try:
-        return CalendarClient(ctx.settings)
+        klient = CalendarClient(ctx.settings, owner=ctx.owner_id)
     except CalendarError as error:
         raise ToolError(str(error)) from error
+    try:
+        klient.zapewnij_kalendarz()
+    except CalendarError as error:
+        klient.close()
+        raise ToolError(str(error)) from error
+    return klient
 
 
 def _short(event: dict[str, Any]) -> dict[str, Any]:

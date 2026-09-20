@@ -493,22 +493,38 @@ class FakeKnowledge:
 
     def __init__(self) -> None:
         self.entries: dict[str, tuple[str, str]] = {}
+        self.wlasciciele: dict[str, str | None] = {}
         self.deleted: list[str] = []
 
     def index(
-        self, file_id: uuid.UUID, name: str, _conversation: Any, pages: list[tuple[int | None, str]]
+        self,
+        file_id: uuid.UUID,
+        name: str,
+        _conversation: Any,
+        pages: list[tuple[int | None, str]],
+        owner_id: uuid.UUID | None = None,
     ) -> int:
+        # Właściciel trafia do ładunku fragmentu — bez tego wspólna kolekcja Qdranta
+        # nie rozdzielałaby kont.
         self.entries[str(file_id)] = (name, "\n".join(text for _page, text in pages))
+        self.wlasciciele[str(file_id)] = str(owner_id) if owner_id else None
         return 1
 
     def delete(self, file_id: uuid.UUID) -> None:
         self.deleted.append(str(file_id))
         self.entries.pop(str(file_id), None)
 
-    def search(self, query: str, limit: int = 8, file_ids: list[str] | None = None) -> list[dict[str, Any]]:
+    def search(
+        self,
+        query: str,
+        limit: int = 8,
+        file_ids: list[str] | None = None,
+        owner_id: uuid.UUID | None = None,
+    ) -> list[dict[str, Any]]:
         hits = [
             {"file_id": key, "name": name, "text": text[:200], "score": 0.9, "page": None}
             for key, (name, text) in self.entries.items()
+            if owner_id is None or self.wlasciciele.get(key) in (None, str(owner_id))
             if (file_ids is None or key in file_ids) and query.lower() in text.lower()
         ]
         return hits[:limit]
@@ -769,7 +785,9 @@ def test_api_collections_sources_notes(api_client: tuple[TestClient, FakeKnowled
     collections = client.get("/api/research/kolekcje").json()
     assert collections[0]["sources"] == 2 and collections[0]["notes"] == 1
 
-    found = client.get("/api/research/szukaj", params={"q": "montażu", "collection_id": cid}).json()
+    odpowiedz = client.get("/api/research/szukaj", params={"q": "montażu", "collection_id": cid})
+    assert odpowiedz.status_code == 200, odpowiedz.text
+    found = odpowiedz.json()
     assert [hit["id"] for hit in found["results"]] == [text["id"]]
     assert found["results"][0]["type"] == "source"
 
@@ -958,6 +976,13 @@ def test_api_chat_with_documents(api_client: tuple[TestClient, FakeKnowledge, Se
     stored = _database_call(settings, meta)
     assert stored["mode"] == "chat"
     assert stored["knowledge"]["source_ids"] == [source["id"]]
+
+    # Plan wejściowy pozwala na jedno zadanie naraz, a pierwsza rozmowa zostawiła zadanie
+    # w kolejce: druga musi poczekać, aż poprzednia się skończy albo zostanie anulowana.
+    zajete = client.post("/api/research/rozmowa", json={"collection_id": cid}, headers=HEADERS)
+    assert zajete.status_code == 409, zajete.text
+    anulowane = client.post(f"/api/runs/{data['run_id']}/cancel", headers=HEADERS)
+    assert anulowane.status_code == 200, anulowane.text
 
     whole = client.post("/api/research/rozmowa", json={"collection_id": cid}, headers=HEADERS).json()
     assert whole["title"] == "Dokumenty: Dom"

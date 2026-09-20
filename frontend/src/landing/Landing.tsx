@@ -1,331 +1,354 @@
-// Publiczna strona startowa Danaco Nexus (dla niezalogowanych): możliwości, urządzenia, instalacja.
+// Publiczna strona produktu Danaco Nexus (dla gościa niezalogowanego).
+// Treść, układ i ruch: landing/LANDING_PAGE_SPEC.md. Wartości wizualne: design-tokens.
 
-import type { ComponentType } from "react";
-import { CloudIcon, Logo, WaveIcon } from "../components/icons";
+import { Fragment, useEffect, useState } from "react";
+import { Logo, Logotype } from "../components/icons";
+import { ArrowRightIcon } from "../shell/icons";
+import { Otwarcie } from "./Otwarcie";
+import { ScenaHero } from "./ScenaHero";
+import { InstallSection, PrzyciskInstalacji } from "./InstallSection";
 import {
-  AgentsIcon,
-  ArrowRightIcon,
-  CodeIcon,
-  DocumentIcon,
-  FilmIcon,
-  ImageIcon,
-  LanguageIcon,
-  LayersIcon,
-  LayoutIcon,
-  LockIcon,
-  MailIcon,
-  PhoneIcon,
-  PuzzleIcon,
-  ScanIcon,
-  SearchIcon,
-  ShieldIcon,
-  WindowsIcon,
-  type IconProps,
-} from "../shell/icons";
-import { HeroMock } from "./HeroMock";
-import { InstallSection } from "./InstallSection";
+  Brama,
+  PasekZdan,
+  SEKCJE_NAWIGACJI,
+  SekcjaCennik,
+  SekcjaDzien,
+  SekcjaFunkcje,
+  SekcjaKroki,
+  SekcjaPrywatnosc,
+  SekcjaPytania,
+  SekcjaRoznice,
+  SekcjaRuch,
+  SekcjaZaufanie,
+  useAktywnaSekcja,
+} from "./sekcje";
+import { SekcjaNarzedzi } from "./SekcjaNarzedzi";
+import { sciezka } from "../portal/trasy";
+import { HERO_FAKTY, PYTANIA } from "./tresc";
+import { PASMO } from "./uzyj";
+import { PasSwitu, TloNaZywo, useWidocznosc } from "../ruch";
 
-interface Feature {
-  icon: ComponentType<IconProps>;
-  title: string;
-  text: string;
+const STOPKA = [
+  {
+    tytul: "Produkt",
+    pozycje: [
+      { etykieta: "Funkcje", adres: "#funkcje" },
+      { etykieta: "Jak działa", adres: "#jak-dziala" },
+      { etykieta: "Instalacja", adres: "#instalacja" },
+      { etykieta: "Cennik", adres: "#cennik" },
+      { etykieta: "Wejdź bez rejestracji", adres: "/wyprobuj" },
+      { etykieta: "Oferta", adres: "/portal/oferta" },
+    ],
+  },
+  {
+    tytul: "Zasoby",
+    pozycje: [
+      { etykieta: "Dokumentacja", adres: "/portal/dokumentacja" },
+      { etykieta: "Centrum wiedzy", adres: "/portal/wiedza" },
+      { etykieta: "Blog", adres: "/portal/blog" },
+      { etykieta: "Pytania", adres: "#pytania" },
+      { etykieta: "Pomoc", adres: "mailto:support@danaco-group.pl" },
+    ],
+  },
+  {
+    tytul: "Firma",
+    pozycje: [
+      { etykieta: "Danaco Group", adres: "https://danaco-group.pl" },
+      { etykieta: "Kontakt", adres: "mailto:support@danaco-group.pl" },
+    ],
+  },
+];
+
+/**
+ * Dokumenty, do których gość musi trafić z każdej strony: polityka prywatności (RODO, art. 13),
+ * regulamin i informacja o plikach cookie. Adresy z trasownika portalu, żeby zmiana ścieżki
+ * strony nie zostawiła w stopce martwego odsyłacza.
+ */
+export const ODSYLACZE_PRAWNE = [
+  { etykieta: "Polityka prywatności", adres: sciezka("prywatnosc") },
+  { etykieta: "Regulamin", adres: sciezka("regulamin") },
+  { etykieta: "Pliki cookie", adres: sciezka("cookies") },
+];
+
+/** Opóźnienie wejścia liczone w krokach tokenu `--stagger-step` (żadnych wartości czasu w kodzie). */
+function opoznienieKroku(kroki: number): string {
+  return `calc(var(--krok-wejscia, var(--stagger-step)) * ${kroki})`;
 }
 
-export const FEATURES: Feature[] = [
-  { icon: DocumentIcon, title: "Dokumenty i PDF", text: "Dzielenie, łączenie i konwersje DOCX, XLSX, PDF. Pisma i raporty gotowe do wysłania." },
-  { icon: ScanIcon, title: "OCR i skany", text: "Przeszukiwalne PDF ze skanów, prostowanie i czyszczenie stron, tekst z każdego obrazu." },
-  { icon: ImageIcon, title: "Zdjęcia", text: "Retusz, powiększanie AI, zmiana i usuwanie tła, konwersje formatów bez utraty jakości." },
-  { icon: FilmIcon, title: "Audio i wideo", text: "Transkrypcja z napisami, wycinanie, kompresja i wyrównanie głośności nagrań." },
-  { icon: WaveIcon, title: "Rozmowa głosowa", text: "Rozmawiaj naturalnie – realistyczne głosy, przerywanie w pół zdania, praca w tle." },
-  { icon: CloudIcon, title: "Cloud", text: "Własna chmura w aplikacji: foldery, wersje plików, udostępnianie i synchronizacja." },
-  { icon: SearchIcon, title: "Deep Research", text: "Wieloetapowe badanie sieci i źródeł naukowych zakończone raportem z cytatami." },
-  { icon: LayoutIcon, title: "Twórca stron", text: "Opisz stronę, oglądaj podgląd na żywo i opublikuj ją jednym kliknięciem." },
-  { icon: CodeIcon, title: "Kod", text: "Sesje programistyczne z Claude Code: projekty, podgląd plików, zmiany i git." },
-  { icon: AgentsIcon, title: "Agenci", text: "Orkiestracja wielu agentów – część pracuje równolegle, część po kolei, wszystko w tle." },
-  { icon: MailIcon, title: "Poczta i kalendarz", text: "Czytanie poczty, szkice odpowiedzi i terminy – wysyłka zawsze po Twoim potwierdzeniu." },
-  { icon: LanguageIcon, title: "Tłumacz", text: "Teksty, dokumenty i PDF przetłumaczone z zachowaniem oryginalnego układu." },
-];
-
-const PLACES = [
-  {
-    icon: PuzzleIcon,
-    title: "W przeglądarce",
-    lead: "Panel boczny na każdej stronie",
-    points: [
-      "Streszczenie i recenzja bieżącej strony",
-      "Odpowiedzi na opinie w Booking i Google – jednym „Wstaw”",
-      "Tłumaczenie i poprawa zaznaczonego tekstu",
-    ],
-  },
-  {
-    icon: WindowsIcon,
-    title: "Na komputerze",
-    lead: "Języczek przy krawędzi ekranu",
-    points: [
-      "Pomoc w każdym programie na podstawie zrzutu okna",
-      "Wyszukiwanie plików na dysku",
-      "Diagnostyka, sprzątanie i naprawy przez PowerShell – po Twojej zgodzie",
-    ],
-  },
-  {
-    icon: PhoneIcon,
-    title: "Na telefonie",
-    lead: "Asystent zawsze pod ręką",
-    points: [
-      "Rozmowy głosowe także przy zablokowanym ekranie",
-      "Szkice odpowiedzi na SMS, poczta i kalendarz",
-      "Udostępnianie zdjęć i plików prosto do Nexusa",
-    ],
-  },
-];
-
-const TASKS = [
-  { title: "Raport z faktur Q3", step: "Odczyt 48 faktur", progress: 72 },
-  { title: "Research: rynek najmu w Gdańsku", step: "Agent 3 z 5 · źródła", progress: 45 },
-  { title: "Strona dla pensjonatu", step: "Podgląd gotowy", progress: 90 },
-  { title: "Montaż wywiadu", step: "Transkrypcja", progress: 30 },
-];
-
-function Nav() {
+/** Nagłówek wchodzący słowo po słowie — kaskada co jeden krok (LANDING_PAGE_SPEC, rozdz. 7.2). */
+function Kaskada({ tekst, krok, className = "" }: { tekst: string; krok: number; className?: string }) {
+  const slowa = tekst.split(" ");
   return (
-    <header className="safe-top fixed inset-x-0 top-0 z-40 border-b border-white/5 bg-[#0d0d10]/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5">
-        <a href="/" className="flex items-center gap-2.5" aria-label="Danaco Nexus – strona główna">
-          <Logo size={30} className="rounded-lg" />
-          <span className="text-[15px] font-semibold tracking-tight">Danaco Nexus</span>
+    <>
+      {slowa.map((slowo, indeks) => (
+        // Odstęp stoi poza maską — `overflow: hidden` zjadłby spację na końcu słowa.
+        <Fragment key={`${slowo}-${indeks}`}>
+          <span className="maska-slowa">
+            <span
+              className={`wejscie-slowo ${className}`}
+              style={{ "--opoznienie": opoznienieKroku(krok + indeks) } as React.CSSProperties}
+            >
+              {slowo}
+            </span>
+          </span>
+          {indeks < slowa.length - 1 ? " " : null}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+/** Łuk znaku w skali hero: rysuje się przy wejściu, punkt opada i oddycha. */
+function LukHero() {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto w-full max-w-5xl opacity-70"
+      viewBox="0 0 400 260"
+      fill="none"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="hero-aurora" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="var(--color-brand-apricot)" />
+          <stop offset="0.38" stopColor="var(--color-brand-rose)" />
+          <stop offset="0.72" stopColor="var(--color-brand-iris)" />
+          <stop offset="1" stopColor="var(--color-brand-sky)" />
+        </linearGradient>
+        <mask id="hero-wygaszenie">
+          <rect width="400" height="260" fill="url(#hero-zanik)" />
+        </mask>
+        <linearGradient id="hero-zanik" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="white" />
+          <stop offset="1" stopColor="black" />
+        </linearGradient>
+      </defs>
+      <g mask="url(#hero-wygaszenie)">
+        <path
+          className="luk-rysuje"
+          d="M40 260V150a160 110 0 0 1 320 0v110"
+          stroke="url(#hero-aurora)"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          pathLength={1}
+          style={{ strokeDasharray: 1 }}
+        />
+      </g>
+      <circle className="punkt-opada" cx="200" cy="40" r="5" fill="url(#hero-aurora)" />
+    </svg>
+  );
+}
+
+/** Dane strukturalne pytań i odpowiedzi (schema.org FAQPage) — LANDING_PAGE_SPEC, rozdz. 13. */
+function DanePytan() {
+  const dane = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: PYTANIA.map(({ pytanie, odpowiedz }) => ({
+      "@type": "Question",
+      name: pytanie,
+      acceptedAnswer: { "@type": "Answer", text: odpowiedz },
+    })),
+  };
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(dane) }} />;
+}
+
+/** Pasek nawigacji: przezroczysty nad hero, szklany po przewinięciu. */
+function Nawigacja() {
+  const [szklo, setSzklo] = useState(false);
+  const aktywna = useAktywnaSekcja();
+  useEffect(() => {
+    const przewin = () => setSzklo(window.scrollY > 24);
+    przewin();
+    window.addEventListener("scroll", przewin, { passive: true });
+    return () => window.removeEventListener("scroll", przewin);
+  }, []);
+  return (
+    <header
+      className={`safe-top fixed inset-x-0 top-0 z-(--z-sticky) transition-colors duration-(--duration-base) ${
+        szklo ? "border-b border-line bg-glass backdrop-blur-xl" : "border-b border-transparent"
+      }`}
+    >
+      <div className={`${PASMO} flex h-16 items-center gap-6`}>
+        <a href="#top" className="flex items-center" aria-label="Danaco Nexus — początek strony">
+          <Logotype height={24} />
         </a>
-        <nav className="hidden items-center gap-6 text-sm text-muted md:flex" aria-label="Sekcje strony">
-          <a className="transition-colors hover:text-fg" href="#mozliwosci">
-            Możliwości
-          </a>
-          <a className="transition-colors hover:text-fg" href="#wszedzie">
-            Urządzenia
-          </a>
-          <a className="transition-colors hover:text-fg" href="#prywatnosc">
-            Prywatność
-          </a>
-          <a className="transition-colors hover:text-fg" href="#instalacja">
-            Zainstaluj
-          </a>
+        <nav className="hidden items-center gap-6 text-sm text-muted lg:flex" aria-label="Sekcje strony">
+          {SEKCJE_NAWIGACJI.map(({ id, etykieta }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              aria-current={aktywna === id ? "true" : undefined}
+              className="transition-colors hover:text-fg aria-[current]:text-fg"
+            >
+              {etykieta}
+            </a>
+          ))}
         </nav>
-        <a
-          href="/zaloguj"
-          className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-fg px-4 py-2 text-sm font-medium text-app transition-opacity hover:opacity-90"
-        >
-          Zaloguj się
-        </a>
+        <div className="ml-auto flex items-center gap-2">
+          <a
+            href="/wyprobuj"
+            className="hidden h-9 items-center rounded-full px-4 text-sm font-medium text-muted transition-colors hover:text-fg lg:inline-flex"
+          >
+            Wypróbuj
+          </a>
+          <a href="/zaloguj" className="hidden h-9 items-center rounded-full px-4 text-sm font-medium text-muted transition-colors hover:text-fg sm:inline-flex">
+            Zaloguj się
+          </a>
+          <PrzyciskInstalacji rozmiar="maly" />
+        </div>
       </div>
     </header>
   );
 }
 
+function Hero() {
+  // Ruch ozdobny hero (oddech punktu, płótno Aurory) stoi, gdy sekcja zejdzie z ekranu.
+  const [sekcja, widoczna] = useWidocznosc<HTMLElement>({ margines: "200px", ciagla: true });
+  return (
+    <section
+      id="top"
+      ref={sekcja}
+      data-widoczny={widoczna ? "true" : "false"}
+      className="landing-tlo hero-tlo hero-wejscie relative pt-36 pb-24 md:pt-48 md:pb-32"
+    >
+      {/* Zorza gra pełnym światłem; kontrast tekstu trzyma własna poświata kolumny treści
+          (`.hero-tresc`), a nie przygaszanie całego tła. Wcześniej cały pierwszy ekran był
+          ściemniony po to, żeby akapit spełnił próg WCAG — kosztem pierwszego wrażenia. */}
+      <TloNaZywo nazwa="aurora" hero opcje={{ maska: "obie", intensywnosc: 0.9, wstega: 0.75 }} />
+      <LukHero />
+      <div className={`${PASMO} hero-tresc text-center`}>
+        <a
+          href="#funkcje"
+          className="wejscie inline-flex items-center gap-2 rounded-full border border-line bg-raised/60 px-3.5 py-1.5 text-sm text-muted backdrop-blur transition-colors hover:text-fg"
+        >
+          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">Nowość</span>
+          Rozmowa głosowa po polsku
+          <ArrowRightIcon size={14} />
+        </a>
+        <h1 className="mt-8 font-heading text-[clamp(2.5rem,7vw,5.5rem)] leading-[1.02] font-bold tracking-tighter text-balance">
+          <Kaskada tekst="Powiedz, co zrobić." krok={1} />{" "}
+          <Kaskada tekst="Odbierz gotowe." krok={4} className="aurora-tekst" />
+        </h1>
+        <p
+          className="wejscie mx-auto mt-7 max-w-(--container-prose) text-lg leading-relaxed text-muted text-pretty"
+          style={{ "--opoznienie": opoznienieKroku(6) } as React.CSSProperties}
+        >
+          Zaprojektuj logo i plakat do druku. Zbadaj temat i dostań raport z przypisami. Odpisz na zaległą pocztę
+          i umów spotkanie. Opublikuj stronę pod swoim adresem. Znajdź plik na własnym komputerze. Piszesz albo
+          mówisz jednym zdaniem, co ma powstać — Nexus sam dobiera narzędzia, wykonuje pracę i oddaje gotowy plik
+          do Twojej przestrzeni w chmurze.
+        </p>
+        <div
+          className="wejscie mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          style={{ "--opoznienie": opoznienieKroku(7) } as React.CSSProperties}
+        >
+          <PrzyciskInstalacji />
+          <a
+            href="/zaloguj"
+            className="ui-nacisk inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line-strong px-6 font-medium transition-colors hover:bg-hover sm:w-auto"
+          >
+            Zaloguj się
+          </a>
+        </div>
+        <p className="mt-5 text-sm text-muted">
+          Bez sklepu z aplikacjami · działa też w przeglądarce ·{" "}
+          <a href="#jak-dziala" className="text-accent underline-offset-4 hover:underline">
+            Zobacz, jak działa
+          </a>
+        </p>
+        <p className="mt-3 text-sm">
+          <a href="/wyprobuj" className="text-accent underline-offset-4 hover:underline">
+            Wejdź bez rejestracji
+          </a>{" "}
+          <span className="text-subtle">— otwiera się pełna aplikacja na koncie próbnym</span>
+        </p>
+        <ul
+          className="wejscie mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-subtle"
+          style={{ "--opoznienie": opoznienieKroku(8) } as React.CSSProperties}
+        >
+          {HERO_FAKTY.map((fakt) => (
+            <li key={fakt} className="rounded-full border border-line-strong bg-raised/50 px-3 py-1 backdrop-blur">
+              {fakt}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="wejscie mt-16 md:mt-20" style={{ "--opoznienie": opoznienieKroku(9) } as React.CSSProperties}>
+        <ScenaHero />
+      </div>
+    </section>
+  );
+}
+
+function Stopka() {
+  return (
+    <footer className="safe-bottom border-t border-line pt-16 pb-10">
+      <div className={`${PASMO} grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]`}>
+        <div>
+          <Logotype height={24} />
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted">
+            Osobisty asystent AI w chmurze. Mówisz, co ma powstać — odbierasz gotowy plik.
+          </p>
+        </div>
+        {STOPKA.map(({ tytul, pozycje }) => (
+          <nav key={tytul} aria-label={tytul}>
+            <h2 className="font-heading text-sm font-semibold">{tytul}</h2>
+            <ul className="mt-4 space-y-2.5 text-sm text-muted">
+              {pozycje.map(({ etykieta, adres }) => (
+                <li key={etykieta}>
+                  <a href={adres} className="transition-colors hover:text-fg">
+                    {etykieta}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+      <div className={`${PASMO} mt-12 flex flex-col items-center gap-3 border-t border-line pt-6 text-sm text-subtle sm:flex-row`}>
+        <Logo size={20} />
+        <span>© {new Date().getFullYear()} Danaco Holding Group Sp. z o.o.</span>
+        <nav aria-label="Dokumenty" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:ml-auto">
+          {ODSYLACZE_PRAWNE.map(({ etykieta, adres }) => (
+            <a key={adres} href={adres} className="transition-colors hover:text-fg">
+              {etykieta}
+            </a>
+          ))}
+        </nav>
+        <span>Kontakt: support@danaco-group.pl</span>
+      </div>
+    </footer>
+  );
+}
+
 export function Landing() {
   return (
-    <div className="dark landing min-h-full overflow-x-hidden bg-[#0d0d10] text-fg">
-      <Nav />
-      <main>
-        {/* Hero */}
-        <section className="landing-grid relative px-5 pt-32 pb-28 md:pt-40 md:pb-36">
-          <div className="mx-auto max-w-4xl text-center">
-            <a
-              href="#mozliwosci"
-              className="inline-flex animate-rise items-center gap-2 rounded-full border border-line bg-raised/60 px-3.5 py-1.5 text-xs text-muted backdrop-blur transition-colors hover:text-fg"
-            >
-              <span className="size-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
-              Prywatny asystent AI · napędzany przez Claude
-            </a>
-            <h1 className="mt-7 text-[40px] leading-[1.05] font-semibold tracking-[-0.035em] text-balance md:text-7xl">
-              Twój asystent AI.
-              <br />
-              <span className="landing-gradient-text">Na każdym ekranie.</span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-muted text-pretty md:text-lg">
-              Danaco Nexus czyta dokumenty, poprawia zdjęcia, robi OCR, montuje audio i wideo, prowadzi badania, pisze kod
-              i strony. Automatyzuje pracę w przeglądarce, na Windows i na telefonie – na Twoim własnym serwerze.
-            </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a
-                href="/zaloguj"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-on-accent shadow-lg shadow-accent/30 transition-colors hover:bg-accent-hover sm:w-auto"
-              >
-                Zaloguj się <ArrowRightIcon size={18} />
-              </a>
-              <a
-                href="#instalacja"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-line-strong px-6 py-3 font-medium transition-colors hover:bg-hover sm:w-auto"
-              >
-                Zainstaluj aplikację
-              </a>
-            </div>
-            <p className="mt-5 text-xs text-muted">Android · Windows · Chrome, Edge i Danaco Lynx · iPhone (PWA)</p>
-          </div>
-          <div className="mt-16 md:mt-20">
-            <HeroMock />
-          </div>
-        </section>
-
-        {/* Możliwości */}
-        <section id="mozliwosci" className="scroll-mt-20 px-5 py-20 md:py-28">
-          <div className="mx-auto max-w-6xl">
-            <div className="max-w-2xl">
-              <p className="text-sm font-medium text-accent">Możliwości</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Jeden asystent zamiast dziesięciu programów</h2>
-              <p className="mt-3 text-muted">
-                Opisz zadanie i dodaj pliki. Nexus sam dobiera narzędzia serwera, wykonuje pracę i oddaje gotowy wynik do
-                pobrania.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {FEATURES.map(({ icon: FeatureIcon, title, text }) => (
-                <article key={title} className="landing-card group rounded-2xl p-5">
-                  <span className="grid size-10 place-items-center rounded-xl bg-accent-soft text-accent transition-transform group-hover:scale-105">
-                    <FeatureIcon size={20} />
-                  </span>
-                  <h3 className="mt-4 font-semibold tracking-tight">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{text}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Wszędzie, gdzie pracujesz */}
-        <section id="wszedzie" className="scroll-mt-20 px-5 py-20 md:py-28">
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-sm font-medium text-accent">Wszędzie, gdzie pracujesz</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Pomaga tam, gdzie akurat jesteś</h2>
-              <p className="mt-3 text-muted">
-                Ta sama pamięć, te same rozmowy i pliki – w przeglądarce, na komputerze i w telefonie.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-4 lg:grid-cols-3">
-              {PLACES.map(({ icon: PlaceIcon, title, lead, points }) => (
-                <article key={title} className="landing-card rounded-3xl p-7">
-                  <PlaceIcon size={26} className="text-accent" />
-                  <h3 className="mt-5 text-xl font-semibold tracking-tight">{title}</h3>
-                  <p className="text-sm text-muted">{lead}</p>
-                  <ul className="mt-5 space-y-2.5 text-sm">
-                    {points.map((point) => (
-                      <li key={point} className="flex gap-2.5">
-                        <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" />
-                        <span className="text-fg/90">{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Wiele zadań naraz */}
-        <section className="px-5 py-20 md:py-28">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
-            <div>
-              <p className="text-sm font-medium text-accent">Wiele sesji naraz</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Zleć zadanie i wróć, gdy będzie gotowe</h2>
-              <p className="mt-4 leading-relaxed text-muted">
-                Kilka rozmów pracuje równolegle w tle. Panel „Zadania w toku” pokazuje postęp każdej z nich, a
-                powiadomienie na telefonie i komputerze da znać, gdy wynik czeka. Złożone zadania Nexus rozdziela między
-                wielu agentów – część działa równolegle, część po kolei.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2 text-xs text-muted">
-                {["Powiadomienia push", "Anulowanie jednym kliknięciem", "Orkiestracja agentów", "Historia i pliki w jednym miejscu"].map(
-                  (label) => (
-                    <span key={label} className="rounded-full border border-line px-3 py-1">
-                      {label}
-                    </span>
-                  ),
-                )}
-              </div>
-            </div>
-            <div className="landing-card rounded-3xl p-5 md:p-6" aria-hidden="true">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
-                <LayersIcon size={18} className="text-accent" /> Zadania w toku
-                <span className="ml-auto rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">4</span>
-              </div>
-              <ul className="space-y-2.5">
-                {TASKS.map((task) => (
-                  <li key={task.title} className="rounded-2xl border border-line bg-app/60 px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="spinner size-3.5 text-accent" />
-                      <span className="truncate text-sm font-medium">{task.title}</span>
-                      <span className="ml-auto shrink-0 text-xs text-muted">{task.step}</span>
-                    </div>
-                    <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-line">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${task.progress}%` }} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Prywatność */}
-        <section id="prywatnosc" className="scroll-mt-20 px-5 py-20 md:py-28">
-          <div className="landing-card mx-auto max-w-6xl rounded-[32px] p-8 md:p-14">
-            <div className="grid gap-10 lg:grid-cols-[1.1fr_2fr]">
-              <div>
-                <ShieldIcon size={30} className="text-accent" />
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight">Twoje dane zostają u Ciebie</h2>
-                <p className="mt-3 text-muted">Nexus działa na prywatnym serwerze Danaco – nie w cudzej chmurze.</p>
-              </div>
-              <div className="grid gap-6 sm:grid-cols-3">
-                {[
-                  { icon: LockIcon, title: "Własny serwer", text: "Rozmowy, pliki i baza wiedzy są przechowywane na Twoim serwerze." },
-                  {
-                    icon: ShieldIcon,
-                    title: "Zgoda przed działaniem",
-                    text: "Wysłanie wiadomości, publikacja czy zmiana w systemie – zawsze po Twoim potwierdzeniu.",
-                  },
-                  { icon: PhoneIcon, title: "Klucze urządzeń", text: "Każde urządzenie ma własny klucz, który cofniesz w każdej chwili." },
-                ].map(({ icon: ItemIcon, title, text }) => (
-                  <div key={title}>
-                    <ItemIcon size={20} className="text-muted" />
-                    <h3 className="mt-3 font-semibold">{title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
+    <div className="landing min-h-full overflow-x-hidden bg-app text-fg">
+      <a href="#tresc" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-(--z-toast) focus:rounded-md focus:bg-accent-fill focus:px-4 focus:py-2 focus:text-on-accent">
+        Przejdź do treści
+      </a>
+      <DanePytan />
+      <Otwarcie />
+      <Nawigacja />
+      <main id="tresc">
+        <Hero />
+        <PasekZdan />
+        <SekcjaKroki />
+        <SekcjaFunkcje />
+        <SekcjaNarzedzi />
+        <SekcjaRoznice />
+        <SekcjaRuch />
+        <SekcjaDzien />
+        {/* Świt prowadzi z dnia w noc prywatności — kolory obu sekcji, wschód sprzężony z przewijaniem. */}
+        <PasSwitu barwa="chlodny" od="var(--app)" do="var(--app)" />
+        <SekcjaPrywatnosc />
         <InstallSection />
-
-        {/* Zakończenie */}
-        <section className="px-5 pt-10 pb-24">
-          <div className="landing-cta mx-auto max-w-4xl rounded-[32px] px-6 py-14 text-center md:py-20">
-            <Logo size={52} className="mx-auto rounded-2xl shadow-lg shadow-accent/30" />
-            <h2 className="mt-6 text-3xl font-semibold tracking-tight md:text-5xl">Zacznij od jednej wiadomości</h2>
-            <p className="mx-auto mt-3 max-w-xl text-muted">Opisz, czego potrzebujesz. Resztą zajmie się Nexus.</p>
-            <a
-              href="/zaloguj"
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-fg px-6 py-3 font-medium text-app transition-opacity hover:opacity-90"
-            >
-              Zaloguj się <ArrowRightIcon size={18} />
-            </a>
-          </div>
-        </section>
+        <SekcjaZaufanie />
+        <SekcjaCennik />
+        <SekcjaPytania />
+        <Brama instaluj={<PrzyciskInstalacji />} />
       </main>
-      <footer className="safe-bottom border-t border-white/5 px-5 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-sm text-muted sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Logo size={20} className="rounded-md" />
-            <span>© {new Date().getFullYear()} Danaco · Danaco Nexus</span>
-          </div>
-          <nav className="flex gap-5 sm:ml-auto" aria-label="Stopka">
-            <a className="hover:text-fg" href="#instalacja">
-              Instalacja
-            </a>
-            <a className="hover:text-fg" href="/zaloguj">
-              Zaloguj się
-            </a>
-          </nav>
-        </div>
-      </footer>
+      <Stopka />
     </div>
   );
 }

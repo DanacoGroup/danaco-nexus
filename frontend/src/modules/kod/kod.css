@@ -1,14 +1,16 @@
-/* Moduł Kod: kolory podświetlania składni (highlight.js) i różnic git – motyw jasny i ciemny. */
+/* Moduł Kod: kolory podświetlania składni (highlight.js) i różnic git – motyw jasny i ciemny.
+   Podświetlanie potrzebuje więcej odcieni, niż ma warstwa semantyczna, więc sięga do skal
+   bazowych tokenów — świadomy wyjątek opisany w design-system/WDROZENIE.md, rozdz. 3. */
 
 .kod-code {
-  --kod-keyword: #7c3aed;
-  --kod-string: #15803d;
-  --kod-number: #b45309;
-  --kod-comment: #71717a;
-  --kod-title: #1d4ed8;
-  --kod-type: #0f766e;
-  --kod-attr: #9333ea;
-  --kod-meta: #be185d;
+  --kod-keyword: var(--color-primary-700);
+  --kod-string: var(--color-success-700);
+  --kod-number: var(--color-warning-700);
+  --kod-comment: var(--color-neutral-500);
+  --kod-title: var(--color-info-700);
+  --kod-type: var(--color-info-900);
+  --kod-attr: var(--color-error-700);
+  --kod-meta: var(--color-error-900);
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;
@@ -16,14 +18,14 @@
 }
 
 .dark .kod-code {
-  --kod-keyword: #c4b5fd;
-  --kod-string: #86efac;
-  --kod-number: #fcd34d;
-  --kod-comment: #8b8b94;
-  --kod-title: #93c5fd;
-  --kod-type: #5eead4;
-  --kod-attr: #f0abfc;
-  --kod-meta: #f9a8d4;
+  --kod-keyword: var(--color-primary-300);
+  --kod-string: var(--color-success-300);
+  --kod-number: var(--color-warning-300);
+  --kod-comment: var(--color-neutral-400);
+  --kod-title: var(--color-info-300);
+  --kod-type: var(--color-success-200);
+  --kod-attr: var(--color-error-300);
+  --kod-meta: var(--color-brand-rose);
 }
 
 .kod-code .hljs-keyword,

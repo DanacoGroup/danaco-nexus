@@ -3,7 +3,7 @@
 //   node buduj.mjs [katalog-wyjściowy]
 //
 // Domyślnie: <repozytorium>/.tmp/rozszerzenie/out/ (nexus-rozszerzenie/ i nexus-rozszerzenie.zip).
-// Wersja pochodzi z manifest.json, ikony z frontend/public/icons.
+// Wersja pochodzi z manifest.json, ikony z pakietu marki (logo/pwa).
 
 import { build } from "esbuild";
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -44,7 +44,9 @@ copyFileSync(join(KATALOG, "manifest.json"), join(CEL, "manifest.json"));
 copyFileSync(join(KATALOG, "src/panel/panel.html"), join(CEL, "panel.html"));
 copyFileSync(join(KATALOG, "src/opcje/opcje.html"), join(CEL, "opcje.html"));
 copyFileSync(join(KATALOG, "src/styl.css"), join(CEL, "styl.css"));
-const IKONY = join(REPO, "frontend/public/icons");
+// Ikony prosto z pakietu marki: katalog publiczny aplikacji jest wynikiem skryptu zasoby.py
+// i w świeżym klonie repozytorium jeszcze nie istnieje.
+const IKONY = join(REPO, "logo/pwa");
 copyFileSync(join(IKONY, "favicon-32.png"), join(CEL, "ikony/nexus-32.png"));
 copyFileSync(join(IKONY, "icon-192.png"), join(CEL, "ikony/nexus-192.png"));
 

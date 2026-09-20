@@ -1,0 +1,27 @@
+{
+  "scenariusz": "faktura",
+  "kroki": [
+    {
+      "etykieta": "Poprawa skanu",
+      "czas_ms": 3120,
+      "opis": "Poprawiono skany: 1"
+    },
+    {
+      "etykieta": "Rozpoznanie tekstu i przeszukiwalny PDF",
+      "czas_ms": 6840,
+      "opis": "OCR: 1 plik, 1 strona, język pol"
+    },
+    {
+      "etykieta": "Odczyt kwoty i terminu",
+      "czas_ms": 2380,
+      "opis": "Odpowiedź modelu"
+    }
+  ],
+  "odpowiedz": "Do zapłaty jest 3 067,62 zł brutto (netto 2 494,00 zł, VAT 573,62 zł).\nTermin płatności upływa 12 września 2026 r., przelewem na rachunek ze skanu.",
+  "pliki": [
+    {
+      "nazwa": "FV_2026_08_117_OCR.pdf",
+      "plik": "faktura/FV_2026_08_117_OCR.pdf"
+    }
+  ]
+}

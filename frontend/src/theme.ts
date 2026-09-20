@@ -3,7 +3,8 @@
 export type ThemeChoice = "dark" | "light" | "system";
 
 const STORAGE_KEY = "nexus-theme";
-const THEME_COLORS = { dark: "#171717", light: "#f7f7f8" } as const;
+// Barwy powierzchni aplikacji z tokenów: --app w motywie ciemnym i jasnym.
+const THEME_COLORS = { dark: "#0D0F17", light: "#F9FAFE" } as const;
 
 export function storedTheme(): ThemeChoice {
   try {

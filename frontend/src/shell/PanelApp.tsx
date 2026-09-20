@@ -145,7 +145,7 @@ export function PanelApp() {
             href="/zaloguj?next=/m/urzadzenia"
             target="_blank"
             rel="noopener"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-fill-hover"
           >
             Zaloguj się <ExternalIcon size={14} />
           </a>
@@ -200,7 +200,7 @@ export function PanelApp() {
             <p className="text-sm text-muted">
               {context
                 ? "Zapytaj o tę stronę – streszczenie, odpowiedź na opinię, tłumaczenie, analiza."
-                : "Napisz wiadomość albo dołącz plik. Rodzic panelu może przekazać treść bieżącej strony lub ekranu."}
+                : "Napisz wiadomość albo dołącz plik. Nexus może też przeczytać otwartą stronę lub zrzut ekranu."}
             </p>
           </div>
         ) : (

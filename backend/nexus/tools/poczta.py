@@ -41,14 +41,14 @@ ACCOUNT_HELP = (
 
 def _accounts(ctx: ToolContext) -> list[MailConfig]:
     try:
-        return load_accounts(ctx.settings)
+        return load_accounts(ctx.settings, ctx.owner_id)
     except MailError as error:
         raise ToolError(str(error)) from error
 
 
 def _client(ctx: ToolContext, account: str = "") -> MailClient:
     try:
-        config = load_config(ctx.settings, account)
+        config = load_config(ctx.settings, account, ctx.owner_id)
     except MailError as error:
         raise ToolError(str(error)) from error
     return MailClient(config, ctx.settings.poczta_timeout_s)

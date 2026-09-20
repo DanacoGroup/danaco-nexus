@@ -41,7 +41,7 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleString("pl-PL", { dateStyle: "medium", timeStyle: "short" });
 }
 
-const card = "rounded-3xl border border-line bg-raised/40 p-5 md:p-6";
+const card = "rounded-2xl border border-line bg-raised/40 p-5 md:p-6";
 const input =
   "w-full rounded-xl border border-line bg-app px-3.5 py-2.5 text-[15px] outline-none transition-colors focus:border-accent";
 
@@ -169,7 +169,7 @@ function NewDevice({ onCreated }: { onCreated: () => void }) {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-5 py-2.5 font-medium text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-60"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-accent-fill px-5 py-2.5 font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:opacity-60"
         >
           {busy ? <span className="spinner" /> : <KeyIcon size={18} />} Utwórz klucz
         </button>
@@ -245,7 +245,7 @@ function PushSection() {
             disabled={busy}
             onClick={() => void toggle()}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
-              status === "on" ? "border border-line hover:bg-hover" : "bg-accent text-on-accent hover:bg-accent-hover"
+              status === "on" ? "border border-line hover:bg-hover" : "bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
             }`}
           >
             {status === "on" ? "Wyłącz powiadomienia" : "Włącz powiadomienia"}

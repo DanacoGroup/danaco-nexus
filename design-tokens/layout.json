@@ -1,0 +1,48 @@
+{
+  "$description": "Układ: punkty łamania (mobile-first, min-width), szerokości kolumn i paneli, wysokości kontrolek, warstwy nakładania (z-index). Wartości zgodne z przestrzeniami nazw Tailwind CSS 4 tam, gdzie takie istnieją (--breakpoint-*).",
+  "breakpoint": {
+    "sm": { "$type": "dimension", "$value": "640px", "$description": "Telefon poziomo, duży telefon" },
+    "md": { "$type": "dimension", "$value": "768px", "$description": "Tablet pionowo — pasek boczny staje się szufladą poniżej tego progu" },
+    "lg": { "$type": "dimension", "$value": "1024px", "$description": "Tablet poziomo, mały laptop — pasek boczny stały" },
+    "xl": { "$type": "dimension", "$value": "1280px", "$description": "Laptop — miejsce na panel podglądu obok czatu" },
+    "2xl": { "$type": "dimension", "$value": "1536px", "$description": "Monitor — panel podglądu stale otwarty" }
+  },
+  "layout": {
+    "chat": { "$type": "dimension", "$value": "768px", "$description": "Maksymalna szerokość kolumny rozmowy wraz z polem wiadomości (ok. 80 znaków przy body-lg)" },
+    "prose": { "$type": "dimension", "$value": "680px", "$description": "Maksymalna szerokość tekstu ciągłego poza czatem (ustawienia, dokument)" },
+    "page": { "$type": "dimension", "$value": "1200px", "$description": "Maksymalna szerokość widoku z siatką (pliki, projekty)" },
+    "sidebar": { "$type": "dimension", "$value": "272px", "$description": "Pasek boczny rozwinięty" },
+    "sidebar-rail": { "$type": "dimension", "$value": "56px", "$description": "Pasek boczny zwinięty do kolumny ikon" },
+    "panel": { "$type": "dimension", "$value": "420px", "$description": "Panel boczny podglądu pliku, wyniku narzędzia, szczegółów" },
+    "panel-wide": { "$type": "dimension", "$value": "560px", "$description": "Panel boczny poszerzony (porównanie przed i po)" },
+    "topbar": { "$type": "dimension", "$value": "52px", "$description": "Wysokość paska górnego" },
+    "dialog-sm": { "$type": "dimension", "$value": "420px", "$description": "Okno potwierdzenia" },
+    "dialog-md": { "$type": "dimension", "$value": "560px", "$description": "Okno z formularzem" },
+    "dialog-lg": { "$type": "dimension", "$value": "760px", "$description": "Okno z podglądem, ustawienia" },
+    "command": { "$type": "dimension", "$value": "640px", "$description": "Paleta poleceń" },
+    "menu-min": { "$type": "dimension", "$value": "200px", "$description": "Minimalna szerokość menu rozwijanego i kontekstowego" },
+    "toast": { "$type": "dimension", "$value": "380px", "$description": "Dymek powiadomienia" },
+    "tooltip-max": { "$type": "dimension", "$value": "280px", "$description": "Maksymalna szerokość dymka podpowiedzi" }
+  },
+  "control": {
+    "xs": { "$type": "dimension", "$value": "28px", "$description": "Przycisk w pasku narzędzi bloku kodu, znacznik interaktywny — tylko przy wskaźniku precyzyjnym" },
+    "sm": { "$type": "dimension", "$value": "32px", "$description": "Przycisk i pole w gęstych panelach, pozycja menu" },
+    "md": { "$type": "dimension", "$value": "36px", "$description": "Rozmiar domyślny przycisku i pola" },
+    "lg": { "$type": "dimension", "$value": "40px", "$description": "Przycisk wysyłki, pole wyszukiwania w widoku" },
+    "xl": { "$type": "dimension", "$value": "44px", "$description": "Rozmiar dotykowy — domyślny przy wskaźniku zgrubnym (pointer: coarse)" },
+    "touch-target": { "$type": "dimension", "$value": "44px", "$description": "Minimalny obszar trafienia na ekranie dotykowym; mniejsza kontrolka dostaje rozszerzony obszar przez pseudo-element" }
+  },
+  "z": {
+    "base": { "$type": "number", "$value": 0, "$description": "Treść" },
+    "raised": { "$type": "number", "$value": 10, "$description": "Element uniesiony w obrębie treści: przyklejony nagłówek tabeli" },
+    "sticky": { "$type": "number", "$value": 100, "$description": "Pasek górny, pole wiadomości przyklejone do dołu" },
+    "sidebar": { "$type": "number", "$value": 200, "$description": "Pasek boczny jako szuflada na telefonie" },
+    "dropdown": { "$type": "number", "$value": 300, "$description": "Menu rozwijane, menu kontekstowe, lista podpowiedzi" },
+    "scrim": { "$type": "number", "$value": 400, "$description": "Przyciemnienie pod oknem" },
+    "dialog": { "$type": "number", "$value": 500, "$description": "Okno dialogowe, paleta poleceń" },
+    "popover": { "$type": "number", "$value": 600, "$description": "Menu otwarte z wnętrza okna dialogowego" },
+    "toast": { "$type": "number", "$value": 700, "$description": "Dymki powiadomień" },
+    "tooltip": { "$type": "number", "$value": 800, "$description": "Dymek podpowiedzi" },
+    "drop-overlay": { "$type": "number", "$value": 900, "$description": "Nakładka strefy upuszczania plików na całe okno" }
+  }
+}

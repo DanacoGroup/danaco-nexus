@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 
 from nexus.agent.przestrzenie import existing_project
-from nexus.agent.runner import RATE_LIMIT_KEY, conversation_mode, rate_limit_warning
+from nexus.agent.runner import conversation_mode, rate_limit_warning
 from nexus.api.auth import require_session
 from nexus.api.conversations import SendMessage, send_message
 from nexus.config import Settings
-from nexus.db import Conversation, Database, Run, RunEvent, Setting, utcnow
+from nexus.db import Conversation, Database, Run, RunEvent, utcnow
 
 router = APIRouter(prefix="/api/agenci", tags=["agenci"], dependencies=[Depends(require_session)])
 
@@ -89,6 +89,10 @@ def summarize_events(events: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]
 
 
 def _limits(raw: str | None) -> dict[str, Any] | None:
+    """Stan limitów kont silnika — wyłącznie do użytku operatora, nie do odpowiedzi API.
+
+    Zostaje w kodzie, bo korzysta z niego diagnostyka; żaden punkt końcowy go nie zwraca.
+    """
     if not raw:
         return None
     try:
@@ -161,7 +165,6 @@ async def list_tasks(
             if runs
             else []
         )
-        limits = await session.scalar(select(Setting.value).where(Setting.key == RATE_LIMIT_KEY))
         queued = await session.scalar(select(func.count()).select_from(Run).where(Run.status == "queued"))
     events: dict[uuid.UUID, list[tuple[str, dict[str, Any]]]] = {}
     for run_id, event_type, data in rows:
@@ -195,7 +198,6 @@ async def list_tasks(
             "max_subagents": settings.agenci_max_podagentow,
             "web_tools": settings.claude_web_tools,
         },
-        "limits": _limits(limits),
     }
 
 
@@ -216,9 +218,11 @@ async def create_task(payload: NewTask, request: Request) -> dict[str, Any]:
     title = (payload.title or "").strip() or (
         source if len(source) <= TITLE_CHARS else source[: TITLE_CHARS - 3].rstrip() + "…"
     )
-    conversation = Conversation(id=uuid.uuid4(), title=title, meta=meta)
+    # Zadanie w tle należy do konta, które je zleciło — jak każda inna rozmowa.
+    wlasciciel_konta = (await require_session(request)).owner_id
+    conversation = Conversation(id=uuid.uuid4(), owner_id=wlasciciel_konta, title=title, meta=meta)
     database: Database = request.app.state.database
     async with database.session() as session:
         session.add(conversation)
-    queued = await send_message(conversation.id, SendMessage(text=text), request)
+    queued = await send_message(conversation.id, SendMessage(text=text), request, wlasciciel_konta)
     return {"conversation_id": str(conversation.id), "run_id": queued["run_id"], "title": title}

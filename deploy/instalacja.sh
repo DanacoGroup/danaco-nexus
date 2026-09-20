@@ -133,6 +133,9 @@ krok "Aplikacja"
 sudo systemctl enable danaco-nexus.target danaco-nexus-api.service danaco-nexus-worker.service
 sudo systemctl restart danaco-nexus-api.service danaco-nexus-worker.service
 
+krok "Kopia zapasowa"
+sudo systemctl enable --now danaco-nexus-kopia.timer
+
 krok "Diagnostyka"
 deploy/nexus-cli.sh doctor || true
 
