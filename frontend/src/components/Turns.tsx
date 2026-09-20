@@ -217,7 +217,10 @@ export function AssistantMessage({ turn, onPreview }: { turn: AssistantTurn; onP
         {live && turn.items.length === 0 && (
           // Chwila przed pierwszym słowem ma własne ujęcie w pakiecie ruchu (moment-mysli).
           // Przy ograniczonym ruchu zostają trzy kropki — ten sam komunikat, bez animacji.
-          <div className="flex h-9 items-center" role="status" aria-label="Pracuję">
+          <div className="flex h-9 items-center" role="status">
+            {/* Obszar „status” ogłasza swoją treść, nie swoją etykietę: bez tego zdania
+                czytnik ekranu milczał, bo w środku jest sama animacja (WCAG 2.2, 4.1.3). */}
+            <span className="sr-only">Pracuję nad odpowiedzią.</span>
             {ograniczonyRuch() ? (
               <span className="flex items-center gap-1.5">
                 {[0, 1, 2].map((dot) => (

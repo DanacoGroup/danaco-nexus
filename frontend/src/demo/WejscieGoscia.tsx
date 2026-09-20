@@ -3,7 +3,7 @@
 // nie jego makieta — dlatego ten ekran nie rysuje niczego poza chwilą oczekiwania.
 
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { Logo } from "../components/icons";
 import { SCIEZKA } from "../shell/route";
 
@@ -22,7 +22,16 @@ export function WejscieGoscia({ onWejscie }: Props) {
     api
       .gosc()
       .then(() => onWejscie())
-      .catch((error: unknown) => setBlad(error instanceof Error ? error.message : "Nie udało się otworzyć konta próbnego."));
+      .catch((error: unknown) => {
+        // Komunikat serwera jest po polsku i mówi coś odwiedzającemu (np. limit kont
+        // z jednego łącza). Wszystko inne — awarie sieci, błędy przeglądarki — ma
+        // surową treść techniczną po angielsku i nie może trafić na ekran gościa.
+        const odpowiedzSerwera = error instanceof ApiError ? error.message : "";
+        setBlad(
+          odpowiedzSerwera ||
+            "Nie udało się teraz otworzyć konta próbnego. Sprawdź połączenie i spróbuj ponownie.",
+        );
+      });
   }, [onWejscie]);
 
   return (
@@ -30,11 +39,15 @@ export function WejscieGoscia({ onWejscie }: Props) {
       <Logo size={36} />
       {blad ? (
         <>
-          <p className="max-w-md text-sm text-fg">{blad}</p>
+          {/* Niepowodzenie zastępuje komunikat o oczekiwaniu, więc bez roli „alert” czytnik
+              ekranu nie powiedziałby o nim nic (WCAG 2.2, 4.1.3). */}
+          <p role="alert" className="max-w-md text-sm text-fg">
+            {blad}
+          </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
               href={SCIEZKA.aplikacja}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent"
+              className="rounded-lg bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover"
             >
               Zaloguj się
             </a>

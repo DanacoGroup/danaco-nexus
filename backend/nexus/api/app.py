@@ -53,6 +53,14 @@ MEDIA_TYPES = {
     ".mp4": "video/mp4",
     ".webm": "video/webm",
 }
+# Materiały marki: kroje, znak, ikony, tła, plakaty, nagrania i napisy. Nazwy są stałe,
+# a treść zmienia się razem z pakietem, nie z każdym wdrożeniem interfejsu. Miesięczna
+# ważność oszczędza powtórne pobranie kilkuset kilobajtów przy każdym wejściu; powłoka
+# (`index.html`, `sw.js`) zostaje na „no-cache”, więc nowe wydanie i tak dochodzi od razu.
+MEDIA_SUFFIXES = frozenset(
+    {".woff2", ".mp4", ".webm", ".vtt", ".avif", ".webp", ".png", ".jpg", ".svg", ".ico"}
+)
+MEDIA_CACHE = "public, max-age=2592000"
 
 
 class ImmutableStatic(StaticFiles):
@@ -141,6 +149,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 cache = "no-cache" if candidate.name in NO_CACHE_FILES else "public, max-age=86400"
                 if candidate.name.startswith("workbox-"):
                     cache = IMMUTABLE
+                elif candidate.name not in NO_CACHE_FILES and candidate.suffix in MEDIA_SUFFIXES:
+                    cache = MEDIA_CACHE
                 return FileResponse(
                     candidate,
                     media_type=MEDIA_TYPES.get(candidate.suffix),

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -30,6 +31,8 @@ from nexus.demo.sesje import (
     Piaskownica,
     bezpieczna_nazwa,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/demo", tags=["demo"])
 
@@ -283,7 +286,11 @@ async def pytanie(payload: Pytanie, request: Request) -> dict[str, Any]:
             wykonanie.uruchamiacz_modelu,
         )
     except model_cli.BladModelu as error:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
+        # Pokaz jest otwarty dla każdego, więc szczegół awarii serwera zostaje w dzienniku.
+        logger.warning("Pokaz: model nie odpowiedział (%s)", error)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Model nie odpowiedział. Spróbuj ponownie za chwilę."
+        ) from error
     return {"odpowiedz": odpowiedz, "tryb": NA_ZYWO, "sesja": sesja.payload()}
 
 

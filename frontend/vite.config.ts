@@ -13,7 +13,18 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: ["favicon.svg", "apple-touch-icon.png", "icons/*.png", "share-target.js"],
+      // Ikony, po które sięga przeglądarka; warianty 1024 px są dla sklepów z aplikacjami.
+      includeAssets: [
+        "favicon.svg",
+        "favicon.ico",
+        "apple-touch-icon.png",
+        "icons/icon-192.png",
+        "icons/icon-512.png",
+        "icons/maskable-192.png",
+        "icons/maskable-512.png",
+        "icons/safari-pinned-tab.svg",
+        "share-target.js",
+      ],
       manifest: {
         id: "/",
         name: "Danaco Nexus",
@@ -80,9 +91,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Powłoka aplikacji działa offline; API, pliki i strumień zadań zawsze z sieci.
-        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
-        globIgnores: ["screenshots/**"],
+        // Wstępnie pobierana jest sama powłoka: kod, arkusze, kroje, znak, ikony. Materiały
+        // idą z sieci i zostają w pamięci podręcznej po obejrzeniu (reguły niżej) — inaczej
+        // instalacja i każde wydanie ciągnęły 19,7 MiB plansz, których powłoka nie pokazuje.
+        globPatterns: ["**/*.{js,css,html,webmanifest,woff2}", "znak/*.svg"],
+        globIgnores: ["screenshots/**", "film/**", "kampania/**", "ruch/**", "tla/**/*.{avif,webp}"],
         navigateFallback: "/index.html",
         // Instalatory i panel osadzany (inne nagłówki ramki) zawsze z sieci, nie z pamięci podręcznej.
         // Kanały dla wyszukiwarek też: bez tego przejście pod /sitemap.xml zwracałoby powłokę aplikacji.
@@ -99,11 +112,38 @@ export default defineConfig({
         importScripts: ["/share-target.js"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        runtimeCaching: [],
+        runtimeCaching: [
+          {
+            // Plakaty, tła i zrzuty: po obejrzeniu zostają na miesiąc, z limitem wpisów.
+            urlPattern: /\/(tla|film|kampania|ruch|screenshots)\/[^?]+\.(avif|webp|png|jpg)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "nexus-materialy-obrazy",
+              expiration: { maxEntries: 80, maxAgeSeconds: 2592000 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Nagrania: odtwarzacz prosi o zakresy bajtów, a odpowiedzi 206 worker nie zapisze.
+            urlPattern: /\/(film|kampania|ruch)\/[^?]+\.(mp4|webm|vtt)$/,
+            handler: "NetworkOnly",
+          },
+        ],
       },
     }),
   ],
   server: { proxy: { "/api": "http://127.0.0.1:8930", "/pobierz": "http://127.0.0.1:8930" } },
-  build: { sourcemap: false, chunkSizeWarningLimit: 800 },
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        // React zmienia się rzadko, kod aplikacji przy każdym wydaniu: osobna paczka
+        // zostaje w pamięci podręcznej i wydanie nie ciągnie biblioteki drugi raz.
+        manualChunks: (id: string) =>
+          /\/node_modules\/(react|react-dom|scheduler)\//.test(id) ? "react" : undefined,
+      },
+    },
+  },
   test: { environment: "jsdom" },
 });

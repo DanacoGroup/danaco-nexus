@@ -8,12 +8,15 @@ nigdy jako polecenie. Uruchamianie procesu można podmienić w testach.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from nexus.config import Settings
+
+logger = logging.getLogger(__name__)
 
 Uruchamiacz = Callable[[list[str], dict[str, str], Path], str]
 
@@ -46,9 +49,15 @@ def _domyslny_uruchamiacz(limit_s: int) -> Uruchamiacz:
         except subprocess.TimeoutExpired as error:
             raise BladModelu(f"Model nie odpowiedział w ciągu {limit_s} s.") from error
         except OSError as error:
-            raise BladModelu(f"Nie można uruchomić Claude Code CLI: {error}") from error
+            # Gość pokazu nie jest zalogowany, więc treść błędu systemowego (ścieżki, nazwy
+            # programów) zostaje w dzienniku, a na zewnątrz idzie samo stwierdzenie faktu.
+            logger.warning("Nie można uruchomić Claude Code CLI w pokazie: %s", error)
+            raise BladModelu("Model pokazu jest w tej chwili niedostępny.") from error
         if zakonczone.returncode != 0 and not zakonczone.stdout.strip():
-            raise BladModelu(f"Claude Code CLI zakończył się błędem: {zakonczone.stderr.strip()[-300:]}")
+            logger.warning(
+                "Claude Code CLI w pokazie zakończył się błędem: %s", zakonczone.stderr.strip()[-300:]
+            )
+            raise BladModelu("Model pokazu nie odpowiedział.")
         return zakonczone.stdout
 
     return uruchom
@@ -63,7 +72,8 @@ def odczytaj_odpowiedz(stdout: str) -> str:
     if not isinstance(koperta, dict):
         raise BladModelu("Model zwrócił nieprawidłową odpowiedź.")
     if koperta.get("is_error"):
-        raise BladModelu(f"Model zgłosił błąd: {str(koperta.get('result', ''))[:200]}")
+        logger.warning("Model pokazu zgłosił błąd: %s", str(koperta.get("result", ""))[:300])
+        raise BladModelu("Model pokazu zgłosił błąd.")
     tekst = str(koperta.get("result", "")).strip()
     if not tekst:
         raise BladModelu("Model zwrócił pustą odpowiedź.")

@@ -125,7 +125,7 @@ Szczegóły, w tym cofanie i hasło do przedsionka: [`deploy/wydania/README.md`]
 
 ## Narzędzia agenta
 
-Rejestr `backend/nexus/tools/` liczy **61 narzędzi**. Claude sam decyduje, których użyć
+Rejestr `backend/nexus/tools/` liczy **82 narzędzia**. Claude sam decyduje, których użyć
 i z jakimi parametrami; wbudowane narzędzia CLI są wyłączone.
 
 Wykaz nie jest przepisywany ręcznie w trzech miejscach. `frontend/scripts/narzedzia.py`
@@ -134,6 +134,8 @@ nazwa, zdanie opisu i przykładowe polecenie). Z tego pliku korzystają: sekcja 
 dziedzin” na stronie produktu, strona `/portal/narzedzia` i moduł „Narzędzia” w aplikacji.
 Nowe narzędzie bez przypisanej dziedziny i polskiej nazwy zatrzymuje budowę — dzięki temu
 witryna nie może obiecać czegoś, czego agent nie ma, ani przemilczeć tego, co doszło.
+
+Nie każdy program zainstalowany na serwerze ma swoje narzędzie. Wykaz tego, co jest podpięte, co nie, i ile pracy kosztowałoby domknięcie luki: [`docs/LUKA-NARZEDZI.md`](docs/LUKA-NARZEDZI.md).
 
 ### Rdzeń: pliki, dokumenty, obraz, dźwięk
 
@@ -152,6 +154,10 @@ witryna nie może obiecać czegoś, czego agent nie ma, ani przemilczeć tego, c
 | `convert_documents` | DOC/DOCX/XLSX/PPTX/ODT/RTF/HTML ⇄ PDF itd., SVG → PDF/PNG | LibreOffice, Inkscape |
 | `design_vector` | Projekt grafiki od zera (logo, plakat, okładka, ikona, infografika): SVG pisany przez model, wynik jako PNG, SVG i PDF do druku | Inkscape |
 | `design_compose` | Skład kadru z warstw (baner, post, miniatura, kolaż) z pozycją, skalą, kryciem i warstwą wektorową na wierzchu | Pillow, Inkscape |
+| `colorize_photo` | Koloryzacja zdjęć czarno-białych i sepiowych; barwy nadawane od nowa na podstawie treści kadru | DDColor (CPU) |
+| `animate_photo` | Zdjęcie → krótki film z paralaksą 2.5D: mapa głębi rozdziela plany, kamera przesuwa się nad kadrem | Depth Anything V2, LaMa, FFmpeg |
+| `clean_audio` | Usunięcie szumu, wiatru, brumu i pogłosu z nagrania mowy (także ze ścieżki filmu) | DeepFilterNet 3 |
+| `split_audio_tracks` | Rozdzielenie utworu na wokal, perkusję, bas i resztę — albo na wokal i podkład | Demucs (htdemucs) |
 | `write_document` | Raporty i pisma przygotowane przez asystenta (DOCX, PDF, MD, TXT, XLSX, CSV) | python-docx, LibreOffice |
 | `check_grammar` | Pisownia, gramatyka, interpunkcja, styl | LanguageTool |
 | `pdf_split`, `pdf_merge`, `pdf_edit_pages` | Podział, łączenie, kolejność, obrót i usuwanie stron | PyMuPDF |

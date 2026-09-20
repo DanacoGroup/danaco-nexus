@@ -40,6 +40,15 @@ export default function App() {
         <Portal />
       </Suspense>
     );
+  // Strona produktu pod „/start” wygląda tak samo dla gościa i dla zalogowanego (resolveScreen),
+  // więc nie czeka na odpowiedź /api/auth/me. Pobieranie jej paczki rusza od razu, a okno nie
+  // gra po drodze ujęciem uruchomienia — na łączu telefonu to mniej o jeden obieg i o nagranie.
+  if (route.view === "landing")
+    return (
+      <Suspense fallback={<Pusto />}>
+        <Landing />
+      </Suspense>
+    );
   return <MainApp location={location} setLocation={setLocation} />;
 }
 
@@ -113,7 +122,8 @@ function MainApp({ location, setLocation }: { location: Location; setLocation: (
 
   let screen = resolveScreen(route, Boolean(user), location.search);
   // Zainstalowana aplikacja (PWA) otwiera się od razu na logowaniu, nie na stronie startowej.
-  if (screen === "landing" && route.view !== "landing" && isStandalone()) screen = "login";
+  // Adres „/start” tu nie dochodzi — obsługuje go App przed stanem logowania.
+  if (screen === "landing" && isStandalone()) screen = "login";
 
   if (screen === "landing")
     return (

@@ -7,8 +7,10 @@ import { CloudPage } from "./CloudPage";
 export const module: NexusModule = {
   id: "cloud",
   label: "Chmura",
-  description: "Pliki w chmurze osobistej: foldery, wersje, udostępnianie linkiem, synchronizacja z komputerem i telefonem.",
+  description:
+    "Twoja przestrzeń w chmurze — sąsiad zakładki Pliki: wersje, udostępnianie linkiem " +
+    "i synchronizacja z komputerem oraz telefonem.",
   icon: CloudIcon,
-  order: 40,
+  order: 16,
   Page: CloudPage,
 };

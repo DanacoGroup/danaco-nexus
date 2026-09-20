@@ -530,6 +530,18 @@
   }
 }
 
+@layer utilities {
+  /* Pierścienia fokusu nie wolno zdjąć. Klasa „outline-none” z warstwy utilities biła
+     regułę bazową :focus-visible i pola tekstowe zostawały bez wskazania miejsca pracy
+     klawiatury (WCAG 2.2, 2.4.7). Reguła jest w tej samej warstwie i ma wyższą
+     szczegółowość, więc wygrywa z „outline-none”, a ustępuje własnym stylom
+     „focus-visible:outline-*” nadanym komponentowi wprost. */
+  :is(a, button, input, textarea, select, summary):focus-visible {
+    outline: var(--border-width-focus) solid var(--focus-ring);
+    outline-offset: var(--border-width-focus-offset);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Przesunięcia znikają w jednym miejscu, bez rozgałęzień w komponentach
      (motion/MOTION_GUIDELINES.md, rozdz. 14). Zostaje sama zmiana krycia. */

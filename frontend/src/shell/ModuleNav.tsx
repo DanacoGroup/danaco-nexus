@@ -99,11 +99,16 @@ export function NavRail({ entries, activeId, onSelect, railFooter }: Props) {
   // Wybrany moduł ma być widoczny także wtedy, gdy trafił poza widoczny fragment listy
   // (wybór z palety poleceń, powrót pod adres modułu).
   useEffect(() => {
-    const wybrany = lista.current?.querySelector('[aria-current="page"]');
-    // `scrollIntoView` nie istnieje w każdym środowisku (np. w testach jsdom).
-    if (wybrany instanceof HTMLElement && typeof wybrany.scrollIntoView === "function") {
-      wybrany.scrollIntoView({ block: "nearest" });
-    }
+    const pojemnik = lista.current;
+    const wybrany = pojemnik?.querySelector('[aria-current="page"]');
+    if (!pojemnik || !(wybrany instanceof HTMLElement)) return;
+    // Pojemnik przewijamy wprost, bo `scrollIntoView` przesuwa w przeglądarce punkt startu
+    // tabulacji na wybrany moduł: pierwszy Tab omijał wtedy odsyłacz pomijający i początek
+    // paska, a klawiatura nie miała jak do nich wrócić (WCAG 2.2, 2.4.3).
+    const ramkaPojemnika = pojemnik.getBoundingClientRect();
+    const ramkaModulu = wybrany.getBoundingClientRect();
+    if (ramkaModulu.top < ramkaPojemnika.top) pojemnik.scrollTop -= ramkaPojemnika.top - ramkaModulu.top;
+    else if (ramkaModulu.bottom > ramkaPojemnika.bottom) pojemnik.scrollTop += ramkaModulu.bottom - ramkaPojemnika.bottom;
   }, [activeId]);
 
   return (

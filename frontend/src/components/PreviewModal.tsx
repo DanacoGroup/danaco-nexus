@@ -1,16 +1,14 @@
 // Podgląd pliku: obraz, PDF, audio, wideo, tekst.
 
-import { useEffect } from "react";
+import { useRef } from "react";
 import { downloadUrl, type FileInfo } from "../api";
 import { formatSize } from "../runState";
+import { useOknoModalne } from "../ui/useOknoModalne";
 import { CloseIcon, DownloadIcon } from "./icons";
 
 export function PreviewModal({ file, onClose }: { file: FileInfo; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const nakladka = useRef<HTMLDivElement>(null);
+  useOknoModalne(nakladka, onClose);
 
   const url = downloadUrl(file, true);
   const kind = file.mime.split("/")[0];
@@ -22,6 +20,8 @@ export function PreviewModal({ file, onClose }: { file: FileInfo; onClose: () =>
 
   return (
     <div
+      ref={nakladka}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-0 backdrop-blur-sm md:p-6"
       role="dialog"
       aria-modal="true"

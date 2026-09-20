@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { speakText, transcribeAudio, type VoiceConfig } from "../api";
 import { CloseIcon } from "../components/icons";
+import { useOknoModalne } from "../ui/useOknoModalne";
 import { playAudio, stopAudio } from "./player";
 import { speakable, takeSentences } from "./sentences";
 
@@ -88,6 +89,11 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
   // Zmiana licznika uruchamia ponownie zdobywanie mikrofonu — po podłączeniu
   // urządzenia albo po udzieleniu zgody nie trzeba wychodzić z trybu rozmowy.
   const [proba, setProba] = useState(0);
+
+  // Tryb głosowy zasłania całą aplikację; bez tego tabulacja chodziła po ekranie pod spodem,
+  // a Esc nie zamykał rozmowy.
+  const nakladka = useRef<HTMLDivElement>(null);
+  useOknoModalne(nakladka, onClose);
 
   const phaseRef = useRef<Phase>("starting");
   const context = useRef<AudioContext | null>(null);
@@ -387,6 +393,8 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
 
   return (
     <div
+      ref={nakladka}
+      tabIndex={-1}
       className="safe-top safe-bottom fixed inset-0 z-50 flex flex-col items-center bg-app/95 px-6 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
@@ -480,7 +488,9 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
         <button
           type="button"
           onClick={onClose}
-          className="grid size-16 place-items-center rounded-full bg-danger text-white transition-opacity hover:opacity-90"
+          // „danger-fill”, nie „danger”: biel na barwie tekstowej błędu ma w motywie
+          // ciemnym 2,58:1, a znak zakończenia jest grafiką niosącą sens (1.4.11).
+          className="grid size-16 place-items-center rounded-full bg-danger-fill text-on-accent transition-colors hover:bg-danger-fill-hover"
           aria-label="Zakończ rozmowę"
         >
           <CloseIcon size={26} />

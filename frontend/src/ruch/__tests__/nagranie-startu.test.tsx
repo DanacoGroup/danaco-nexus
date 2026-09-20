@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import { START } from "../../media/katalog";
-import { zrodlaStartu, type IdStartu } from "../NagranieStartu";
+import { BEZ_PODPISU, zrodlaStartu, type IdStartu } from "../NagranieStartu";
 
 /** Nazwy podpięte w kodzie aplikacji i strony produktu. */
 const UZYWANE: IdStartu[] = [
@@ -33,5 +33,21 @@ describe("nagrania startowe", () => {
 
   it("katalog nie zgubił żadnej pozycji pakietu", () => {
     expect(START.length).toBe(18);
+  });
+
+  it("momenty z wariantem bez podpisu mają plik w katalogu publicznym", async () => {
+    // Nagrania mają wypaloną planszę opisową z demonstracji dla zespołu. W aplikacji
+    // gra wariant `-alfa`, więc wykaz w komponencie musi zgadzać się z tym, co leży
+    // na dysku — inaczej użytkownik zobaczy podpis „Intro znaku · 2200 ms”.
+    // Import przez zmienną: tsconfig aplikacji nie ma typów Node, a ten test biegnie
+    // wyłącznie w vitest, gdzie moduł jest dostępny.
+    const modul = "node:fs";
+    const fs = (await import(/* @vite-ignore */ modul)) as {
+      readdirSync: (sciezka: string) => string[];
+    };
+    const pliki = new Set(fs.readdirSync("public/ruch/start"));
+    for (const nazwa of BEZ_PODPISU) {
+      expect(pliki.has(`${nazwa}-alfa.webm`), `${nazwa}-alfa.webm`).toBe(true);
+    }
   });
 });

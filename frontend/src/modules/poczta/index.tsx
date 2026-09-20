@@ -1,4 +1,4 @@
-// Moduł Poczta: skrzynka mail.danaco-group.pl – czytanie, odpowiedzi z Nexusem, wysyłanie po zatwierdzeniu.
+// Moduł Poczta: skrzynki podłączone przez użytkownika (IMAP/SMTP) – czytanie, odpowiedzi z Nexusem, wysyłanie po zatwierdzeniu.
 
 import { MailIcon } from "../_biuro/icons";
 import type { NexusModule } from "../registry";

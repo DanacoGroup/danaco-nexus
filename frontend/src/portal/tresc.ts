@@ -49,6 +49,16 @@ export const OFERTA: PozycjaOferty[] = [
     zakres: ["Kolekcje źródeł i notatek", "Raporty z przypisami", "Wyszukiwanie po znaczeniu"],
   },
   {
+    nazwa: "Grafika zaprojektowana, nie wyszukana",
+    opis: "Logo, plakat, okładka, ulotka, ikona, baner i post powstają od zera — w rozmowie, z plikiem wektorowym do dalszej edycji i PDF-em gotowym do druku. Bez programu graficznego i bez szukania gotowców.",
+    dla: "Firma bez własnego grafika",
+    zakres: [
+      "Projekt wektorowy: logo, znak, plakat, ulotka, ikona, infografika",
+      "Pliki w trzech postaciach: PNG do sieci, SVG do edycji, PDF do druku",
+      "Skład banerów, postów i miniatur z Twoich zdjęć i tekstów",
+    ],
+  },
+  {
     nazwa: "Zdjęcia, nagrania i tłumaczenia",
     opis: "Korekta i powiększanie zdjęć, usuwanie tła, transkrypcja nagrań z napisami, tłumaczenie dokumentów z zachowaniem układu.",
     dla: "Marketing, szkolenia, praca z materiałem",

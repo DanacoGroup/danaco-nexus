@@ -508,16 +508,19 @@ async def _import(
 async def to_conversation(payload: ToConversation, request: Request) -> dict[str, Any]:
     """Dołącza pliki z chmury do rozmowy (nowej albo wskazanej) i opcjonalnie wysyła wiadomość."""
     database: Database = request.app.state.database
+    wlasciciel_konta = (await require_session(request)).owner_id
     if payload.conversation_id is not None:
         async with database.session() as session:
-            if await session.get(Conversation, payload.conversation_id) is None:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono rozmowy.")
+            rozmowa = await session.get(Conversation, payload.conversation_id)
+        # Cudza rozmowa odpowiada tak samo jak nieistniejąca: sam identyfikator nie może
+        # wystarczyć do dołożenia plików do rozmowy innego konta.
+        if rozmowa is None or rozmowa.owner_id != wlasciciel_konta:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono rozmowy.")
 
     async def run(cloud: CloudService) -> list[StoredFile]:
         return [await _import(request, cloud, path, payload.conversation_id) for path in payload.paths]
 
     records = await _call(request, run)
-    wlasciciel_konta = (await require_session(request)).owner_id
     conversation_id = payload.conversation_id
     if conversation_id is None:
         created = await conversations.create_conversation(
@@ -527,6 +530,9 @@ async def to_conversation(payload: ToConversation, request: Request) -> dict[str
     async with database.session() as session:
         for record in records:
             record.conversation_id = conversation_id
+            # Bez tego plik z przestrzeni klienta zapisywał się na koncie domyślnym
+            # (właściciela instalacji) i trafiał do cudzego wykazu plików.
+            record.owner_id = wlasciciel_konta
             session.add(record)
     run_id = None
     if payload.send:

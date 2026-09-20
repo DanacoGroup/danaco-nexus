@@ -16,6 +16,29 @@ export function zrodlaStartu(id: IdStartu) {
   return WEDLUG_ID.get(id) ?? null;
 }
 
+/** Momenty, które pakiet ruchu wydał także bez wypalonego podpisu (wariant `-alfa`).
+ *
+ * Nagrania mają na sobie planszę opisową („Intro znaku · 2200 ms”) — to podpis
+ * z demonstracji dla zespołu, a nie element produktu; na produkcji nie ma czego szukać
+ * na ekranie użytkownika. Ujęcie `-alfa` jest tym samym ruchem bez podpisu i
+ * z przezroczystym tłem. Wykaz jest wypisany, a nie zgadywany ze ścieżki: pozostałe
+ * momenty wariantu nie mają i próba pobrania go kończyłaby się błędem przy każdym
+ * uruchomieniu okna.
+ */
+export const BEZ_PODPISU = new Set([
+  "intro-znaku",
+  "moment-blad",
+  "moment-brak-polaczenia",
+  "moment-mysli",
+  "moment-sukces",
+  "moment-wylogowanie",
+]);
+
+function zrodloBezPodpisu(nazwa: IdStartu, zrodla: { webm?: string }): string | null {
+  if (!BEZ_PODPISU.has(nazwa) || !zrodla.webm) return null;
+  return zrodla.webm.replace(/\.webm$/, "-alfa.webm");
+}
+
 /** Czy przeglądarka prosi o ograniczenie ruchu. */
 export function ograniczonyRuch(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
@@ -43,6 +66,7 @@ export function NagranieStartu({ nazwa, petla = false, onKoniec, className = "" 
   }, [nazwa, onKoniec]);
 
   if (!zrodla || ograniczonyRuch()) return null;
+  const bezPodpisu = zrodloBezPodpisu(nazwa, zrodla);
   return (
     <video
       ref={wideo}
@@ -56,6 +80,7 @@ export function NagranieStartu({ nazwa, petla = false, onKoniec, className = "" 
       onEnded={petla ? undefined : onKoniec}
       onError={() => onKoniec?.()}
     >
+      {bezPodpisu && <source src={bezPodpisu} type="video/webm" />}
       {zrodla.webm && <source src={zrodla.webm} type="video/webm" />}
       {zrodla.mp4 && <source src={zrodla.mp4} type="video/mp4" />}
     </video>

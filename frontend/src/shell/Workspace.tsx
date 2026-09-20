@@ -16,6 +16,7 @@ import { useEscZatrzymaj } from "./useEscZatrzymaj";
 import { unlockAudio } from "../voice/player";
 import { VoiceMode } from "../voice/VoiceMode";
 import { BottomBar, NavRail, navEntries } from "./ModuleNav";
+import { NagranieStartu, ograniczonyRuch } from "../ruch";
 import { BezPolaczenia } from "./BezPolaczenia";
 import { Paleta } from "./Paleta";
 import { PasekKontaProbnego } from "./PasekKontaProbnego";
@@ -368,9 +369,13 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
               <div
                 role="alert"
                 onClick={() => chat.setError("")}
-                className="absolute inset-x-3 bottom-full mb-2 cursor-pointer rounded-xl border border-danger/40 bg-danger-soft px-4 py-2.5 text-sm text-danger shadow-lg md:inset-x-6"
+                className="absolute inset-x-3 bottom-full mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-2.5 text-sm text-danger shadow-lg md:inset-x-6"
               >
-                {chat.error}
+                {/* Niepowodzenie ma w pakiecie ruchu własne ujęcie (moment-blad). */}
+                {!ograniczonyRuch() && (
+                  <NagranieStartu nazwa="moment-blad" className="size-6 shrink-0 object-contain" />
+                )}
+                <span className="min-w-0 flex-1">{chat.error}</span>
               </div>
             )
           )}
@@ -424,13 +429,23 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
 
   return (
     <div className="flex h-full flex-col overflow-hidden md:flex-row">
+      {/* Bez tego odsyłacza klawiatura przechodzi przez kilkanaście pozycji nawigacji
+          i całą historię rozmów, zanim dojdzie do treści (WCAG 2.2, 2.4.1). */}
+      <a
+        href="#tresc-aplikacji"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-(--z-toast) focus:rounded-md focus:bg-accent-fill focus:px-4 focus:py-2 focus:text-on-accent"
+      >
+        Przejdź do treści
+      </a>
       <NavRail
         entries={entries}
         activeId={activeId}
         onSelect={selectEntry}
         railFooter={<TasksButton variant="rail" tasks={tasks} onClick={() => setTasksOpen(true)} />}
       />
-      <div className="flex min-h-0 min-w-0 flex-1">{activeId === "chat" ? chatView : moduleView}</div>
+      <div id="tresc-aplikacji" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1">
+        {activeId === "chat" ? chatView : moduleView}
+      </div>
       <BottomBar entries={entries} activeId={activeId} onSelect={selectEntry} />
       {preview && <PreviewModal file={preview} onClose={() => setPreview(null)} />}
       {tasksOpen && (

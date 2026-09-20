@@ -1,9 +1,10 @@
 // Okna modułu Cloud: nazwa, udostępnianie linkiem, wersje, przenoszenie, wysłanie do rozmowy, podgląd.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type ConversationSummary } from "../../api";
 import { CloseIcon, DownloadIcon, FileIcon, TrashIcon } from "../../components/icons";
 import { formatSize } from "../../runState";
+import { useOknoModalne } from "../../ui/useOknoModalne";
 import { describe } from "../_biuro/http";
 import { BackIcon, CopyIcon, FolderIcon, LockIcon } from "../_biuro/icons";
 import { buttonClass, copyText, ErrorBanner, Field, inputClass, Loading, Modal } from "../_biuro/ui";
@@ -553,6 +554,8 @@ export function previewKind(entry: CloudEntry): "image" | "video" | "audio" | "p
 }
 
 export function CloudPreview({ entry, onClose }: { entry: CloudEntry; onClose: () => void }) {
+  const nakladka = useRef<HTMLDivElement>(null);
+  useOknoModalne(nakladka, onClose);
   const kind = previewKind(entry);
   const url = downloadUrl(entry.path, true);
   const [text, setText] = useState<string | null>(null);
@@ -563,12 +566,6 @@ export function CloudPreview({ entry, onClose }: { entry: CloudEntry; onClose: (
       .then((value) => setText(value.length > 500_000 ? `${value.slice(0, 500_000)}\n…` : value))
       .catch(() => setText("Nie udało się wczytać pliku."));
   }, [entry.path, kind]);
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   let body;
   if (kind === "image") body = <img src={url} alt={entry.name} className="max-h-full max-w-full object-contain" />;
   else if (kind === "video") body = <video src={url} controls autoPlay className="max-h-full max-w-full" />;
@@ -593,6 +590,8 @@ export function CloudPreview({ entry, onClose }: { entry: CloudEntry; onClose: (
 
   return (
     <div
+      ref={nakladka}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm md:p-6"
       role="dialog"
       aria-modal="true"

@@ -30,7 +30,7 @@ export function PlikiIcon({ size = 24, ...reszta }: SVGProps<SVGSVGElement> & { 
 export const module: NexusModule = {
   id: "pliki",
   label: "Pliki",
-  description: "Twoje pliki i wyniki pracy: własne katalogi i projekty, wyszukiwanie, porządkowanie",
+  description: "Wyniki pracy Nexusa i Twoje wgrane pliki: własne katalogi i projekty, wyszukiwanie, porządkowanie",
   icon: PlikiIcon,
   order: 15,
   Page: PlikiPage,

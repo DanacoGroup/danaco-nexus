@@ -59,6 +59,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 router = APIRouter(prefix="/api/platnosci", tags=["platnosci"], lifespan=lifespan)
 
+# Zdarzenie Stripe mieści się w dziesiątkach kilobajtów; megabajt to zapas, nie próg pracy.
+MAX_WEBHOOK_BAJTOW = 1024 * 1024
+
 
 class ZakupBody(BaseModel):
     """Żądanie zakupu: wyłącznie kod planu, okres rozliczeniowy i opcjonalny kupon."""
@@ -416,12 +419,30 @@ async def faktury(
     return [_faktura_json(rekord) for rekord in rekordy]
 
 
+async def _tresc_webhooka(request: Request) -> bytes:
+    """Treść żądania webhooka czytana strumieniem, z twardym ograniczeniem rozmiaru.
+
+    Punkt jest publiczny, a podpis da się sprawdzić dopiero na całej treści. Bez tego limitu
+    każdy mógłby wprowadzić do pamięci procesu API żądanie tej wielkości, jaką dopuszcza
+    odwrotne proxy, i to bez żadnego uwierzytelnienia.
+    """
+    bufor = bytearray()
+    async for kawalek in request.stream():
+        bufor.extend(kawalek)
+        if len(bufor) > MAX_WEBHOOK_BAJTOW:
+            raise HTTPException(
+                status.HTTP_413_CONTENT_TOO_LARGE, "Treść zdarzenia webhooka przekracza limit."
+            )
+    return bytes(bufor)
+
+
 @router.post("/webhook", include_in_schema=False)
 async def webhook(request: Request, stripe_signature: str = Header("")) -> dict[str, Any]:
     """Webhook Stripe: weryfikacja podpisu, zapis zdarzenia, idempotentna zmiana stanu."""
     ustawienia = ustawienia_platnosci()
+    ladunek = await _tresc_webhooka(request)
     try:
-        zdarzenie = odczytaj_zdarzenie(await request.body(), stripe_signature, ustawienia.sekret_webhooka)
+        zdarzenie = odczytaj_zdarzenie(ladunek, stripe_signature, ustawienia.sekret_webhooka)
     except BladPodpisu as blad:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(blad)) from blad
     try:

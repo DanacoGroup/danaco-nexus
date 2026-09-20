@@ -33,7 +33,9 @@ export function PasekKontaProbnego({ onZaloz }: { onZaloz: () => void }) {
       <button
         type="button"
         onClick={onZaloz}
-        className="ml-auto rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent"
+        // Wypełnienie przycisku to „accent-fill”, nie „accent”: biel na akcencie tekstowym
+        // motywu ciemnego daje 2,48:1 zamiast wymaganych 4,5:1 (DESIGN_SYSTEM, rozdz. 4.4).
+        className="ml-auto rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover"
       >
         Załóż konto
       </button>

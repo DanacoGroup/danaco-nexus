@@ -4,7 +4,7 @@
 import { LICZBA_NARZEDZI } from "../dane/narzedzia";
 
 export const HERO_FAKTY = [
-  "61 narzędzi w jednej rozmowie",
+  `${LICZBA_NARZEDZI} narzędzi w jednej rozmowie`,
   "Rozmowa głosowa po polsku",
   "Pliki do 2 GB",
   "Windows, Android, iPhone",

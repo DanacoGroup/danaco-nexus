@@ -486,7 +486,9 @@ async def zsynchronizuj_po_powrocie(
 ) -> Subskrypcja:
     """Uzgadnia stan po powrocie z Checkoutu, nie czekając na webhook."""
     sesja = await klient.pobierz_sesje_checkout(identyfikator_sesji)
-    if str(sesja.get("client_reference_id") or uzytkownik) != uzytkownik:
+    # Sesja bez oznaczenia konta też jest odrzucana: każdą zakłada tutejszy zakup, więc brak
+    # oznaczenia znaczy, że sesja powstała poza tą drogą i nie może przypisać planu do konta.
+    if str(sesja.get("client_reference_id") or "") != uzytkownik:
         raise BladStripe("Sesja zakupu należy do innego konta.", 403)
     subskrypcja = _identyfikator(sesja.get("subscription"))
     if not subskrypcja:

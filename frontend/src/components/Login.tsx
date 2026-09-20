@@ -56,6 +56,7 @@ export function Login({ onLoggedIn }: { onLoggedIn: (username: string) => void }
           Login albo adres e-mail
           <input
             className={input}
+            type="text"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             autoComplete="username"

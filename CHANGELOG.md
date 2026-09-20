@@ -41,18 +41,45 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   przestrzeń. Konto ma termin ważności, a z jednego adresu wolno założyć pięć takich kont.
   Osobna piaskownica (`/api/demo`, ekran `Piaskownica`) zniknęła — pokazywała atrapę
   produktu zamiast produktu. Testy: `backend/tests/test_konto_probne.py`.
+- **Programy serwera podpięte pod agenta — 59 → 82 narzędzia.** Na dysku leżały programy,
+  z których agent nie mógł skorzystać, bo nie miały narzędzia w rejestrze. Doszło dwadzieścia
+  trzy: projekt graficzny od zera (`design_vector`, `design_compose`, `icon_find`,
+  `render_lottie`), praca na zdjęciu (`colorize_photo`, `restore_faces`, `inpaint_photo`,
+  `depth_map`, `blur_background_by_depth`, `animate_photo`), dźwięk i nagrania
+  (`clean_audio`, `split_audio_tracks`, `transcribe_speakers`, `edit_subtitles`,
+  `video_to_gif`), dokumenty (`typeset_document` — skład do druku Typstem,
+  `convert_text_format`, `analyze_document_structure`, `read_document_aloud`) oraz strony
+  i kod (`web_audit`, `web_screenshot`, `site_optimize_assets`, `code_check`).
+  Świadomie pominięte: rozpoznawanie twarzy (modele niekomercyjne, dane biometryczne
+  wymagają osobnej decyzji o zgodzie), GIMP Script-Fu i surowy FFmpeg (pokrywają się
+  z `imagemagick` i `media_process`). Wykaz reszty luki: `docs/LUKA-NARZEDZI.md`.
 - **Projektowanie grafiki.** Dwa narzędzia domykają lukę, przez którą agent umiał wyłącznie
   poprawiać cudze pliki: `design_vector` projektuje grafikę od zera (logo, plakat, okładka,
   ulotka, ikona, infografika) jako dokument SVG i oddaje PNG, SVG oraz PDF do druku, a
   `design_compose` składa kadr z warstw (baner, post, miniatura) z warstwą wektorową na
   wierzchu. Rysunek nie może pobierać zasobów z sieci ani zawierać kodu. Rejestr ma teraz
   61 narzędzi w dziewięciu dziedzinach. Testy: `backend/tests/test_projekt.py`.
+- **Trzy sposoby mówienia do Nexusa.** Obok pisania i rozmowy głosowej doszło dyktowanie:
+  mikrofon w polu wiadomości nagrywa wypowiedź, a rozpoznany tekst dopisuje się do tego, co
+  już jest w polu — zostaje do poprawienia przed wysłaniem. Kto nie chce pisać na klawiaturze,
+  nie musi od razu wchodzić w tryb rozmowy.
+- **Podpowiedzi startowe napisane po ludzku.** Osiem kafli na pustym czacie mówiło językiem
+  poleceń dla maszyny („Rozbij stos skanów") i pokrywało ułamek zakresu. Teraz brzmią jak
+  zdania, które człowiek naprawdę napisze, i dotykają kolejno: projektu graficznego, zdjęć,
+  dokumentów, pisma, poczty z terminarzem, nagrania, badania ze źródłami i strony internetowej.
+- **Przełącznik motywu jako ikona.** Zajmował wiersz w panelu bocznym obok pozycji nawigacji,
+  choć jest przełącznikiem, nie miejscem, do którego się przechodzi. Stoi teraz przy koncie,
+  obok wylogowania. Zniknął też odsyłacz „Chmura osobista” otwierający chmurę w nowej karcie —
+  chmura jest zakładką w oknie aplikacji, sąsiadem zakładki Pliki, a nie wyjściem na zewnątrz.
 - **Pakiet ruchu podpięty do aplikacji.** Ujęcia z `motion/start`, które leżały niewykorzystane,
   grają tam, gdzie powstały: uruchomienie okna, tło ekranu logowania, chwila przed pierwszym
   słowem agenta, zakończone zadanie, brak połączenia, instalacja i otwarcie strony produktu.
   Nagranie narzędzia z `motion/stany` leci w karcie kroku, kiedy to narzędzie pracuje — to
   samo ujęcie, które strona pokazuje przy danej dziedzinie. Każde wywołanie respektuje
-  ustawienie ograniczonego ruchu. Testy: `frontend/src/ruch/__tests__/nagranie-startu.test.tsx`.
+  ustawienie ograniczonego ruchu. Nagrania mają na sobie wypaloną planszę opisową
+  („Intro znaku · 2200 ms”) — podpis z demonstracji dla zespołu, który trafił na produkcję;
+  aplikacja bierze teraz warianty `-alfa` bez podpisu, a wykaz momentów, które taki wariant
+  mają, jest pilnowany testem zaglądającym na dysk. Testy: `frontend/src/ruch/__tests__/nagranie-startu.test.tsx`.
 
 - **Konta użytkownika z rozdzielonymi przestrzeniami.** Aplikacja przyjmuje logowanie kontem
   portalu, a rozmowy, pliki i przebiegi mają właściciela (`owner_id`) i są widoczne wyłącznie

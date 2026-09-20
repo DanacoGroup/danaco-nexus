@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { CloseIcon } from "../../components/icons";
+import { useOknoModalne } from "../../ui/useOknoModalne";
 
 export function Modal({
   title,
@@ -17,13 +18,13 @@ export function Modal({
   wide?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // Esc, uwięzienie tabulacji w oknie i powrót fokusu do wyzwalacza.
+  useOknoModalne(panel, onClose);
+  // Pierwsze pole formularza jest lepszym celem niż przycisk zamknięcia, więc fokus
+  // ustawiony przez hook przesuwa się tutaj (ten efekt działa po tamtym).
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    const first = panel.current?.querySelector<HTMLElement>("input, textarea, select, button[data-autofocus]");
-    first?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    panel.current?.querySelector<HTMLElement>("input, textarea, select, button[data-autofocus]")?.focus();
+  }, []);
 
   return (
     <div
@@ -35,6 +36,7 @@ export function Modal({
     >
       <div
         ref={panel}
+        tabIndex={-1}
         className={`safe-bottom flex max-h-[92dvh] w-full animate-rise flex-col overflow-hidden rounded-t-2xl border border-line bg-app shadow-2xl sm:rounded-2xl ${
           wide ? "sm:max-w-2xl" : "sm:max-w-md"
         }`}
@@ -57,8 +59,10 @@ export const buttonClass = {
     "inline-flex items-center justify-center gap-2 rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:opacity-50",
   secondary:
     "inline-flex items-center justify-center gap-2 rounded-xl border border-line px-4 py-2 text-sm font-medium transition-colors hover:bg-hover disabled:opacity-50",
+  // Wypełnienie „danger-fill”, nie „danger”: biel na barwie tekstowej błędu w motywie
+  // ciemnym daje 2,58:1 zamiast wymaganych 4,5:1 (DESIGN_SYSTEM, rozdz. 4.4).
   danger:
-    "inline-flex items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50",
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-danger-fill px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-danger-fill-hover disabled:opacity-50",
   ghost:
     "inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-40",
 };

@@ -333,9 +333,11 @@ def uruchom(
             przebieg.stan, przebieg.blad = "anulowane", "Przebieg przerwany."
         except (ToolError, BladPiaskownicy, model_cli.BladModelu) as error:
             przebieg.stan, przebieg.blad = "blad", str(error)[:300]
-        except Exception as error:  # noqa: BLE001 - błąd pokazu trafia do interfejsu
+        except Exception:  # noqa: BLE001 - błąd pokazu trafia do interfejsu
+            # Treść nieprzewidzianego wyjątku (ścieżki, zapytania, dane połączeń) zostaje
+            # w dzienniku: przebieg zleca gość bez konta, a widzi go każdy odwiedzający.
             logger.exception("Błąd przebiegu pokazu %s", scenariusz.id)
-            przebieg.stan, przebieg.blad = "blad", f"Błąd wewnętrzny pokazu: {error}"[:300]
+            przebieg.stan, przebieg.blad = "blad", "Błąd wewnętrzny pokazu. Spróbuj ponownie."
         finally:
             _oznacz_finalne(przebieg)
             przebieg.rozglos()

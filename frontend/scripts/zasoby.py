@@ -49,8 +49,6 @@ PLIKI: list[tuple[str, str]] = [
     ("landing/ladowanie/ladowanie.js", "ladowanie/ladowanie.js"),
     ("branding/ilustracje/zastosowania/og-1200x630.png", "og.png"),
     ("promocja/film/okladki/okladka-1280x720.png", "film/okladka.png"),
-    ("promocja/film/wideo/nexus-6s-16x9.mp4", "film/zajawka.mp4"),
-    ("promocja/film/wideo/nexus-6s-16x9.webm", "film/zajawka.webm"),
     ("promocja/film/wideo/nexus-60s-16x9.mp4", "film/nexus-60s.mp4"),
     ("promocja/film/wideo/nexus-60s-16x9.webm", "film/nexus-60s.webm"),
 ]
@@ -110,18 +108,29 @@ NAPISY_ROZSZ = (".vtt",)
 # (źródło, cel w public, dopuszczone rozszerzenia)
 KATALOGI: list[tuple[str, str, tuple[str, ...]]] = [
     ("promocja/film/wideo", "film/katalog", WIDEO),
-    ("promocja/film/okladki", "film/okladki", PLAKATY),
     ("promocja/kampania/wideo", "kampania", WIDEO),
-    ("promocja/kampania/okladki", "kampania/okladki", PLAKATY),
     ("promocja/kampania/napisy", "kampania/napisy", NAPISY_ROZSZ),
     ("motion/stany/wideo", "ruch/stany", WIDEO),
-    ("motion/stany/plansze", "ruch/stany/plansze", PLAKATY),
     # Nagrania momentów startu. Decyzja pary P5: znak w stanach aplikacji rysuje CSS
     # (`src/ruch/znak.css`, komponent `ZnakRuchu`) — ten sam gest waży tysiące razy mniej
     # od nagrania i stoi sam przy ograniczonym ruchu. Nagrania wczytuje `ruch/NagranieStartu.tsx`
     # tam, gdzie moment ma wypełnić całe okno: ekran startowy, brak połączenia, powiadomienia.
     ("motion/start/wideo", "ruch/start", WIDEO),
 ]
+
+# Plakaty nagrań: źródła to PNG po 0,4–1 MB, do public idą w WebP (kilkanaście razy mniej).
+# Bez przelicznika zostaje PNG, a spis podaje ścieżkę do niego. (źródło, cel w public)
+PLAKATY_KATALOGU: list[tuple[str, str]] = [
+    ("promocja/film/okladki", "film/okladki"),
+    ("promocja/kampania/okladki", "kampania/okladki"),
+    ("motion/stany/plansze", "ruch/stany/plansze"),
+]
+JAKOSC_WEBP = 82
+
+# Zajawka sekcji „Jeden dzień z Nexusem”: sześć sekund pod przyciskiem odtwarzania. Źródło
+# ma 1920 px i dźwięk, do dekoracji idzie 1280 px bez dźwięku; pełna jakość zostaje w katalogu.
+ZAJAWKA_ZRODLO = "promocja/film/wideo/nexus-6s-16x9"
+ZAJAWKA_SZEROKOSC = 1280
 
 # `motion/start/lottie/intro-znaku.json` nie trafia do katalogu publicznego. Decyzja pary P5:
 # odtwarzacz Lottie to osobna biblioteka w paczce strony produktu dla jednego ujęcia, które
@@ -233,10 +242,101 @@ PLAKATY_NAGRAN: list[tuple[str, str, str]] = [
 ]
 
 
+def sciezka_ffmpeg() -> Path | None:
+    """Ścieżka do ffmpeg albo None, gdy programu nie ma na maszynie."""
+    znalezione = Path(shutil.which("ffmpeg") or "/danaco/programy/ffmpeg/ffmpeg")
+    return znalezione if znalezione.exists() else None
+
+
+def na_webp(zrodlo: Path, cel: Path) -> bool:
+    """Zapisuje obraz w WebP: Pillow, a gdy go nie ma w tym Pythonie — ffmpeg.
+
+    False oznacza brak przelicznika; zostaje wtedy format źródłowy.
+    """
+    if not zrodlo.is_file():
+        return cel.is_file()
+    if cel.is_file() and cel.stat().st_mtime >= zrodlo.stat().st_mtime:
+        return True
+    cel.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        from PIL import Image
+    except ImportError:
+        ffmpeg = sciezka_ffmpeg()
+        if ffmpeg is None:
+            return False
+        wynik = subprocess.run(
+            [str(ffmpeg), "-v", "error", "-y", "-i", str(zrodlo),
+             "-c:v", "libwebp", "-quality", str(JAKOSC_WEBP), "-compression_level", "6", str(cel)],
+            capture_output=True,
+            check=False,
+        )
+        return wynik.returncode == 0
+    with Image.open(zrodlo) as obraz:
+        obraz.convert("RGB").save(cel, "WEBP", quality=JAKOSC_WEBP, method=6)
+    return True
+
+
+def plakaty_katalogu() -> int:
+    """Przenosi plakaty nagrań do katalogu publicznego w WebP. Zwraca liczbę braków."""
+    braki = 0
+    for zrodlo_kat, cel_kat in PLAKATY_KATALOGU:
+        katalog = REPO / zrodlo_kat
+        if not katalog.is_dir():
+            # Bez pakietu źródłowego liczy się to, co leży w `public`.
+            if (PUBLIC / cel_kat).is_dir():
+                continue
+            print(f"brak katalogu: {zrodlo_kat}", file=sys.stderr)
+            braki += 1
+            continue
+        for plik in sorted(katalog.iterdir()):
+            if not plik.is_file() or plik.suffix.lower() not in PLAKATY:
+                continue
+            if na_webp(plik, PUBLIC / cel_kat / f"{plik.stem}.webp"):
+                continue
+            if not zwiaz(plik, PUBLIC / cel_kat / plik.name):
+                braki += 1
+    return braki
+
+
+def zajawka_lekka() -> int:
+    """Buduje lekki wariant zajawki (ffmpeg). Bez ffmpeg zostaje kopia pełnego nagrania."""
+    ffmpeg = sciezka_ffmpeg()
+    braki = 0
+    for rozszerzenie in ("webm", "mp4"):
+        zrodlo = REPO / f"{ZAJAWKA_ZRODLO}.{rozszerzenie}"
+        cel = PUBLIC / f"film/zajawka.{rozszerzenie}"
+        if not zrodlo.is_file():
+            if not cel.is_file():
+                print(f"brak źródła: {ZAJAWKA_ZRODLO}.{rozszerzenie}", file=sys.stderr)
+                braki += 1
+            continue
+        if cel.is_file() and cel.stat().st_mtime >= zrodlo.stat().st_mtime:
+            continue
+        if ffmpeg is None:
+            if not kopiuj(zrodlo, cel):
+                braki += 1
+            continue
+        cel.parent.mkdir(parents=True, exist_ok=True)
+        kodek = (
+            ["-c:v", "libvpx-vp9", "-crf", "38", "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "3"]
+            if rozszerzenie == "webm"
+            else ["-c:v", "libx264", "-crf", "30", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+        )
+        wynik = subprocess.run(
+            [str(ffmpeg), "-v", "error", "-y", "-i", str(zrodlo),
+             "-an", "-vf", f"scale={ZAJAWKA_SZEROKOSC}:-2", *kodek, str(cel)],
+            capture_output=True,
+            check=False,
+        )
+        if wynik.returncode != 0 and not kopiuj(zrodlo, cel):
+            braki += 1
+    return braki
+
+
 def plakaty_nagran() -> int:
     """Wycina plakaty z nagrań (ffmpeg). Brak ffmpeg nie jest usterką — plakat jest ozdobą."""
-    ffmpeg = shutil.which("ffmpeg") or "/danaco/programy/ffmpeg/ffmpeg"
-    if not Path(ffmpeg).exists():
+    ffmpeg = sciezka_ffmpeg()
+    if ffmpeg is None:
         return 0
     zrobione = 0
     for zrodlo, cel, sekunda in PLAKATY_NAGRAN:
@@ -246,7 +346,7 @@ def plakaty_nagran() -> int:
             continue
         docelowy.parent.mkdir(parents=True, exist_ok=True)
         wynik = subprocess.run(
-            [ffmpeg, "-v", "error", "-y", "-ss", sekunda, "-i", str(plik), "-vframes", "1", str(docelowy)],
+            [str(ffmpeg), "-v", "error", "-y", "-ss", sekunda, "-i", str(plik), "-vframes", "1", str(docelowy)],
             capture_output=True,
             check=False,
         )
@@ -295,6 +395,13 @@ def katalog_ruchu() -> int:
                 znalezione[rozszerzenie] = f"/{katalog.relative_to(PUBLIC)}/{rdzen}.{rozszerzenie}"
         return znalezione
 
+    def plakat(katalog: Path, rdzen: str) -> str:
+        """Ścieżka plakatu: WebP, a gdy go nie ma (brak Pillow) — plik źródłowy PNG."""
+        for rozszerzenie in ("webp", "png"):
+            if (katalog / f"{rdzen}.{rozszerzenie}").is_file():
+                return f"/{katalog.relative_to(PUBLIC)}/{rdzen}.{rozszerzenie}"
+        return ""
+
     kat_filmy = PUBLIC / "film" / "katalog"
     if kat_filmy.is_dir():
         for plik in sorted(kat_filmy.glob("*.mp4")):
@@ -310,7 +417,7 @@ def katalog_ruchu() -> int:
                 "opis": opis,
                 "kadr": kadr,
                 "zrodla": warianty(kat_filmy, rdzen),
-                "plakat": "/film/okladki/okladka-1920x1080.png",
+                "plakat": plakat(kat_filmy.parent / "okladki", "okladka-1920x1080"),
                 "napisy": {
                     jezyk: f"/film/katalog/{rdzen}.{jezyk}.vtt"
                     for jezyk in ("pl", "en")
@@ -331,8 +438,7 @@ def katalog_ruchu() -> int:
                 "opis": opis,
                 "kadr": kadr,
                 "zrodla": warianty(kat_kampania, rdzen),
-                "plakat": (f"/kampania/okladki/{rdzen}.png"
-                           if (kat_kampania / "okladki" / f"{rdzen}.png").is_file() else ""),
+                "plakat": plakat(kat_kampania / "okladki", rdzen),
                 "napisy": {
                     jezyk: f"/kampania/napisy/{rdzen}.{jezyk}.vtt"
                     for jezyk in ("pl", "en")
@@ -358,20 +464,36 @@ def katalog_ruchu() -> int:
     naglowek = (
         "// Spis materiałów ruchomych. Wynik frontend/scripts/zasoby.py — nie edytować ręcznie.\n"
         "// Źródła: promocja/film, promocja/kampania, motion/stany, motion/start.\n\n"
-        "export type Zrodla = { mp4?: string; webm?: string };\n"
+    )
+    media = REPO / "frontend" / "src" / "media"
+    media.mkdir(parents=True, exist_ok=True)
+    (media / "katalog-typy.ts").write_text(
+        naglowek
+        + "export type Zrodla = { mp4?: string; webm?: string };\n"
         "export type Film = { id: string; tytul: string; opis: string; kadr: string;"
         " zrodla: Zrodla; plakat: string; napisy: Record<string, string> };\n"
         "export type Kampania = Film & { temat: string };\n"
         "export type Nagranie = { id: string; zrodla: Zrodla };\n"
-        "export type Stan = Nagranie & { rodzina: string };\n\n"
+        "export type Stan = Nagranie & { rodzina: string };\n",
+        encoding="utf-8",
     )
-    tresc = naglowek + "".join(
-        f"export const {nazwa.upper()} = {json.dumps(spis[nazwa], ensure_ascii=False, indent=2)} as const;\n\n"
-        for nazwa in ("filmy", "kampania", "stany", "start")
+    for nazwa in ("filmy", "kampania", "stany", "start"):
+        (media / f"katalog-{nazwa}.ts").write_text(
+            naglowek + f"export const {nazwa.upper()} = "
+            f"{json.dumps(spis[nazwa], ensure_ascii=False, indent=2)} as const;\n",
+            encoding="utf-8",
+        )
+    # Działy w osobnych plikach: paczka wejściowa bierze sam spis ujęć startowych, a spis
+    # kampanii jedzie z podstroną „Zastosowania”. Ten plik je zbiera pod jednym importem.
+    (media / "katalog.ts").write_text(
+        naglowek
+        + 'export type { Film, Kampania, Nagranie, Stan, Zrodla } from "./katalog-typy";\n'
+        'export { FILMY } from "./katalog-filmy";\n'
+        'export { KAMPANIA } from "./katalog-kampania";\n'
+        'export { STANY } from "./katalog-stany";\n'
+        'export { START } from "./katalog-start";\n',
+        encoding="utf-8",
     )
-    cel = REPO / "frontend" / "src" / "media" / "katalog.ts"
-    cel.parent.mkdir(parents=True, exist_ok=True)
-    cel.write_text(tresc, encoding="utf-8")
     print(
         "katalog ruchu: "
         f"{len(spis['filmy'])} filmów, {len(spis['kampania'])} animacji kampanijnych, "
@@ -418,6 +540,11 @@ def main() -> int:
             with Image.open(plik) as obraz:
                 obraz.convert("RGB").resize(rozmiar, Image.LANCZOS).save(docelowy, "PNG", optimize=True)
 
+    # Plakat filmu także w WebP.
+    na_webp(REPO / "promocja/film/okladki/okladka-1280x720.png", PUBLIC / "film/okladka.webp")
+
+    braki += zajawka_lekka()
+    braki += plakaty_katalogu()
     braki += katalog_ruchu()
     plakaty_nagran()
 

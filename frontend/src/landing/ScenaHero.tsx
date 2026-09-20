@@ -8,9 +8,10 @@
 // Kliknięcie powiększa scenę na pełny ekran — na stronie produktu makieta bez
 // powiększenia jest bezużyteczna, bo szczegółów interfejsu nie da się odczytać.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CloseIcon } from "../components/icons";
 import { odtworz } from "../modules/mozliwosci/odtwarzanie";
+import { useOknoModalne } from "../ui/useOknoModalne";
 import { HeroMock } from "./HeroMock";
 
 const NAGRANIE = "/ruch/start/uruchomienie-komputer-ciemny";
@@ -29,15 +30,6 @@ export function ScenaHero() {
   const wideo = useRef<HTMLVideoElement>(null);
 
   useEffect(() => setBezRuchu(ograniczonyRuch()), []);
-
-  useEffect(() => {
-    if (!powiekszona) return;
-    const naKlawisz = (zdarzenie: KeyboardEvent) => {
-      if (zdarzenie.key === "Escape") setPowiekszona(false);
-    };
-    document.addEventListener("keydown", naKlawisz);
-    return () => document.removeEventListener("keydown", naKlawisz);
-  }, [powiekszona]);
 
   if (bezRuchu || awaria) return <HeroMock />;
 
@@ -74,27 +66,37 @@ export function ScenaHero() {
         </span>
       </button>
 
-      {powiekszona && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Podgląd aplikacji"
-          className="fixed inset-0 z-50 grid place-items-center bg-scrim p-4 backdrop-blur-sm"
-          onClick={() => setPowiekszona(false)}
-        >
-          <div className="w-full max-w-[min(96vw,1600px)]" onClick={(zdarzenie) => zdarzenie.stopPropagation()}>
-            {film("w-full rounded-xl border border-line-strong shadow-[var(--shadow-floating)]")}
-          </div>
-          <button
-            type="button"
-            onClick={() => setPowiekszona(false)}
-            aria-label="Zamknij podgląd"
-            className="absolute top-4 right-4 grid size-11 place-items-center rounded-full bg-raised text-fg transition-colors hover:bg-hover"
-          >
-            <CloseIcon size={20} />
-          </button>
-        </div>
-      )}
+      {powiekszona && <Powiekszenie onZamknij={() => setPowiekszona(false)}>{film}</Powiekszenie>}
     </>
+  );
+}
+
+/** Nakładka powiększenia: fokus wchodzi do środka, Esc zamyka, tabulacja nie ucieka w tło. */
+function Powiekszenie({ onZamknij, children }: { onZamknij: () => void; children: (klasa: string) => ReactNode }) {
+  const nakladka = useRef<HTMLDivElement>(null);
+  useOknoModalne(nakladka, onZamknij);
+
+  return (
+    <div
+      ref={nakladka}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Podgląd aplikacji"
+      className="fixed inset-0 z-50 grid place-items-center bg-scrim p-4 backdrop-blur-sm"
+      onClick={onZamknij}
+    >
+      <div className="w-full max-w-[min(96vw,1600px)]" onClick={(zdarzenie) => zdarzenie.stopPropagation()}>
+        {children("w-full rounded-xl border border-line-strong shadow-[var(--shadow-floating)]")}
+      </div>
+      <button
+        type="button"
+        onClick={onZamknij}
+        aria-label="Zamknij podgląd"
+        className="absolute top-4 right-4 grid size-11 place-items-center rounded-full bg-raised text-fg transition-colors hover:bg-hover"
+      >
+        <CloseIcon size={20} />
+      </button>
+    </div>
   );
 }

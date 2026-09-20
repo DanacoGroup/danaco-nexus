@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckIcon, PlusIcon, SparkIcon, ToolIcon } from "../components/icons";
 import { ArrowRightIcon, DocumentIcon, LockIcon, PhoneIcon, ShieldIcon, WindowsIcon } from "../shell/icons";
 import {
-  DZIEN,
   GWARANCJE,
   KARTY,
   KROKI,
@@ -256,12 +255,9 @@ export function SekcjaFunkcje() {
   );
 }
 
-const BARWY_PORY = ["var(--color-brand-apricot)", "var(--color-brand-rose)", "var(--color-brand-sky)"];
-
-/** „Jeden dzień z Nexusem” — trzy pory dnia i film promocyjny. */
+/** „Jeden dzień z Nexusem” — film promocyjny. */
 export function SekcjaDzien() {
   const [gra, setGra] = useState(false);
-  const [pory, widoczne] = useWidocznosc<HTMLDivElement>();
   return (
     <Sekcja id="dzien" className="landing-tlo" style={tlo("aurora-mgla", 0.85)}>
       {/* Ziarno filmowe nad sekcją ze statyczną grafiką — tła na żywo mają je w złożeniu.
@@ -303,32 +299,9 @@ export function SekcjaDzien() {
           </button>
         )}
       </div>
-      <div ref={pory} className="mt-12 grid gap-4 lg:grid-cols-3">
-        {DZIEN.map((pora, indeks) => (
-          <article
-            key={pora.godzina}
-            className="landing-karta ui-ujawnij p-7"
-            data-widoczny={widoczne ? "true" : "false"}
-            style={kaskada(indeks)}
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="size-2.5 rounded-full" style={{ background: BARWY_PORY[indeks] }} />
-              <span className="font-heading text-2xl font-bold tabular-nums">{pora.godzina}</span>
-              <span className="text-sm text-muted">{pora.pora}</span>
-            </div>
-            <h3 className="mt-5 font-heading text-xl font-bold tracking-tight">{pora.tytul}</h3>
-            <p className="mt-2 leading-relaxed text-muted">{pora.opis}</p>
-            <ul className="mt-5 space-y-2 border-t border-line pt-5 text-sm">
-              {pora.wynik.map((wiersz) => (
-                <li key={wiersz} className="flex gap-2.5">
-                  <CheckIcon size={16} className="mt-0.5 shrink-0 text-success" />
-                  <span>{wiersz}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </div>
+      {/* Trzy kolumny z rozpisaniem pór dnia stały tu wcześniej — powtarzały zdanie po
+          zdaniu to, co film pokazuje na ekranie. Materiał ma własne napisy i własny tekst
+          w kadrze, więc druga wersja tej samej treści obok niego tylko rozmywa przekaz. */}
     </Sekcja>
   );
 }
