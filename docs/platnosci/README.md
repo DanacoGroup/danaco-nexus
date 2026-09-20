@@ -202,7 +202,19 @@ znaleźć żadnego klucza, sekretu ani identyfikatora ceny.
 | `NEXUS_PLATNOSCI_TIMEOUT_S` | Limit czasu jednego wywołania API (domyślnie 20 s) |
 | `NEXUS_PLATNOSCI_ADRES_POWROTU` | Adres powrotu po zakupie; pusty = `NEXUS_PUBLIC_URL` |
 
-Zalecany zapis sekretów na serwerze:
+Najprościej jednym poleceniem — skrypt pyta o klucz i ceny, zapisuje je z prawami 600,
+uzupełnia `.env`, restartuje API i sprawdza, czy cennik naprawdę pokazuje przyciski zakupu:
+
+```bash
+deploy/zapisz-stripe.sh
+```
+
+Skrypt przyjmuje klucze prawdziwe (`sk_live_…`) i testowe (`sk_test_…`). Sprzedaż testowa
+z prawdziwymi płatnościami to klucz `sk_live_…` — wtedy zakupy testerów są rzeczywiste
+i widać, czy ktoś naprawdę płaci. Tryb testowy Stripe służy wyłącznie do sprawdzenia, czy
+ścieżka zakupu działa, i nie zastępuje pierwszej sprzedaży.
+
+Ręcznie, gdyby skrypt nie pasował:
 
 ```bash
 install -m 600 -o danaco-serwis -g danaco-serwis /dev/null /danaco/projekty/danaco-nexus/dane/app/stripe-klucz

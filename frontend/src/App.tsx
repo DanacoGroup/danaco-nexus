@@ -26,6 +26,33 @@ const currentLocation = (): Location => ({ pathname: window.location.pathname, s
 
 export default function App() {
   const [location, setLocation] = useState<Location>(currentLocation);
+
+  const navigate = useCallback((path: string, replace = false) => {
+    if (path === window.location.pathname + window.location.search) return;
+    window.history[replace ? "replaceState" : "pushState"](null, "", path);
+    setLocation(currentLocation());
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => setLocation(currentLocation());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // Kliknięcie powiadomienia push otwiera wskazaną rozmowę w tym oknie. Nasłuch stoi w App,
+  // bo worker wybiera dowolne okno aplikacji — także stojące na stronie produktu.
+  useEffect(() => {
+    const worker = navigator.serviceWorker;
+    if (!worker) return;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; url?: string } | null;
+      const target = data?.type === "nexus:open" ? safeNext(data.url ?? null) : null;
+      if (target) navigate(target);
+    };
+    worker.addEventListener("message", onMessage);
+    return () => worker.removeEventListener("message", onMessage);
+  }, [navigate]);
+
   const route = parseRoute(location.pathname, location.search);
   if (route.view === "panel")
     return (
@@ -40,51 +67,28 @@ export default function App() {
         <Portal />
       </Suspense>
     );
-  // Strona produktu pod „/start” wygląda tak samo dla gościa i dla zalogowanego (resolveScreen),
-  // więc nie czeka na odpowiedź /api/auth/me. Pobieranie jej paczki rusza od razu, a okno nie
-  // gra po drodze ujęciem uruchomienia — na łączu telefonu to mniej o jeden obieg i o nagranie.
+  // Strona produktu pod „/start” wygląda tak samo dla gościa i zalogowanego, więc nie czeka
+  // na /api/auth/me: mniej o jeden obieg i o ujęcie uruchomienia.
   if (route.view === "landing")
     return (
       <Suspense fallback={<Pusto />}>
         <Landing />
       </Suspense>
     );
-  return <MainApp location={location} setLocation={setLocation} />;
+  return <MainApp location={location} navigate={navigate} />;
 }
 
-function MainApp({ location, setLocation }: { location: Location; setLocation: (location: Location) => void }) {
+function MainApp({
+  location,
+  navigate,
+}: {
+  location: Location;
+  navigate: (path: string, replace?: boolean) => void;
+}) {
   const [user, setUser] = useState<string | null | undefined>(undefined);
   const [cloudUrl, setCloudUrl] = useState("");
   const [gosc, setGosc] = useState(false);
   const route = parseRoute(location.pathname, location.search);
-
-  const navigate = useCallback(
-    (path: string, replace = false) => {
-      if (path === window.location.pathname + window.location.search) return;
-      window.history[replace ? "replaceState" : "pushState"](null, "", path);
-      setLocation(currentLocation());
-    },
-    [setLocation],
-  );
-
-  useEffect(() => {
-    const onPop = () => setLocation(currentLocation());
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [setLocation]);
-
-  // Kliknięcie powiadomienia push (service worker) otwiera wskazaną rozmowę w tym oknie.
-  useEffect(() => {
-    const worker = navigator.serviceWorker;
-    if (!worker) return;
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as { type?: string; url?: string } | null;
-      const target = data?.type === "nexus:open" ? safeNext(data.url ?? null) : null;
-      if (target) navigate(target);
-    };
-    worker.addEventListener("message", onMessage);
-    return () => worker.removeEventListener("message", onMessage);
-  }, [navigate]);
 
   const loadMe = useCallback(
     () =>

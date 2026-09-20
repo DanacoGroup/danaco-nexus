@@ -349,6 +349,8 @@ export const TECHNOLOGIE = [
 ];
 
 export interface Plan {
+  /** Kod planu z katalogu serwera — po nim dobieramy żywą cenę i dostępność zakupu. */
+  kod: string;
   nazwa: string;
   znacznik: string;
   dostepny: boolean;
@@ -360,6 +362,7 @@ export interface Plan {
 
 export const PLANY: Plan[] = [
   {
+    kod: "osobisty",
     nazwa: "Osobisty",
     // Znacznik i cena idą za katalogiem planów (backend/nexus/platnosci/plany.py): plan jest
     // płatny od początku, a 7 dni próbnych to tryb tego samego planu, nie osobna oferta.
@@ -378,6 +381,7 @@ export const PLANY: Plan[] = [
     ],
   },
   {
+    kod: "pro",
     nazwa: "Pro",
     znacznik: "Wkrótce",
     dostepny: false,
@@ -392,7 +396,8 @@ export const PLANY: Plan[] = [
     ],
   },
   {
-    nazwa: "Zespół",
+    kod: "zespol",
+    nazwa: "Grupa",
     znacznik: "Wkrótce",
     dostepny: false,
     dlaKogo: "Dla rodziny albo małego zespołu na wspólnych plikach.",

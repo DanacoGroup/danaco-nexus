@@ -67,7 +67,7 @@ Każde konto ma w Nexusie własną przestrzeń. Rozmowy, pliki, przebiegi zadań
 
 Dotyczy to również wyszukiwania po znaczeniu: każdy fragment zaindeksowany w bazie wiedzy nosi znacznik konta, a wyszukiwanie przeszukuje wyłącznie fragmenty tego konta, z którego pyta agent.
 
-Ile miejsca ma konto, rozstrzyga wybrany plan: 100 MB w okresie próbnym, 1 GB w planie Osobistym, 2 GB w planie Pro i 10 GB w planie Zespół. Przestrzeń jest wspólna dla plików, poczty i chmury osobistej; po jej zapełnieniu kolejny plik nie zostanie przyjęty, dopóki czegoś nie usuniesz albo nie przejdziesz na wyższy plan.
+Ile miejsca ma konto, rozstrzyga wybrany plan: 100 MB w okresie próbnym, 1 GB w planie Osobistym, 2 GB w planie Pro i 10 GB w planie Grupa. Przestrzeń jest wspólna dla plików, poczty i chmury osobistej; po jej zapełnieniu kolejny plik nie zostanie przyjęty, dopóki czegoś nie usuniesz albo nie przejdziesz na wyższy plan.
 
 Polityka nie obejmuje serwisów, do których przejdziesz z odsyłacza w wynikach pracy agenta ani kont poczty i kalendarza, którymi zarządzasz u swoich dostawców.`,
     },

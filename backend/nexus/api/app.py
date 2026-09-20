@@ -53,14 +53,14 @@ MEDIA_TYPES = {
     ".mp4": "video/mp4",
     ".webm": "video/webm",
 }
-# Materiały marki: kroje, znak, ikony, tła, plakaty, nagrania i napisy. Nazwy są stałe,
-# a treść zmienia się razem z pakietem, nie z każdym wdrożeniem interfejsu. Miesięczna
-# ważność oszczędza powtórne pobranie kilkuset kilobajtów przy każdym wejściu; powłoka
-# (`index.html`, `sw.js`) zostaje na „no-cache”, więc nowe wydanie i tak dochodzi od razu.
+# Materiały marki: kroje, znak, ikony, tła, plakaty, nagrania i napisy. Nazwy są stałe i nie
+# niosą skrótu treści, a `frontend/scripts/zasoby.py` przelicza je przy każdym `prebuild` —
+# wieczysta ważność podawałaby starą treść pod tą samą nazwą. Doba bez zapytania, potem
+# miesiąc podawania z pamięci z jednoczesnym odświeżeniem w tle.
 MEDIA_SUFFIXES = frozenset(
     {".woff2", ".mp4", ".webm", ".vtt", ".avif", ".webp", ".png", ".jpg", ".svg", ".ico"}
 )
-MEDIA_CACHE = "public, max-age=2592000"
+MEDIA_CACHE = "public, max-age=86400, stale-while-revalidate=2592000"
 
 
 class ImmutableStatic(StaticFiles):

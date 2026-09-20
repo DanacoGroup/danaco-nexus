@@ -124,8 +124,10 @@ KATALOG: tuple[PlanKatalogu, ...] = (
     ),
     PlanKatalogu(
         kod="zespol",
-        nazwa="Zespół",
-        opis="Dla najcięższej pracy z Nexusem i dla kilku osób naraz.",
+        # Nazwa „Grupa”, bo tak działa: rodzina, wspólnicy, mały zespół — cena liczy się
+        # za każdego użytkownika, a kredyty są wspólne i kupuje je założyciel grupy.
+        nazwa="Grupa",
+        opis="Dla rodziny albo małego zespołu — cena za każdego użytkownika, kredyty wspólne.",
         limity={"zadania_rownolegle": 8, "automatyzacje": 100, "konta": 5, "skrzynki": 10},
         kredyty_okresowo=60_000,
         przestrzen_mb=10_240,
@@ -134,10 +136,11 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         synchronizacja=True,
         zawartosc=(
             "Wszystko z planu Pro",
+            "Cena za każdego użytkownika w grupie",
+            "Wspólna pula kredytów — dokupuje ją założyciel grupy",
+            "Rolę założyciela można przekazać innej osobie",
             "10 GB przestrzeni na pliki i pocztę",
-            "Pięć kont w zespole",
             "Osiem zadań naraz",
-            "Trzykrotnie więcej kredytów niż Pro",
         ),
         kolejnosc=30,
     ),

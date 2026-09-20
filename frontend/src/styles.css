@@ -322,12 +322,18 @@
   /* Hero: styk z paskiem nawigacji wygaszamy krócej i łagodniej niż w sekcjach.
      Pełna barwa tła przez pierwsze 16% wysokości gasiła zorzę dokładnie tam, gdzie
      stoi nagłówek — pierwszy ekran wyglądał na przyciemniony bez powodu. */
-  /* Nakładka otwarcia gaśnie, zanim zniknie — strona nie „wyskakuje” spod niej. */
+  /* Nakładka otwarcia gaśnie, zanim zniknie — strona nie „wyskakuje” spod niej.
+     Zanikanie jest krótkie celowo: przy dłuższym widać przez półprzezroczystą zasłonę
+     gotowy nagłówek, a znak wisi nad nim jak przyklejony. Zanika cała nakładka razem
+     z tłem, więc w połowie przejścia nie ma mieszanki „ciemna szyba plus logo”. */
   .otwarcie {
-    transition: opacity var(--duration-slower) var(--easing-exit);
+    transition: opacity var(--duration-base) var(--easing-exit);
+    will-change: opacity;
   }
   .otwarcie[data-gasnie="true"] {
     opacity: 0;
+    /* Od chwili zanikania nakładka przestaje łapać kliknięcia — strona jest już pod nią. */
+    pointer-events: none;
   }
 
   /* Poświata pod kolumną treści hero: kontrast tekstu bez ściemniania całego ekranu.

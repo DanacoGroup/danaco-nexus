@@ -130,13 +130,14 @@ export const PLANY: Plan[] = [
     ],
   },
   {
-    nazwa: "Zespół",
-    cena: "Cena przy starcie",
-    okres: "wkrótce",
-    opis: "Dla rodziny albo małego zespołu na wspólnych plikach.",
+    nazwa: "Grupa",
+    cena: "49 zł / użytkownik",
+    okres: "miesięcznie",
+    opis: "Dla rodziny albo małego zespołu — cena za każdego użytkownika, kredyty wspólne.",
     zakres: [
       "Wszystko z planu Pro",
       "Osobne konta dla każdej osoby",
+      "Wspólna pula kredytów — dokupuje ją założyciel grupy",
       "Wspólne katalogi i baza wiedzy",
       "Role, uprawnienia i dziennik działań",
     ],
@@ -147,12 +148,12 @@ export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
   {
     pytanie: "Ile kosztuje Nexus na start?",
     odpowiedz:
-      "Plan Osobisty zaczyna się od 7 dni próbnych i obejmuje rozmowę z Nexusem, pracę na plikach, OCR, wyszukiwanie i chmurę osobistą. Plany Pro i Zespół dokładają więcej kredytów i zadań naraz.",
+      "Plan Osobisty zaczyna się od 7 dni próbnych i obejmuje rozmowę z Nexusem, pracę na plikach, OCR, wyszukiwanie i chmurę osobistą. Plany Pro i Grupa dokładają więcej kredytów i zadań naraz.",
   },
   {
     pytanie: "Gdzie przechowywane są dane?",
     odpowiedz:
-      "W przestrzeni Twojego konta — od 1 GB w planie Osobistym do 10 GB w planie Zespół; przez pierwsze 7 dni 100 MB. Pliki, rozmowy, poczta i kalendarz widzi wyłącznie właściciel konta. Poza tę przestrzeń wychodzi tylko to, czego wymaga bieżące zadanie — trafia do modelu, który prowadzi rozmowę.",
+      "W przestrzeni Twojego konta — od 1 GB w planie Osobistym do 10 GB w planie Grupa; przez pierwsze 7 dni 100 MB. Pliki, rozmowy, poczta i kalendarz widzi wyłącznie właściciel konta. Poza tę przestrzeń wychodzi tylko to, czego wymaga bieżące zadanie — trafia do modelu, który prowadzi rozmowę.",
   },
   {
     pytanie: "Czy potrzebna jest instalacja na komputerze?",

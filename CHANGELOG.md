@@ -7,6 +7,12 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 
 ### Zmieniono
 
+- **Logowanie jednokrotne do chmury tylko dla właściciela instalacji.** `GET /api/auth/sso`
+  wydawał nagłówek `X-Nexus-User` z kontem Nextcloud każdej ważnej sesji — a ciasteczko
+  jedzie na poddomenę chmury, więc konto próbne testera wchodziło do chmury właściciela.
+  Nagłówek dostaje teraz wyłącznie sesja właściciela; konto klienta i konto próbne dostają
+  204 bez nagłówka, czyli własne logowanie chmury. Pilnują tego trzy testy w
+  `backend/tests/test_bezpieczenstwo.py`.
 - **Chmura osobista i kalendarz rozdzielone między konta.** Instalacja ma w Nextcloud jedno
   konto techniczne, więc rozdział robi ścieżka i nazwa: pliki konta leżą w `/Konta/<owner>`,
   a kalendarze noszą przedrostek konta. Poza własną przestrzeń nie wychodzi listowanie,
@@ -59,6 +65,31 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   `design_compose` składa kadr z warstw (baner, post, miniatura) z warstwą wektorową na
   wierzchu. Rysunek nie może pobierać zasobów z sieci ani zawierać kodu. Rejestr ma teraz
   61 narzędzi w dziewięciu dziedzinach. Testy: `backend/tests/test_projekt.py`.
+- **Sprzedaż włączona.** Konto Stripe było wspólne dla projektów Danaco, ale produktów
+  Nexusa nigdy w nim nie założono — stąd „Cena przy starcie” i przycisk „Powiadom mnie”
+  zamiast zakupu. `deploy/stripe-zaloz-produkty.py` zakłada je idempotentnie (rozpoznaje
+  po `metadata.nexus`, więc powtórne uruchomienie niczego nie dubluje) i wypisuje gotowe
+  wpisy do `.env`. Ceny: Osobisty 89 zł/mies. (890/rok), Pro 199 (1990), Grupa 49 za
+  użytkownika (490); pakiety kredytów 5 000 za 79 zł, 20 000 za 249 zł, 60 000 za 599 zł —
+  przy największym stawka za kredyt schodzi do poziomu planu Pro. Rok to dziesięciokrotność
+  miesiąca, czyli dwa miesiące w prezencie.
+- **Cennik na stronie czyta ceny z serwera.** Karty planów miały kwoty i przyciski wpisane
+  w treść strony, więc mówiły o niedostępnej sprzedaży także wtedy, gdy ceny już były
+  w Stripe. Teraz kwota, znacznik i przycisk pochodzą z `GET /api/platnosci/cennik`,
+  a treść strony zostaje przy tym, czego serwer nie zna: dla kogo jest plan i co obejmuje.
+  Przy wyłączonej sprzedaży albo braku odpowiedzi wracamy do treści statycznej.
+- **Plan „Zespół” to teraz „Grupa”.** Cena liczy się za każdego użytkownika, a kredyty są
+  wspólne i dokupuje je założyciel grupy; rolę założyciela można przekazać. Nazwa, opis
+  i lista funkcji mówią to samo co katalog planów i co Stripe.
+- **Włączenie sprzedaży jednym poleceniem** (`deploy/zapisz-stripe.sh`). Moduł płatności
+  był gotowy — plany, kredyty, pakiety, faktury, kupony, portal rozliczeniowy, webhooki —
+  ale bez poświadczeń konta Stripe `sprzedaz_aktywna` jest fałszem i cennik pokazuje
+  „powiadom mnie” zamiast przycisku zakupu. Skrypt pyta o klucz i ceny, zapisuje sekrety
+  z prawami 600, uzupełnia `.env`, restartuje API i sprawdza, czy cennik naprawdę wystawia
+  zakup. Przyjmuje klucze prawdziwe i testowe — o tym, czym sprzedajemy, decyduje właściciel.
+- **Synchronizacja i wersje plików zaczynają się w planie Pro.** Plan Osobisty miał
+  w katalogu `synchronizacja=True`, choć to właśnie synchronizacja i wersjonowanie mają być
+  powodem przejścia wyżej. Katalog planów i lista funkcji na stronie mówią teraz to samo.
 - **Przybornik zaznaczenia w przeglądarce — praca bez otwierania okna.** Panel boczny
   jest dobry, gdy ktoś chce rozmawiać; częściej wystarczy jedna czynność na zaznaczonym
   fragmencie. Rozszerzenie pokazuje teraz przy kursorze pasek ze skrótami użytkownika —

@@ -204,11 +204,15 @@ def test_okres_probny_jest_wezszym_zakresem_planu_nie_osobnym_planem() -> None:
     # Ten sam plan, nie inny.
     assert probne.plan == oplacone.plan == "osobisty"
     assert probne.probny is True and oplacone.probny is False
-    # Węższy zakres: mniej miejsca, bez poczty, bez synchronizacji.
+    # Węższy zakres: mniej miejsca, bez poczty, bez automatyzacji.
     assert probne.przestrzen_mb < oplacone.przestrzen_mb
     assert probne.skrzynki == 0 and oplacone.skrzynki >= 1
-    assert probne.synchronizacja is False and oplacone.synchronizacja is True
     assert probne.automatyzacje == 0
+    # Synchronizacja i wersje plików zaczynają się dopiero w planie Pro — to one są
+    # powodem przejścia wyżej, więc Osobisty ich nie ma ani w okresie próbnym, ani po
+    # opłaceniu.
+    assert probne.synchronizacja is False and oplacone.synchronizacja is False
+    assert limity_planu("pro", "aktywna").synchronizacja is True
 
 
 def test_przestrzen_rosnie_wraz_z_planem() -> None:

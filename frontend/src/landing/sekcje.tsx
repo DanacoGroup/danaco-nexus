@@ -21,6 +21,7 @@ import {
   type FilmPromocyjny,
 } from "./tresc";
 import { LICZBA_NARZEDZI } from "../dane/narzedzia";
+import { kwota, platnosciApi, type CennikPubliczny } from "../platnosci/api";
 import { PASMO, tlo } from "./uzyj";
 import { kaskada, TloNaZywo, useWidocznosc, WarstwaZiarna } from "../ruch";
 
@@ -465,17 +466,53 @@ export function SekcjaZaufanie() {
   );
 }
 
-/** Cennik — plan Osobisty dostępny, pozostałe bez ceny i bez daty. */
+/** Cennik — ceny i dostępność bierzemy z serwera, nie z treści strony.
+ *
+ * Wcześniej karty planów miały wpisane „Cena przy starcie” i przycisk „Powiadom mnie”,
+ * więc strona mówiła o niedostępnej sprzedaży także wtedy, gdy ceny już były w Stripe
+ * i zakup działał. Teraz kwoty i przyciski pochodzą z `GET /api/platnosci/cennik`;
+ * treść strony zostaje przy tym, czego serwer nie zna — dla kogo jest plan i co obejmuje.
+ * Gdy sprzedaż jest wyłączona albo serwer nie odpowiada, wracamy do treści statycznej.
+ */
 export function SekcjaCennik() {
   const [plany, widoczne] = useWidocznosc<HTMLDivElement>();
+  const [zServera, setZServera] = useState<CennikPubliczny | null>(null);
+
+  useEffect(() => {
+    let aktualne = true;
+    platnosciApi
+      .cennikPubliczny()
+      .then((dane) => {
+        if (aktualne) setZServera(dane);
+      })
+      .catch(() => undefined);
+    return () => {
+      aktualne = false;
+    };
+  }, []);
+
+  const zywe = (kod: string) => zServera?.plany.find((pozycja) => pozycja.kod === kod);
+  const sprzedaz = Boolean(zServera?.sprzedaz_aktywna);
+
   return (
     <Sekcja id="cennik">
       <Naglowek nad="Cennik" tytul="Zacznij od 7 dni próbnych. Więcej — kiedy zechcesz." srodek />
       <div ref={plany} className="mt-14 grid gap-4 lg:grid-cols-3">
-        {PLANY.map((plan, indeks) => (
+        {PLANY.map((plan, indeks) => {
+          const zywy = zywe(plan.kod);
+          const doKupienia = sprzedaz && Boolean(zywy?.do_kupienia.miesiac);
+          const cena = zywy && zywy.cena_miesiac_gr > 0 ? `${kwota(zywy.cena_miesiac_gr, zServera?.waluta)} / mies.` : plan.cena;
+          const znacznik = zywy?.znacznik || plan.znacznik;
+          const etykieta = doKupienia ? "Wybierz plan" : plan.przycisk;
+          const adres = doKupienia
+            ? `/zaloguj?next=${encodeURIComponent("/m/platnosci")}`
+            : plan.dostepny
+              ? "#instalacja"
+              : `mailto:support@danaco-group.pl?subject=Powiadom%20mnie%20o%20planie%20${plan.nazwa}`;
+          return (
           <article
             key={plan.nazwa}
-            className={`landing-karta ui-ujawnij flex flex-col p-8 ${plan.dostepny ? "border-accent/50 shadow-[var(--shadow-glow-ai)]" : ""}`}
+            className={`landing-karta ui-ujawnij flex flex-col p-8 ${doKupienia || plan.dostepny ? "border-accent/50 shadow-[var(--shadow-glow-ai)]" : ""}`}
             data-widoczny={widoczne ? "true" : "false"}
             style={kaskada(indeks)}
           >
@@ -483,14 +520,14 @@ export function SekcjaCennik() {
               <h3 className="font-heading text-2xl font-bold tracking-tight">{plan.nazwa}</h3>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  plan.dostepny ? "bg-success-soft text-success" : "bg-hover text-muted"
+                  doKupienia || plan.dostepny ? "bg-success-soft text-success" : "bg-hover text-muted"
                 }`}
               >
-                {plan.znacznik}
+                {znacznik}
               </span>
             </div>
             <p className="mt-3 text-sm text-muted">{plan.dlaKogo}</p>
-            <p className="mt-6 font-heading text-3xl font-bold tracking-tighter">{plan.cena}</p>
+            <p className="mt-6 font-heading text-3xl font-bold tracking-tighter">{cena}</p>
             <ul className="mt-6 flex-1 space-y-2.5 text-sm">
               {plan.zawartosc.map((pozycja) => (
                 <li key={pozycja} className="flex gap-2.5">
@@ -500,17 +537,18 @@ export function SekcjaCennik() {
               ))}
             </ul>
             <a
-              href={plan.dostepny ? "#instalacja" : "mailto:support@danaco-group.pl?subject=Powiadom%20mnie%20o%20planie%20" + plan.nazwa}
+              href={adres}
               className={`ui-nacisk mt-8 inline-flex h-11 items-center justify-center rounded-full px-5 font-medium transition-colors ${
-                plan.dostepny
+                doKupienia || plan.dostepny
                   ? "bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
                   : "border border-line-strong hover:bg-hover"
               }`}
             >
-              {plan.przycisk}
+              {etykieta}
             </a>
           </article>
-        ))}
+          );
+        })}
       </div>
     </Sekcja>
   );

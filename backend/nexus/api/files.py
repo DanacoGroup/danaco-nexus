@@ -80,7 +80,7 @@ async def upload(
             if rozmowa is None or rozmowa.owner_id != owner:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono rozmowy.")
     # Przestrzeń rozstrzyga plan konta, nie jedna wartość dla wszystkich: okres próbny
-    # ma 100 MB, plan Osobisty 1 GB, Pro 2 GB, Zespół 10 GB.
+    # ma 100 MB, plan Osobisty 1 GB, Pro 2 GB, Grupa 10 GB.
     limity = await limity_uzytkownika(database, str(owner))
     limit = limity.przestrzen_mb * 1024 * 1024
     zajete = await zajete_miejsce(database, owner)

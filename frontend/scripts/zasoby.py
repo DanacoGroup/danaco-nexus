@@ -173,10 +173,9 @@ OPISY_FILMOW = {
 
 
 def opis_filmu(baza: str) -> tuple[str, str, str]:
-    """Tytuł, opis i nazwa wariantu dla rdzenia nazwy pliku (bez kadru).
+    """Tytuł, opis i wariant dla rdzenia nazwy pliku (bez kadru).
 
-    Klucze mają różną liczbę członów (`nexus-60s`, `nexus-praca-60s`), więc dopasowujemy
-    najdłuższy pasujący przedrostek; reszta nazwy jest wariantem (np. `16x9-lektor`).
+    Klucze mają różną liczbę członów, więc bierzemy najdłuższy pasujący przedrostek.
     """
     czesci = baza.split("-")
     for dlugosc in range(len(czesci), 0, -1):
@@ -214,12 +213,10 @@ def na_vtt(srt: str) -> str:
 
 
 def zwiaz(zrodlo: Path, cel: Path) -> bool:
-    """Wstawia plik do katalogu publicznego dowiązaniem twardym; kopiuje, gdy się nie da.
+    """Wstawia plik dowiązaniem twardym; kopiuje, gdy się nie da.
 
-    Pakiety źródłowe marki (`branding`, `landing`, `motion`, `promocja`…) ważą prawie dwa
-    gigabajty i nie leżą w repozytorium — w git jest gotowy `frontend/public`. Brak źródła
-    jest więc usterką tylko wtedy, gdy nie ma też pliku docelowego: na serwerze z pakietami
-    skrypt odświeża zasoby, a w zwykłym klonie po prostu nie ma czego odświeżać.
+    Pakiety marki nie leżą w repozytorium (w git jest gotowy `public`), więc brak źródła
+    jest usterką tylko wtedy, gdy nie ma też pliku docelowego.
     """
     if not zrodlo.is_file():
         if cel.is_file():
@@ -299,7 +296,10 @@ def na_webp(zrodlo: Path, cel: Path) -> bool:
         )
         return wynik.returncode == 0
     with Image.open(zrodlo) as obraz:
-        obraz.convert("RGB").save(cel, "WEBP", quality=JAKOSC_WEBP, method=6)
+        # Przezroczystość zostaje, tak samo jak w gałęzi ffmpeg: inaczej wynik przelicznika
+        # zależałby od tego, którym Pythonem uruchomiono skrypt.
+        tryb = "RGBA" if obraz.mode in ("RGBA", "LA", "PA") or "transparency" in obraz.info else "RGB"
+        obraz.convert(tryb).save(cel, "WEBP", quality=JAKOSC_WEBP, method=6)
     return True
 
 
@@ -384,12 +384,7 @@ def plakaty_nagran() -> int:
 
 
 def katalog_ruchu() -> int:
-    """Przenosi pełny katalog nagrań i wypisuje spis dla aplikacji.
-
-    Zwraca liczbę braków. Spis trafia do `frontend/src/media/katalog.ts` — komponenty
-    czytają go zamiast wpisywać ścieżki ręcznie, więc dorzucenie nagrania do pakietu
-    wystarczy, żeby pojawiło się w aplikacji.
-    """
+    """Przenosi katalog nagrań i wypisuje spis do `frontend/src/media`. Zwraca liczbę braków."""
     braki = 0
     for zrodlo_kat, cel_kat, rozszerzenia in KATALOGI:
         katalog = REPO / zrodlo_kat

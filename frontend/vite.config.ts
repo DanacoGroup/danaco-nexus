@@ -23,6 +23,8 @@ export default defineConfig({
         "icons/maskable-192.png",
         "icons/maskable-512.png",
         "icons/safari-pinned-tab.svg",
+        // Znaczek powiadomienia rysuje worker także bez sieci.
+        "icons/badge-96.png",
         "share-target.js",
       ],
       manifest: {
@@ -91,11 +93,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Wstępnie pobierana jest sama powłoka: kod, arkusze, kroje, znak, ikony. Materiały
-        // idą z sieci i zostają w pamięci podręcznej po obejrzeniu (reguły niżej) — inaczej
-        // instalacja i każde wydanie ciągnęły 19,7 MiB plansz, których powłoka nie pokazuje.
+        // Lista dopuszczeń: wstępnie pobierana jest sama powłoka (kod, arkusze, kroje, znak).
+        // Materiały idą z sieci i zostają w pamięci po obejrzeniu — reguły niżej.
         globPatterns: ["**/*.{js,css,html,webmanifest,woff2}", "znak/*.svg"],
-        globIgnores: ["screenshots/**", "film/**", "kampania/**", "ruch/**", "tla/**/*.{avif,webp}"],
         navigateFallback: "/index.html",
         // Instalatory i panel osadzany (inne nagłówki ramki) zawsze z sieci, nie z pamięci podręcznej.
         // Kanały dla wyszukiwarek też: bez tego przejście pod /sitemap.xml zwracałoby powłokę aplikacji.
@@ -114,9 +114,10 @@ export default defineConfig({
         clientsClaim: true,
         runtimeCaching: [
           {
-            // Plakaty, tła i zrzuty: po obejrzeniu zostają na miesiąc, z limitem wpisów.
+            // Plakaty, tła i zrzuty: z pamięci od razu, odświeżenie w tle. Nazwy są stałe,
+            // więc „CacheFirst” podawałby treść sprzed podmiany nawet miesiąc.
             urlPattern: /\/(tla|film|kampania|ruch|screenshots)\/[^?]+\.(avif|webp|png|jpg)$/,
-            handler: "CacheFirst",
+            handler: "StaleWhileRevalidate",
             options: {
               cacheName: "nexus-materialy-obrazy",
               expiration: { maxEntries: 80, maxAgeSeconds: 2592000 },
