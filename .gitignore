@@ -20,6 +20,12 @@ data/
 logs/
 programy/
 .cache/
+# Wzorzec bez ukośnika dopasowuje **każdy** katalog o tej nazwie, na dowolnej głębokości.
+# `dane/` złapało przez to `frontend/src/dane/` — katalog z kodem, nie z danymi: leży w nim
+# katalog narzędzi (generowany) i ręcznie pisane `zastosowania.ts`, które przez to nigdy
+# nie weszło do repozytorium. Katalogi danych uruchomieniowych (`dane/`, `backend/dane/`)
+# mają zostać pominięte, więc zamiast przepinać wzorzec na `/dane/` odwracamy wyjątkiem.
+!frontend/src/dane/
 
 # Logi budowy i uruchomień lokalnych
 .logs/
@@ -39,6 +45,9 @@ frontend/public/tla/
 frontend/public/film/
 frontend/public/ruch/
 frontend/public/ladowanie/
+# Ustawienia ekranu ładowania są nasze, nie z pakietu marki: `opcje.js` pisaliśmy tutaj
+# i bez niego otwarcie wraca do domyślnego progu, czyli znika na gotowej stronie.
+!frontend/public/ladowanie/opcje.js
 frontend/public/favicon.ico
 frontend/public/favicon.svg
 frontend/public/apple-touch-icon.png
@@ -52,6 +61,13 @@ backend/pkcs11.txt
 
 # Wydania: artefakty budowy i dane przedsionka (poza repozytorium).
 wydania/
+# Ten sam wzorzec bez ukośnika złapał `deploy/wydania/` — czyli **całą obsługę wdrożenia**
+# (`zbuduj.sh`, `wypchnij.sh`, `cofnij.sh`, `sprzataj.sh`, `wersje.sh`, README). Skrypty,
+# którymi produkt się buduje i wypuszcza, były przez to poza kontrolą wersji: świeży klon
+# nie miał czym zbudować wydania. Pliki `.env` zostają pominięte — w nich są ścieżki
+# i miejsca na klucze, a te do repozytorium nie należą.
+!deploy/wydania/
+deploy/wydania/*.env
 
 # Pakiety źródłowe marki i materiałów (ok. 1,9 GB renderów, nagrań i plików roboczych).
 # W repozytorium leży gotowy `frontend/public`, który buduje interfejs; pakiety źródłowe

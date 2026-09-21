@@ -12,8 +12,12 @@ Type=simple
 User=danaco-serwis
 Group=danaco-user
 UMask=0007
-WorkingDirectory=/danaco/projekty/danaco-nexus/backend
+# Kod bierze się z wydania wskazanego przez `wydania/produkcja`, tak samo jak w usłudze API.
+# Inaczej proces roboczy — czyli sam agent — chodziłby na stanie roboczym repozytorium:
+# na kodzie, który nie przeszedł bramki, i którego nie cofa `cofnij.sh`.
+WorkingDirectory=/danaco/projekty/danaco-nexus/wydania/produkcja/backend
 EnvironmentFile=/danaco/projekty/danaco-nexus/.env
+EnvironmentFile=/danaco/projekty/danaco-nexus/deploy/wydania/produkcja.env
 Environment=HOME=/danaco/projekty/danaco-nexus/dane
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/danaco/projekty/danaco-nexus/.venv/bin/python -m nexus.worker

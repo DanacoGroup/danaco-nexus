@@ -129,6 +129,17 @@ sudo systemctl enable danaco-nexus-chmura.service danaco-nexus-chmura-cron.timer
 sudo systemctl restart danaco-nexus-chmura.service
 sudo systemctl start danaco-nexus-chmura-cron.timer
 
+krok "Pierwsze wydanie"
+# Usługi produkcji biorą kod i interfejs z `wydania/produkcja`, więc bez wydania nie mają
+# z czego wstać. Na świeżej maszynie robi je bramka — ta sama, którą przechodzi każda
+# późniejsza zmiana; istniejącej instalacji ten krok nie rusza.
+if [ ! -e wydania/produkcja ]; then
+    # Wprost wskazany znacznik: produkcja normalnie bierze to, co stoi w przedsionku,
+    # ale na świeżej maszynie przedsionka jeszcze nie ma i nie trzeba go podnosić.
+    ZNACZNIK="$(deploy/wydania/zbuduj.sh | tail -1)"
+    deploy/wydania/wypchnij.sh produkcja "$ZNACZNIK"
+fi
+
 krok "Aplikacja"
 sudo systemctl enable danaco-nexus.target danaco-nexus-api.service danaco-nexus-worker.service
 sudo systemctl restart danaco-nexus-api.service danaco-nexus-worker.service

@@ -1,0 +1,28 @@
+# Konfiguracja skanera sekretów.
+#
+# Bez niej `gitleaks detect` kończył się komunikatem „leaks found: 10”, a wszystkie
+# dziesięć trafień było fałszywe: hasła kont testowych w zestawach testów i jedna stała
+# ze ścieżkami katalogów w skrypcie budującym zasoby. Skan, który zawsze świeci na
+# czerwono, przestaje cokolwiek znaczyć — nikt do niego nie zagląda, a prawdziwy wyciek
+# przechodzi razem z tłem. Zawężenie jest wąskie i opisane: konkretne pliki i konkretna
+# stała, nie „pomiń cały katalog”.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+description = "Ogólny klucz API"
+regex = '''(?i)(?:key|api|token|secret|client|passwd|password|auth|access)(?:[0-9a-z\-_\t .]{0,20})(?:[\s|']|[\s|"]){0,3}(?:=|>|:{1,3}=|\|\|:|<=|=>|:|\?=)(?:'|\"|\s|=|\x60){0,5}([0-9a-z\-_.=]{10,150})(?:['|\"|\n|\r|\s|\x60|;|\\]|$)'''
+keywords = ["key", "api", "token", "secret", "client", "passwd", "password", "auth", "access"]
+
+  [rules.allowlist]
+  regexTarget = "match"
+  # Hasła kont testowych — jawne z założenia, bo test ma je wpisać w formularz.
+  paths = [
+    '''backend/tests/.*\.py''',
+    # Stała ze ścieżkami katalogów napisów (`NAPISY_FILMU_Z_SRT`): reguła ogólna łapie
+    # każdy przypisany łańcuch przy słowie kluczowym, a tu „secret”-podobnym słowem jest
+    # sam kształt zapisu, nie treść.
+    '''frontend/scripts/zasoby\.py''',
+  ]

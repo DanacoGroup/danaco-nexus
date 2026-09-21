@@ -56,7 +56,11 @@ test.danaco-nexus.pl {
 	respond /robots.txt 200 {
 		body "User-agent: *\nDisallow: /\n"
 	}
-	basic_auth {
+	# Hasło obowiązuje wszystkich poza samym serwerem: sprawdzanie wydania przeglądarką
+	# uruchomioną lokalnie nie ma jak wypełnić okienka Basic Auth, a ruch z 127.0.0.1
+	# i tak nie wychodzi poza tę maszynę.
+	@z_zewnatrz not remote_ip 127.0.0.1/32 ::1
+	basic_auth @z_zewnatrz {
 		import /etc/danaco/przedsionek-haslo
 	}
 	encode zstd gzip
@@ -80,6 +84,9 @@ test.danaco-nexus.pl {
 
 api.danaco-nexus.pl {
 	import danaco-nexus-bez-indeksu
+	# Tak samo jak domena główna: odpowiedzi JSON integracji potrafią mieć setki kilobajtów,
+	# a strumień zdarzeń zadań i tak idzie bez buforowania (flush_interval -1).
+	encode zstd gzip
 	request_body {
 		max_size 2GB
 	}

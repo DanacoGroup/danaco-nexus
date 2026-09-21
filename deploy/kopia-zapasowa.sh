@@ -83,6 +83,28 @@ if (( ${#ISTNIEJACE[@]} )); then
   echo "   materiały: $(du -h "$KATALOG/materialy.tar.zst" | cut -f1)"
 fi
 
+echo "-- kod źródłowy"
+# Do 21 września 2026 kopia obejmowała bazy, pliki użytkowników, wektory, materiały marki
+# i sekrety — **wszystko oprócz kodu**. Założenie było takie, że kod chroni git. Nie chronił:
+# drzewo robocze miało tego dnia ponad 260 zmienionych plików poza commitami, a jedno
+# nieostrożne `git checkout --` skasowało z niego kilkaset wierszy pracy.
+# Kod waży tyle co nic przy 1,9 GB materiałów, więc nie ma powodu go pomijać.
+# `node_modules`, `dist`, `build`, `.gradle` i wtyczki generowane przez Capacitora
+# zostają poza kopią — odtwarza je instalacja i budowa (same ważą ponad 110 MB).
+tar --create --zstd --file "$KATALOG/zrodla.tar.zst" \
+  -C "$PROJEKT" --ignore-failed-read \
+  --exclude='node_modules' --exclude='dist' --exclude='__pycache__' --exclude='*.pyc' \
+  --exclude='.pytest_cache' --exclude='.venv' \
+  --exclude='build' --exclude='.gradle' --exclude='capacitor-cordova-android-plugins' \
+  --exclude='.mypy_cache' --exclude='.ruff_cache' --exclude='backend/dane' \
+  backend frontend/src frontend/scripts frontend/package.json frontend/index.html \
+  frontend/vite.config.ts frontend/tsconfig.json \
+  desktop/src desktop/package.json extension android/scripts android/android \
+  deploy docs motion/MOTION_GUIDELINES.md README.md CHANGELOG.md .env.example \
+  .gitignore .gitleaks.toml landing/ladowanie frontend/public/ladowanie/opcje.js \
+  2>/dev/null || true
+echo "   kod: $(du -h "$KATALOG/zrodla.tar.zst" | cut -f1)"
+
 echo "-- sekrety i konfiguracja"
 # Plik .env i klucze mają prawa 600; kopia dziedziczy je przez --preserve-permissions.
 # Wykaz jest wyliczony, nie zgadywany: każdy plik z sekretem w dane/app ma prawa 600.

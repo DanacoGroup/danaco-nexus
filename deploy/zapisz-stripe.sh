@@ -70,7 +70,10 @@ ustaw_env() {
   local nazwa="$1" wartosc="$2" tmp
   tmp="$(mktemp "$ENV_PLIK.XXXX")"
   grep -v "^${nazwa}=" "$ENV_PLIK" > "$tmp" || true
-  printf '%s=%s\n' "$nazwa" "$wartosc" >> "$tmp"
+  # Wartość idzie w cudzysłowach: cennik ma postać `kod:okres=price_…;kod:okres=price_…`,
+  # a średnik bez cudzysłowu rozcina wiersz przy `source` — tak przestały działać wszystkie
+  # polecenia `deploy/nexus-cli.sh`. systemd czyta cudzysłowy poprawnie i je zdejmuje.
+  printf '%s="%s"\n' "$nazwa" "$wartosc" >> "$tmp"
   chmod --reference="$ENV_PLIK" "$tmp"
   mv "$tmp" "$ENV_PLIK"
 }
