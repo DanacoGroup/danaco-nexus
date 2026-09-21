@@ -336,7 +336,11 @@ def test_opisy_w_katalogu_sa_calymi_zdaniami() -> None:
     )
     opisy = re.findall(r'"opis": "((?:[^"\\]|\\.)*)"', katalog)
     assert len(opisy) > 50, "nie odczytano opisów — zmienił się kształt katalogu"
-    urwane = [opis for opis in opisy if opis.rstrip().endswith((":", "(", ",")) or opis.count("(") != opis.count(")")]
+    urwane = [
+        opis
+        for opis in opisy
+        if opis.rstrip().endswith((":", "(", ",")) or opis.count("(") != opis.count(")")
+    ]
     assert urwane == [], f"opisy urwane w pół myśli: {urwane[:5]}"
 
 

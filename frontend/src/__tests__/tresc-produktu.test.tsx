@@ -91,8 +91,12 @@ describe("strona Funkcje w portalu", () => {
   it("ma jedną nazwę w tytule i korzyść w nagłówku", () => {
     render(<Funkcje />);
     expect(document.title).toBe("Funkcje — Danaco Nexus");
-    const naglowek = screen.getByRole("heading", { level: 1 });
-    expect(naglowek.textContent).toBe("Co Nexus załatwi za Ciebie");
+    const naglowek = screen.getByRole("heading", { level: 1 }).textContent ?? "";
+    // Nagłówek ma mówić, co czytelnik z tego ma — nie powtarzać nazwy zakładki. Samo
+    // brzmienie jest sprawą redakcji, więc test pilnuje kształtu, a nie jednego zdania:
+    // wcześniej przypięty literał psuł się przy każdej poprawce tekstu.
+    expect(naglowek.trim().split(/\s+/).length).toBeGreaterThanOrEqual(3);
+    expect(naglowek.trim()).not.toBe("Funkcje");
     expect(document.body.textContent).not.toContain("Funkcjonalnoś");
   });
 });

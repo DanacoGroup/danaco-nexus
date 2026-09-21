@@ -19,8 +19,9 @@ import { PYTANIA } from "../tresc";
 import { sciezka } from "../trasy";
 import { Karta, Komunikat, Ladowanie, NaglowekStrony, OdsylaczPrzycisk, Znacznik } from "../ui";
 
-const OPIS = "Plany korzystania z Danaco Nexus i zakres każdego z nich.";
-const BLAD = "Nie udało się pobrać cennika z serwera. Odśwież stronę za chwilę albo napisz do nas.";
+const OPIS =
+  "Trzy plany Danaco Nexusa. Przy każdym widać, co obejmuje i co dokłada względem niższego.";
+const BLAD = "Cennik nie wczytał się z serwera. Odśwież stronę za chwilę albo napisz do nas.";
 
 function pytaniaSchema(): Record<string, unknown> {
   return {
@@ -139,11 +140,11 @@ export function Cennik() {
       {cennik && !cennik.sprzedaz_aktywna && (
         <Karta className="mt-8">
           <h2 className="font-heading text-lg font-semibold text-fg">
-            Sprzedaż nie jest jeszcze włączona
+            Sprzedaż rusza wkrótce
           </h2>
           <p className="mt-2 text-sm text-muted">
-            Planów nie da się jeszcze kupić. Zostaw nam wiadomość, a damy znać, gdy sprzedaż
-            ruszy.
+            Planów nie da się jeszcze kupić. Zostaw nam wiadomość, a napiszemy w dniu startu
+            sprzedaży. Aplikację możesz sprawdzić już teraz pod adresem /wyprobuj.
           </p>
         </Karta>
       )}
@@ -195,6 +196,34 @@ export function Cennik() {
           })}
         </ul>
       )}
+
+      <section aria-labelledby="wybor-planu" className="mt-14">
+        <h2 id="wybor-planu" className="font-heading text-2xl font-semibold text-fg">
+          Kiedy wyższy plan ma sens
+        </h2>
+        <dl className="mt-6 flex flex-col gap-5">
+          <div className="rounded-xl border border-line bg-raised p-5">
+            <dt className="font-heading text-base font-semibold text-fg">
+              Z planu Osobistego na Pro
+            </dt>
+            <dd className="mt-2 text-sm text-muted">
+              Gdy zaczynasz pracować w Nexusie codziennie. Pro dokłada wersje plików, czyli powrót
+              do wczorajszej wersji dokumentu, synchronizację z komputerem i telefonem oraz cztery
+              zadania naraz zamiast jednego. Zakres pracy rośnie dziesięciokrotnie, przestrzeń do
+              2 GB, a adresów e-mail masz do 10 zamiast jednego.
+            </dd>
+          </div>
+          <div className="rounded-xl border border-line bg-raised p-5">
+            <dt className="font-heading text-base font-semibold text-fg">Z planu Pro na Grupę</dt>
+            <dd className="mt-2 text-sm text-muted">
+              Gdy z Nexusa ma korzystać więcej niż jedna osoba. Każdy pracuje na własnym koncie
+              i własnej skrzynce, a wspólny zakres pracy przedłuża założyciel grupy.
+              Osiem zadań naraz pozwala pracować kilku osobom jednocześnie, przestrzeń rośnie do
+              10 GB, a cena liczy się za każdego użytkownika.
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       <section aria-labelledby="pytania" className="mt-14">
         <h2 id="pytania" className="font-heading text-2xl font-semibold text-fg">

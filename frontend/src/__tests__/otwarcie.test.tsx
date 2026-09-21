@@ -5,7 +5,7 @@
 // otwarcie, potem gotową stronę, a potem znowu zasłonę z tym samym znakiem. Teraz otwarcie
 // rysuje wyłącznie ekran ładowania, a strona czeka z wejściem na jego sygnał.
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import { otwarcieZagra, useOtwarcie } from "../ruch/otwarcie";
 // Treść dokumentu i źródła strony produktu jako tekst — bez `node:fs`, którego interfejs
@@ -24,7 +24,18 @@ function stan(): string | null {
   return document.querySelector("span")?.getAttribute("data-stan") ?? null;
 }
 
+// Wstrzymanie wejścia ma termin ważności liczony od otwarcia dokumentu
+// (`GRANICA_WSTRZYMANIA_MS`), a w przeglądarce mierzy go `performance.now()`. W teście ten
+// sam zegar liczy od startu procesu vitest, więc po kilkudziesięciu plikach w tym samym
+// wątku granica była już przekroczona, zanim ten plik ruszył — testy przechodziły albo nie
+// w zależności od tego, co uruchomiono wcześniej. Zatrzymanie zegara na zerze bierze je
+// z powrotem pod kontrolę: sprawdzamy zachowanie, a nie szybkość maszyny.
+beforeEach(() => {
+  vi.spyOn(performance, "now").mockReturnValue(0);
+});
+
 afterEach(() => {
+  vi.restoreAllMocks();
   cleanup();
   document.documentElement.classList.remove("dn-ladowanie-trwa");
   document.querySelectorAll(".dn-ladowanie").forEach((w) => w.remove());

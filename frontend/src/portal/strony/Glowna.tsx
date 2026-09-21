@@ -1,15 +1,65 @@
 // Strona główna portalu: czym jest produkt, dla kogo, co obejmuje i gdzie szukać szczegółów.
 
 import { portalApi } from "../api";
+import { LICZBA_NARZEDZI } from "../../dane/narzedzia";
 import { useZasob } from "../dane";
 import { usePozycjonowanie, witryna } from "../seo";
 import { FUNKCJONALNOSCI, OFERTA } from "../tresc";
-import { sciezka } from "../trasy";
+import { sciezka, type PortalStrona } from "../trasy";
 import { Karta, Ladowanie, NaglowekStrony, Odsylacz, OdsylaczPrzycisk, Sekcja } from "../ui";
 import { KartaWpisu } from "./ListaWpisow";
 
 const OPIS =
-  "Danaco Nexus łączy rozmowę z agentem, dokumenty, pocztę, kalendarz i wyszukiwanie w Twoich plikach w jednym oknie. Zadanie zlecasz zdaniem, wynik odbierasz jako plik.";
+  "Danaco Nexus przyjmuje zadanie opisane jednym zdaniem i oddaje gotowy plik. Dokumenty, poczta, kalendarz i wyszukiwanie w Twoich plikach stoją w jednym oknie.";
+
+/** Sytuacje, w których czytelnik ma się rozpoznać — po jednej na rodzaj roboty, bez nazw technicznych. */
+const ODBIORCY = [
+  {
+    nazwa: "Stos skanów do przepisania",
+    opis: "Trzysta faktur w skanach wraca jako tabela z kwotami i przeszukiwalny plik PDF. Niczego nie przepisujesz ręcznie.",
+  },
+  {
+    nazwa: "Materiał do opracowania",
+    opis: "Nagranie spotkania wraca jako tekst z podziałem na mówców. Dokument w obcym języku wraca z nienaruszonym układem.",
+  },
+  {
+    nazwa: "Robota, do której brakuje specjalisty",
+    opis: "Logo, ulotka i strona firmowa powstają w rozmowie. Nie otwierasz programu graficznego i nie zamawiasz projektu na zewnątrz.",
+  },
+];
+
+/** Odpowiedź na drugą obawę czytelnika: gdzie leżą jego pliki i co wychodzi poza serwer. */
+const PRZECHOWYWANIE = [
+  {
+    nazwa: "Jedno konto, jedna przestrzeń",
+    opis: "Pliki, rozmowy, pocztę i kalendarz widzi wyłącznie właściciel konta. Chmura osobista pod adresem cloud.danaco-nexus.pl otwiera się tym samym logowaniem.",
+  },
+  {
+    nazwa: "Co wychodzi poza serwer",
+    opis: "Treść polecenia i dołączone pliki trafiają do modelu, który prowadzi rozmowę. Poza tym nic nie opuszcza Twojej przestrzeni.",
+  },
+  {
+    nazwa: "Zgoda przed krokiem na zewnątrz",
+    opis: "Wysłanie wiadomości, usunięcie wydarzenia i publikację strony zatwierdzasz sam. Funkcje sięgające cudzych danych są domyślnie wyłączone.",
+  },
+];
+
+/** Mapa portalu: każda pozycja mówi, na jakie pytanie odpowiada podstrona. */
+const PODSTRONY: { strona: PortalStrona; nazwa: string; opis: string }[] = [
+  { strona: "oferta", nazwa: "Oferta", opis: "Osiem rodzajów pracy, z zakresem i adresatem." },
+  { strona: "funkcje", nazwa: "Funkcje", opis: "Wykaz tego, co działa po zalogowaniu." },
+  { strona: "zastosowania", nazwa: "Zastosowania", opis: "Osiem sytuacji z pracy, rozpisanych krok po kroku." },
+  {
+    strona: "narzedzia",
+    nazwa: "Narzędzia",
+    opis: `Katalog ${LICZBA_NARZEDZI} narzędzi w dziesięciu dziedzinach, z wyszukiwarką.`,
+  },
+  { strona: "cennik", nazwa: "Cennik", opis: "Plany Osobisty, Pro i Grupa oraz różnice między nimi." },
+  { strona: "wiedza", nazwa: "Centrum wiedzy", opis: "Poradniki i odpowiedzi na częste pytania." },
+  { strona: "blog", nazwa: "Blog", opis: "Zmiany w produkcie i praca z Nexusem." },
+  { strona: "dokumentacja", nazwa: "Dokumentacja", opis: "Opis ekranów i pierwsze uruchomienie." },
+  { strona: "kontakt", nazwa: "Kontakt", opis: "Pytanie o własną sprawę i dobór planu." },
+];
 
 export function Glowna() {
   const wpisy = useZasob(() => portalApi.lista({ typ: "blog", na_stronie: 3 }), "glowna-blog");
@@ -29,7 +79,24 @@ export function Glowna() {
         </div>
       </NaglowekStrony>
 
-      <Sekcja tytul="Do czego to służy" opis="Pięć rodzajów pracy, które Nexus przejmuje w całości — od skanu faktury po raport z przypisami.">
+      <Sekcja
+        tytul="Dla kogo jest Nexus"
+        opis="Nexus trafia do osób, które mają na biurku konkretną robotę i nie mają do niej ani programu, ani czasu."
+      >
+        <ul className="grid gap-4 sm:grid-cols-3">
+          {ODBIORCY.map((pozycja) => (
+            <li key={pozycja.nazwa} className="rounded-xl border border-line bg-raised p-4">
+              <h3 className="font-heading text-base font-semibold text-fg">{pozycja.nazwa}</h3>
+              <p className="mt-1.5 text-sm text-muted">{pozycja.opis}</p>
+            </li>
+          ))}
+        </ul>
+      </Sekcja>
+
+      <Sekcja
+        tytul="Do czego to służy"
+        opis="Osiem rodzajów pracy, które Nexus przejmuje w całości — od skanu faktury po raport z przypisami do źródeł."
+      >
         <ul className="grid gap-5 sm:grid-cols-2">
           {OFERTA.map((pozycja) => (
             <li key={pozycja.nazwa}>
@@ -43,7 +110,7 @@ export function Glowna() {
         </ul>
       </Sekcja>
 
-      <Sekcja tytul="Co dostajesz po zalogowaniu" opis="Sześć rzeczy, z których korzysta się codziennie. Cała reszta — w pełnym wykazie.">
+      <Sekcja tytul="Co dostajesz po zalogowaniu" opis="Sześć funkcji z codziennej pracy. Pozostałe opisuje pełny wykaz.">
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FUNKCJONALNOSCI.slice(0, 6).map((funkcja) => (
             <li key={funkcja.nazwa} className="rounded-xl border border-line bg-raised p-4">
@@ -59,7 +126,39 @@ export function Glowna() {
         </p>
       </Sekcja>
 
-      <Sekcja tytul="Z bloga" opis="Jak inni pracują z Nexusem i co doszło w ostatnich wydaniach.">
+      <Sekcja
+        tytul="Gdzie zostają Twoje pliki"
+        opis="Serwer stoi w Polsce. Na urządzeniu zostaje sam interfejs, więc dokumenty nie rozchodzą się po dyskach."
+      >
+        <ul className="grid gap-4 sm:grid-cols-3">
+          {PRZECHOWYWANIE.map((pozycja) => (
+            <li key={pozycja.nazwa} className="rounded-xl border border-line bg-raised p-4">
+              <h3 className="font-heading text-base font-semibold text-fg">{pozycja.nazwa}</h3>
+              <p className="mt-1.5 text-sm text-muted">{pozycja.opis}</p>
+            </li>
+          ))}
+        </ul>
+      </Sekcja>
+
+      <Sekcja
+        tytul="Podstrony portalu"
+        opis="Każda podstrona odpowiada na inne pytanie. Zacznij od tej, która pasuje do Twojej sprawy."
+      >
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {PODSTRONY.map((pozycja) => (
+            <li key={pozycja.strona} className="rounded-xl border border-line bg-raised p-4">
+              <h3 className="font-heading text-base font-semibold text-fg">
+                <Odsylacz adres={sciezka(pozycja.strona)} className="text-accent hover:underline">
+                  {pozycja.nazwa}
+                </Odsylacz>
+              </h3>
+              <p className="mt-1.5 text-sm text-muted">{pozycja.opis}</p>
+            </li>
+          ))}
+        </ul>
+      </Sekcja>
+
+      <Sekcja tytul="Z bloga" opis="Zmiany w produkcie i notatki z pracy nad Nexusem.">
         <div>
           {wpisy.ladowanie && <Ladowanie wierszy={2} etykieta="Wczytywanie wpisów" />}
           {!wpisy.ladowanie && (wpisy.dane?.items.length ?? 0) === 0 && (
@@ -79,10 +178,13 @@ export function Glowna() {
 
       <Sekcja
         tytul="Od czego zacząć"
-        opis="Pięć gotowych zadań uruchomisz w przeglądarce, bez zakładania konta. Plan Osobisty zaczyna się od 7 dni próbnych, a dokumentacja prowadzi przez pierwsze uruchomienie krok po kroku."
+        opis={
+          "Przepisz jeden skan na koncie próbnym, a plik dostaniesz w tej samej rozmowie. Konto próbne działa " +
+          "bez rejestracji, bez karty i bez instalacji. Plan Osobisty zaczyna się od 7\u00a0dni próbnych ze 100\u00a0MB miejsca."
+        }
       >
         <div className="flex flex-wrap gap-3">
-          <OdsylaczPrzycisk adres="/wyprobuj">Uruchom gotowe zadanie</OdsylaczPrzycisk>
+          <OdsylaczPrzycisk adres="/wyprobuj">Przepisz pierwszy skan</OdsylaczPrzycisk>
           <OdsylaczPrzycisk adres={sciezka("cennik")} wariant="drugorzedny">
             Sprawdź plany
           </OdsylaczPrzycisk>

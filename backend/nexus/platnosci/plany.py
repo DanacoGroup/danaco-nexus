@@ -78,7 +78,10 @@ KATALOG: tuple[PlanKatalogu, ...] = (
     PlanKatalogu(
         kod="osobisty",
         nazwa="Osobisty",
-        opis="Dla jednej osoby — do pracy i do życia. Pierwsze 7 dni bez opłaty.",
+        opis=(
+            "Dla jednej osoby, do pracy i do domu: rozmowa, dokumenty, zdjęcia, nagrania "
+            "i własny adres e-mail. Pierwsze 7 dni bez opłaty."
+        ),
         limity={"zadania_rownolegle": 1, "automatyzacje": 0, "konta": 1, "skrzynki": 1},
         kredyty_okresowo=2_000,
         przestrzen_mb=1_024,
@@ -89,11 +92,12 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         synchronizacja=False,
         zawartosc=(
             "Rozmowa z Nexusem, także głosowa",
-            "Zdjęcia, dokumenty i nagrania",
-            "OCR z językiem polskim",
-            "Wyszukiwanie w Twoich plikach",
+            "Dokumenty, zdjęcia i nagrania — wynikiem jest plik",
+            "OCR skanów z językiem polskim",
+            "Wyszukiwanie w Twoich plikach i notatkach",
             "1 GB przestrzeni na pliki i pocztę",
             "Własny adres e-mail w domenie Nexusa",
+            "Jedno zadanie naraz",
         ),
         kolejnosc=10,
         okres_probny_dni=7,
@@ -104,7 +108,10 @@ KATALOG: tuple[PlanKatalogu, ...] = (
     PlanKatalogu(
         kod="pro",
         nazwa="Pro",
-        opis="Dla tych, którzy używają Nexusa codziennie i dużo.",
+        opis=(
+            "Dla codziennej pracy. Wersje plików, synchronizacja z komputerem i cztery "
+            "zadania naraz — to są powody przejścia z planu Osobistego."
+        ),
         limity={"zadania_rownolegle": 4, "automatyzacje": 20, "konta": 1, "skrzynki": 10},
         kredyty_okresowo=20_000,
         przestrzen_mb=2_048,
@@ -113,12 +120,12 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         synchronizacja=True,
         zawartosc=(
             "Wszystko z planu Osobistego",
-            "2 GB przestrzeni na pliki i pocztę",
-            "Do 10 adresów e-mail w domenie Nexusa",
-            "Wersje plików — powrót do poprzedniej",
+            "Wersje plików — powrót do wczorajszej wersji dokumentu",
             "Synchronizacja z komputerem i telefonem",
             "Cztery zadania naraz zamiast jednego",
             "Dziesięciokrotnie większy zakres pracy",
+            "2 GB przestrzeni na pliki i pocztę",
+            "Do 10 adresów e-mail w domenie Nexusa",
         ),
         kolejnosc=20,
     ),
@@ -129,7 +136,10 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         # „konta: 5” jest tylko wartością zastępczą, zanim powstanie subskrypcja: o liczbie
         # miejsc rozstrzyga to, za ile zapłacono w kasie (`platnosci.grupy.miejsca_grupy`).
         nazwa="Grupa",
-        opis="Dla rodziny albo małego zespołu — cena za każdego użytkownika, zakres pracy wspólny.",
+        opis=(
+            "Dla rodziny albo małego zespołu. Każdy pracuje na własnym koncie, a zakres "
+            "pracy i 10 GB przestrzeni dzieli cała grupa. Cena liczy się za użytkownika."
+        ),
         limity={"zadania_rownolegle": 8, "automatyzacje": 100, "konta": 5, "skrzynki": 10},
         kredyty_okresowo=60_000,
         przestrzen_mb=10_240,
@@ -138,11 +148,12 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         synchronizacja=True,
         zawartosc=(
             "Wszystko z planu Pro",
-            "Cena za każdego użytkownika w grupie",
+            "Własne konto i własna skrzynka dla każdej osoby w grupie",
             "Wspólny zakres pracy — przedłuża go założyciel grupy",
-            "Rolę założyciela można przekazać innej osobie",
+            "Osiem zadań naraz, więc kilka osób pracuje jednocześnie",
             "10 GB przestrzeni na pliki i pocztę",
-            "Osiem zadań naraz",
+            "Rolę założyciela można przekazać innej osobie",
+            "Cena za każdego użytkownika w grupie",
         ),
         kolejnosc=30,
     ),

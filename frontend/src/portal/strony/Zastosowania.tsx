@@ -11,7 +11,7 @@ import { ZASTOSOWANIA, type Zastosowanie } from "../../dane/zastosowania";
 import { odtworz } from "../../modules/mozliwosci/odtwarzanie";
 import { okruszki, usePozycjonowanie } from "../seo";
 import { sciezka } from "../trasy";
-import { NaglowekStrony, OdsylaczPrzycisk } from "../ui";
+import { NaglowekStrony, OdsylaczPrzycisk, Okruszki } from "../ui";
 
 const OPIS =
   "Osiem sytuacji z życia i z pracy, w których wystarczy opisać zadanie zdaniem. Przy każdej " +
@@ -126,7 +126,15 @@ export function Zastosowania() {
 
   return (
     <>
-      <NaglowekStrony tytul="Osiem sytuacji, w których Nexus robi to za Ciebie" opis={OPIS} />
+      <Okruszki
+        pozycje={[
+          { nazwa: "Portal", sciezka: sciezka("glowna") },
+          { nazwa: "Zastosowania", sciezka: sciezka("zastosowania") },
+        ]}
+      />
+      <div className="mt-4">
+          <NaglowekStrony tytul="Osiem sytuacji, w których opisujesz wynik i dostajesz plik" opis={OPIS} />
+      </div>
 
       <nav aria-label="Spis zastosowań" className="mt-8 flex flex-wrap gap-2">
         {ZASTOSOWANIA.map((pozycja) => (
@@ -146,11 +154,18 @@ export function Zastosowania() {
         ))}
       </div>
 
-      <div className="mt-14 flex flex-wrap gap-3">
-        <OdsylaczPrzycisk adres="/wyprobuj">Wejdź bez rejestracji</OdsylaczPrzycisk>
-        <OdsylaczPrzycisk adres={sciezka("narzedzia")} wariant="drugorzedny">
-          Zobacz wszystkie narzędzia
-        </OdsylaczPrzycisk>
+      <div className="mt-14 border-t border-line pt-10">
+        <h2 className="font-heading text-2xl font-semibold text-fg">Zrób jedno własne zadanie</h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted">
+          Pod adresem /wyprobuj otwiera się pełna aplikacja — bez rejestracji, bez karty, bez
+          instalacji. Wgraj jeden skan i poproś o tabelę. Plik odbierzesz w tej samej rozmowie.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <OdsylaczPrzycisk adres="/wyprobuj">Otwórz Nexusa bez rejestracji</OdsylaczPrzycisk>
+          <OdsylaczPrzycisk adres={sciezka("narzedzia")} wariant="drugorzedny">
+            Zobacz wszystkie 101 narzędzi
+          </OdsylaczPrzycisk>
+        </div>
       </div>
     </>
   );
