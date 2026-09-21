@@ -150,6 +150,13 @@ export function SekcjaKroki() {
           </li>
         ))}
       </ol>
+      <p className="mt-10 text-center text-sm text-muted">
+        Te same cztery kroki ruszą przy Twoim zdjęciu.{" "}
+        <a href="/wyprobuj" className="text-accent underline-offset-4 hover:underline">
+          Wejdź na /wyprobuj
+        </a>{" "}
+        i wgraj jedno — plik dostaniesz w tej samej rozmowie.
+      </p>
     </Sekcja>
   );
 }
@@ -161,8 +168,8 @@ export function SekcjaRoznice() {
     <Sekcja id="roznice">
       <Naglowek
         nad="Czym to się różni"
-        tytul="Nie odpowiada. Wykonuje."
-        akapit="Rozmowa z modelem kończy się tekstem na ekranie. Nexus kończy się plikiem, który wydrukujesz, wyślesz albo wrzucisz do księgowości."
+        tytul="Opisujesz wynik. Dostajesz plik."
+        akapit="Rozmowa z czatem kończy się tekstem na ekranie. Praca w Nexusie kończy się plikiem, który wydrukujesz, wyślesz albo wrzucisz do księgowości."
         srodek
       />
       <ul ref={element} className="mt-14 grid gap-4 md:grid-cols-2">
@@ -181,6 +188,13 @@ export function SekcjaRoznice() {
           </li>
         ))}
       </ul>
+      <p className="mt-10 text-center text-sm text-muted">
+        Sprawdzisz to na własnym dokumencie.{" "}
+        <a href="/wyprobuj" className="text-accent underline-offset-4 hover:underline">
+          Otwórz aplikację bez rejestracji
+        </a>{" "}
+        i zleć pierwsze zadanie.
+      </p>
     </Sekcja>
   );
 }
@@ -245,7 +259,7 @@ export function SekcjaFunkcje() {
       <Naglowek
         nad="Funkcje"
         tytul="Do pracy i do życia. W jednej rozmowie."
-        akapit={`Nexus ma ${LICZBA_NARZEDZI} narzędzi i sam wie, po które sięgnąć. Ty mówisz tylko, co ma powstać — resztę rozpisuje bez Ciebie.`}
+        akapit={`Nexus ma ${LICZBA_NARZEDZI} narzędzi i sam dobiera te, których wymaga zadanie. Ty piszesz albo mówisz jednym zdaniem, co ma powstać.`}
       />
       <p className="mt-6 flex flex-wrap items-center gap-5 text-sm text-muted">
         <span className="inline-flex items-center gap-2">
@@ -436,7 +450,7 @@ export function SekcjaPrywatnosc() {
       <Naglowek
         nad="Prywatność"
         tytul="Pod dachem Danaco."
-        akapit="Każde konto dostaje własną przestrzeń w chmurze Nexusa — od 1 GB w planie Osobistym po 10 GB w Grupie. Leżą w niej Twoje pliki, historia rozmów, indeks wiedzy i wyniki pracy; widzisz je tylko Ty, bo każde konto jest oddzielone od pozostałych. Poza Twoją przestrzeń wychodzi wyłącznie to, czego wymaga bieżące zadanie."
+        akapit="Każde konto dostaje własną przestrzeń w chmurze Nexusa — od 1 GB w planie Osobistym po 10 GB w Grupie. Leżą w niej Twoje pliki, historia rozmów, baza wiedzy i wyniki pracy. Widzisz je tylko Ty: konta nie zaglądają do siebie nawzajem. Poza tę przestrzeń wychodzi wyłącznie to, czego wymaga bieżące zadanie."
       />
       <div className="mt-14 grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
         <div className="landing-karta p-8">
@@ -485,8 +499,8 @@ export function SekcjaZaufanie() {
     <Sekcja id="zaufanie">
       <Naglowek
         nad="Zaufanie"
-        tytul="Nexus jest nowy. Dlatego pokazuje fakty."
-        akapit="Nie znajdziesz tu logotypów klientów ani zachwytów — jeszcze ich nie ma. Jest za to wszystko, co sprawdzisz sam w aplikacji."
+        tytul="Liczby, które sprawdzisz w aplikacji."
+        akapit="Każda liczba niżej pochodzi z działającej usługi. Sprawdzisz ją sam pod /wyprobuj, bez zakładania konta."
         srodek
       />
       <dl ref={liczby} className="mt-14 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -549,7 +563,12 @@ export function SekcjaCennik() {
 
   return (
     <Sekcja id="cennik">
-      <Naglowek nad="Cennik" tytul="Zacznij od 7 dni próbnych. Więcej — kiedy zechcesz." srodek />
+      <Naglowek
+        nad="Cennik"
+        tytul="Trzy plany. Zaczynasz od 7 dni próbnych."
+        akapit="Każdy z trzech planów kosztuje. Kartę podajesz na początku, a rezygnację składasz w dowolnym dniu okresu próbnego. Zanim zapłacisz, aplikację otworzysz pod /wyprobuj — bez konta i bez karty."
+        srodek
+      />
       <div ref={plany} className="mt-14 grid gap-4 lg:grid-cols-3">
         {PLANY.map((plan, indeks) => {
           const zywy = zywe(plan.kod);
@@ -654,7 +673,11 @@ export function SekcjaPytania() {
     <Sekcja id="pytania">
       <div className="grid gap-10 lg:grid-cols-[1fr_1.6fr]">
         <div className="lg:sticky lg:top-28 lg:self-start">
-          <Naglowek nad="Pytania" tytul="Najczęstsze pytania." />
+          <Naglowek
+            nad="Pytania"
+            tytul="Najczęstsze pytania."
+            akapit="Odpowiedzi opisują to, co Nexus robi dziś. Resztę sprawdzisz sam pod /wyprobuj."
+          />
         </div>
         <div>
           <div className="divide-y divide-line border-y border-line">
@@ -690,10 +713,10 @@ export function Brama({ instaluj }: { instaluj: ReactNode }) {
       <TloNaZywo nazwa="luk" opcje={{ intensywnosc: 0.8 }} />
       <div className="py-12 md:py-20" />
       <h2 className="font-heading text-4xl leading-tight font-bold tracking-tighter text-balance md:text-6xl">
-        Twoja AI. Zawsze pod ręką.
+        Opisz pierwsze zadanie.
       </h2>
       <p className="mx-auto mt-5 max-w-(--container-prose) text-lg text-muted text-pretty">
-        Plan Osobisty zaczyna się od 7 dni próbnych. Instalacja zajmuje kilka sekund i nie wymaga sklepu z aplikacjami.
+        Plan Osobisty zaczyna się od 7 dni próbnych. Instalacja trwa kilka sekund i nie wymaga sklepu z aplikacjami.
       </p>
       <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
         {instaluj}
@@ -704,6 +727,12 @@ export function Brama({ instaluj }: { instaluj: ReactNode }) {
           Zaloguj się <ArrowRightIcon size={18} />
         </a>
       </div>
+      <p className="mt-5 text-sm text-muted">
+        <a href="/wyprobuj" className="text-accent underline-offset-4 hover:underline">
+          Wejdź na /wyprobuj
+        </a>{" "}
+        i przepisz jeden skan — plik dostaniesz w tej samej rozmowie.
+      </p>
       <div className="py-12 md:py-20" />
     </Sekcja>
   );

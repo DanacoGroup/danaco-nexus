@@ -25,6 +25,9 @@ import { nazwaRodzaju } from "../modules/research";
 import { FUNKCJONALNOSCI, OFERTA, PYTANIA } from "../portal/tresc";
 import { Funkcje } from "../portal/strony/Funkcje";
 import { parsujTrase } from "../portal/trasy";
+// Źródło strony produktu jako tekst: hero jest w JSX, więc nie da się go objąć
+// przez stałe treści, a to właśnie w nim przeżyła obietnica „pod swoim adresem”.
+import zrodloLandingu from "../landing/Landing.tsx?raw";
 
 afterEach(() => {
   cleanup();
@@ -107,11 +110,23 @@ describe("obietnica publikacji strony", () => {
     ...FUNKCJONALNOSCI.map((pozycja) => pozycja.opis),
     ...PYTANIA.map((pozycja) => `${pozycja.pytanie} ${pozycja.odpowiedz}`),
     modulStron.description,
+    // Strona produktu też to obiecuje, a wcześniej test jej nie obejmował: obietnica
+    // „pod swoim adresem” przeżyła w nagłówku hero, choć w portalu była już poprawiona.
+    ...KARTY.map((pozycja) => `${pozycja.naglowek} ${pozycja.opis} ${pozycja.narzedzia}`),
+    ...ROZNICE.map((pozycja) => pozycja.opis),
+    ...KROKI.map((pozycja) => pozycja.opis),
+    ...GWARANCJE.map((pozycja) => pozycja.opis),
+    ...PYTANIA_PRODUKTU.map((pozycja) => `${pozycja.pytanie} ${pozycja.odpowiedz}`),
+    zrodloLandingu,
   ];
+
+  // „Swoim adresem” mówimy też o adresie e-mail przy zakładaniu konta i to jest prawda —
+  // zakazana jest wyłącznie obietnica, że **strona** staje pod adresem użytkownika.
+  const ADRES_UZYTKOWNIKA = /(własnym|Twoim|swoim) adresem(?!\s+(e-mail|pocztow|poczty))/i;
 
   it("nie obiecuje publikacji pod adresem użytkownika", () => {
     for (const tekst of teksty) {
-      expect(tekst).not.toMatch(/(własnym|Twoim) adresem/);
+      expect(tekst).not.toMatch(ADRES_UZYTKOWNIKA);
     }
   });
 

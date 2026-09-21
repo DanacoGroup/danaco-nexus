@@ -4,8 +4,11 @@
 import { LICZBA_NARZEDZI } from "../dane/narzedzia";
 
 export const HERO_FAKTY = [
+  // Pierwsza kapsuła niesie główny przekaz strony — ma stać w pierwszym ekranie,
+  // a nie dopiero w sekcji różnic w połowie strony.
+  "Opisujesz wynik, dostajesz plik",
   `${LICZBA_NARZEDZI} narzędzi w jednej rozmowie`,
-  "Rozmowa głosowa po polsku",
+  "Wejście bez rejestracji",
   "Pliki do 2 GB",
   "Windows, Android, iPhone",
 ];
@@ -16,8 +19,8 @@ export const ZDANIA_TOR_1 = [
   "Przeczytaj Zosi bajkę o smoku",
   "Streść umowę najmu",
   "Zaplanuj sobotę w Kazimierzu",
-  "Popraw skan faktury",
-  "Co ugotować z tego, co w lodówce?",
+  "Przepisz 300 faktur ze skanów",
+  "Ułóż obiad z tego, co w lodówce",
   "Zrób notatkę z zebrania",
   "Odpowiedz na wiadomość od księgowej",
   "Przetłumacz instrukcję z niemieckiego",
@@ -29,7 +32,7 @@ export const ZDANIA_TOR_2 = [
   "Napisz pismo do wspólnoty",
   "Zmniejsz 312 zdjęć z wakacji",
   "Wypisz terminy z pisma z urzędu",
-  "Zapisz wyniki w chmurze",
+  "Zaprojektuj logo i wizytówkę",
   "Zrób kartkę na 80. urodziny",
   "Wytnij tło z tego zdjęcia",
   "Wpisz wizytę u dentysty do kalendarza",
@@ -53,7 +56,7 @@ export const KROKI: Krok[] = [
   {
     numer: "2",
     tytul: "Kolory wracają.",
-    opis: "Korekta kolorów, kontrastu i ostrości. Ogród znów jest zielony.",
+    opis: "Nexus poprawia kolory, kontrast i ostrość. Bez programu graficznego po Twojej stronie.",
     znacznik: "Korekta zdjęcia · kolory, kontrast, ostrość",
   },
   {
@@ -65,7 +68,7 @@ export const KROKI: Krok[] = [
   {
     numer: "4",
     tytul: "Kartka urodzinowa.",
-    opis: "Zdjęcie trafia na kartkę A5 z życzeniami. Ciepłymi, ale bez wierszyka.",
+    opis: "Zdjęcie trafia na kartkę A5 z życzeniami. Plik PDF pobierasz gotowy do druku.",
     znacznik: "kartka-babcia-80.pdf · A5 · gotowa do druku",
   },
 ];
@@ -85,15 +88,21 @@ export const KARTY: Karta[] = [
   {
     rodzaj: "zycie",
     naglowek: "Bajka na dobranoc, czytana na głos.",
-    opis: "Mów zamiast pisać. Nexus słucha i odpowiada po polsku — także wtedy, gdy trzeba przeczytać bajkę o smoku, który bał się ciemności.",
-    narzedzia: "Tryb rozmowy głosowej · Google Chirp3-HD · Whisper w zapasie",
+    opis: "Mów, zamiast pisać. Nexus słucha po polsku i czyta odpowiedź na głos — także bajkę o smoku, który bał się ciemności.",
+    narzedzia: "Tryb rozmowy głosowej · czytanie odpowiedzi na głos",
     szeroka: true,
   },
   {
     rodzaj: "praca",
     naglowek: "Krzywe zdjęcie faktury. Czysty PDF.",
-    opis: "Poprawa skanu, OCR po polsku i odczyt kwoty z terminem.",
+    opis: "Nexus prostuje skan, rozpoznaje tekst po polsku i wypisuje kwotę z terminem. Z 300 zdjęć składa jedną tabelę.",
     narzedzia: "enhance_document_scan · ocr_documents",
+  },
+  {
+    rodzaj: "praca",
+    naglowek: "Logo, ulotka i plakat do druku.",
+    opis: "Opisujesz, co ma powstać. Odbierasz projekt w trzech postaciach: PNG do sieci, SVG do edycji, PDF do druku.",
+    narzedzia: "design_vector · design_compose",
   },
   {
     rodzaj: "zycie",
@@ -122,13 +131,25 @@ export const KARTY: Karta[] = [
   {
     rodzaj: "zycie",
     naglowek: "Kolacja z tego, co w lodówce.",
-    opis: "Pytaj, zlecaj, zmieniaj zdanie. Nexus pamięta całą rozmowę i Twoje pliki.",
-    narzedzia: "view_pages · search_documents",
+    opis: "Wypisujesz, co masz w lodówce, i dostajesz przepis z listą zakupów. Zmieniasz zdanie — Nexus pamięta całą rozmowę.",
+    narzedzia: "web_search · write_document",
+  },
+  {
+    rodzaj: "zycie",
+    naglowek: "Filmik ze zdjęć z wakacji.",
+    opis: "Wskazujesz zdjęcia i klipy, Nexus składa z nich film z napisami i podkładem. Wynik nadaje się na telefon i na ekran.",
+    narzedzia: "video_compose · video_to_gif",
+  },
+  {
+    rodzaj: "praca",
+    naglowek: "Pismo do ubezpieczyciela.",
+    opis: "Dołączasz dokumenty sprawy i mówisz, o co chodzi. Wracasz z gotowym pismem w DOCX i PDF.",
+    narzedzia: "ocr_documents · write_document",
   },
   {
     rodzaj: "praca",
     naglowek: "Pliki pod tym samym dachem.",
-    opis: "Nextcloud pod adresem Nexusa, jedno logowanie, synchronizacja z komputerem i telefonem.",
+    opis: "Chmura osobista pod adresem Nexusa, jedno logowanie, pliki i wyniki w jednym miejscu. Synchronizacja z komputerem i telefonem — od planu Pro.",
     narzedzia: "cloud_browse · cloud_import · cloud_save",
   },
   {
@@ -151,8 +172,8 @@ export const KARTY: Karta[] = [
   },
   {
     rodzaj: "zycie",
-    naglowek: "Zdjęcie bez tła. Bez programu graficznego.",
-    opis: "Wytnij tło, wstaw nowe, zetrzyj z kadru to, co przeszkadza. Mówisz, co ma zniknąć — reszta dzieje się sama.",
+    naglowek: "Tło wycięte, obiekt starty z kadru.",
+    opis: "Wytnij tło, wstaw nowe, usuń z kadru to, co przeszkadza. Mówisz, co ma zniknąć — resztę robi Nexus.",
     narzedzia: "remove_background · change_background · erase_objects",
   },
   {
@@ -164,7 +185,7 @@ export const KARTY: Karta[] = [
   {
     rodzaj: "zycie",
     naglowek: "Strona dla klubu. Adres jeszcze tego dnia.",
-    opis: "Opisujesz, co ma być na stronie, i oglądasz ją na żywo. Pod publicznym adresem staje dopiero wtedy, gdy Ty ją zatwierdzisz.",
+    opis: "Opisujesz, co ma być na stronie, i oglądasz ją na żywo. Publikujesz sam, a strona staje pod adresem /s/nazwa-strony/.",
     narzedzia: "site_write_file · site_save_version · site_publish",
   },
 ];
@@ -198,7 +219,7 @@ export const DZIEN: Pora[] = [
     pora: "Wieczorem",
     tytul: "Bajka o smoku",
     opis: "Zosia chce bajkę. Nexus ją napisze i przeczyta na głos — spokojnie, po polsku.",
-    wynik: ["Smok, który bał się ciemności", "Gosia czyta · 6 min"],
+    wynik: ["Smok, który bał się ciemności", "Czytanie na głos · 6 min"],
   },
 ];
 
@@ -285,15 +306,15 @@ export const NAGRANIA: Nagranie[] = [
 export const GWARANCJE = [
   {
     tytul: "Twoja przestrzeń, tylko Twoja",
-    opis: "Własna przestrzeń w chmurze Nexusa: 1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Grupie. Pliki, wyniki i historia rozmów są widoczne wyłącznie dla Ciebie; usuwasz je, kiedy chcesz.",
+    opis: "Własna przestrzeń w chmurze Nexusa: 1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Grupie. Tylko Ty widzisz swoje pliki, wyniki i historię rozmów. Usuniesz je w dowolnej chwili.",
   },
   {
-    tytul: "Narzędzia pracują na miejscu",
-    opis: "OCR, poprawa obrazu, transkrypcja i wyszukiwanie po znaczeniu wykonuje sama usługa — nie wysyłamy Twoich plików do obcych dostawców.",
+    tytul: "Serwer stoi w Polsce",
+    opis: "Rozpoznawanie tekstu, poprawę zdjęć, transkrypcję i wyszukiwanie po znaczeniu liczy sama usługa. Do silnika prowadzącego rozmowę idzie treść polecenia i te fragmenty plików, których wymaga zadanie.",
   },
   {
     tytul: "Zamknięty zestaw uprawnień",
-    opis: `Agent sięga wyłącznie po ${LICZBA_NARZEDZI} narzędzi zarejestrowanych w Nexusie i pracuje w Twojej przestrzeni — nie ma wstępu ani do cudzych kont, ani poza nie. Do sieci wychodzi wtedy, gdy poprosisz o zbadanie tematu.`,
+    opis: `Agent sięga wyłącznie po ${LICZBA_NARZEDZI} narzędzi zarejestrowanych w Nexusie i pracuje w Twojej przestrzeni. Do cudzych kont nie ma wstępu. Do sieci wychodzi wtedy, gdy poprosisz o zbadanie tematu.`,
   },
   {
     tytul: "Bezpieczne logowanie",
@@ -305,7 +326,9 @@ export const LICZBY = [
   { liczba: String(LICZBA_NARZEDZI), podpis: "narzędzi w rejestrze agenta" },
   { liczba: "2 GB", podpis: "największy plik" },
   { liczba: "6 h", podpis: "najdłuższe zadanie badawcze" },
-  { liczba: "3", podpis: "polskie głosy do czytania" },
+  // Wcześniej stała tu liczba głosów czytających. Katalog głosów pobiera się z usługi mowy
+  // i zmienia bez naszego udziału, więc liczba na stronie rozjeżdżała się z aplikacją.
+  { liczba: "15", podpis: "modułów w aplikacji" },
 ];
 
 /**
@@ -314,8 +337,8 @@ export const LICZBY = [
  */
 export const ROZNICE = [
   {
-    tytul: "Oddaje plik, nie instrukcję",
-    opis: `Zamiast opisu „jak to zrobić” dostajesz PDF, DOCX, XLSX, archiwum ZIP albo poprawione zdjęcie. Pracę wykonuje ${LICZBA_NARZEDZI} narzędzi Nexusa, nie Ty po drugiej stronie okna.`,
+    tytul: "Kończy gotowym plikiem",
+    opis: `Zamiast opisu „jak to zrobić” dostajesz PDF, DOCX, XLSX, archiwum ZIP albo poprawione zdjęcie. Pracę wykonuje ${LICZBA_NARZEDZI} narzędzi Nexusa.`,
   },
   {
     tytul: "Pamięta Twoje pliki",
@@ -334,18 +357,20 @@ export const ROZNICE = [
 // „Widzisz każdy krok” mówi już karta w sekcji różnic — na jednej stronie ten nagłówek pada raz.
 export const ZASADY = [
   { tytul: "Zatrzymasz w każdej chwili", opis: "Przycisk zatrzymania, na komputerze klawisz Esc." },
-  { tytul: "Nic nie jest zamknięte", opis: "Wyniki w PDF, DOCX, TXT, XLSX i archiwum ZIP." },
+  { tytul: "Wyniki w otwartych formatach", opis: "PDF, DOCX, TXT, XLSX i archiwum ZIP — otwierasz je, czym chcesz." },
 ];
 
+// Pasek faktów pod liczbami. Wcześniej stały tu nazwy silników i modeli, których czytelnik
+// nie ma jak sprawdzić i które nie mówią mu nic o jego własnej pracy.
 export const TECHNOLOGIE = [
-  "Silnik Nexusa",
-  "Google Chirp3-HD",
-  "Whisper",
-  "Real-ESRGAN",
-  "Tesseract",
-  "LibreOffice",
-  "Qdrant",
-  "Nextcloud",
+  "Serwer w Polsce",
+  "Połączenie HTTPS",
+  "Hasło chronione Argon2",
+  "OCR z językiem polskim",
+  "Chmura osobista",
+  "Wyszukiwanie po znaczeniu",
+  "Napisy SRT i VTT",
+  "Eksport PDF, DOCX, XLSX",
 ];
 
 export interface Plan {
@@ -380,6 +405,7 @@ export const PLANY: Plan[] = [
       // chmury osobistej i skrzynek”). „Chmura — 1 GB” czytało się tak, jakby pliki
       // rozmów miały osobny zapas.
       "1 GB na pliki, pocztę i chmurę",
+      "Własny adres e-mail w domenie Nexusa",
       "Aplikacja na komputer i telefon",
     ],
   },
@@ -388,7 +414,7 @@ export const PLANY: Plan[] = [
     nazwa: "Pro",
     znacznik: "Dostępny",
     dostepny: true,
-    dlaKogo: "Dla tych, którzy używają Nexusa codziennie i dużo.",
+    dlaKogo: "Dla osób, które pracują w Nexusie codziennie.",
     cena: "Cena z serwera",
     przycisk: "Wybierz plan",
     zawartosc: [
@@ -423,7 +449,7 @@ export const PLANY: Plan[] = [
 
 export const PYTANIA = [
   {
-    pytanie: "Gdzie są przechowywane moje pliki?",
+    pytanie: "Gdzie trzymacie moje pliki?",
     odpowiedz:
       "W Twojej przestrzeni w chmurze Nexusa. Ile miejsca, rozstrzyga plan: 100 MB przez pierwsze 7 dni, 1 GB w planie Osobistym, 2 GB w Pro i 10 GB w Grupie. Trafiają tam przesłane pliki, wyniki pracy, historia rozmów i indeks wiedzy. Przestrzeń jest przypisana do Twojego konta: nikt inny, kto korzysta z Nexusa, nie zobaczy jej zawartości.",
   },
@@ -448,14 +474,21 @@ export const PYTANIA = [
       "Tylko w zakresie potrzebnym do zadania: treść Twojej wiadomości oraz fragmenty i podglądy plików, które agent musi przeczytać. Pliki w całości, historia rozmów i indeks wiedzy zostają w Twojej przestrzeni. Pełny wykaz dostawców, którym powierzamy przetwarzanie, znajdziesz w polityce prywatności.",
   },
   {
+    // Pytanie o pierwszy krok stoi w szóstce widocznej od razu: sekcja pytań jest ostatnim
+    // miejscem, w którym czytelnik jeszcze waha się przed wejściem do aplikacji.
+    pytanie: "Od czego zacząć?",
+    odpowiedz:
+      "Od jednego własnego zadania. Wejdź na danaco-nexus.pl/wyprobuj, wgraj skan albo nagranie i napisz jednym zdaniem, co ma z niego powstać. Plik odbierzesz w tej samej rozmowie. Gdy wynik Cię przekona, załóż konto — wtedy rozmowy i pliki zostaną przy Tobie.",
+  },
+  {
     pytanie: "Co Nexus liczy u siebie?",
     odpowiedz:
-      "Rozumowanie i planowanie prowadzi model najwyższej klasy, a przy przeciążeniu Nexus sam przechodzi na zapasowy — nie musisz nic wybierać. Rozpoznawanie tekstu ze skanów, powiększanie zdjęć, transkrypcja nagrań i wyszukiwanie po znaczeniu liczą się w samej usłudze.",
+      "Rozpoznawanie tekstu ze skanów, powiększanie zdjęć, transkrypcję nagrań i wyszukiwanie po znaczeniu liczy sama usługa, na serwerze w Polsce. Rozumowanie i plan zadania prowadzi silnik Nexusa: idzie do niego treść polecenia i te fragmenty plików, których zadanie wymaga. Niczego nie wybierasz — przy przeciążeniu Nexus sam przechodzi na silnik zapasowy.",
   },
   {
     pytanie: "Czy OCR dobrze radzi sobie z polskim tekstem?",
     odpowiedz:
-      "Tak. Nexus używa Tesseracta z modelem języka polskiego, a przed rozpoznaniem prostuje, odszumia i rozjaśnia obraz. Wynik to przeszukiwalny PDF, który wygląda jak oryginał, albo tekst w DOCX i TXT. Pismo odręczne rozpoznaje się wyraźnie słabiej niż druk — także pismo lekarzy.",
+      "Tak, OCR pracuje ze słownikiem języka polskiego. Przed rozpoznaniem Nexus prostuje strony, usuwa szum i rozjaśnia obraz. Wynik wygląda jak oryginał, ale da się w nim szukać: PDF albo tekst w DOCX i TXT. Druk rozpoznaje się wyraźnie lepiej niż pismo odręczne.",
   },
   {
     pytanie: "Jakie są limity plików i zadań?",
@@ -470,12 +503,12 @@ export const PYTANIA = [
   {
     pytanie: "Ile kosztuje Nexus?",
     odpowiedz:
-      "Wszystkie trzy plany są płatne. Plan Osobisty zaczyna się od 7 dni próbnych: kartę podajesz od razu, a po tym czasie subskrypcja przechodzi w płatną bez dodatkowego kroku — wcześniej możesz zrezygnować. Ceny podamy przed startem sprzedaży.",
+      "Każdy z trzech planów kosztuje. Plan Osobisty zaczyna się od 7 dni próbnych. Kartę podajesz od razu, a po tym czasie subskrypcja przechodzi w płatną. Rezygnację składasz w dowolnym dniu okresu próbnego. Ceny podamy przed startem sprzedaży.",
   },
   {
     pytanie: "Jak Nexus chroni dostęp do moich danych?",
     odpowiedz:
-      "Hasło jest chronione algorytmem Argon2, a sesja żyje w ciasteczku niedostępnym dla skryptów. Zmiany wymagają nagłówka chroniącego przed atakami CSRF. Każde konto ma osobną przestrzeń: rozmowy, pliki i skrzynka pocztowa są przypisane do właściciela, a agent pracuje wyłącznie w jej granicach i wyłącznie narzędziami zarejestrowanymi w Nexusie.",
+      "Hasło chroni algorytm Argon2, a sesja żyje w ciasteczku, do którego skrypty stron nie mają dostępu. Każda zmiana na koncie wymaga dodatkowego potwierdzenia z aplikacji, więc obca strona nie podszyje się pod Twoją sesję. Rozmowy, pliki i skrzynka należą do jednego konta, a agent pracuje tylko w jego granicach.",
   },
   {
     pytanie: "Czy mogę wyeksportować swoje dane?",
@@ -495,7 +528,7 @@ export const PYTANIA = [
   {
     pytanie: "Czy mogę zobaczyć Nexusa bez zakładania konta?",
     odpowiedz:
-      "Tak. Pod adresem danaco-nexus.pl/wyprobuj otwiera się ta sama aplikacja, z której korzystają klienci — rozmowa, pliki i narzędzia — tyle że na koncie próbnym zakładanym w tle. Bez rejestracji, bez podawania adresu poczty i bez karty. Konto próbne ma mniejszy przydział i wygasa; założenie zwykłego konta zachowuje rozmowy i pliki.",
+      "Tak. Pod adresem danaco-nexus.pl/wyprobuj otwiera się ta sama aplikacja, z której korzystają klienci: rozmowa, pliki i narzędzia. Konto próbne zakłada się w tle. Bez rejestracji, bez podawania adresu poczty i bez karty. Konto próbne ma mniejszy przydział i wygasa; założenie zwykłego konta zachowuje rozmowy i pliki.",
   },
   {
     pytanie: "Czy Nexus obsłuży moją pocztę i kalendarz?",
@@ -515,11 +548,11 @@ export const PYTANIA = [
   {
     pytanie: "Czy Nexus zbuduje stronę internetową?",
     odpowiedz:
-      "Tak. Opisujesz, co ma być na stronie, i oglądasz szkic na żywo w module Strony. Każda wersja zostaje zapisana, więc możesz wrócić do poprzedniej. Publikację pod publicznym adresem zatwierdzasz sam — agent może o nią tylko poprosić.",
+      "Tak. Opisujesz, co ma być na stronie, i oglądasz szkic na żywo w module Strony. Każda wersja zostaje zapisana, więc wrócisz do poprzedniej. Publikację zatwierdzasz sam — agent może o nią tylko poprosić. Strona staje pod adresem /s/nazwa-strony/; własnej domeny Nexus nie podpina.",
   },
   {
     pytanie: "Czy mogę mówić do Nexusa po polsku?",
     odpowiedz:
-      "Tak, i to w obie strony. Mowę rozpoznaje Google Cloud Speech, a odpowiedź czyta jeden z trzydziestu polskich głosów Chirp3-HD. Gdy usługa nie odpowiada, pracę przejmują modele na serwerze — Whisper i Piper — więc rozmowa działa także bez sieci. Rozmowę głosową prowadzisz w aplikacji na komputerze i w telefonie: przydaje się w kuchni, w samochodzie i przy czytaniu dziecku bajki.",
+      "Tak, w obie strony. Dyktujesz, zamiast pisać, a odpowiedź Nexus czyta na głos po polsku. Rozmowę głosową prowadzisz na komputerze i w telefonie: w kuchni, w samochodzie i przy czytaniu dziecku bajki. Wykonanie zadania wymaga połączenia z Nexusem.",
   },
 ];

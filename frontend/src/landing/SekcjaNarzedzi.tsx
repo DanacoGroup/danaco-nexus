@@ -38,7 +38,7 @@ export function SekcjaNarzedzi() {
       <Naglowek
         nad="Zakres"
         tytul="Dziesięć dziedzin. Jedna rozmowa."
-        akapit={`Nexus ma ${LICZBA_NARZEDZI} narzędzi — projektuje grafikę od zera, prowadzi badanie ze źródłami, odpisuje na pocztę i pilnuje terminarza, publikuje stronę pod Twoim adresem i pracuje na Twoim komputerze. Nie wybierasz narzędzia: piszesz zdaniem, co ma powstać.`}
+        akapit={`Nexus ma ${LICZBA_NARZEDZI} narzędzi w dziesięciu dziedzinach. Projektuje grafikę od zera, prowadzi badanie ze źródłami, odpisuje na pocztę i pilnuje terminarza. Publikuje stronę pod adresem /s/nazwa-strony/ i sięga do plików na Twoim komputerze. Narzędzia dobiera sam — Ty piszesz jednym zdaniem, co ma powstać.`}
       />
 
       <div ref={element} className="mt-12 grid gap-8 lg:grid-cols-[22rem_1fr] lg:items-start">
@@ -109,6 +109,13 @@ export function SekcjaNarzedzi() {
               Zobacz wszystkie {LICZBA_NARZEDZI} narzędzi
               <span aria-hidden="true">→</span>
             </a>
+            <p className="mt-4 text-sm text-muted">
+              Narzędzia z tej listy uruchomisz od razu:{" "}
+              <a href="/wyprobuj" className="text-accent underline-offset-4 hover:underline">
+                wejdź na /wyprobuj
+              </a>{" "}
+              i opisz zadanie własnymi słowami.
+            </p>
           </PrzejscieWidoku>
         </div>
       </div>

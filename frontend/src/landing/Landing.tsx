@@ -339,7 +339,7 @@ function Hero() {
             widać w sekcji „Funkcje” i na wąskim ekranie nie musi stać w nagłówku. */}
           <span className="hidden sm:inline">
             Zaprojektuj logo i plakat do druku. Zbadaj temat i dostań raport z przypisami. Odpisz na zaległą pocztę i umów spotkanie.
-            Opublikuj stronę pod swoim adresem. Znajdź plik na własnym komputerze.{" "}
+            Opublikuj stronę pod adresem Nexusa. Znajdź plik na własnym komputerze.{" "}
           </span>
           Piszesz albo mówisz jednym zdaniem, co ma powstać — Nexus sam dobiera narzędzia, wykonuje pracę i oddaje gotowy plik do Twojej
           przestrzeni w chmurze.

@@ -113,8 +113,8 @@ export function InstallSection() {
     <Sekcja id="instalacja">
       <Naglowek
         nad="Instalacja"
-        tytul="Zainstaluj w kilka sekund. Bez sklepu z aplikacjami."
-        akapit="Nexus mieszka w chmurze, a na urządzeniu zostaje samo okno — z ikoną na pulpicie i ekranie głównym, bez paska adresu i bez sklepu z aplikacjami. Ta sama przestrzeń otwiera się na telefonie, tablecie i komputerze."
+        tytul="Instalacja w kilka sekund, z przeglądarki."
+        akapit="Nexus pracuje na serwerze, a na urządzeniu zostaje samo okno — z ikoną na pulpicie i ekranie głównym, bez paska adresu. Sklep z aplikacjami nie bierze w tym udziału. Ta sama przestrzeń otwiera się na telefonie, tablecie i komputerze."
         srodek
       />
 
@@ -208,9 +208,13 @@ export function InstallSection() {
           a praca i tak odbywa się po stronie usługi. Pakiety dla urządzeń wracają wtedy,
           gdy będą miały własne utrzymanie i aktualizacje. */}
       <p className="mx-auto mt-12 max-w-(--container-prose) text-center text-sm text-muted">
-        To wszystko. Nie ma drugiej wersji do pobrania ani osobnego programu do zainstalowania —
-        cała praca dzieje się po stronie usługi, a okno na Twoim urządzeniu jest tym samym Nexusem
-        na telefonie, tablecie i komputerze.
+        To wszystko. Nexus ma jedną wersję: cała praca dzieje się po stronie usługi, a okno na Twoim
+        urządzeniu otwiera tę samą przestrzeń na telefonie, tablecie i komputerze. Instalacja jest
+        wygodą, nie warunkiem —{" "}
+        <a href="/wyprobuj" className="text-accent underline-offset-4 hover:underline">
+          pod /wyprobuj
+        </a>{" "}
+        ta sama aplikacja otwiera się w karcie przeglądarki, bez konta.
       </p>
     </Sekcja>
   );
