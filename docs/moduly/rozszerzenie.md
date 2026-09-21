@@ -124,6 +124,10 @@ Zabezpieczenia, które czynią to bezpiecznym (do realizacji w trybie osadzonym 
   nie zapis w ustawieniach, bo zgodę można cofnąć poza rozszerzeniem.
   Kod: `extension/src/wspolne/zakres.ts`, wywołania w `extension/src/tlo.ts`
   i `extension/src/opcje/opcje.ts`.
+
+  Przejście z poprzedniej wersji: przeglądarka zachowuje zgodę już przyznaną, więc
+  dodatek zainstalowany przed tą zmianą zostaje przy zakresie „Wszystkie strony”
+  i działa jak dotąd. Nową instalację zaczyna zakres „Tylko po kliknięciu”.
 - Klucz urządzenia leży wyłącznie w `chrome.storage.local` rozszerzenia (zapas: `localStorage`
   pochodzenia `chrome-extension://`), nigdy w magazynie odwiedzanej strony. Skrypt treści go nie czyta.
   Pole klucza nie pokazuje zapisanej wartości.
