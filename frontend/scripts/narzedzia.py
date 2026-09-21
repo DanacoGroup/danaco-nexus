@@ -25,14 +25,15 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "projekt",
         "Projektowanie grafiki",
-        "Logo, plakat, okładka, ulotka, ikona, baner, post — projekt powstaje od zera, "
-        "z plikiem wektorowym do edycji i PDF‑em do druku.",
+        "Logo, plakat, ulotka, ikona, baner i post powstają od zera, w rozmowie. "
+        "Dostajesz plik wektorowy do dalszej edycji i PDF gotowy do druku.",
         ("design_vector", "design_compose", "icon_find", "render_lottie", "lottie_library", "asset_library"),
     ),
     (
         "zdjecia",
         "Zdjęcia i obrazy",
-        "Poprawa, retusz, powiększanie, tło, montaż — bez programu graficznego.",
+        "Zdjęcie wraca poprawione, powiększone albo bez tła. "
+        "Niczego nie instalujesz i nie uczysz się programu graficznego.",
         ("enhance_photo", "retouch_portrait", "restore_faces", "upscale_image",
          "colorize_photo", "remove_background", "change_background", "erase_objects",
          "inpaint_photo", "blur_background_by_depth", "depth_map", "animate_photo", "find_faces",
@@ -41,7 +42,8 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "dokumenty",
         "Dokumenty i PDF",
-        "Skany, umowy, faktury, pisma: rozpoznanie tekstu, porządkowanie, składanie i dzielenie.",
+        "Stos skanów, umów i faktur zamienia się w tekst, w którym da się szukać. "
+        "Dokumenty rozdzielisz, złożysz na nowo i wyciągniesz z nich dane.",
         ("ocr_documents", "enhance_document_scan", "detect_document_boundaries", "pdf_merge",
          "pdf_split", "pdf_edit_pages", "convert_documents", "extract_text", "view_pages",
          "write_document", "translate_document", "check_grammar", "typeset_document",
@@ -50,7 +52,8 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "wiedza",
         "Wiedza i wyszukiwanie",
-        "Własne dokumenty jako pamięć agenta oraz źródła z sieci i z publikacji naukowych.",
+        "Pytasz własnymi słowami, a odpowiedź przychodzi z Twoich dokumentów, ze stron "
+        "i z publikacji naukowych — razem z adresem źródła.",
         ("index_documents", "search_documents", "knowledge_save", "knowledge_read",
          "knowledge_notes", "web_search", "web_fetch_page", "browser_open", "browser_click",
          "browser_type", "browser_scroll", "browser_back", "scholar_search", "scholar_paper"),
@@ -58,22 +61,24 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "poczta",
         "Poczta i kalendarz",
-        "Czytanie, szukanie i redagowanie wiadomości oraz prowadzenie terminarza.",
+        "Skrzynka i terminarz stoją w tym samym oknie co reszta pracy. "
+        "Odpowiedź przygotowuje Nexus, wysyłasz ją Ty.",
         ("mail_list", "mail_read", "mail_search", "mail_draft", "mail_send",
          "calendar_list", "calendar_create", "calendar_update", "calendar_delete"),
     ),
     (
         "dzwiek",
         "Dźwięk i wideo",
-        "Transkrypcja nagrań, oczyszczanie mowy, rozdzielanie ścieżek, cięcie, "
-        "montaż filmu ze zdjęć i animacja.",
+        "Nagranie wraca jako tekst z napisami i podziałem na mówców. "
+        "Ze zdjęć i klipów powstaje gotowy film, a z opisu — animacja.",
         ("video_compose", "audio_compose", "transcribe_audio", "transcribe_speakers", "media_process", "clean_audio",
          "split_audio_tracks", "edit_subtitles", "video_to_gif", "animate_explainer"),
     ),
     (
         "strony",
         "Strony internetowe",
-        "Tworzenie i publikowanie stron z poziomu rozmowy, z wersjami i wycofaniem.",
+        "Opisujesz stronę, oglądasz szkic i sam zatwierdzasz publikację. "
+        "Każdą wersję da się zapisać i cofnąć.",
         ("site_kit_catalog", "site_from_kit", "site_from_template", "asset_to_site", "site_fonts_local", "site_vendor_assets",
          "site_list", "site_read_file", "site_write_file",
          "site_import_file", "site_delete_file", "site_save_version", "site_publish", "site_unpublish",
@@ -82,27 +87,29 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "pliki",
         "Pliki i chmura",
-        "Porządek w plikach: przegląd, archiwa i prywatna chmura zamiast cudzego dysku.",
+        "Pliki zadania idą do archiwum albo do Twojej chmury osobistej, nie na cudzy dysk. "
+        "Widzisz je potem także na telefonie.",
         ("inspect_files", "create_archive", "extract_archive",
          "cloud_browse", "cloud_import", "cloud_save"),
     ),
     (
         "aplikacje",
         "Aplikacje i kod",
-        "Gotowe aplikacje webowe z serwera — panel, landing, sklep — przebrane w Twoją markę, "
-        "plus kontrola jakości kodu projektu.",
+        "Panel, landing albo sklep powstaje z gotowej aplikacji przebranej w Twoją markę. "
+        "Obok stoi kontrola jakości kodu projektu.",
         ("app_templates", "app_from_template", "code_check"),
     ),
     (
         "komputer",
         "Twój komputer",
-        "Nexus sięga do komputera, gdy zgodzisz się na połączenie: znajduje pliki, robi zrzut, wykonuje polecenie.",
+        "Nexus znajdzie plik na dysku, sprawdzi stan sprzętu, zrobi zrzut okna i wykona polecenie. "
+        "Połączenie z komputerem jest domyślnie wyłączone — włączasz je sam.",
         ("pc_info", "pc_find_files", "pc_read_file", "pc_screenshot", "pc_powershell"),
     ),
 ]
 
-# Przykład mówi, co użytkownik ma napisać. Nie ma go każde narzędzie — tylko te,
-# przy których sam opis nie wystarcza, żeby wyobrazić sobie zastosowanie.
+# Przykład mówi, co użytkownik ma napisać, żeby narzędzie weszło do gry. Ma go każde
+# narzędzie: w katalogu na stronie pusty przykład wygląda jak luka w ofercie.
 PRZYKLADY: dict[str, str] = {
     "design_vector": "Zaprojektuj logo dla mojej firmy — znak i nazwa, wersja do druku.",
     "design_compose": "Zrób baner na stronę z tym zdjęciem i hasłem u góry.",
@@ -163,6 +170,48 @@ PRZYKLADY: dict[str, str] = {
     "cloud_save": "Zapisz wynik w mojej chmurze, w katalogu Faktury.",
     "pc_find_files": "Znajdź na moim komputerze umowę najmu z zeszłego roku.",
     "pc_screenshot": "Zrób zrzut mojego ekranu i powiedz, co jest nie tak.",
+    "render_lottie": "Zrób z tej animacji zwykły film, żeby dało się ją wstawić na stronę.",
+    "depth_map": "Policz, co jest na tym zdjęciu bliżej, a co dalej — potrzebuję maski pierwszego planu.",
+    "convert_images": "Zamień te zdjęcia na PNG i złóż je w jeden PDF.",
+    "imagemagick": "Przytnij to zdjęcie do kwadratu i dodaj białą ramkę.",
+    "enhance_document_scan": "Ten skan jest krzywy i szary — wyprostuj go i wybiel tło.",
+    "pdf_edit_pages": "Usuń z tego PDF-u puste strony i obróć te położone bokiem.",
+    "convert_documents": "Zamień ten dokument Worda na PDF.",
+    "extract_text": "Wyciągnij z tego PDF-u sam tekst.",
+    "view_pages": "Pokaż mi strony 3–5 tego dokumentu.",
+    "convert_text_format": "Zrób z tego tekstu e-booka do czytnika.",
+    "analyze_document_structure": "Wyciągnij z tej umowy tabelę z terminami, nie sam tekst.",
+    "knowledge_save": "Zapisz tę stronę w kolekcji Dotacje.",
+    "knowledge_read": "Pokaż, co mam zebrane w kolekcji Dotacje.",
+    "knowledge_notes": "Dopisz do tej kolekcji notatkę z wnioskami z dzisiejszego czytania.",
+    "web_fetch_page": "Przeczytaj tę stronę i powiedz, co z niej wynika.",
+    "browser_click": "Kliknij przycisk Dalej i pokaż, co się pojawiło.",
+    "browser_scroll": "Przewiń niżej i sprawdź, czy jest tam cennik.",
+    "browser_back": "Wróć na poprzednią stronę.",
+    "scholar_paper": "Pokaż szczegóły tej pracy i gotowy przypis.",
+    "mail_list": "Co przyszło dziś na skrzynkę?",
+    "mail_read": "Otwórz ostatnią wiadomość od biura i powiedz, czego dotyczy.",
+    "mail_send": "Wyślij tę odpowiedź do klienta.",
+    "calendar_list": "Co mam w kalendarzu w przyszłym tygodniu?",
+    "calendar_update": "Przesuń spotkanie z czwartku na piątek na 14.",
+    "calendar_delete": "Usuń z kalendarza odwołane szkolenie.",
+    "edit_subtitles": "Te napisy spóźniają się o dwie sekundy — popraw czasy.",
+    "site_list": "Pokaż moje strony i stan ich publikacji.",
+    "site_read_file": "Pokaż, co jest teraz na stronie kontaktowej.",
+    "site_write_file": "Zmień tekst na stronie głównej na ten nowy.",
+    "site_import_file": "Wstaw moje logo na stronę.",
+    "site_delete_file": "Usuń ze strony niepotrzebną podstronę z cennikiem.",
+    "site_save_version": "Zapisz obecną wersję strony, zanim zacznę zmieniać układ.",
+    "site_unpublish": "Zdejmij tę stronę z sieci.",
+    "web_screenshot": "Pokaż, jak moja strona wygląda na telefonie.",
+    "site_optimize_assets": "Strona wolno się ładuje — odchudź zdjęcia.",
+    "inspect_files": "Sprawdź, czy w tym PDF-ie jest tekst, czy sam skan.",
+    "extract_archive": "Rozpakuj to archiwum i rozpoznaj tekst we wszystkich skanach.",
+    "cloud_browse": "Co mam w chmurze w katalogu Umowy?",
+    "cloud_import": "Weź z mojej chmury faktury z marca.",
+    "pc_info": "Komputer zwalnia — sprawdź, co go obciąża.",
+    "pc_read_file": "Pokaż, co jest w tym pliku na moim pulpicie.",
+    "pc_powershell": "Zrób miejsce na dysku C — wyczyść pliki tymczasowe.",
 }
 
 
@@ -277,13 +326,21 @@ SKROTY = ("np", "tj", "itp", "itd", "m.in", "ok", "tzn", "min", "godz", "ang", "
 
 
 def pierwsze_zdanie(opis: str) -> str:
-    """Pierwsze pełne zdanie opisu, złożone w jedną linię."""
+    """Pierwsze pełne zdanie opisu, złożone w jedną linię.
+
+    Zdanie kończy kropka, wykrzyknik albo pytajnik. **Nie kończy go dwukropek**: dwukropek
+    zapowiada wyliczenie, więc cięcie na nim zostawiało w katalogu opisy urwane w pół myśli
+    („…w zbiorze Iconify (ponad 400 tys. znaków:”). Z tego samego powodu nie tniemy w środku
+    nawiasu — koniec zdania nie wypada nigdy między otwarciem a domknięciem.
+    """
     tekst = re.sub(r"\s+", " ", opis).strip()
-    for dopasowanie in re.finditer(r"(?<=[.:!?])\s+(?=[A-ZĄĆĘŁŃÓŚŹŻ])", tekst):
+    for dopasowanie in re.finditer(r"(?<=[.!?])\s+(?=[A-ZĄĆĘŁŃÓŚŹŻ])", tekst):
         poczatek = tekst[: dopasowanie.start()]
         # Nawias przed skrótem („(np.”) nie może zmylić rozpoznania skrótu.
         ostatnie = poczatek.rsplit(" ", 1)[-1].strip("([{\u201e\u201c\"'").rstrip(".:").lower()
         if ostatnie in SKROTY:
+            continue
+        if poczatek.count("(") != poczatek.count(")"):
             continue
         return poczatek
     return tekst

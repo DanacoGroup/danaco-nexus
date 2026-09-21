@@ -295,6 +295,51 @@ def test_diagnostyka_zna_kazdy_program_wywolywany_przez_narzedzia() -> None:
     assert zbedne == [], f"te programy nie są już wywoływane przez narzędzia: {zbedne}"
 
 
+def _pierwsze_zdanie():
+    """Funkcja skracająca opisy z generatora katalogu — ładowana z pliku skryptu."""
+    import importlib.util
+
+    sciezka = Path(__file__).resolve().parents[2] / "frontend" / "scripts" / "narzedzia.py"
+    spec = importlib.util.spec_from_file_location("narzedzia_skrypt", sciezka)
+    assert spec and spec.loader
+    modul = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modul)
+    return modul.pierwsze_zdanie
+
+
+def test_opis_narzedzia_nie_urywa_sie_w_pol_mysli() -> None:
+    """Opis w katalogu ma być zdaniem, nie ogonem zdania.
+
+    Skrót do pierwszego zdania ciął wcześniej także na dwukropku, a dwukropek zapowiada
+    wyliczenie — w katalogu lądowało wtedy „…w zbiorze Iconify (ponad 400 tys. znaków:”
+    z otwartym nawiasem i wiszącym dwukropkiem. Nikt tego nie zgłaszał, bo nic się nie psuło:
+    po prostu klient czytał zdanie urwane w połowie.
+    """
+    pierwsze_zdanie = _pierwsze_zdanie()
+
+    assert pierwsze_zdanie("Robi trzy rzeczy: Skanuje, Prostuje, Zapisuje. Drugie.") == (
+        "Robi trzy rzeczy: Skanuje, Prostuje, Zapisuje."
+    )
+    # Koniec zdania nie wypada między otwarciem nawiasu a jego domknięciem.
+    assert pierwsze_zdanie("Zdanie z (nawiasem. W środku) i koniec. Następne.") == (
+        "Zdanie z (nawiasem. W środku) i koniec."
+    )
+    assert pierwsze_zdanie("Pierwsze zdanie. Drugie zdanie.") == "Pierwsze zdanie."
+    # Skróty zostają skrótami: „(np. DOCX)” nie kończy zdania.
+    assert pierwsze_zdanie("Konwertuje pliki (np. DOCX). Drugie.") == "Konwertuje pliki (np. DOCX)."
+
+
+def test_opisy_w_katalogu_sa_calymi_zdaniami() -> None:
+    """Żaden opis w katalogu strony nie kończy się dwukropkiem ani otwartym nawiasem."""
+    katalog = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "dane" / "narzedzia.ts").read_text(
+        encoding="utf-8"
+    )
+    opisy = re.findall(r'"opis": "((?:[^"\\]|\\.)*)"', katalog)
+    assert len(opisy) > 50, "nie odczytano opisów — zmienił się kształt katalogu"
+    urwane = [opis for opis in opisy if opis.rstrip().endswith((":", "(", ",")) or opis.count("(") != opis.count(")")]
+    assert urwane == [], f"opisy urwane w pół myśli: {urwane[:5]}"
+
+
 def test_katalog_narzedzi_strony_zgadza_sie_z_rejestrem() -> None:
     """Strona produktu obiecuje konkretną liczbę narzędzi — ma się zgadzać z rejestrem.
 
