@@ -12,7 +12,7 @@ W czasie pracy agenta przycisk mikrofonu znika — najpierw zatrzymaj bieżące 
 
 ## Rozmowa głosowa
 
-Moduł **Głos** z paska po lewej otwiera rozmowę na głos. To samo robi przycisk **Rozmowa głosowa** przy polu wiadomości.
+Rozmowę na głos otwiera przycisk **Rozmowa głosowa** przy polu wiadomości. Osobnego modułu na pasku po lewej nie ma — tryb głosowy jest nakładką na bieżącą rozmowę i wraca do niej po zakończeniu.
 
 Okno rozmowy pokazuje jeden stan naraz:
 
