@@ -170,6 +170,13 @@ class Settings(BaseSettings):
     # --- moduł rozszerzenie ---
     # Najstarsza wersja rozszerzenia przeglądarki zgodna z serwerem (zwracana klientowi).
     rozszerzenie_wersja_minimalna: str = "0.1.0"
+    # --- licencje narzędzi ---
+    # Narzędzia niekomercyjne, co do których właściciel podjął decyzję i przyjął ryzyko
+    # (nazwy po przecinku). Diagnostyka przestaje wtedy zapalać czerwone światło przy
+    # każdym wdrożeniu, ale nadal wypisuje, czego decyzja dotyczy — wpis ma być
+    # świadomym przyjęciem sprawy, a nie jej zamiataniem. Wykaz sprzeczności zostaje
+    # w dokumentach zgodności niezależnie od tego ustawienia.
+    licencje_przyjete: str = ""
 
 
 @lru_cache

@@ -108,6 +108,21 @@ def test_diagnostyka_widzi_sprzecznosc_licencji_ze_sprzedaza(monkeypatch: pytest
     assert ze_sprzedaza.ok is False
     assert "find_faces" in ze_sprzedaza.detail
 
+    # Właściciel może sprzeczność przyjąć — wtedy kontrola przestaje zapalać czerwone
+    # światło, ale nadal wypisuje, czego decyzja dotyczy. Milczenie byłoby zamiataniem:
+    # przy następnym przeglądzie nikt by nie wiedział, że sprawa jest otwarta.
+    monkeypatch.setenv("NEXUS_LICENCJE_PRZYJETE", "find_faces")
+    przyjete = check_licencje_narzedzi(Settings())
+    assert przyjete.ok is True
+    assert "decyzją właściciela" in przyjete.detail and "find_faces" in przyjete.detail
+
+    # Decyzja obejmuje nazwane narzędzie, nie całą kategorię: wpis o czymś innym
+    # nie może wyciszyć sprzeczności, której właściciel nie widział.
+    monkeypatch.setenv("NEXUS_LICENCJE_PRZYJETE", "inne_narzedzie")
+    obce = check_licencje_narzedzi(Settings())
+    assert obce.ok is False
+    assert "find_faces" in obce.detail
+
 
 def test_diagnostyka_liczy_wydania_i_wolne_miejsce(tmp_path: Path) -> None:
     """Stare wydania zjadają dysk po cichu — kontrola ma je policzyć i podpowiedzieć sprzątanie.

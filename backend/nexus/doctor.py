@@ -467,7 +467,21 @@ def check_licencje_narzedzi(settings: Settings) -> Check:
             f"sprzedaż w trybie próbnym (klucz testowy Stripe); niekomercyjne: {', '.join(obecne)} "
             "— przed kluczem produkcyjnym trzeba to rozstrzygnąć",
         )
-    powody = "; ".join(f"{nazwa} ({NARZEDZIA_NIEKOMERCYJNE[nazwa]})" for nazwa in obecne)
+    przyjete = {
+        nazwa.strip() for nazwa in settings.licencje_przyjete.split(",") if nazwa.strip()
+    }
+    sporne = [nazwa for nazwa in obecne if nazwa not in przyjete]
+    if not sporne:
+        # Właściciel zna sprzeczność i przyjął ryzyko. Kontrola nie udaje, że jej nie ma:
+        # wypisuje, czego decyzja dotyczy, żeby przy następnym przeglądzie było widać,
+        # co zostało przyjęte i co trzeba domknąć przed szerszą sprzedażą.
+        return Check(
+            "licencje narzędzi",
+            True,
+            f"sprzedaż włączona; decyzją właściciela przyjęte: {', '.join(obecne)} "
+            "— sprawa zostaje otwarta w dokumentach zgodności",
+        )
+    powody = "; ".join(f"{nazwa} ({NARZEDZIA_NIEKOMERCYJNE[nazwa]})" for nazwa in sporne)
     return Check(
         "licencje narzędzi",
         False,
