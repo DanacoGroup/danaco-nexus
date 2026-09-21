@@ -36,8 +36,12 @@ rozmów to osobny zbiór — skasowanie wątku nie kasuje tego, co z niego pows
 
 ## Limity
 
-Wielkość pojedynczego pliku, łączna przestrzeń konta i liczba zadań liczonych naraz zależą
-od planu. Bieżące wartości pokazuje moduł Płatności.
+Od planu zależą dwie rzeczy: łączna przestrzeń konta i liczba zadań liczonych naraz.
+Bieżące wartości pokazuje moduł Płatności.
+
+Dopuszczalną wielkość pojedynczego pliku ustala sam serwer, jednakowo dla wszystkich
+planów. Przejście na wyższy plan daje więcej miejsca i więcej zadań naraz; największy
+przyjmowany plik pozostaje ten sam.
 
 Nexus sprawdza oba limity przy wgrywaniu, zanim praca ruszy. Zapełnioną przestrzeń zgłasza
 przed przyjęciem pliku, a przekroczoną wielkość w trakcie jego odbioru. Zadanie nie urywa
