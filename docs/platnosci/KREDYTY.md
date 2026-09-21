@@ -1,9 +1,16 @@
 # Kredyty konta — przelicznik Danaco Nexus
 
-Kredyt jest **naszą** jednostką pracy agenta. Użytkownik kupuje kredyty u nas i zużywa je
-według cennika opisanego w tym dokumencie. To, na jakich warunkach i z jakimi limitami
+Kredyt jest **naszą** jednostką pracy agenta i nigdy nie wychodzi do użytkownika.
+Klient kupuje **dostęp**: plan daje zakres pracy na okres rozliczeniowy, a po jego
+wyczerpaniu dostęp przedłuża się kwotą, którą klient sam wpisuje (przelicznik
+`platnosci/kredyty.py:kredyty_za_kwote`). W interfejsie widać pasek wykorzystania bez
+liczb — decyzja właściciela, wrzesień 2026. To, na jakich warunkach i z jakimi limitami
 rozliczamy się z dostawcą modelu, jest sprawą między nami a dostawcą: nie pojawia się
 w interfejsie, w komunikatach błędów ani w odpowiedziach API.
+
+**Czego nie robić:** nie wprowadzać słowa „kredyt”, liczby kredytów ani „pakietów
+kredytów” do cennika, opisu okresu próbnego, regulaminu i komunikatów aplikacji. Ten
+dokument opisuje mechanikę rozliczeń, a nie język produktu.
 
 ## Dlaczego kredyty, a nie „nieograniczone”
 
@@ -50,7 +57,7 @@ Dopłata liczy się za każde wywołanie narzędzia w przebiegu.
 | Uruchomienie albo odnowienie planu | przydział z katalogu planów (`kredyty_okresowo`) |
 | `nexus.cli konto-testowe` | przydział planu wskazanego `--plan` plus opcjonalne `--kredyty` |
 
-Kredyty w katalogu planów: Osobisty 2 000, Pro 20 000, Zespół 60 000.
+Kredyty w katalogu planów: Osobisty 2 000, Pro 20 000, Grupa 60 000.
 
 ## Zasady naliczania
 

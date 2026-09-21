@@ -9,7 +9,7 @@ Background Changer, Tłumacz): **Strony**, **Obrazy**, **Tłumacz**, **Studio**.
 2. [Strony – Twórca stron](#strony--twórca-stron)
 3. [Obrazy](#obrazy)
 4. [Tłumacz](#tłumacz)
-5. [Studio audio/wideo](#studio-audiowideo)
+5. [Studio audio/wideo](#studio-audiowideo) — w tym [montaż filmu](#montaż-film-ze-zdjęć-i-klipów) i [spot dźwiękowy](#spot-i-intro-dźwiękowe)
 6. [Zadania w tle modułów](#zadania-w-tle-modułów)
 7. [Konfiguracja](#konfiguracja)
 8. [Testy](#testy)
@@ -70,6 +70,29 @@ podglądu, zmiana tytułu/opisu, usunięcie, `POST /{adres}/rozmowa`, `GET /{adr
   `Access-Control-Allow-Origin: *` (moduły ES i czcionki strony z pochodzenia `null`).
 - Podgląd w interfejsie: `<iframe sandbox="allow-scripts allow-forms allow-popups allow-modals">`.
 - Service worker PWA nie przechwytuje `/s/…` (`navigateFallbackDenylist` w `vite.config.ts`).
+- Adres katalogu bez kreski na końcu (`/s/firma/cennik`) dostaje przekierowanie 308 na adres
+  z kreską. Bez tego przeglądarka bierze ostatni człon za plik i liczy ścieżki względne od
+  katalogu wyżej — podstrona otwarta z menu traci arkusze i nawigację.
+
+**Ścieżki i zasoby przy wstawianiu witryny:**
+
+Zestaw i szablony budują witryny ze ścieżkami od korzenia domeny (`/_astro/…`, `/cennik`),
+a strona użytkownika stoi pod `/s/<adres>/`. `_wstaw_do_szkicu` (`tools/kit_www.py`)
+przelicza je przy wstawianiu na ścieżki względne — atrybuty `href`, `src`, `poster`,
+`srcset` oraz `url(…)` w arkuszach — i dokłada kreskę odsyłaczom do podstron. Pomiar na
+witrynie presetu `saas`: 8118 poprawek w 228 plikach.
+
+Czego **nie** przelicza i dlaczego: ścieżek w JavaScripcie (tam `"/login"` bywa adresem,
+kluczem albo tekstem) oraz adresów z protokołem. Jedno i drugie wraca w polu `uwagi`
+wyniku razem z nazwami serwerów, z których witryna pobiera zasoby.
+
+Sprzątanie po szablonie idzie dwoma narzędziami: `site_fonts_local` przenosi kroje
+z repozytorium serwera (bez pobierania), `site_vendor_assets` ściąga resztę — skrypty
+i arkusze z CDN-ów, zdjęcia ze stocków — do katalogu `zewnetrzne/<serwer>/` i podmienia
+odwołania. Rozróżniamy zasób od odsyłacza: `href` na `<link rel="stylesheet">` to arkusz
+do pobrania, `href` na `<a>` to cudza strona i zostaje. `rel="canonical"` też zostaje, ale
+jest zgłaszany osobno — wskazuje witrynę autora szablonu jako „prawdziwy adres” podstrony
+(24 z 81 szablonów kolekcji). Po co to wszystko: [rejestr czynności, CZ-15](../zgodnosc/REJESTR-CZYNNOSCI.md).
 
 ## Obrazy
 
@@ -111,6 +134,42 @@ fragmentu, konwersja, wyodrębnienie dźwięku, wyrównanie głośności, kompre
 Akcja tworzy rozmowę z nagraniem i precyzyjnym poleceniem (istniejące narzędzia
 `transcribe_audio`, `media_process`, `write_document`); wynik i dalsza rozmowa o nagraniu są
 w panelu obok, z przejściem do pełnego czatu.
+
+### Montaż: film ze zdjęć i klipów
+
+Druga zakładka Studia składa **nowy** materiał, zamiast przerabiać gotowy. Wgrywasz paczkę
+zdjęć (i klipów) naraz, ustawiasz kolejność ujęć strzałkami, a przy każdym czas, napis
+i ruch kamery; nad całością: napis otwierający, kadr (16:9, 9:16, 1:1, 4:5), przejście
+i nastrój podkładu. Przycisk „Złóż film” wysyła jedno polecenie do `video_compose`
+(`backend/nexus/tools/montaz.py`).
+
+Co robi narzędzie:
+
+| Element | Jak powstaje |
+|---|---|
+| ruch kamery na zdjęciu | `zoompan` FFmpeg — najazd, odjazd, panorama w lewo/prawo |
+| klip krótszy od ujęcia | `tpad` przytrzymuje ostatnią klatkę, `trim` ucina do zamówionej długości |
+| napis | nakładka PNG rysowana Pillow (polskie znaki i cudzysłowy psuły cytowanie `drawtext`) |
+| czytelność napisu | rozmyty cień pod literami + przyciemnienie dobrane do jasności kadru |
+| przejście | `xfade` — 26 przejść wbudowanych i 21 własnych z `media-zasoby/przejscia/xfade-danaco` |
+| lektor | zdanie ujęcia czytane silnikiem rozmowy głosowej (Piper), wstawione `adelay` od początku tego ujęcia |
+| podkład | plik z `media-zasoby/muzyka` zapętlony `-stream_loop` na długość filmu, z wyciszeniem; pod lektorem schodzi do 35% |
+
+Podkładu nie wybiera użytkownik: wskazuje nastrój (firmowy, energiczny, spokojny, kinowy,
+sygnał), a utwór dobiera agent z biblioteki serwera przez `asset_library` i mówi, co wybrał.
+
+Lektor jest polem przy ujęciu, nie osobnym krokiem: wpisane zdanie czyta głos serwera od
+początku tego ujęcia. Sprawdzenie, że naprawdę go słychać, idzie przez rozpoznanie mowy
+z gotowego filmu (`test_lektor_czyta_zdania_ujec_i_slychac_go_nad_muzyka`) — samo
+zmiksowanie ścieżek niczego by nie dowiodło.
+
+### Spot i intro dźwiękowe
+
+`audio_compose` (to samo miejsce w kodzie co montaż filmu) składa sam dźwięk: kwestie
+lektora po kolei z przerwami między zdaniami, podkład z `media-zasoby/muzyka` wchodzący
+przed pierwszym zdaniem, schodzący pod głos i wybrzmiewający po ostatnim. Bez kwestii
+oddaje sam podkład przycięty do zadanej długości — na tło pod czyjeś nagranie. Wynik to
+MP3 192 kb/s. Interfejsu nie ma: narzędzie wywołuje agent z rozmowy.
 
 ## Zadania w tle modułów
 

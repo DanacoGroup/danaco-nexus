@@ -98,7 +98,9 @@ Etap 7  Praca wielomaszynowa        pule sesji, migawki sesji CLI, wdrożenie kr
 
 1. Potok bramek jakości uruchamiany automatycznie: `ruff`, `pytest`,
    `tsc --noEmit`, `vitest`, testy rozszerzenia. Polecenia istnieją
-   (`backend/pyproject.toml:40-59`, `frontend/package.json:9-14`), brakuje wyzwalacza.
+   (`backend/pyproject.toml:40-59`, `frontend/package.json:9-14`), a `deploy/wydania/zbuduj.sh`
+   spina je w jeden bieg i bez kompletu zielonych nie wypuszcza wydania — brakuje wyłącznie
+   wyzwalacza, który uruchamiałby to sam (hak gita albo zadanie czasowe).
 2. Migracje wersjonowane (Alembic): rewizja początkowa odwzorowuje obecny schemat
    (`backend/nexus/db.py:83-227`, `backend/nexus/models/*.py`), migracja staje się osobnym
    krokiem wdrożenia zamiast tworzenia schematu przy starcie procesów

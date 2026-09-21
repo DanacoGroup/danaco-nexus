@@ -8,7 +8,7 @@
 | **Twórca** | Dariusz Naharnowicz |
 | **Wersja** | etap 1B |
 | **Status** | Deweloperski |
-| **Data** | 2026-09-20 |
+| **Data** | 2026-09-21 |
 
 **Informacje szczegółowe dokumentu:**
 
@@ -52,6 +52,12 @@ tabele kredytów. Czego ta kolumna nie obejmuje, mówi rozdz. 5 rejestru czynno�
 | `portal_email_confirmations` | `backend/nexus/models/portal.py` | tak (powiązanie z kontem) | CZ-3 |
 | `portal_messages` | `backend/nexus/models/portal.py` | tak | CZ-4 |
 | `portal_content` | `backend/nexus/models/portal.py` | nie — treść redakcyjna portalu | — |
+| `grupy` | `backend/nexus/models/grupy.py` | tak (powiązanie z kontem założyciela) | do uzupełnienia przy przeglądzie |
+| `grupy_czlonkowie` | `backend/nexus/models/grupy.py` | tak (powiązanie kont z grupą i rola) | do uzupełnienia przy przeglądzie |
+| `grupy_zaproszenia` | `backend/nexus/models/grupy.py` | **tak — adres e-mail osoby zapraszanej**, także takiej, która nie ma konta | do uzupełnienia przy przeglądzie |
+| `agenci_uzytkownika` | `backend/nexus/models/agenci.py` | tak — treść pracy (własne opisy agentów konta) | do uzupełnienia przy przeglądzie |
+| `pliki_katalogi` | `backend/nexus/models/pliki.py` | tak — nazwy i opisy katalogów konta | do uzupełnienia przy przeglądzie |
+| `ustawienia_konta` | `backend/nexus/models/ustawienia.py` | tak — preferencje konta | do uzupełnienia przy przeglądzie |
 | `sessions` | `backend/nexus/db.py` | tak | CZ-2 |
 | `settings` | `backend/nexus/db.py` | skrót hasła administratora | CZ-2 |
 | `device_tokens` | `backend/nexus/db.py` | tak | CZ-9 |
@@ -172,7 +178,7 @@ Treść tych stron układa użytkownik i to on za nią odpowiada.
 | hasło co najmniej 12 znaków | `MIN_HASLO` | `backend/nexus/portal/konta.py` |
 | pokaz: 6 wiadomości, 4 pliki po 8 MB, 500 znaków, 30 minut | `Limity` | `backend/nexus/demo/sesje.py` |
 | plik do 2 GB | `upload_limit_mb` | `backend/nexus/config.py` |
-| przestrzeń konta według planu: 100 MB w okresie próbnym, 1 GB Osobisty, 2 GB Pro, 10 GB Zespół | `probny_przestrzen_mb`, `przestrzen_mb` | `backend/nexus/platnosci/plany.py`, sprawdzenie `backend/nexus/api/files.py` przez `limity_uzytkownika` |
+| przestrzeń konta według planu: 100 MB w okresie próbnym, 1 GB Osobisty, 2 GB Pro, 10 GB Grupa | `probny_przestrzen_mb`, `przestrzen_mb` | `backend/nexus/platnosci/plany.py`, sprawdzenie `backend/nexus/api/files.py` przez `limity_uzytkownika` |
 | token potwierdzenia adresu 24 godziny | `POTWIERDZENIE_WAZNE` | `backend/nexus/portal/konta.py` |
 | kredyty: 1 za 1000 żetonów wejścia, 5 za 1000 wyjścia, minimum 1 za przebieg | `DOMYSLNIE_1K_WEJSCIE`, `DOMYSLNIE_1K_WYJSCIE`, `DOMYSLNIE_MINIMUM` | `backend/nexus/platnosci/kredyty.py` |
 | przydział kredytów w planie: 2 000 / 20 000 / 60 000 | `kredyty_okresowo` | `backend/nexus/platnosci/plany.py` |

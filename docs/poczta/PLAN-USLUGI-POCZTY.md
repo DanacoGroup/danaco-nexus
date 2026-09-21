@@ -929,7 +929,7 @@ operatora znika z listy ryzyk z rozdz. 8.
 Podział planów jest już w kodzie (`backend/nexus/platnosci/plany.py`), więc wdrożenie poczty
 nie musi go projektować od nowa — tylko podłączyć się do gotowych pól.
 
-| | Okres próbny (7 dni) | Osobisty | Pro | Zespół |
+| | Okres próbny (7 dni) | Osobisty | Pro | Grupa |
 |---|---|---|---|---|
 | Przestrzeń (pliki + poczta) | 100 MB | 1 GB | 2 GB | 10 GB |
 | Skrzynki pocztowe | **brak** | 1 | 10 | 10 |

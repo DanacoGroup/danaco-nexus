@@ -21,6 +21,7 @@
 9. [Limity planu: kredyty i reszta katalogu](#9-limity-planu-kredyty-i-reszta-katalogu)
 10. [Wpięcie ekranów w interfejs](#10-wpięcie-ekranów-w-interfejs)
 11. [Zasady bezpieczeństwa przyjęte w module](#11-zasady-bezpieczeństwa-przyjęte-w-module)
+12. [Plan Grupa: miejsca, wspólny zakres pracy, przekazanie roli](#12-plan-grupa-miejsca-wspólny-zakres-pracy-przekazanie-roli)
 
 ## 1. Decyzja: bez biblioteki `stripe`
 
@@ -124,7 +125,7 @@ Zakres planu opisuje wyłącznie to, co jest w kodzie. Katalog nie zapowiada fun
 rejestru narzędzi (`backend/nexus/tools/`) ani nie sprzedaje limitów, których nikt nie
 egzekwuje — liczby zadań równoległych ani automatyzacji (rozdz. 9). Jedyna liczba planu
 naprawdę egzekwowana to przydział kredytów (`kredyty_okresowo`) i tylko ona jest
-pokazywana w cenniku; plany Pro i Zespół mają poza tym zdanie o zawartości planu niższego
+pokazywana w cenniku; plany Pro i Grupa mają poza tym zdanie o zawartości planu niższego
 oraz zapowiedź, że zakres ponad niego zostanie podany przy starcie sprzedaży.
 
 Ścieżka od kliknięcia do zakupu i po zakupie:
@@ -228,7 +229,7 @@ Do wykonania ręcznie, raz, przed uruchomieniem sprzedaży.
 1. **Konto i waluta.** W panelu Stripe ustaw walutę rozliczeń na PLN i uzupełnij dane
    firmy (Danaco Holding Group Sp. z o.o.) — trafiają one na faktury.
 2. **Produkty.** *Product catalog → Add product*: załóż produkty **Danaco Nexus
-   Osobisty**, **Danaco Nexus Pro** i **Danaco Nexus Zespół**. Wszystkie trzy plany są
+   Osobisty**, **Danaco Nexus Pro** i **Danaco Nexus Grupa**. Wszystkie trzy plany są
    płatne, więc każdy potrzebuje produktu; Osobisty zaczyna się okresem próbnym, a nie
    bezpłatnym planem.
 3. **Ceny planów.** Do każdego produktu dodaj dwie ceny cykliczne w PLN: miesięczną
@@ -360,8 +361,9 @@ export { module } from "../../platnosci";
 ```
 
 Adresy powrotu ze Stripe wskazują na `/m/platnosci`, czyli na ten właśnie moduł, więc
-ścieżka zakupu jest domknięta po stronie interfejsu — brakuje wyłącznie konfiguracji
-Stripe w środowisku.
+ścieżka zakupu jest domknięta po stronie interfejsu. Stripe jest już skonfigurowany:
+`GET /api/platnosci/cennik` na produkcji odpowiada `"sprzedaz_aktywna": true`
+(stan na 21.09.2026).
 
 ## 11. Zasady bezpieczeństwa przyjęte w module
 
@@ -378,3 +380,40 @@ Stripe w środowisku.
 - Zdarzenie jest zapisywane przed zmianą stanu, a jego identyfikator jest kluczem
   głównym — to jedyny mechanizm idempotencji i nie wymaga dodatkowej blokady.
 - Testy nie łączą się z siecią: Stripe zastępuje atrapa protokołu `KlientStripe`.
+
+---
+
+## 12. Plan Grupa: miejsca, wspólny zakres pracy, przekazanie roli
+
+Plan `zespol` (w interfejsie: **Grupa**) rozlicza się **za każdego użytkownika**, a zakres
+pracy jest wspólny i kupuje go założyciel. Do wrześniowej zmiany był to sam opis w cenniku:
+plan dawało się kupić, ale nie dawało się nikogo do grupy dodać.
+
+**Rozliczenie.** Pozycja kasy dla tego planu ma `adjustable_quantity` (od 2 do 20 miejsc) —
+kupujący ustala liczbę w kasie Stripe i zmienia ją później w portalu rozliczeniowym
+(`platnosci/uslugi.py:_pozycja_zakupu`). Ilość z pozycji subskrypcji zapisuje webhook do
+`platnosci_subskrypcje.miejsca` (`_miejsca_subskrypcji`). To ona, a nie `limity["konta"]`
+z katalogu planów, rozstrzyga pojemność grupy — limit katalogu jest wartością zastępczą,
+dopóki subskrypcji nie ma (konto testowe, chwila przed pierwszą płatnością).
+
+**Kto płaci.** `platnosci/grupy.py:konto_rozliczeniowe` zwraca konto, z którego schodzi
+praca: dla osoby poza grupą ją samą, dla członka — założyciela. Wywołują je trzy miejsca
+i tylko te trzy: sprawdzenie przed zleceniem (`api/conversations.py`), naliczenie po
+przebiegu (`agent/runner.py`) i widok wykorzystania (`api/modules/platnosci.py`).
+
+**Zaproszenia.** Jednorazowy token, w bazie wyłącznie jako skrót, z terminem ważności
+(`WAZNOSC_ZAPROSZENIA_DNI`). Przyjąć je może tylko konto o adresie, na który je wystawiono.
+Odsyłacz wraca do interfejsu zapraszającego zamiast iść pocztą: skrzynka bywa
+nieskonfigurowana, a wtedy zaproszenie przepadałoby bez śladu.
+
+**Role.** Założyciel jest dokładnie jeden. `przekaz_zalozyciela` zamienia role, a nie dodaje
+drugiego założyciela; od tej chwili płaci i rozlicza się nowy. Założyciel nie wyjdzie
+z grupy, dopóki roli nie przekaże — inaczej zostałaby grupa bez płatnika. Konto należy
+najwyżej do jednej grupy (warunek jednoznaczności w `grupy_czlonkowie`).
+
+**Trasy.** `GET/POST/DELETE /api/grupa`, `POST /api/grupa/zaproszenia`,
+`POST /api/grupa/przyjmij`, `DELETE /api/grupa/czlonkowie/{id}`, `POST /api/grupa/zalozyciel`
+(`api/modules/grupy.py`). Ekran: `frontend/src/platnosci/Grupa.tsx` w module Płatności.
+
+**Testy.** `backend/tests/test_grupy.py` (reguły i trasy), `frontend/src/platnosci/grupa.test.tsx`
+(co widzi założyciel, czego nie widzi członek, gdzie stoją działania nieodwracalne).

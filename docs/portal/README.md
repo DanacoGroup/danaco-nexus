@@ -161,8 +161,8 @@ Proxy w innym miejscu sieci wymaga zmiany `SIECI_PROXY` razem z `--forwarded-all
 
 `auth.client_ip` bierze **pierwszy** wpis nagłówka i robi to niezależnie od tego, co ustalił
 uvicorn, więc jednym nagłówkiem da się rozsypać licznik nieudanych logowań administratora na
-dowolnie wiele kluczy. Punkty konta portalu tej funkcji nie używają; `/api/auth/login` nadal tak —
-poprawka leży w cudzym pliku i czeka jako patch (rozdział „Patch do wykonania w cudzym pliku”).
+dowolnie wiele kluczy. Dziś `client_ip` jest już odporny na podszycie (ufa nagłówkowi tylko od
+własnego proxy i bierze ostatni wpis), więc `/api/auth/login` liczy próby po prawdziwym adresie.
 
 Warunek wdrożeniowy: API stoi za Caddy na `127.0.0.1:8930` i nie jest wystawione na świat innym
 portem. Jeżeli przed Caddy stanie kolejne proxy (CDN), ostatni wpis nagłówka przestanie być adresem
@@ -354,38 +354,21 @@ wszystkie tokeny odzyskiwania konta, więc token z adresu jest już martwy; gdyb
 otworzyłaby formularz „Ustaw nowe hasło”, a zapis skończyłby się komunikatem „Odsyłacz wygasł albo
 został już użyty”.
 
-## Patch do wykonania w cudzym pliku
+## Adres klienta w licznikach tempa — zrobione
 
-Jedna zmiana dotyczy pliku spoza dziedziny kont, więc jest tu opisana w postaci gotowej do wykonania
-przez właściciela pliku — zgodnie z rozdz. 2 `docs/orkiestracja/SPECYFIKACJE.md`. Zmiana **nie jest
-wykonana**: zdania w czasie teraźniejszym opisują stan dzisiejszy, a blok kodu niżej to treść do
-wstawienia, nie zapis tego, co w pliku stoi.
+Rozdział opisywał wcześniej patch do wykonania w `backend/nexus/api/auth.py`, bo `client_ip`
+czytał `X-Forwarded-For` samodzielnie i brał **pierwszy** wpis. Zmiana jest wykonana, i to
+szerzej niż w szkicu: nagłówek liczy się wyłącznie w żądaniu z pętli zwrotnej (czyli od
+własnego proxy), a brany jest jego **ostatni** wpis — ten dopisuje Caddy z adresu, który sam
+zobaczył. Wpisy wcześniejsze przysyła klient, więc nie mają wpływu na klucz licznika.
 
-### `backend/nexus/api/auth.py` — adres klienta w liczniku logowań administratora
+Kod: `auth.py` — `SIECI_PROXY`, `_proxy_zaufane`, `client_ip`. Dotyczy to wszystkich liczników
+opartych o adres: logowania administratora, limitu kont próbnych i tempa piaskownicy.
 
-Stan dzisiejszy: `client_ip` czyta `X-Forwarded-For` samodzielnie i bierze **pierwszy** wpis, nie
-sprawdzając, skąd przyszło żądanie. Licznik nieudanych logowań administratora (`/api/auth/login`)
-rozsypuje się więc na dowolnie wiele kluczy po podstawieniu nagłówka.
-
-Wystarczy oddać wybór adresu uvicornowi. Usługa startuje z
-`--proxy-headers --forwarded-allow-ips 127.0.0.1`, więc `request.client.host` jest już adresem
-klienta wyliczonym z zaufanego nagłówka (ostatni wpis spoza zaufanych adresów), a przy uruchomieniu
-bez tych przełączników — adresem gniazda. W obu przypadkach nagłówek od klienta nie ma na to wpływu.
-
-```python
-def client_ip(request: Request) -> str:
-    """Adres klienta; nagłówek ``X-Forwarded-For`` rozstrzyga uvicorn, nie kod aplikacji."""
-    return (request.client.host if request.client else "") or "?"
-```
-
-Test (do `backend/tests/test_api.py`, gdzie stoi klient administratora): cztery nieudane logowania
-z podmienianym `X-Forwarded-For` z jednego klienta mają skończyć się kodem `429`, a nie samymi
-`401`. Wzór działającego testu: `test_naglowek_przekierowania_nie_obchodzi_limitu`
-w `backend/tests/test_portal.py`.
-
-Wariant wdrożeniowy zamiast zmiany kodu (nie zastępuje patcha, bo chroni tylko produkcję): w
-`deploy/caddy/danaco-nexus.caddy` dopisać do `reverse_proxy` wiersz
-`header_up X-Forwarded-For {remote_host}`, co nadpisuje nagłówek klienta zamiast dopisywać do niego.
+Testy: `backend/tests/test_bezpieczenstwo.py` —
+`test_naglowek_przekazania_nie_omija_licznika_logowan` i bliźniaczy test dla kont próbnych;
+oba przechodzą. Warunek wdrożeniowy bez zmian: usługa startuje z
+`--proxy-headers --forwarded-allow-ips 127.0.0.1`, a API nie jest wystawione innym portem.
 
 ## Sprawy otwarte
 
@@ -393,16 +376,39 @@ Wariant wdrożeniowy zamiast zmiany kodu (nie zastępuje patcha, bo chroni tylko
   wielu procesach limit mnoży się przez ich liczbę, a restart zeruje liczniki. Wspólny licznik
   wymaga magazynu poza procesem (Redis jest już w zależnościach aplikacji) i należy do dziedziny
   bezpieczeństwa powierzchni publicznej.
-- Logowanie administratora (`/api/auth/login`) nadal liczy próby po `auth.client_ip`, więc da się je
-  obejść nagłówkiem `X-Forwarded-For`. Punkty konta portalu już nie — poprawka dla pliku
-  `backend/nexus/api/auth.py` leży gotowa w rozdziale „Patch do wykonania w cudzym pliku”.
+- ~~Logowanie administratora da się obejść nagłówkiem `X-Forwarded-For`~~ — zrobione:
+  `client_ip` ufa nagłówkowi tylko od własnego proxy i bierze ostatni wpis (rozdział „Adres
+  klienta w licznikach tempa”). Pilnuje tego test w `test_bezpieczenstwo.py`.
 - Rejestracja odpowiada `422` z informacją, że adres jest zajęty — to celowy kompromis na rzecz
   czytelności (odzyskiwanie hasła, które jest ścieżką atakującego, adresu nie zdradza).
 - Strona konta czyta parametr `potwierdzenie` wprost z adresu (`window.location.search`), bo
   `frontend/src/portal/trasy.ts` należy do dziedziny nawigacji i przekazuje stronie jeden parametr.
   Gdy ten plik będzie zmieniany, parametr wypada przenieść do `parsujTrase`.
-- Wyszukiwanie działa na `LIKE`; przy dużej bibliotece treści warto dodać indeks pełnotekstowy
-  PostgreSQL.
+- Wyszukiwanie działa na `LIKE` **od początku wyrazu** (od 21.09.2026 — wcześniej trafiało
+  w środek, więc „or” pasowało do „który”). Dopasowanie jest po rdzeniu, nie po formie:
+  „moduły” nie znajdzie tekstu, w którym stoi tylko „modułów”. Przy większej bibliotece
+  treści warto dodać indeks pełnotekstowy PostgreSQL.
+- **Poczta portalu nie dochodzi do klienta.** `NEXUS_PORTAL_MAIL_NADAWCA` nie jest ustawione,
+  więc obowiązuje nadawca „dziennik”: potwierdzenie adresu i odsyłacz do nowego hasła są
+  tylko zapisywane w dzienniku aplikacji. Konto działa bez potwierdzenia (logowanie sprawdza
+  wyłącznie hasło), więc boli to w jednym miejscu — **odzyskaniu hasła**. Włączenie wysyłki:
+  `deploy/zapisz-poczte.sh` (poświadczenia skrzynki), potem `NEXUS_PORTAL_MAIL_NADAWCA=smtp`.
+  Stan sprawdza kontrola „poczta portalu” w `deploy/nexus-cli.sh doctor`.
 - Plan subskrypcji (`portal_users.plan`) jest opisowy — nie ma rozliczeń ani zmiany planu z panelu.
 - Wiadomości z formularza kontaktowego są tylko odczytywane w panelu; nie ma oznaczania jako
   załatwione ani powiadomienia pocztą.
+
+## Pierwsze materiały
+
+Blog, centrum wiedzy i dokumentacja są puste — sekcje zachowują się poprawnie, ale spis nie
+ma ani jednej pozycji. W `docs/portal/tresci-startowe/` leży pięć gotowych materiałów
+dokumentacji wraz z opisem publikacji. Treść mieszka w bazie (adres, zajawkę i indeks
+wyszukiwania tworzy dopiero zapis), a pliki są jej wersją źródłową — wczytuje je polecenie:
+
+```
+deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-startowe
+```
+
+Domyślnie powstają szkice; publikacja zostaje osobną decyzją (`--opublikuj` albo panel
+administratora). Powtórne wczytanie nadpisuje pozycję o tym samym adresie, więc poprawiony
+plik wystarczy podać ponownie.

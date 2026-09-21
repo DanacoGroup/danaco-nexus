@@ -147,6 +147,12 @@ Klucz podpisu powstaje raz (RSA 4096, PKCS12, alias `nexus`, hasło losowe zapis
 wdrożeniu przenieść go z `.tmp/` do `dane/app/android-keystore/` (zmienna `KLUCZE`), bo katalog `.tmp`
 jest tymczasowy. Utrata klucza oznacza, że nowej wersji nie da się zainstalować jako aktualizacji.
 
+**Przed każdą nową paczką podnieś `versionCode`** w `android/android/app/build.gradle`
+(dziś `versionCode 1`, `versionName "1.0.0"`). Telefon odrzuca instalację aktualizacji
+o tym samym albo niższym `versionCode`, a komunikat systemu nie mówi o tym wprost —
+wygląda to jak zepsuta paczka. Przy okazji warto zrównać `versionName` z resztą produktu
+(serwer i rozszerzenie: 0.1.0, pulpit: 0.2.0).
+
 Wersje: Capacitor 8.5.2, AGP 8.13.0, Gradle 8.14.3, Kotlin 2.2.21, compileSdk/targetSdk 36, minSdk 29.
 
 ## Instalacja na telefonie

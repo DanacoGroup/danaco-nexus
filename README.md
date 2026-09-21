@@ -32,18 +32,22 @@ przeglądarka (Windows, Android, iPhone, tablet)
         │
   danaco-nexus-api (FastAPI + interfejs React) ──────────┐
         │ kolejka zadań (PostgreSQL)                     │ strumień zdarzeń (SSE)
-  danaco-nexus-worker ──► claude -p (Claude Code CLI) ───┤
-                               │ MCP (stdio)             │
+  danaco-nexus-worker ──► claude -p w piaskownicy bwrap ─┤
+                               │ gniazdo (MCP)           │
                           nexus.mcp_server (narzędzia) ──┘
+                          (poza piaskownicą: kod i baza)
         │
   PostgreSQL 5433 · Qdrant 6335 · LanguageTool 8010 · Tika · Real-ESRGAN · LibreOffice …
 ```
 
 Agent nie korzysta z API Anthropic. Każde zadanie uruchamia Claude Code CLI
 (`claude -p --output-format stream-json`) na subskrypcji konta Claude (token OAuth
-w profilu projektu). Narzędzia Nexusa dostarcza serwer MCP uruchamiany przez CLI
-na czas zadania; wbudowane narzędzia CLI (Bash, Read, Write, WebFetch…) są
-wyłączone. Kontekst rozmowy utrzymuje sesja CLI – pierwsze zadanie ją tworzy
+w profilu projektu). Proces CLI startuje w osobnej przestrzeni montowań (`bwrap`):
+widzi przestrzeń użytkownika i łańcuch narzędzi serwera, nie widzi kodu Nexusa ani
+pozostałych projektów na dysku. Narzędzia Nexusa dostarcza serwer MCP — uruchamiany
+**poza** piaskownicą, bo potrzebuje kodu i bazy, i dostępny dla CLI przez gniazdo
+w katalogu zadania. Wbudowane narzędzia CLI (Bash, Read, Write, WebFetch…) są
+wyłączone poza trybem Kod. Kontekst rozmowy utrzymuje sesja CLI – pierwsze zadanie ją tworzy
 (`--session-id`), kolejne wznawiają (`--resume`).
 
 | Składnik | Rola |
@@ -110,8 +114,10 @@ pojawiają się nigdzie w interfejsie ani w komunikatach dla użytkownika.
 ## Wydania: strefa robocza → przedsionek → produkcja
 
 Repozytorium nie jest produkcją. Kod, który widzą użytkownicy, bierze się z niezmiennego
-wydania wskazanego dowiązaniem `wydania/produkcja`; podgląd przed wypuszczeniem stoi pod
-`https://test.danaco-nexus.pl` (hasło, `noindex`, własna baza i własne dane).
+wydania wskazanego dowiązaniem `wydania/produkcja` — dotyczy to **obu** procesów: API
+i procesu roboczego, czyli samego agenta. Podgląd przed wypuszczeniem stoi pod
+`https://test.danaco-nexus.pl` (hasło, `noindex`, własna baza, własne dane i **własny
+proces roboczy** — bez niego przedsionek przyjmowałby zlecenia, których nikt nie wykonuje).
 
 ```bash
 deploy/wydania/zbuduj.sh              # bramka + artefakt w wydania/wersje/<znacznik>
@@ -119,17 +125,25 @@ deploy/wydania/wypchnij.sh przedsionek  # podgląd: https://test.danaco-nexus.pl
 deploy/wydania/wypchnij.sh produkcja    # promocja tego, co stoi w przedsionku
 deploy/wydania/cofnij.sh              # powrót do poprzedniego sprawnego wydania
 deploy/wydania/wersje.sh              # co gdzie stoi
+deploy/wydania/sprzataj.sh            # podgląd starych wydań; usuwa dopiero --wykonaj
 ```
+
+Bramka to siedem kroków: skan sekretów (`gitleaks`), `ruff`, `pytest`, testy interfejsu
+(`tsc --noEmit` i `vitest`), kontrola programów narzędzi, budowa interfejsu i odcisk źródeł.
+Ostatni krok porównuje sumę kontrolną plików źródłowych ze stanem sprzed biegu: bramka liczy
+kilkanaście minut i czyta drzewo robocze w kilku momentach, więc bez tego wydanie potrafiło
+powstać z kodu, którego testy nie widziały. Każde wydanie niesie też katalog `zrodla/` —
+źródła klientów, z których powstało.
 
 Szczegóły, w tym cofanie i hasło do przedsionka: [`deploy/wydania/README.md`](deploy/wydania/README.md).
 
 ## Narzędzia agenta
 
-Rejestr `backend/nexus/tools/` liczy **83 narzędzia**. Claude sam decyduje, których użyć
+Rejestr `backend/nexus/tools/` liczy **101 narzędzi**. Claude sam decyduje, których użyć
 i z jakimi parametrami; wbudowane narzędzia CLI są wyłączone.
 
 Wykaz nie jest przepisywany ręcznie w trzech miejscach. `frontend/scripts/narzedzia.py`
-czyta ten sam rejestr i wypisuje `frontend/src/dane/narzedzia.ts` (dziewięć dziedzin, polska
+czyta ten sam rejestr i wypisuje `frontend/src/dane/narzedzia.ts` (dziesięć dziedzin, polska
 nazwa, zdanie opisu i przykładowe polecenie). Z tego pliku korzystają: sekcja „Dziewięć
 dziedzin” na stronie produktu, strona `/portal/narzedzia` i moduł „Narzędzia” w aplikacji.
 Nowe narzędzie bez przypisanej dziedziny i polskiej nazwy zatrzymuje budowę — dzięki temu
@@ -225,7 +239,9 @@ zakłada klaster PostgreSQL i bazę `nexus`, podłącza jednostki systemd z
 | `danaco-nexus-qdrant` | baza wiedzy (127.0.0.1:6335/6336) |
 | `danaco-nexus-languagetool` | sprawdzanie tekstu (127.0.0.1:8010) |
 | `danaco-nexus-api` | API i interfejs (127.0.0.1:8930) |
-| `danaco-nexus-worker` | proces roboczy agenta |
+| `danaco-nexus-worker` | proces roboczy agenta (kod z `wydania/produkcja`) |
+| `danaco-nexus-przedsionek` | API wydania wystawionego do sprawdzenia (127.0.0.1:8950) |
+| `danaco-nexus-worker-przedsionek` | proces roboczy przedsionka (własna baza, własne dane) |
 | `danaco-nexus-chmura` | chmura osobista Nextcloud (127.0.0.1:8940) |
 | `danaco-nexus-chmura-cron.timer` | zadania w tle Nextcloud co 5 minut |
 | `danaco-nexus-kopia.timer` | kopia zapasowa raz na dobę o 3:20 |
@@ -242,6 +258,7 @@ claude setup-token                                   # na koncie Claude właści
 sudo -u danaco-serwis deploy/zapisz-token.sh         # wklejenie tokenu (bez echa)
 deploy/nexus-cli.sh set-password                     # login: admin
 deploy/nexus-cli.sh doctor --online
+deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-startowe
 ```
 
 Timer kopii zapasowej włącza sam `deploy/instalacja.sh`.
@@ -269,11 +286,12 @@ tar --extract --zstd --file dane/kopie/<znacznik>/qdrant.tar.zst -C dane/qdrant
 systemctl --user start danaco-nexus.target
 ```
 
-Polecenie `doctor` sprawdza bazę, katalog danych, czcionkę warstwy tekstowej,
-programy narzędziowe (Tesseract z językami, LibreOffice, FFmpeg, ImageMagick,
-unpaper, Inkscape), Real-ESRGAN (test na małym obrazie), Qdrant, Tika,
-LanguageTool, Claude Code CLI z tokenem oraz serwer MCP (lista narzędzi).
-Z `--online` wykonuje jedno krótkie zapytanie przez CLI.
+Polecenie `doctor` sprawdza bazę, kolejkę zadań (czy ktokolwiek ją odbiera), katalog
+danych, czcionkę warstwy tekstowej, programy narzędziowe (Tesseract z językami,
+LibreOffice, FFmpeg, ImageMagick, unpaper, Inkscape), Real-ESRGAN (test na małym obrazie),
+Qdrant, Tikę, LanguageTool, Claude Code CLI z tokenem oraz serwer MCP (lista narzędzi).
+Z `--online` wykonuje jedno krótkie zapytanie przez CLI. Kontrola, która zawiedzie, jest
+jednym wynikiem z wielu — diagnostyka zawsze dochodzi do końca listy.
 
 Publikacja pod domeną: rekordy DNS w strefie OVH ustawia `deploy/dns/ustaw-dns.py`
 (`danaco-nexus.pl`, `www`, `cloud` → serwer), a witrynę Caddy hosta opisuje
@@ -410,8 +428,9 @@ Ustawienia z pliku `.env` (pełna lista z opisami w `.env.example`):
 Moduły dołożone później mają własne rodziny zmiennych — opisy i wartości domyślne
 są w `.env.example` oraz w dokumentacji modułu: `NEXUS_PORTAL_*`
 ([portal](docs/portal/README.md)) i `NEXUS_PLATNOSCI_*` ([płatności](docs/platnosci/README.md)).
-Piaskownica „Wypróbuj teraz” ([opis](docs/demo/README.md)) nie ma własnych zmiennych —
-limity gościa są stałymi w kodzie.
+Zaplecze pokazu ([opis](docs/demo/README.md)) nie ma własnych zmiennych — limity gościa
+są stałymi w kodzie. Uwaga: `/wyprobuj` nie otwiera dziś pokazu, tylko zakłada konto próbne
+i wpuszcza do pełnej aplikacji; samo zaplecze (`/api/demo/*`) stoi nieużywane.
 
 ## Rozwój i testy
 
@@ -468,7 +487,7 @@ Dokumentacja techniczna poza warstwą projektową:
 | [Moduły](docs/moduly/) | opisy poszczególnych modułów aplikacji i klientów |
 | [Portal produktowy](docs/portal/README.md) | witryna `/portal`: treść, konta, kanały dla wyszukiwarek |
 | [Płatności](docs/platnosci/README.md) | plany, subskrypcje i rozliczenia na Stripe |
-| [Piaskownica](docs/demo/README.md) | pokaz „Wypróbuj teraz” bez konta |
+| [Piaskownica](docs/demo/README.md) | zaplecze pokazu bez konta (dziś bez własnego ekranu) |
 | [Kampania promocyjna](promocja/kampania/README.md) | filmy i animacje kampanii, odtworzenie renderu |
 
 ## Bezpieczeństwo

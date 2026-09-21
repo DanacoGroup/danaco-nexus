@@ -545,8 +545,9 @@ commit ──► bramki jakości ──► budowa artefaktów ──► wydanie 
 ```
 
 Bramki istnieją w repozytorium jako polecenia (`backend/pyproject.toml:40-59`,
-`frontend/package.json:9-14`, `extension/e2e/uruchom.sh`), brakuje wyłącznie
-automatycznego uruchamiania. Potok może działać na tym samym serwerze — nie wymaga usługi
+`frontend/package.json:9-14`, `extension/e2e/uruchom.sh`) i są spięte w jeden bieg przez
+`deploy/wydania/zbuduj.sh`, który bez kompletu zielonych nie tworzy wydania — brakuje
+wyłącznie automatycznego wyzwalania tego biegu. Potok może działać na tym samym serwerze — nie wymaga usługi
 zewnętrznej.
 
 ### 14.2 Wdrożenie bez przerwy

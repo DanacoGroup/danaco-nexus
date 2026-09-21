@@ -7,9 +7,9 @@
 | **Opis** | Osobisty agent AI działający na serwerze Danaco: rozmowa z modelem Claude przez Claude Code CLI, narzędzia na plikach, OCR, obrazy, poczta, kalendarz, chmura osobista, baza wiedzy, moduł Kod, klienci PWA / Android / Windows / rozszerzenie przeglądarki. |
 | **Producent** | Danaco Holding Group Sp. z o.o. |
 | **Twórca** | Dariusz Naharnowicz |
-| **Wersja** | 1.0 |
+| **Wersja** | 1.1 |
 | **Status** | Deweloperski |
-| **Data** | 2026-09-20 |
+| **Data** | 2026-09-21 |
 
 **Informacje szczegółowe dokumentu:**
 
@@ -23,8 +23,15 @@
 | **Poza zakresem** | Warstwa projektowa — [System projektowy](../../design-system/DESIGN_SYSTEM.md); opisy funkcjonalne modułów — [`docs/moduly/`](../moduly/); plan strumieni prac — [`docs/PLAN-ROZWOJU.md`](../PLAN-ROZWOJU.md) |
 | **Dokument nadrzędny** | brak — dokument źródłowy dla pakietu architektury |
 | **Dokumenty powiązane** | [Architektura docelowa](ARCHITEKTURA-DOCELOWA.md) · [Roadmapa](ROADMAPA.md) · [Backlog](BACKLOG.md) · [README pakietu](README.md) |
-| **Źródła normatywne** | kod repozytorium `/danaco/projekty/danaco-nexus` w rewizji `ddfac78`; każde twierdzenie ma odsyłacz `plik:linia` |
+| **Źródła normatywne** | kod repozytorium `/danaco/projekty/danaco-nexus`: rewizja `f0a53ff` plus niezatwierdzone zmiany w drzewie roboczym (stan z 21 września). Każde twierdzenie ma odsyłacz `plik:linia`; przy niezatwierdzonych zmianach numery wierszy mogą być przesunięte — nazwa symbolu jest pewniejsza niż numer |
 | **Zasada nadrzędna** | Opisujemy wyłącznie to, co jest w kodzie. Gdy funkcji nie ma, dokument mówi „brak w kodzie”, a nie „planowane”. |
+
+> **Uwaga o numerach wierszy (21.09.2026).** Opis stanu jest aktualny na 21 września
+> (rewizja `f0a53ff` plus niezatwierdzone zmiany w drzewie roboczym), ale odsyłacze
+> `plik:linia` policzono jeszcze dla rewizji `ddfac78`. Od tego czasu weszło kilkanaście
+> wydań, więc numery bywają przesunięte — np. `app.py:106-108` nie wskazuje już
+> `/api/health`. Nazwy plików, funkcji i opis zachowania są nadal aktualne; przy numerze
+> wiersza warto sprawdzić kod, zanim się go zacytuje.
 
 ## Spis treści
 
@@ -70,7 +77,7 @@ Rozmiary warstw (stan na dzień dokumentu):
 | Warstwa | Miara |
 |---|---|
 | Backend Python | 91 plików `.py` pod kontrolą wersji, 20 690 linii w `backend/nexus/**` |
-| Narzędzia agenta | 59 rejestracji `@registry.register` w `backend/nexus/tools/*.py` |
+| Narzędzia agenta | 91 rejestracji `@registry.register` w `backend/nexus/tools/*.py` |
 | Moduły API | 16 modułów w `backend/nexus/api/modules/` (17 plików wraz z `__init__.py`) |
 | Moduły interfejsu | 12 katalogów z `index.tsx` w `frontend/src/modules/` |
 | Testy backendu | 6 109 linii w `backend/tests/` |
@@ -106,10 +113,17 @@ Rozmiary warstw (stan na dzień dokumentu):
         └───────────┬────────────────┘
                     │ podproces na zadanie
                     ▼
-        ┌────────────────────────────────────────────┐
+        ┌──────────────── piaskownica bwrap ─────────┐
         │ claude -p --output-format stream-json       │
-        │   └─ MCP stdio: python -m nexus.mcp_server  │  ← 59 narzędzi Nexusa
-        └────────────────────────────────────────────┘
+        │   widzi: katalog projektu, profil sesji,    │
+        │   katalog zadania, /danaco/programy (ro)    │
+        │   └─ przelotka node → gniazdo uniksowe ─────┼──┐
+        └────────────────────────────────────────────┘  │
+                                                         ▼
+                                    ┌───────────────────────────────┐
+                                    │ python -m nexus.mcp_server    │ ← 101 narzędzi
+                                    │ (poza piaskownicą: kod i baza)│
+                                    └───────────────────────────────┘
                     │
    PostgreSQL 5433 (gniazdo UNIX) · Qdrant 6335 · LanguageTool 8010 · Nextcloud 8940
    Tika · Tesseract · LibreOffice · FFmpeg · ImageMagick · Real-ESRGAN · rembg
@@ -165,7 +179,12 @@ albo odpytuje bazę co sekundę (`worker.py:31`, `worker.py:117`).
 
 Zatrzymanie jest łagodne: `SIGTERM` przestawia flagę (`worker.py:95-97`, `worker.py:185-187`),
 trwające przebiegi są dokańczane przez `worker_stop_grace_s` (`worker.py:160-169`,
-`config.py:118`), a jednostka systemd daje na to 120 s (`deploy/systemd/danaco-nexus-worker.service:21-22`).
+`config.py:118`), a jednostka systemd daje na to 120 s (`deploy/systemd/danaco-nexus-worker.service:25-26`).
+
+Kod procesu roboczego pochodzi z wydania (`WorkingDirectory=wydania/produkcja/backend`),
+tak samo jak kod API — `wypchnij.sh` i `cofnij.sh` przestawiają obie jednostki naraz.
+Przedsionek ma własny proces roboczy (`danaco-nexus-worker-przedsionek.service`), bo
+kolejką jest tabela `runs` w bazie, a przedsionek pracuje na własnej bazie.
 
 Zadania po niespodziewanym zatrzymaniu procesu są odzyskiwane po 3 minutach bez pulsu
 (`worker.py:32`, `worker.py:63-73`, wywołanie co 60 s — `worker.py:119-127`).
@@ -186,6 +205,44 @@ trafia do tabeli `run_events` i budzi strumień SSE (`mcp_server.py:76-79`,
 Granica jest ostra: serwer MCP to osobny proces z własnym połączeniem do bazy
 (`mcp_server.py:67`), więc narzędzia nie współdzielą pamięci ani z API, ani z procesem
 roboczym.
+
+Od wprowadzenia piaskownicy serwer MCP **nie jest** uruchamiany przez CLI: potrzebuje kodu
+Nexusa, środowiska Pythona i bazy, czyli dokładnie tego, czego agent widzieć nie może.
+Uruchamia go proces roboczy poza piaskownicą, a CLI łączy się z nim przez gniazdo uniksowe
+w katalogu zadania (`backend/nexus/agent/most_mcp.py`). Z punktu widzenia CLI to nadal
+zwykły serwer MCP „stdio”; z punktu widzenia agenta kod Nexusa nie istnieje.
+
+Samo gniazdo leży **poza** katalogiem zadania, we własnym krótkim katalogu
+(`most_mcp.KATALOG_GNIAZD`, prawa `0600`): ścieżka gniazda uniksowego mieści się w ~108
+bajtach, a katalog zadania bywa głębszy. Do piaskownicy wchodzi jako osobne montowanie.
+Drogę sprawdza `backend/tests/test_most_mcp.py` — razem z granicami (puste środowisko
+przelotki, sprzątanie po zamknięciu) i z przebiegiem końca do końca: klient MCP uruchamia
+przelotkę w Node tym samym poleceniem, które trafia do `--mcp-config`, i odbiera wykaz
+narzędzi przez gniazdo.
+
+### 3.4 Piaskownica procesu CLI
+
+`backend/nexus/agent/piaskownica.py`. Proces Claude Code CLI startuje w osobnej przestrzeni
+montowań (`bwrap --unshare-all --share-net`). Widzi:
+
+* katalog projektu użytkownika, profil sesji CLI i katalog roboczy zadania — do zapisu;
+* `/usr`, `/etc` i `/danaco/programy` — do odczytu (biblioteki systemowe i łańcuch narzędzi,
+  bez którego moduł Kod nie miałby czym budować ani testować);
+* `/run/systemd/resolve` — bez tego katalogu nie działa rozwiązywanie nazw.
+
+Środowisko procesu powstaje od zera (`--clearenv` plus wykaz dodający
+`piaskownica.ZMIENNE_DOZWOLONE`): do środka wchodzi `PATH`, `HOME`, język i katalog
+tymczasowy, a proces CLI dodatkowo własne zmienne `CLAUDE_*`, `MCP_*` i `GIT_*`. Żadnej
+zmiennej `NEXUS_*` — adres bazy i ścieżki do plików z kluczami zostają po stronie serwera.
+
+Nie widzi kodu Nexusa, pozostałych projektów na dysku, katalogu producenta, kluczy ani
+wydań. Wcześniej ograniczenie było wyłącznie instrukcją w opisie trybu Kod („nie wychodź
+poza katalog projektu”), a `Read` i `Bash` przyjmują ścieżki bezwzględne — egzekwuje je
+więc dopiero jądro. Wyłącznik: `agent_piaskownica=false` (świadoma decyzja operatora;
+przy braku `bwrap` proces roboczy zapisuje ostrzeżenie w dzienniku).
+
+Tej samej piaskownicy używa narzędzie `animate_explainer`, które renderuje scenę Manim
+pisaną przez model — tam dodatkowo bez wyjścia do sieci (`siec=False`).
 
 ---
 
@@ -246,6 +303,13 @@ Istotne własności:
 - **Anulowanie**: osobne zadanie odpytuje bazę co sekundę i przy okazji odświeża puls
   przebiegu (`runner.py:824-831`), a przerwanie kończy całą grupę procesów
   (`runner.py:779`, `runner.py:798-805`).
+- **Sprzątanie po biegu**: blok `finally` anuluje cztery zadania pomocnicze (obserwator
+  anulowania, czytnik stderr, dwa oczekiwania) i **zbiera je** przez `asyncio.gather`
+  z `return_exceptions=True`. Zebranie jest istotne, nie kosmetyczne: `cancel()` zaznacza
+  tylko prośbę, a obserwator anulowania jest w tej chwili w sesji bazy i ma jeszcze wycofać
+  transakcję. Przy pętli zdarzeń zamykanej zaraz po biegu — czyli w testach —
+  niezebrane zadanie potrafiło zablokować `asyncio.runners._cancel_all_tasks`
+  na zawsze i wieszało całą bramkę wydania (21.09.2026).
 - **Limit czasu**: 120 minut domyślnie, 360 minut dla trybu badań
   (`runner.py:202-206`, `config.py:33`, `config.py:117`).
 
@@ -493,7 +557,12 @@ importuje automatycznie (`backend/nexus/tools/__init__.py:15-17`). Rejestr trzym
 w stałej kolejności, co stabilizuje prefiks pamięci podręcznej modelu
 (`backend/nexus/tools/base.py:222-254`).
 
-W repozytorium jest **59 zarejestrowanych narzędzi**:
+W repozytorium jest **91 zarejestrowanych narzędzi**. Tabela niżej wymienia trzon; pełny,
+zawsze aktualny wykaz z polskimi nazwami i przykładami wypisuje `frontend/scripts/narzedzia.py`
+do `frontend/src/dane/narzedzia.ts` (to samo źródło zasila moduł Możliwości i portal).
+Dołożone we wrześniu 2026: przeglądarka (`browser_*`, `tools/przegladarka.py`), zestaw witryn
+(`site_kit_catalog`, `site_from_kit`, `tools/kit_www.py`) i animacja wyjaśniająca
+(`animate_explainer`, `tools/animacja.py`).
 
 | Grupa | Narzędzia | Plik |
 |---|---|---|
@@ -789,7 +858,7 @@ i spinający `danaco-nexus.target`.
 Hartowanie jednostek: `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`,
 `ProtectHome`, zapis wyłącznie do `dane/`
 (`deploy/systemd/danaco-nexus-api.service:21-25`,
-`deploy/systemd/danaco-nexus-worker.service:25-29`).
+`deploy/systemd/danaco-nexus-worker.service:29-33`).
 
 Brzeg: Caddy hosta (`deploy/caddy/danaco-nexus.caddy`) z HSTS i `X-Robots-Tag`
 (`danaco-nexus.caddy:7-13`), trzema witrynami (`:15`, `:40`, `:71`) i długimi limitami
@@ -860,9 +929,12 @@ Czego nie ma:
   po fakcie (`db.py:200-210`).
 - **Stan limitów konta Claude** jest zapisywany w `settings` pod kluczem `claude.limity`
   i pokazywany w module Agenci (`runner.py:1066-1081`, `modules/agenci.py:91-110`).
-- **Diagnostyka**: `python -m nexus.cli doctor` sprawdza bazę, katalog danych, programy,
-  Qdrant, Tika, LanguageTool, Redis, chmurę, modele mowy i CLI
-  (`backend/nexus/cli.py:39-46`, `backend/nexus/doctor.py:48-234`).
+- **Diagnostyka**: `python -m nexus.cli doctor` sprawdza bazę, kolejkę zadań, katalog
+  danych, programy, Qdrant, Tikę, LanguageTool, Redis, chmurę, modele mowy i CLI
+  (`backend/nexus/cli.py`, `backend/nexus/doctor.py`). Kontrola kolejki liczy przebiegi
+  stojące w `queued` dłużej niż pięć minut — po tym i tylko po tym widać instalację, która
+  przyjmuje zlecenia, ale nie ma procesu roboczego dla swojej bazy. Wyjątek w pojedynczej
+  kontroli jest jej wynikiem, a nie końcem diagnostyki.
 
 **Brak w kodzie**: metryk (nie ma `/metrics` ani biblioteki Prometheusa), śladów
 rozproszonych (brak OpenTelemetry), zbierania błędów (brak Sentry), logów w formacie
@@ -910,9 +982,11 @@ punkt jest własnością kodu, nie oceną.
 | 10 | Schemat bazy tworzony przez `create_all` i ręczne `ADD COLUMN` | brak wycofania zmian, zmiany typu i usunięcia kolumny | `db.py:243-260` |
 | 11 | Kolejka bez priorytetów i ponowień | długie badanie blokuje slot na 6 godzin; błąd kończy zadanie bez ponowienia | `worker.py:35-50`, `config.py:117` |
 | 12 | Limit podagentów tylko w treści promptu | model może przekroczyć zakładaną równoległość | `agent/prompt.py:71-72` |
-| 13 | Brak ograniczenia częstości dla API | wywołania inne niż logowanie są nielimitowane | `auth.py:60-83` |
+| 13 | Ograniczenie częstości tylko w wybranych miejscach | logowanie i operacje konta (`portal/konta.py`), zakładanie kont próbnych (`api/auth.py`) i terminal modułu Kod (`api/modules/kod.py`); pozostałe wywołania są nielimitowane | `auth.py:60-83`, `modules/kod.py` |
 | 14 | Pamięć podręczna sum kontrolnych instalatorów w pamięci procesu | drobne, ale to kolejny stan lokalny | `modules/pobieranie.py:27` |
 | 15 | Brak kopii zapasowych i procedury odtworzenia | utrata dysku oznacza utratę rozmów, plików i wektorów | brak w `deploy/` |
+| 16 | Pełny przebieg testów zakleszcza się przy dwóch jednoczesnych uruchomieniach | bramka wydania staje w okolicy `test_agent.py::test_subagents_become_nested_events`; obejście to limit czasu i osobna blokada (`BRAMKA_LOCK`) | `deploy/wydania/zbuduj.sh`, `backend/tests/fake_claude.py` |
+| 17 | Wspólna przestrzeń nazw projektów modułu Kod | nazwa zajęta przez inne konto jest nie do użycia, a odmowa to potwierdza (bez ujawniania właściciela) | `agent/przestrzenie.py`, `api/modules/kod.py` |
 
 ---
 

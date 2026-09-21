@@ -7,9 +7,9 @@
 | **Opis** | Osobisty agent AI działający na serwerze Danaco: rozmowa z modelem Claude przez Claude Code CLI, narzędzia na plikach, OCR, obrazy, poczta, kalendarz, chmura osobista, baza wiedzy, moduł Kod, klienci PWA / Android / Windows / rozszerzenie przeglądarki. |
 | **Producent** | Danaco Holding Group Sp. z o.o. |
 | **Twórca** | Dariusz Naharnowicz |
-| **Wersja** | 1.0 |
+| **Wersja** | 1.1 |
 | **Status** | Deweloperski |
-| **Data** | 2026-09-20 |
+| **Data** | 2026-09-21 |
 
 **Informacje szczegółowe dokumentu:**
 
@@ -68,9 +68,9 @@ danych albo cichą degradacją bez możliwości wykrycia.
 | `procedura-odtworzenia` | Procedura odtworzenia i ćwiczenie na osobnej maszynie | Kopia bez przećwiczonego odtworzenia nie jest kopią | `docs/architektura/` (procedura), `deploy/` | 2–3 d | `kopia-bazy`, `kopia-plikow`, `kopia-qdrant` | krytyczny — **procedura w README; ćwiczenie odtworzenia na osobnej maszynie do zrobienia** |
 | `migracje-schematu` | Wprowadzenie migracji wersjonowanych (Alembic) | `create_all` + `ALTER TABLE ADD COLUMN` nie obsługuje zmiany typu, usunięcia i wycofania — `backend/nexus/db.py:243-260` | `backend/nexus/db.py:42-44,243-260`, `backend/nexus/models/__init__.py:14-21`, nowy katalog migracji | 4–6 d | `kopia-bazy` | krytyczny |
 | `migracja-jako-krok-wdrozenia` | Wyjęcie tworzenia schematu ze startu procesów | Schemat tworzą dziś równolegle API i proces roboczy — `backend/nexus/api/app.py:72`, `backend/nexus/worker.py:101` | `backend/nexus/api/app.py:68-89`, `backend/nexus/worker.py:99-101`, `deploy/instalacja.sh` | 1–2 d | `migracje-schematu` | wysoki |
-| `potok-bramek` | Automatyczne uruchamianie bramek jakości przy każdej zmianie | Bramki istnieją jako polecenia, nic ich nie wyzwala — `backend/pyproject.toml:40-59`, `frontend/package.json:9-14` | nowa definicja potoku, `deploy/` | 3–4 d | — | wysoki |
-| `srodowisko-probne` | Druga instalacja na tym samym serwerze, z własnym klastrem i portem | Nie ma gdzie ćwiczyć migracji i wdrożeń przed dotknięciem danych właściciela | `deploy/instalacja.sh:19-33`, `deploy/systemd/` | 3–4 d | `migracje-schematu` | wysoki |
-| `aktualizacja-dokumentacji-rdzenia` | Doprowadzenie `README.md` i `CHANGELOG.md` do stanu kodu | `README.md:24-58` i `CHANGELOG.md:17` mówią o 22 narzędziach, w kodzie jest 59; opis architektury nie wspomina o modułach ani klientach | `README.md`, `CHANGELOG.md` | 1–2 d | — | średni |
+| `potok-bramek` | Automatyczne uruchamianie bramek jakości przy każdej zmianie | Bramki istnieją jako polecenia, nic ich nie wyzwala — `backend/pyproject.toml:40-59`, `frontend/package.json:9-14` | nowa definicja potoku, `deploy/` | 3–4 d | — | wysoki — **częściowo: `deploy/wydania/zbuduj.sh` łączy ruff, pytest, tsc, vitest i budowę w jedną bramkę, a wydanie powstaje tylko po jej przejściu; brakuje wyzwalacza przy każdej zmianie (dziś uruchamia człowiek)** |
+| `srodowisko-probne` | Druga instalacja na tym samym serwerze, z własnym klastrem i portem | Nie ma gdzie ćwiczyć migracji i wdrożeń przed dotknięciem danych właściciela | `deploy/instalacja.sh:19-33`, `deploy/systemd/` | 3–4 d | `migracje-schematu` | wysoki — **wykonane: przedsionek ma własną bazę (`nexus_przedsionek`), własny katalog danych, własny port 8950 i — od 21 września — własny proces roboczy (`danaco-nexus-worker-przedsionek.service`); do tego dnia przyjmował zlecenia, których nikt nie wykonywał** |
+| `aktualizacja-dokumentacji-rdzenia` | Doprowadzenie `README.md` i `CHANGELOG.md` do stanu kodu | `README.md:24-58` i `CHANGELOG.md:17` mówiły o 22 narzędziach, w kodzie jest 101 | `README.md`, `CHANGELOG.md` | 1–2 d | — | średni — **wykonane: oba pliki opisują dzisiejszy stan, w tym moduły, klientów i usługi przedsionka** |
 
 ---
 

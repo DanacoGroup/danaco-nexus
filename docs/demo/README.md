@@ -26,10 +26,10 @@ oznaczony jako pokaz.
 | `backend/nexus/demo/scenariusze.py` | definicje pięciu scenariuszy: kroki, narzędzia, parametry, wymagania środowiska |
 | `backend/nexus/demo/gotowosc.py` | sprawdzenie modelu, programów zewnętrznych i bazy wiedzy; rozstrzyga tryb pracy |
 | `backend/nexus/demo/przebieg.py` | wykonanie kroków (narzędzie albo model) oraz odtworzenie nagrania, rozgłaszanie stanu |
-| `backend/nexus/demo/model.py` | jedno wywołanie `claude -p` bez narzędzi, bez MCP i bez zapisu sesji |
+| ~~`backend/nexus/demo/model.py`~~ | **nie istnieje**. Pokaz nie woła modelu wcale: `przebieg.py` wykonuje kroki narzędziami albo odtwarza nagranie, a `gotowosc.py` sprawdza tylko, czy `claude` i token są na miejscu |
 | `backend/nexus/demo/przyklady/` | pliki wejściowe, generator `generuj.py`, nagrania przebiegów |
 | `backend/nexus/api/modules/demo.py` | router `/api/demo` (bez `require_session`) |
-| `frontend/src/demo/` | ekran „Wypróbuj teraz”, klient API, elementy interfejsu |
+| `frontend/src/demo/` | **tylko** `WejscieGoscia.tsx` — ekranu pokazu nie ma, patrz „Frontend i podpięcie trasy” |
 
 Sesja gościa żyje **wyłącznie w pamięci procesu API** — nie ma jej w bazie danych, nie
 zakłada rozmowy ani wpisu w magazynie plików użytkownika. Pliki gościa i wyniki leżą
@@ -131,28 +131,25 @@ sekcja `[tool.setuptools.package-data]`, dopisać:
 
 ## Frontend i podpięcie trasy
 
-| Plik | Rola |
+Poniższa tabela opisuje ekran, **którego nie zbudowano**. Zostawiamy ją jako zapis
+pierwotnego zamysłu; żaden z tych plików nie istnieje w repozytorium.
+
+| Plik (nieistniejący) | Zamierzona rola |
 |---|---|
-| `frontend/src/demo/api.ts` | klient `/api/demo`, strumień SSE (`fetchEventStream`), formaty czasu i rozmiaru |
-| `frontend/src/demo/elementy.tsx` | karta scenariusza, znacznik trybu, lista kroków, wynik, wezwanie do konta |
-| `frontend/src/demo/Piaskownica.tsx` | ekran „Wypróbuj teraz” |
+| ~~`frontend/src/demo/api.ts`~~ | klient `/api/demo`, strumień SSE (`fetchEventStream`), formaty czasu i rozmiaru |
+| ~~`frontend/src/demo/elementy.tsx`~~ | karta scenariusza, znacznik trybu, lista kroków, wynik, wezwanie do konta |
+| ~~`frontend/src/demo/Piaskownica.tsx`~~ | ekran „Wypróbuj teraz” |
 
-Ekran nie jest jeszcze podpięty do tras aplikacji. Wymagane zmiany (do wykonania osobno):
+**Stan na 21.09.2026: tego ekranu nie ma.** Produkt poszedł inną drogą — `/wyprobuj`
+nie otwiera pokazu obok aplikacji, tylko zakłada **konto próbne** i wpuszcza do pełnego
+okna (`frontend/src/demo/WejscieGoscia.tsx`, gałąź `screen === "demo"` w `App.tsx`).
+Pliki `Piaskownica.tsx`, `demo/api.ts` i `demo/elementy.tsx` nie istnieją; w katalogu
+`frontend/src/demo/` został sam `WejscieGoscia.tsx`.
 
-1. `frontend/src/shell/route.ts`
-   - w typie `Route` dodać wariant `| { view: "demo" }`,
-   - w `parseRoute` przed dopasowaniem rozmowy dodać:
-     `if (pathname === "/wyprobuj" || pathname === "/wyprobuj/") return { view: "demo" };`
-   - w `routePath` dodać `case "demo": return "/wyprobuj";`
-   - w typie `Screen` dodać `"demo"`, a w `resolveScreen` — zaraz po obsłudze `landing`:
-     `if (route.view === "demo") return "demo";` (ekran jest publiczny, także dla zalogowanych).
-2. `frontend/src/App.tsx`
-   - dodać ładowanie na żądanie:
-     `const Piaskownica = lazy(() => import("./demo/Piaskownica").then((m) => ({ default: m.Piaskownica })));`
-   - w `MainApp`, obok gałęzi `screen === "landing"`, dodać:
-     `if (screen === "demo") return (<Suspense fallback={<Pusto />}><Piaskownica /></Suspense>);`
-3. Odsyłacz na stronie produktu (`frontend/src/landing/**`) — przycisk „Wypróbuj teraz”
-   prowadzący do `/wyprobuj`.
+Zaplecze pokazu żyje dalej: `/api/demo/*` odpowiada, `scenariusze.py` ma pięć scenariuszy,
+a `/api/demo/stan` melduje gotowość modelu i programów. Nic z interfejsu do tego nie sięga,
+więc to albo materiał na osobny ekran, albo kod do usunięcia — decyzja należy do właściciela.
+Rozdziały niżej (dostępność, zagrożenia, limity) opisują zaplecze i są nadal aktualne.
 
 Interfejs używa wyłącznie ról semantycznych z `frontend/src/styles.css` (`bg-app`, `bg-raised`,
 `bg-side`, `text-fg`, `text-muted`, `text-subtle`, `border-line`, `border-line-strong`,

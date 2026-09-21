@@ -115,6 +115,25 @@ npx electron-builder --win nsis
 # wynik: desktop\dist\Nexus-Desktop-Setup-<wersja>.exe (~110 MB)
 ```
 
+### Test uruchomienia na serwerze bez ekranu (Linux)
+
+Pulpit jest programem dla Windows, ale test uruchomienia da się przeprowadzić na serwerze
+budującym — pod wirtualnym ekranem:
+
+```bash
+cd desktop
+xvfb-run -a npx electron . --smoke-test --disable-gpu --smoke-out=/tmp/nexus-smoke
+```
+
+Dwie rzeczy, o które łatwo się potknąć:
+
+* **limit czasu musi być większy niż 150 s** — tyle wynosi wewnętrzny bezpiecznik testu
+  (`src/smoke.js`), po którym zapisuje raport; krótszy `timeout` ubija go, zanim cokolwiek
+  powstanie;
+* raport kończy się `"ok": false` **z powodów, których na Linuksie nie da się uniknąć**:
+  brak `powershell.exe` i ścieżek `C:\…`. Miarą powodzenia jest sekcja `windows` — wszystkie
+  pięć okien ma mieć `"state": "zaladowano"`.
+
 Instalator jest **niepodpisany**. Przy pierwszym uruchomieniu Windows SmartScreen pokaże „System Windows
 ochronił ten komputer” – trzeba kliknąć „Więcej informacji” → „Uruchom mimo to”. Ostrzeżenie zniknie po
 podpisaniu certyfikatem Authenticode (najlepiej EV) – `electron-builder` podpisze automatycznie po ustawieniu

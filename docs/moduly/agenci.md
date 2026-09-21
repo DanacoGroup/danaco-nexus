@@ -175,14 +175,25 @@ Tryb `code` daje agentowi Bash. Ograniczenia:
    `curl` odrzucony), a instrukcja `tryby/code.md` zabrania wychodzenia poza projekt,
    poleceń sieciowych i czytania sekretów.
 
-**Ryzyko rezydualne:** reguły poleceń to ograniczenie „w dobrej wierze”, nie piaskownica.
-Polecenie Bash może czytać wszystko, co może czytać `danaco-serwis` (m.in. `dane/`, także
-profil Claude z tokenem i bazę przez gniazdo), a program uruchomiony w projekcie (np.
-skrypt testów) może połączyć się z siecią. Źródłem zagrożenia jest złośliwa treść
-w projekcie (np. sklonowane repozytorium z instrukcjami dla modelu). Zalecenia: klonować
-tylko zaufane repozytoria; w razie potrzeby silniejszej izolacji włączyć piaskownicę
-Bash Claude Code (`bwrap` jest na serwerze, brak `socat` – niesprawdzone) albo
-uruchamiać tryb `code` pod osobnym użytkownikiem systemu.
+**To już nie jest ograniczenie „w dobrej wierze”.** Od 20 września 2026 proces CLI startuje
+w osobnej przestrzeni montowań (`bwrap`, `backend/nexus/agent/piaskownica.py`): widzi katalog
+projektu, profil sesji, katalog roboczy zadania i łańcuch narzędzi `/danaco/programy`
+do odczytu — i nic poza tym. Kodu Nexusa, pozostałych projektów, katalogu producenta i kluczy
+w tej przestrzeni po prostu nie ma, więc `Read` i `Bash` nie mają skąd ich wziąć. Serwer
+narzędzi MCP potrzebuje kodu i bazy, więc stoi **poza** piaskownicą i rozmawia z CLI przez
+gniazdo w katalogu zadania (`agent/most_mcp.py`). Środowisko procesu powstaje od zera
+(`--clearenv` plus wykaz dodający): wchodzą `PATH`, `HOME`, język, katalog tymczasowy
+i własne zmienne CLI (`CLAUDE_*`, `MCP_*`, `GIT_*`) — żadnej zmiennej `NEXUS_*`, więc
+adres bazy i ścieżki do plików z kluczami zostają po stronie serwera.
+Testy: `backend/tests/test_piaskownica.py`.
+
+**Ryzyko rezydualne:** sieć zostaje włączona (bez niej nie ma połączenia z silnikiem modelu),
+więc program uruchomiony w projekcie może wyjść do internetu; reguły `--disallowed-tools`
+i instrukcja trybu ograniczają to tylko po stronie poleceń agenta. Łańcuch narzędzi jest
+wspólny dla wszystkich kont — to programy, nie dane, ale ich obecność da się wykryć.
+Źródłem zagrożenia pozostaje złośliwa treść w projekcie (np. sklonowane repozytorium
+z instrukcjami dla modelu): może zużyć zakres pracy konta i wysłać w świat to, co jest
+w tym projekcie. Zalecenie: klonować tylko zaufane repozytoria.
 
 Podagenci korzystają z tych samych narzędzi co sesja – nie rozszerzają uprawnień. Treść
 stron (WebFetch) i plików to dane, nie polecenia (instrukcja systemowa i instrukcja

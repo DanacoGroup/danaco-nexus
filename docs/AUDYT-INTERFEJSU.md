@@ -9,7 +9,7 @@
 | **Twórca** | Dariusz Naharnowicz |
 | **Wersja** | etap 1B |
 | **Status** | Deweloperski |
-| **Data** | 2026-09-20 |
+| **Data** | 2026-09-21 |
 
 **Informacje szczegółowe dokumentu:**
 
@@ -137,16 +137,137 @@ produktu obiecywała rzeczy, których aplikacja nie robiła.
 | `deploy/kopia-zapasowa.sh` (przebieg próbny) | zrzuty `nexus` (114 pozycji TOC) i `nextcloud`, pliki, wektory, sekrety z prawami 600, sumy kontrolne; kod wyjścia 0 |
 | Strona produktu, gzip | 75 kB skrypt wspólny + 14 kB strona + 19 kB arkusz |
 
+Liczby wyżej są pomiarem z 20 września i tak zostają — dokument opisuje stan z tamtego
+dnia. Dla porównania ten sam zestaw z **21 września**, z bramki wydania
+`20260921-062140-f0a53ff` (`.logs/wydanie-<znacznik>.log`):
+
+| Kontrola | Wynik 21.09 |
+|---|---|
+| `pytest backend/tests` | 863 zdane, 14 pominiętych (0:05:46) |
+| `vitest run` | 44 pliki, 397 testów zdanych |
+| `ruff check backend` | bez zastrzeżeń |
+| `doctor` (na przedsionku) | 22 kontrole: 20 poprawnych, 2 z błędem — chmura wyłączona w `przedsionek.env` i ścieżka profilu CLI z doraźnego wywołania |
+| serwer MCP | 101 narzędzi |
+| `pa11y --standard WCAG2AA` — dokumentacja portalu (spis i dwie pozycje) | 0 zgłoszeń |
+| Widoczność fokusu (WCAG 2.4.7) — 12 kroków Tab po portalu | każdy element z obrysem 2 px; pierwszy Tab to „Przejdź do treści” |
+| Powiększenie 200% (WCAG 1.4.4) — `/`, `/portal`, `/portal/cennik` | brak przewijania w poziomie (szerokość dokumentu równa szerokości okna) |
+| Tryb wysokiego kontrastu (`forced-colors: active`) — strona produktu i okno aplikacji | czytelne bez dodatkowych reguł; poprawiony wariant logotypu (wcześniej jasny napis na białym tle narzuconym przez system) |
+| `npm test` w `extension/` | 5 plików, 62 testy zielone |
+| `npm test` w `desktop/` | 65 zielonych, 2 pominięte (narzędzia plikowe na ścieżkach Windows) |
+| Ruch: otwarcie witryny / logowanie / uruchomienie aplikacji / zmiana modułu | obecny w każdym z czterech miejsc; liczby i sposób pomiaru w `motion/MOTION_GUIDELINES.md`, rozdz. 26 |
+| Ruch treści dochodzącej w oknie (lista plików, karty stron, gotowy obraz) | **dołożone 21.09.2026.** Czwarty pomiar potwierdził ruch przy zmianie modułu (11 animacji, pełne przejście widoku), ale treść przychodząca po odpowiedzi serwera pojawiała się skokiem. Kaskada `Stagger` miała testy i nie była w aplikacji użyta ani razu. Objęte: siatka plików, karty stron, blok wyniku w Obrazach. Strażnik: `frontend/src/__tests__/kaskada-tresci.test.tsx` |
+| Dokładnie jeden `h1` na każdej stronie aplikacji | **poprawione 21.09.2026.** Pomiar na wydaniu: 16 modułów, jeden wyłom — `/m/platnosci` bez żadnego `h1` (tytuł tylko w gałęzi wczytywania i błędu), a cennik z własnym `h1` dawałby na swojej zakładce dwa. Tytuł strony dołożony, cennik zszedł na `h2`. Strażnik: `frontend/src/platnosci/platnosci.test.tsx` |
+| Komunikat o nowej wersji widoczny na telefonie | **poprawione 21.09.2026.** Jedyne miejsce (stopka panelu rozmów) ma na 390 px `visibility: hidden` — zmierzone. Dołożony pasek nad rozmową na każdej szerokości, z wyborem „Odśwież / Później”. Strażnik: `frontend/src/__tests__/aktualizacja.test.tsx` |
+| Strona produktu nie pobiera pakietu okna aplikacji | **poprawione 21.09.2026.** Lighthouse na wydaniu (profil mobilny): `Workspace-*.js` 560 kB — największe pobranie strony publicznej, większe niż oba nagrania hero razem; 428 kB z tego nieużyte. Wyprzedzenie stoi teraz pod warunkiem (adres aplikacji albo ślad wcześniejszego logowania). Strażnik: `frontend/src/__tests__/wyprzedzenie.test.ts` |
+| Kaskada nie biegnie równocześnie z przejściem widoku | **poprawione 21.09.2026.** Pomiar na zbudowanym interfejsie: przez pierwsze 480 ms osiem pozycji animowało się przy `data-przejscie="true"`. Reguła w `ruch/wejscia.css` zdejmuje animację na czas przejścia; po nim kaskada rusza od początku. Strażnik: `backend/tests/test_srodowisko.py::test_kaskada_milczy_w_czasie_przejscia_widoku` |
+| Ograniczenie ruchu zeruje także opóźnienia | **poprawione 21.09.2026.** W trybie `reduce` czas trwania spadał do 0,00001 s, a opóźnienie kaskady zostawało (0,08–0,32 s) — treść wyskakiwała schodkami. Obie gałęzie zerują teraz `animation-delay` i `transition-delay`. Strażnik: `backend/tests/test_srodowisko.py::test_ograniczony_ruch_zeruje_takze_opoznienia` |
+| Strona produktu nie pobiera nagrania z sekcji instalacji | **poprawione 21.09.2026.** `NagranieStartu` ma na sztywno `preload="auto"` (słusznie w oknie aplikacji, gdzie ujęcie musi ruszyć od razu); w sekcji instalacji, daleko pod pierwszym ekranem, pobierało to 125 kB każdemu odwiedzającemu. Nagranie wchodzi teraz do strony dopiero przy zbliżeniu do widoku, a ramka trzyma proporcje z góry — CLS zostaje 0 |
+| Komunikat 422 przy brakujących polach | **poprawione 21.09.2026.** Przy jednym polu „Brakuje pola «x»”, przy dwóch nagle „Nieprawidłowe wartości pól” — choć pole, którego nie przysłano, wartości nie ma. Strażnik: `backend/tests/test_api.py::test_dwa_brakujace_pola_to_brak_a_nie_bledna_wartosc` |
+| Pasek błędu da się zamknąć klawiaturą | **poprawione 21.09.2026.** Komunikat nad polem wiadomości miał `role="alert"` i zamykanie kliknięciem w `div` — klawiatura nie miała czego nacisnąć. `pa11y` tego nie łapie (sprawdza znaczniki, nie zachowanie). Dołożony prawdziwy przycisk „Zamknij komunikat” |
+| Tytuł okna rozróżnia moduły | **poprawione 21.09.2026.** Każdy widok nazywał się „Danaco Nexus”; przy instalacji PWA to tytuł okna w przełączniku systemu. Teraz „Pliki — Danaco Nexus” itd. Strażnik: `frontend/src/__tests__/naglowki.test.ts` |
+| Menu ikony aplikacji (skróty PWA) | **uzupełnione 21.09.2026.** Jeden skrót zamiast czterech, które pokazuje system. Doszły Pliki, Obrazy, Możliwości; głos świadomie pominięty, bo `/m/glos` przy wyłączonym głosie odsyła na czat |
+| Udostępnianie z innej aplikacji przed startem service workera | **poprawione 21.09.2026.** Przy pierwszym uruchomieniu po instalacji workera jeszcze nie ma — a to właśnie wtedy ktoś najczęściej próbuje udostępnić pierwszą rzecz. Zapas po stronie serwera wracał na „/” i gubił tytuł, tekst i adres. Tekst jedzie teraz adresem i trafia do pola wiadomości; pliki tą drogą nie przechodzą |
+| `HEAD /api/health` | **poprawione 21.09.2026.** Zwracał 404, choć `GET` zwracał 200 — trasy FastAPI nie dokładają `HEAD` samoczynnie, więc żądanie spadało do zapasu SPA i trafiało na gałąź „wszystko pod `api/` to 404”. Sondy dostępności pytają `HEAD` |
+| Brakujący plik zwraca 404, a nie stronę z kodem 200 | **poprawione 21.09.2026.** Zapas jednostronicowy odpowiadał stroną na każdy adres, także wyglądający na plik — przeglądarka dostawała HTML w miejsce nagrania, pamięci podręczne zapisywały „sukces”, a literówka w ścieżce zasobu nie odzywała się niczym. Strażnik: `backend/tests/test_api.py::test_pwa_files_served_with_cache_rules` |
+
+Po dzisiejszej pracy nad dostępnością i po poprawce sprzątania biegu agenta — ten sam
+zestaw z bramki `20260921-082213-f0a53ff`:
+
+| Kontrola | Wynik (wydanie 08:22) |
+|---|---|
+| `pytest backend/tests` | **876 zdanych**, 14 pominiętych, 1 odrzucony (0:05:50) — było 863 |
+| `vitest run` | 46 plików, **404 testy zdane** — było 44 pliki i 397 |
+| `ruff check backend` | bez zastrzeżeń |
+| `depcruise --validate` na `frontend/src` | brak naruszeń (531 modułów, 1 381 zależności) |
+| `madge --circular` | brak cykli importów (256 plików) |
+| `semgrep --config=auto backend/nexus` | 5 trafień, wszystkie fałszywe (zgodność z Pythonem 3.6, stała `text()` w `worker.py`) |
+| `languagetool -l pl` na tekstach dla klienta | 2 trafienia, oba fałszywe (nazwa „Brave”, poprawne „na ile”) |
+| `pa11y --standard WCAG2AA` na stronie produktu po zmianach | 0 zgłoszeń |
+| Hamulce ruchu (WCAG 2.2.2) | dołożone w hero i w pasku przykładów; sprawdzone w przeglądarce, także w trybie wysokiego kontrastu |
+| Przemiatanie 16 modułów | każdy pokazuje treść; jedyne błędy konsoli to 503 chmury i kalendarza celowo wyłączonych na przedsionku |
+| Pętla produktowa (gość → rozmowa → agent → narzędzie → plik) | PDF 64 585 B w przestrzeni użytkownika, pierwsza odpowiedź po 4 s |
+| `deploy/nexus-cli.sh doctor` (produkcja) | **27 kontroli: 25 poprawnych, 2 z błędem** — licencja InsightFace przy włączonej sprzedaży i nadawca poczty portalu; obie to decyzje właściciela. Trzy kontrole dołożone dziś: licencje narzędzi, miejsce na dysku, kopia zapasowa |
+| `pa11y --standard WCAG2AA` w oknie aplikacji (`/`, `/m/pliki`, `/m/ustawienia`, `/m/mozliwosci`) | 0 zgłoszeń — razem z dziesięcioma adresami publicznymi **czternaście powierzchni** |
+
 ## 4. Sprawy otwarte
 
 | Sprawa | Stan |
 |---|---|
 | `design-system/Apps/` — kopie SMS i wykazów połączeń (30 MB, 11 plików) | do decyzji właściciela: usunąć albo przenieść poza repozytorium; katalog jest już pominięty w `.gitignore` |
 | Pakiety marki poza kontrolą wersji (1,9 GB: `promocja` 708 MB, `branding` 593 MB, `landing` 395 MB, `motion` 112 MB, pozostałe) | katalogi są nieśledzone; `git add .` wciągnąłby je do historii. Do decyzji właściciela: Git LFS, osobne repozytorium materiałów albo pozostawienie poza repozytorium z kopią zapasową |
-| Test uruchomieniowy Nexus Desktop (`npm run smoke`) | nie wykonany: pobieranie binariów Electrona nie doszło do skutku na maszynie roboczej |
-| Tła na żywo (WebGL) z `landing/tla/` | w pracy pary P5 (orkiestracja dziedzinowa) |
-| Scena produktu w oknie na stronie | statyczna; pętla trzech spraw z prototypu do podpięcia — w zakresie pary P5 |
-| Test klawisza `Esc` zatrzymującego bieg | zachowanie sprawdzone ręcznie; test automatyczny wymaga atrapy całej powłoki |
+| Test uruchomieniowy Nexus Desktop (`npm run smoke`) | **Sprostowanie 21.09.2026 wieczorem:** `xvfb-run` i `Xvfb` **są** na serwerze (`/usr/bin/`), a `xvfb-run -a xdpyinfo` podaje działający ekran `:101`. Wcześniejsza próba padała na „Missing X server” najpewniej dlatego, że nie istniał katalog `/tmp/.X11-unix` (powstał dopiero przy dzisiejszym uruchomieniu). Pod `xvfb-run` test **przechodzi do końca** po naprawieniu usterki, którą przy okazji odsłonił: `WindowHelper.start()` nie nasłuchiwał zdarzenia `error` ze `spawn`, więc nieudane uruchomienie PowerShella wywracało proces główny Electrona zamiast zostać obsłużone. Raport: wszystkie pięć okien wczytane (główne z `danaco-nexus.pl`, języczek, pasek panelu, panel, ustawienia), zrzuty zapisane. `ok: false` wynika wyłącznie z rzeczy niedostępnych poza Windows (PowerShell, ścieżka `C:\`). Uruchomienie: `xvfb-run -a npx electron . --smoke-test --disable-gpu`. Same testy jednostkowe pulpitu przechodzą: 67 przypadków, 65 zdanych, 2 pominięte (ścieżki Windows) |
+| Tła na żywo (WebGL) z `landing/tla/` | zamknięte 21.09.2026: wydane są cztery tła (`tla.ts:28`) — `aurora` (WebGL, hero strony produktu, `Landing.tsx:320`), `luk` (WebGL, `sekcje.tsx:690`), `swit` (`PasSwitu`) i `ziarno` (`WarstwaZiarna`). `konstelacja` i `noc` są w typie i w katalogu, ale świadomie poza wykazem wydanych — to nie luka, tylko zapas |
+| Scena produktu w oknie na stronie | zamknięte 21.09.2026 inaczej, niż zakładano: zamiast skryptu odgrywającego trzy sprawy hero pokazuje nagranie uruchomienia aplikacji z pakietu ruchu (`ScenaHero.tsx`), a makieta została jako zapas przy ograniczonym ruchu i błędzie wczytania. Specyfikacja strony (rozdz. 7.3) opisywała dalej stary pomysł i wskazywała trzy kadry, których nigdy nie zrobiono — przepisana na stan faktyczny |
+| Test klawisza `Esc` zatrzymującego bieg | zamknięte: decyzja „zatrzymać czy nie” wyszła z powłoki do `shell/useEscZatrzymaj.ts` i ma pięć testów (`frontend/src/__tests__/escZatrzymanie.test.ts`) — atrapa powłoki okazała się niepotrzebna |
+
+### Ruch, którego nie dało się zatrzymać (WCAG 2.2.2) — naprawione
+
+Nagranie w hero ma `autoplay loop` i obieg 2,9 s, więc ruch trwa tak długo, jak długo ktoś
+jest na stronie. Kryterium 2.2.2 wymaga przy ruchu dłuższym niż pięć sekund sposobu
+zatrzymania go; odtwarzanie było wiązane wyłącznie z widocznością (`useOdtwarzajWWidoku`),
+żadnego sterowania dla oglądającego nie było. Specyfikacja strony opisywała przycisk
+„Wstrzymaj pokaz”, ale w kodzie po nim nie zostało nic.
+
+Dołożone: przycisk „Wstrzymaj pokaz / Wznów pokaz” w lewym dolnym rogu sceny, zawsze
+widoczny (nie na najechanie — sterowania nie można ukrywać przed klawiaturą). Ręczne
+wstrzymanie ma pierwszeństwo przed obserwatorem widoczności, więc przewinięcie strony go
+nie cofa, a `autoPlay` elementu jest związane z tym samym stanem — ponowne zamontowanie
+nagrania nie wznawia ruchu. Przycisk powiększenia i przycisk wstrzymania są rodzeństwem,
+nie zagnieżdżeniem (zagnieżdżony `<button>` to nieprawidłowy HTML i klawiatura go nie
+osiąga) — pilnuje tego trzeci przypadek w `frontend/src/__tests__/scena-hero.test.tsx`.
+
+### Ten sam brak w pasku przykładowych poleceń
+
+Po naprawie hero przejrzałem wszystkie animacje `infinite` w arkuszach
+(`styles.css`, `ui/ruch.css`, `ruch/znak.css` — 15 sztuk). Czternaście to drobne wskaźniki
+stanu (oddech znaku, migotanie kursora, pasek nieokreślonego postępu) — ruch wskaźnika
+postępu jest w 2.2.2 wprost wyłączony, a reszta nie niesie treści. Piętnasta niosła:
+przesuw kapsuł w pasku „Powiedz to własnymi słowami”.
+
+Brak był jeden: **klawiatura nie miała czym zatrzymać**. `.pasek-tor:hover,
+.pasek-tor:focus-within` — kapsuły są `<span>`, więc `:focus-within` nie ma szans zadziałać.
+Mechanizm niedostępny z klawiatury nie spełnia 2.2.2.
+
+Naprawione: `[data-pasek-wstrzymany="true"] .pasek-tor` dostaje `animation-play-state:
+paused`, a sekcja — przycisk „Wstrzymaj / Wznów” w prawym górnym rogu. Dwa przypadki
+w `frontend/src/__tests__/scena-hero.test.tsx`.
+
+**Sprostowanie do pierwszej wersji tego wpisu.** Napisałem tu, że drugie zatrzymanie —
+poza polem widzenia — jest martwe, bo żaden arkusz nie czyta `data-widoczny`. To nieprawda
+i wzięła się z niedokończonego przeszukania: sprawdziłem `styles.css` i `ui/ruch.css`,
+a reguła stoi w **trzecim** arkuszu, `ruch/wejscia.css:33`, i jest tam od wydania
+`ba5aa5c`. Dołożony przeze mnie powielony selektor został zdjęty. Nauczka: przy twierdzeniu
+„nikt tego nie czyta” przeszukuje się **wszystkie** arkusze, a nie te, które akurat mam otwarte.
+
+### To, o co właściciel pytał wprost: „animacja jest albo źle zrobiona, albo uszkodzona”
+
+Wcześniejsze pomiary ruchu liczyły **animacje**, a nie oglądały obrazu — i dlatego
+przechodziły. Dopiero zrzut otwarcia logowania klatka po klatce pokazał, co widać naprawdę:
+przez kartę logowania, w poprzek pól formularza, szedł **biały pałąk przez cały ekran**.
+
+Przyczyna była w ekranie ładowania (`frontend/public/ladowanie/ladowanie.js`). Plansza
+kończy się przelotem: łuk znaku wlatuje w łuk nagłówka strony produktu. Celu szuka
+selektorem, a gdy go nie znajdzie, brała zapasowy o promieniu **0,7 szerokości ekranu**.
+Na stronie produktu łuk jest zawsze — więc defektu nie było widać nigdy. Na logowaniu
+i w oknie aplikacji łuku nie ma.
+
+Naprawione u źródła: bez bramy cel jest tożsamy ze znakiem, więc nic nie leci — znak gaśnie
+w miejscu. Do tego karta logowania czeka, aż plansza naprawdę zejdzie (`useOtwarcie(true)`),
+zamiast wchodzić pod gasnącym znakiem.
+
+Po drodze wyszło, że pierwsze wstrzymanie karty **nie działało wcale**: karta miała
+narzędziową klasę `animate-rise`, a skrót `animation` z warstwy narzędzi zeruje
+`animation-play-state`. Widać to było wyłącznie w pomiarze (`opacity` formularza 1 mimo
+`data-otwarcie="gra"`) — na oko wyglądało jak działające. Karta ma własną klasę wejścia.
+
+| Chwila | Przed | Po |
+|---|---|---|
+| 300 ms | karta widoczna pod planszą | karta niewidoczna, na ekranie sam znak |
+| 700 ms | **biały pałąk przez cały ekran, w poprzek pól** | znak gaśnie w miejscu |
+| 1100 ms | karta czysta | plansza zeszła, karta wchodzi |
+
+Strona produktu bez zmian: w 700 ms znak nadal wlatuje w łuk hero (zrzut
+`landing-otw-700.png`), a ruch wygasa do jednej animacji po 2,4 s.
 
 ---
 

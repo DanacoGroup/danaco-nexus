@@ -13,8 +13,19 @@ moduł „Urządzenia” i publiczne pobieranie instalatorów.
 | `/zaloguj?next=/ścieżka` | logowanie | powrót pod `next` (tylko ścieżki tej witryny) albo `/` |
 | `/?next=cloud` | logowanie | powrót do chmury (jak dotąd) |
 | `/c/<uuid>` | logowanie, potem rozmowa | rozmowa |
-| `/m/<id>` | logowanie, potem moduł | moduł z `frontend/src/modules/<id>` |
+| `/m/<id>` | logowanie, potem moduł | moduł z `frontend/src/modules/<id>` albo moduł, który ma `<id>` w polu `aliasy` |
 | `/?widok=panel` | panel osadzony (sam obsługuje logowanie) | panel osadzony |
+
+Cztery moduły mają w pasku nawigacji inną nazwę niż identyfikator w adresie, więc przyjmują
+też adres spod tej nazwy (pole `aliasy` w `NexusModule`): `cloud` ← `chmura`,
+`research` ← `badania`, `urzadzenia` ← `sprzet`, `mozliwosci` ← `narzedzia`. Powłoka
+sprowadza alias do identyfikatora, więc podświetlenie paska i przejście widoku działają
+tak samo jak pod adresem właściwym.
+
+Dwie pozycje paska nie są modułami rejestru, a mimo to mają adres pod `/m/`: `/m/glos`
+otwiera nakładkę rozmowy głosowej (`shell/Workspace.tsx`), a `/m/czat` (oraz `/m/chat`
+i `/m/rozmowa`) prowadzi do rozmowy — rozpoznaje je `parseRoute`, zanim adres trafi do
+rejestru modułów.
 
 Zainstalowana aplikacja (PWA) bez sesji otwiera się od razu na logowaniu, nie na stronie startowej.
 
@@ -67,6 +78,9 @@ Tekst do wstawienia/kopiowania to odpowiedź bez formatowania Markdown.
   (`Conversation.meta.mode`) i ostatnio użytym narzędziem.
 - Interfejs odpytuje listę co 3 s (gdy coś trwa) lub 15 s; panel pozwala przejść do rozmowy
   i anulować zadanie. Zadanie zakończone w innej rozmowie daje powiadomienie w aplikacji.
+- Przy pozycji czekającej w kolejce stoi czas czekania („W kolejce · 12 min”), a sama tura
+  rozmowy po czterdziestu pięciu sekundach mówi wprost, że zadanie czeka dłużej niż zwykle.
+  Bez tego zadanie, którego nikt nie podjął, wyglądało dokładnie jak liczone.
 
 ## Powiadomienia Web Push
 
@@ -94,6 +108,13 @@ Kod QR zawiera adres parowania:
 ```
 danaconexus://sparuj?serwer=<adres serwera, URL-encoded>&klucz=<nxd_…>
 ```
+
+**Stan na 21.09.2026**: tego schematu nie obsługuje dziś żaden klient. Aplikacja Android
+zakłada klucz sama przy pierwszym zalogowaniu w oknie Nexusa (`AndroidManifest.xml` nie ma
+filtra dla `danaconexus://`, a w kodzie nie ma czytnika kodów), Nexus Desktop i rozszerzenie
+przyjmują **wklejony** adres serwera i klucz. Kod QR zostaje jako wygodny nośnik dla
+urządzeń własnych („inne”: `Authorization: Bearer <klucz>`) i na przyszłość — podpowiedź
+w module mówi teraz to, co robi telefon naprawdę.
 
 ## Pobieranie instalatorów
 

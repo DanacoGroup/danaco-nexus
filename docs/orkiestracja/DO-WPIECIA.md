@@ -3,29 +3,36 @@
 Notatka robocza prowadzącego orkiestrację. Zawiera zmiany przygotowane poza zakresem par,
 które trzeba wpiąć po zamknięciu odpowiedniej fali, żeby nie nadpisać pracy specjalistów.
 
+**Stan na 21 września 2026: wszystkie pozycje z tabeli są wpięte.** Tabela zostaje jako
+zapis tego, co i kiedy dołożono — kolumna „Stan” mówi, gdzie w kodzie tego szukać.
+
 | Co | Gdzie wpiąć | Kiedy | Stan |
 |---|---|---|---|
-| `useEscZatrzymaj` z `frontend/src/shell/useEscZatrzymaj.ts` (wraz z testem `src/__tests__/escZatrzymanie.test.ts`) | `frontend/src/shell/Workspace.tsx` — zastąpić wbudowany nasłuch `Escape` wywołaniem zaczepu | po fali 1 (P1 kończy pracę w `Workspace.tsx`) | gotowe, niewpięte |
-| Strony prawne P4 (`Prywatnosc.tsx`, `Regulamin.tsx`, `Cookies.tsx`) | `frontend/src/portal/trasy.ts` i nawigacja/stopka w `Portal.tsx` | po fali 2 (P7 kończy pracę w tych plikach) | zależne od raportu P4 |
-| Sprostowanie treści o mowie: Google Cloud Speech i 30 głosów Chirp3-HD są pierwszym torem, Whisper i Piper zapasem (patrz README, rozdz. „Rozmowa głosowa") | `frontend/src/landing/tresc.ts` — wiersze o narzędziach, lista technologii, odpowiedź w FAQ o głosie | po fali 1 (P1 pracuje w tym pliku) | opisane, niewpięte |
+| `useEscZatrzymaj` z `frontend/src/shell/useEscZatrzymaj.ts` (wraz z testem `src/__tests__/escZatrzymanie.test.ts`) | `frontend/src/shell/Workspace.tsx` — zastąpić wbudowany nasłuch `Escape` wywołaniem zaczepu | po fali 1 (P1 kończy pracę w `Workspace.tsx`) | **wpięte** — `Workspace.tsx:267` |
+| Strony prawne P4 (`Prywatnosc.tsx`, `Regulamin.tsx`, `Cookies.tsx`) | `frontend/src/portal/trasy.ts` i nawigacja/stopka w `Portal.tsx` | po fali 2 (P7 kończy pracę w tych plikach) | **wpięte**: strony mają treść (19 332 / 12 398 / 7 692 znaki), trasy w `portal/trasy.ts`, odsyłacze w mapie portalu i w stopce |
+| Sprostowanie treści o mowie: Google Cloud Speech i 30 głosów Chirp3-HD są pierwszym torem, Whisper i Piper zapasem (patrz README, rozdz. „Rozmowa głosowa") | `frontend/src/landing/tresc.ts` — wiersze o narzędziach, lista technologii, odpowiedź w FAQ o głosie | po fali 1 (P1 pracuje w tym pliku) | **wpięte 21.09.2026**: pytanie o głos, podpis karty, lista technologii i opis „Mowa” w portalu |
 
 
-| Adres `/m/glos` kończy się ekranem „Ten moduł nie jest dostępny” — „glos” nie jest modułem rejestru, tylko nakładką otwieraną z paska. Trzeba przekierować na czat i otworzyć rozmowę głosową | `frontend/src/shell/Workspace.tsx` (obsługa `activeId === "glos"`) albo `frontend/src/shell/route.ts` | po fali 1 (P1 pracuje w Workspace.tsx), przed falą 3 (P7 bierze route.ts) | usterka opisana, niepoprawiona |
-| Pełny katalog nagrań w `frontend/src/media/katalog.ts` (74 pozycje: 9 filmów, 20 animacji kampanijnych, 27 animacji stanów, 18 animacji startu) | sekcje strony produktu, portal, stany interfejsu | fala 2 (P5 „Jakość wizualna") | **wpięte 20.09.2026 poza falą**: P5 nie dostarczył swojego głównego zadania — animacje momentów nie trafiły do stanów aplikacji. Zrobione ręcznie: uruchomienie okna (`shell/EkranStartowy.tsx`), tło logowania (`components/Login.tsx`), chwila przed odpowiedzią i nagranie pracującego narzędzia (`components/Turns.tsx`, `components/NagranieKroku.tsx`), zakończone zadanie (`shell/Toasts.tsx`), brak połączenia (`shell/BezPolaczenia.tsx`), instalacja (`landing/InstallSection.tsx`), otwarcie strony produktu (`landing/Otwarcie.tsx`). Każde respektuje `prefers-reduced-motion`; pilnuje tego `frontend/src/ruch/__tests__/nagranie-startu.test.tsx`. Nadal nieużyte: 20 animacji kampanijnych poza stroną Zastosowania oraz osiem z dziewięciu filmów — to wersje formatowe do mediów społecznościowych, nie materiał na witrynę |
-| Odsyłacze stopki strony produktu do stron prawnych | `frontend/src/landing/Landing.tsx`, tablica `STOPKA` | po fali 2 | zależne od raportu P4 |
+| Adres `/m/glos` kończy się ekranem „Ten moduł nie jest dostępny” — „glos” nie jest modułem rejestru, tylko nakładką otwieraną z paska. Trzeba przekierować na czat i otworzyć rozmowę głosową | `frontend/src/shell/Workspace.tsx` (obsługa `activeId === "glos"`) albo `frontend/src/shell/route.ts` | po fali 1 (P1 pracuje w Workspace.tsx), przed falą 3 (P7 bierze route.ts) | **poprawione**: `/m/glos` otwiera nakładkę głosową (`Workspace.tsx:281`), a `/m/czat`, `/m/chat` i `/m/rozmowa` prowadzą do rozmowy (`route.ts:42`) |
+| Pełny katalog nagrań w `frontend/src/media/katalog.ts` (74 pozycje: 9 filmów, 20 animacji kampanijnych, 27 animacji stanów, 18 animacji startu) | sekcje strony produktu, portal, stany interfejsu | fala 2 (P5 „Jakość wizualna") | **wpięte 20.09.2026 poza falą**: P5 nie dostarczył swojego głównego zadania — animacje momentów nie trafiły do stanów aplikacji. Zrobione ręcznie: uruchomienie okna (`shell/EkranStartowy.tsx`), tło logowania (`components/Login.tsx`), chwila przed odpowiedzią i nagranie pracującego narzędzia (`components/Turns.tsx`, `components/NagranieKroku.tsx`), zakończone zadanie (`shell/Toasts.tsx`), brak połączenia (`shell/BezPolaczenia.tsx`), instalacja (`landing/InstallSection.tsx`). Otwarcie strony produktu i okna aplikacji rysuje natomiast ekran ładowania marki (`frontend/public/ladowanie/ladowanie.js`, wpięty w `index.html`), a nie nagranie: przez jeden dzień grały oba pod rząd — najpierw ekran ładowania, potem nakładka `landing/Otwarcie.tsx` z `intro-znaku`. Nakładki już nie ma, a sam plik przeniósł się 21.09.2026 do pakietu ruchu jako `frontend/src/ruch/otwarcie.ts` — podaje wyłącznie sygnał, kiedy strona (albo ekran logowania) ma ruszyć ze swoim wejściem. Każde respektuje `prefers-reduced-motion`; pilnuje tego `frontend/src/ruch/__tests__/nagranie-startu.test.tsx`. Nadal nieużyte: 20 animacji kampanijnych poza stroną Zastosowania oraz osiem z dziewięciu filmów — to wersje formatowe do mediów społecznościowych, nie materiał na witrynę |
+| Odsyłacze stopki strony produktu do stron prawnych | `frontend/src/landing/Landing.tsx`, tablica `STOPKA` | po fali 2 | **wpięte**: `ODSYLACZE_PRAWNE` w `Landing.tsx` — polityka prywatności, regulamin, pliki cookie, adresy z trasownika portalu |
 
 ## Kontrole po każdej fali
 
+Pierwsze cztery pozycje z tej listy robi dziś jedna bramka (21.09.2026):
+
 ```
-cd frontend && npm run build
-cd frontend && npx vitest run
-.venv/bin/python -m pytest backend/tests -q
-.venv/bin/ruff check backend
-cd extension && npm test
-cd desktop && npm test
+deploy/wydania/zbuduj.sh        # ruff, pytest, tsc + vitest, programy narzędzi, budowa
 ```
 
-Po fali 3 dodatkowo `pa11y --standard WCAG2AA` na adresach publicznych i pomiar wydajności.
+Poza nią zostają klienci i dostępność:
+
+```
+cd extension && npm test
+cd desktop && npm test
+node android/scripts/test-mostek.mjs
+pa11y --standard WCAG2AA <adresy publiczne>
+```
 
 ## Katalog materiałów ruchomych
 
@@ -51,11 +58,11 @@ miejsca drugi raz. Nagrania są wyłączone z `precache` service workera
 
 | Co | Gdzie | Stan |
 |---|---|---|
-| Katalog narzędzi z rejestru: `frontend/scripts/narzedzia.py` → `frontend/src/dane/narzedzia.ts` (8 dziedzin, polskie nazwy, przykłady) | wpięty w `predev`/`prebuild` | działa, 59/59 narzędzi |
-| Sekcja „Osiem dziedzin. Jedna rozmowa." na stronie produktu | `frontend/src/landing/SekcjaNarzedzi.tsx`, wpięta w `Landing.tsx` po `SekcjaFunkcje` | działa |
+| Katalog narzędzi z rejestru: `frontend/scripts/narzedzia.py` → `frontend/src/dane/narzedzia.ts` (polskie nazwy, przykłady) | wpięty w `predev`/`prebuild` | działa; stan na 21.09.2026: **10 dziedzin, 101/101 narzędzi** (20 września było 8 dziedzin i 59 narzędzi). Zgodność katalogu z rejestrem pilnuje `backend/tests/test_tools.py::test_katalog_narzedzi_strony_zgadza_sie_z_rejestrem` |
+| Sekcja „Dziesięć dziedzin. Jedna rozmowa." na stronie produktu (21.09.2026; wcześniej „Osiem dziedzin") | `frontend/src/landing/SekcjaNarzedzi.tsx`, wpięta w `Landing.tsx` po `SekcjaFunkcje` | działa |
 | Publiczna strona `/portal/narzedzia` | `frontend/src/portal/strony/Narzedzia.tsx`, trasa w `trasy.ts`, nawigacja i stopka w `Portal.tsx`, mapa witryny w `backend/nexus/portal/kanaly.py` | działa |
 | Moduł „Narzędzia" w aplikacji (wyszukiwanie, filtr dziedzin, kliknięcie przykładu otwiera rozmowę z gotowym zdaniem) | `frontend/src/modules/mozliwosci/` + `openChat` w `ModulePageProps` i `Workspace.tsx` | działa |
-| Przypisanie nagrań pracy agenta do narzędzi | `frontend/src/modules/mozliwosci/ruch.ts` | 56/59 narzędzi |
+| Przypisanie nagrań pracy agenta do narzędzi | `frontend/src/modules/mozliwosci/ruch.ts` | stan na 21.09.2026: **101/101 narzędzi** ma przypisane ujęcie (20 września było 56/59) |
 | Tryb głosowy: polskie komunikaty o mikrofonie + „Spróbuj ponownie" | `frontend/src/voice/VoiceMode.tsx` | działa, 5 testów |
 | Pusta rozmowa zaczyna się od góry: powitanie „W czym mogę pomóc?” nie jest już ucięte na ekranie 720 px | `frontend/src/shell/Workspace.tsx` — przewijanie do dołu dopiero przy wypowiedziach | działa |
 | Etykiety modułów mieszczące się w pasku 72 px: „Baza wiedzy” → „Wiedza”, „Urządzenia” → „Sprzęt”; test pilnuje długości do 9 znaków | `frontend/src/modules/wiedza/index.tsx`, `frontend/src/modules/urzadzenia/index.tsx`, `src/__tests__/navRail.test.tsx` | działa |
@@ -74,12 +81,19 @@ miejsca drugi raz. Nagrania są wyłączone z `precache` service workera
 
 ## Po zamknięciu wszystkich fal
 
-1. `sudo systemctl restart danaco-nexus-api.service danaco-nexus-worker.service` — proces API
-   działa na kodzie sprzed prac par, więc nowe punkty końcowe portalu (`/api/portal/stan`,
-   `/api/portal/konto/ja`) zwracają 404 mimo obecności w kodzie.
-2. Pełna bramka: `npm run build`, `npx vitest run`, `pytest backend/tests -q`, `ruff check backend`,
-   `extension npm test`, `desktop npm test`, `pa11y --standard WCAG2AA` na adresach publicznych.
-3. `deploy/android/buduj-apk.sh` — APK po zmianach w interfejsie.
+**Zaktualizowane 21 września**: punktów 1 i 2 nie robi się już ręcznie — zastąpił je proces
+wydań (`deploy/wydania/`).
+
+1. `deploy/wydania/zbuduj.sh` — jedna bramka: skan sekretów (`gitleaks`), ruff, pytest,
+   `tsc --noEmit` z vitest, kontrola programów narzędzi i budowa interfejsu. Wydanie powstaje
+   tylko wtedy, gdy wszystko przeszło.
+2. `deploy/wydania/wypchnij.sh przedsionek`, obejrzenie pod `https://test.danaco-nexus.pl`,
+   potem `deploy/wydania/wypchnij.sh produkcja`. Skrypt restartuje **obie** jednostki etapu
+   (API i proces roboczy), więc osobny `systemctl restart` jest zbędny.
+3. Poza bramką zostają testy klientów i dostępności: `extension npm test`, `desktop npm test`,
+   `node android/scripts/test-mostek.mjs`, `pa11y --standard WCAG2AA` na adresach publicznych.
+4. `deploy/android/buduj-apk.sh` — APK po zmianach w interfejsie; **przed budową podnieś
+   `versionCode`** (`docs/moduly/android.md`, rozdział „Budowa APK”).
 
 ## Izolacja kont, kredyty i pozycjonowanie (20 września, po fali 1)
 
@@ -116,7 +130,7 @@ Okres próbny **nie jest osobnym planem**, tylko węższym zakresem planu, któr
 Konto bez opłaconego planu ma ten sam wąski zakres co okres próbny — żaden plan nie jest
 już bezpłatny.
 
-| | Okres próbny (7 dni) | Osobisty | Pro | Zespół |
+| | Okres próbny (7 dni) | Osobisty | Pro | Grupa |
 |---|---|---|---|---|
 | Przestrzeń (pliki + poczta) | 100 MB | 1 GB | 2 GB | 10 GB |
 | Skrzynki pocztowe | brak | 1 | 10 | 10 |
