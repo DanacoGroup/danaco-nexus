@@ -1,45 +1,58 @@
 # Obsługiwane formaty i limity
 
-Zestawienie tego, co Nexus przyjmuje i co oddaje, wraz z ograniczeniami wynikającymi
-z planu.
+Nexus przyjmuje pliki, którymi pracuje się w biurze na co dzień, i oddaje wynik w postaci
+gotowej do użycia. Poniżej wykaz tego, co wchodzi i co wychodzi, razem z ograniczeniami
+wynikającymi z planu.
 
-## Formaty przyjmowane
+## Dokumenty, arkusze i skany
 
-| Rodzaj | Formaty | Typowe zastosowanie |
-|---|---|---|
-| Dokumenty | PDF, DOC, DOCX, ODT, RTF, TXT, Markdown, HTML | odczyt, streszczenie, przeredagowanie, złożenie nowego dokumentu |
-| Arkusze | XLS, XLSX, ODS, CSV | analiza danych, zestawienia, eksport |
-| Prezentacje | PPT, PPTX, ODP | odczyt treści, przygotowanie nowej wersji |
-| Skany i zdjęcia dokumentów | PDF, JPG, PNG, TIFF | prostowanie, czyszczenie, OCR z językiem polskim |
-| Zdjęcia i grafika | JPG, PNG, WEBP, HEIC, BMP, TIFF, GIF, SVG | retusz, powiększanie, usuwanie tła i obiektów |
-| Dźwięk | MP3, WAV, M4A, OGG, FLAC | transkrypcja, czyszczenie, rozdzielenie ścieżek |
-| Wideo | MP4, MOV, MKV, WEBM | transkrypcja, napisy, montaż, konwersja |
-| Archiwa | ZIP | rozpakowanie i praca na zawartości |
+- **Dokumenty** — PDF, DOC, DOCX, ODT, RTF, TXT, Markdown, HTML.
+- **Arkusze** — XLS, XLSX, ODS, CSV.
+- **Prezentacje** — PPT, PPTX, ODP.
+- **Skany dokumentów** — PDF, JPG, PNG, TIFF.
+
+Na tych plikach Nexus czyta, streszcza, przeredagowuje i składa nowe wersje. Ze skanów
+odczytuje tekst po polsku, prostując przy tym stronę i czyszcząc kadr.
+
+## Obraz, dźwięk i archiwa
+
+- **Zdjęcia i grafika** — JPG, PNG, WEBP, HEIC, BMP, TIFF, GIF, SVG.
+- **Dźwięk** — MP3, WAV, M4A, OGG, FLAC.
+- **Wideo** — MP4, MOV, MKV, WEBM.
+- **Archiwa** — ZIP.
+
+Tu wchodzi retusz, powiększanie oraz usuwanie tła i zbędnych obiektów, a po stronie nagrań
+transkrypcja, napisy, montaż i konwersja. Zdjęcia z telefonów Apple w formacie HEIC wchodzą
+wprost, bez wcześniejszej konwersji.
 
 ## Postać wyniku
 
-Nexus oddaje plik gotowy do użycia, dobrany do przeznaczenia podanego w poleceniu:
-dokument PDF lub DOCX, arkusz, obraz w formacie odpowiednim dla druku albo sieci,
-nagranie, archiwum. Wyniki trafiają do przestrzeni plików konta i pozostają dostępne
-po zamknięciu rozmowy.
+Wynik idzie za przeznaczeniem podanym w poleceniu. Dostaniesz dokument PDF albo DOCX,
+arkusz, obraz w rozdzielczości do druku lub do sieci, nagranie, plik z napisami albo
+archiwum.
+
+Gotowe pliki trafiają do przestrzeni konta i zostają tam po zamknięciu rozmowy. Historia
+rozmów to osobny zbiór — skasowanie wątku nie kasuje tego, co z niego powstało.
 
 ## Limity
 
-Wielkość pojedynczego pliku, łączna przestrzeń oraz liczba zadań wykonywanych równolegle
-zależą od planu. Bieżące wartości widać w module Płatności.
+Wielkość pojedynczego pliku, łączna przestrzeń konta i liczba zadań liczonych naraz zależą
+od planu. Bieżące wartości pokazuje moduł Płatności.
 
-Oba limity sprawdzane są przy wgrywaniu pliku, zanim zacznie się praca: zapełnioną
-przestrzeń konta Nexus zgłasza przed przyjęciem pliku, a przekroczenie dopuszczalnej
-wielkości — w trakcie jego odbioru. W żadnym przypadku zadanie nie rusza i nie przerywa
-się w połowie.
+Nexus sprawdza oba limity przy wgrywaniu, zanim praca ruszy. Zapełnioną przestrzeń zgłasza
+przed przyjęciem pliku, a przekroczoną wielkość w trakcie jego odbioru. Zadanie nie urywa
+się w połowie z powodu limitu.
 
-## Uwagi praktyczne
+## Jakość materiału źródłowego
 
-Jakość wyniku OCR zależy od jakości materiału źródłowego. Nexus prostuje i czyści kadr
-przed odczytem oraz wskazuje fragmenty nieczytelne, jednak zdjęcie wykonane pod kątem
-i w słabym świetle daje gorszy rezultat niż równy skan.
+Odczyt tekstu z obrazu zależy od tego, co widać na obrazie. Nexus wyprostuje stronę
+i oczyści kadr, a fragmenty nieczytelne oznaczy, zamiast zgadywać. Zdjęcie zrobione pod
+kątem w słabym świetle da jednak gorszy wynik niż równy skan.
 
-Pliki HEIC z urządzeń Apple są obsługiwane bez wcześniejszej konwersji.
+Ta sama zasada dotyczy dźwięku. Nagranie z jednego mikrofonu na środku stołu spisuje się
+gorzej niż rozmowa z komunikatora, gdzie każdy mówi do własnego urządzenia.
 
-Przestrzeń plików i historia rozmów to dwa osobne zbiory. Usunięcie rozmowy nie usuwa
-plików, które z niej powstały.
+## Od czego zacząć
+
+Wejdź na /wyprobuj i dołącz plik w formacie, którego używasz najczęściej. Zobaczysz od razu,
+czy wchodzi bez konwersji, a gotowy wynik odbierzesz w module Pliki.

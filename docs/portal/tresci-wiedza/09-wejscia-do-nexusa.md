@@ -1,44 +1,53 @@
-# Klienci i urządzenia
+# Które wejście do Nexusa wybrać
 
-Nexus jest usługą serwerową. Przestrzeń pracy — rozmowy, pliki i ustawienia — jest jedna
-i otwiera się na każdym urządzeniu. Poniżej zestawienie sposobów dostępu.
+Przeglądarka wystarcza do wszystkiego i od niej warto zacząć. Pozostałe wejścia — własne
+okno, telefon, Nexus Desktop i dodatek do przeglądarki — dokładają wygodę albo dostęp do
+rzeczy spoza serwera. Poniżej wskazówki, kiedy który z nich się opłaca.
 
-## Przeglądarka
+## Zacznij od przeglądarki
 
-Pełna funkcjonalność bez instalacji. Wymaga wyłącznie zalogowania.
+Pierwsze zadanie zleć w przeglądarce, którą masz otwartą. Niczego nie instalujesz,
+a pracujesz w pełnym zakresie. Dopiero gdy wiadomo, że narzędzie zostaje w Twoim dniu, warto dokładać
+kolejne wejścia.
 
-## Aplikacja zainstalowana (PWA)
+## Własne okno, gdy wracasz codziennie
 
-Okno bez elementów przeglądarki, ikona w systemie i skróty w menu kontekstowym ikony.
-W przeglądarkach opartych na Chromium instalacja jest dostępna z paska adresu oraz
-z sekcji Instalacja na stronie produktu. W systemie iOS: Udostępnij → Dodaj do ekranu
-początkowego.
+Aplikacja zainstalowana z przeglądarki dostaje własne okno, ikonę w systemie i skróty do
+modułów w menu ikony. Zyskujesz na tym codziennie: Nexus przestaje ginąć wśród 30 kart,
+a z paska zadań wraca jednym kliknięciem.
 
-Aktualizacje pobierają się automatycznie. Gotową nową wersję sygnalizuje pasek nad
-rozmową z wyborem momentu odświeżenia.
+Instaluj ją na maszynie, przy której faktycznie pracujesz. Na cudzym albo wspólnym
+komputerze zostań przy przeglądarce i wyloguj się po skończonej pracy.
 
-## Android
+## Telefon, gdy praca dzieje się w ruchu
 
-Aplikacja dodaje trzy funkcje niedostępne w przeglądarce, każda wyłączona domyślnie
-i wymagająca osobnej zgody systemowej:
+Aplikacja na Androida dokłada trzy rzeczy, których przeglądarka nie ma: panel nad innymi
+aplikacjami, szkice odpowiedzi na SMS i obecność w systemowym menu „Udostępnij”. Każda
+startuje wyłączona i wymaga osobnej zgody.
 
-- **panel nad innymi aplikacjami** — uchwyt przy krawędzi ekranu otwiera Nexusa nad bieżącą
-  aplikacją; przycisk „ekran” przekazuje do rozmowy zrzut ekranu lub odczytany tekst,
-- **szkice odpowiedzi na SMS** — odczyt wskazanego wątku i propozycja odpowiedzi,
-- **udostępnianie systemowe** — Nexus jest widoczny w menu „Udostępnij” innych aplikacji.
+Włączaj je pojedynczo i wtedy, gdy wiesz, po co. Panel nad aplikacjami widzi to, co jest
+na ekranie, a wątek SMS zawiera też wiadomości nadawcy.
 
-## Nexus Desktop (Windows)
+## Nexus Desktop, gdy pliki leżą na dysku
 
-Okno aplikacji z dostępem do plików komputera oraz — po jednorazowej zgodzie przy każdym
-poleceniu — do poleceń systemowych. Treść polecenia jest pokazywana w całości przed
-wykonaniem, razem z oceną ryzyka; brak odpowiedzi w wyznaczonym czasie oznacza odrzucenie.
+Sięgnij po niego, kiedy materiał do pracy zostaje na komputerze i przerzucanie go przez
+przeglądarkę zaczyna przeszkadzać. Polecenia zmieniające system Nexus pokazuje w całości
+i czeka na decyzję, a brak odpowiedzi liczy się jako odmowa.
 
-## Dodatek do przeglądarki
+## Dodatek, gdy pracujesz na cudzych stronach
 
-Panel Nexusa obok otwartej strony. Na polecenie użytkownika przekazuje do rozmowy tytuł,
-adres i treść strony. Dodatek nie odczytuje stron samoczynnie.
+Panel obok otwartej karty przekazuje do rozmowy tytuł, adres i treść witryny. Robi to
+na Twoje polecenie, a nie z własnej inicjatywy. Przydaje się przy zbieraniu materiału do notatki
+albo porównania ofert.
 
-## Klucze urządzeń
+## Porządek w kluczach
 
-Każde urządzenie łączy się własnym kluczem. Klucz można unieważnić pojedynczo
-w Ustawieniach → Sprzęt, bez wpływu na pozostałe urządzenia.
+Każde urządzenie łączy się własnym kluczem, więc wejść można przybywać bez szkody dla
+bezpieczeństwa. Raz na jakiś czas przejrzyj listę i odetnij sprzęt, którego już nie masz:
+pozostałe urządzenia pracują dalej bez zmiany hasła.
+
+## Od czego zacząć
+
+Wejdź na /wyprobuj w przeglądarce i zleć jedno własne zadanie. Jeśli wrócisz do Nexusa
+nazajutrz, dodaj go jako własne okno — resztę wejść podłączysz z modułu Sprzęt, gdy okażą
+się potrzebne.

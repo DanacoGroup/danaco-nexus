@@ -1,40 +1,59 @@
 # Jak formułować polecenia
 
-Nexus przyjmuje polecenia w języku naturalnym i sam dobiera narzędzia. Poniżej zasady,
-które skracają drogę do wyniku, oraz przykłady poleceń dla typowych zadań biurowych.
+Polecenie w Nexusie opisuje wynik, nie drogę do niego. Napisz, co ma powstać, do czego to
+posłuży i czego nie wolno zmieniać. Wybór narzędzi i kolejność kroków należą do Nexusa.
 
-## Zasady
+## Cztery rzeczy, które warto nazwać
 
-**Opisz wynik, nie metodę.** „Przygotuj zestawienie kosztów z tych faktur” zamiast „użyj
-OCR, potem wyeksportuj do arkusza”. Dobór narzędzi i ich kolejność należą do Nexusa.
+**Wynik.** „Zestawienie kosztów z tych faktur” zamiast „odczytaj tekst, potem zrób arkusz”.
+Nazwa tego, co ma wyjść, wystarczy — resztę Nexus układa sam.
 
-**Podaj przeznaczenie.** „Do druku w A4”, „do wysłania klientowi”, „na stronę internetową”.
-Przeznaczenie rozstrzyga o formacie, rozdzielczości i rozmiarze pliku.
+**Przeznaczenie.** „Do druku w A4”, „do wysłania klientowi”, „na stronę”. Przeznaczenie
+rozstrzyga o formacie pliku, rozdzielczości i rozmiarze.
 
-**Dołącz pliki razem z poleceniem.** Nexus analizuje je przed rozpoczęciem pracy
-i dostosowuje przebieg do tego, co otrzymał.
+**Granice.** „Nie zmieniaj kolorów firmowych”, „zostaw kadr”, „nie skracaj cytatów”. Jedno
+takie zdanie oszczędza rundę poprawek.
 
-**Wskaż ograniczenia.** „Nie zmieniaj kolorów firmowych”, „zachowaj oryginalne proporcje”,
-„nie skracaj cytatów”. Jedno zdanie oszczędza rundę poprawek.
+**Język i długość.** „Po polsku, najwyżej jedna strona”, „ton urzędowy”, „bez skrótów
+branżowych”. Bez tego trafienie w oczekiwany rejestr bywa przypadkowe.
 
-**Dziel długie prace na etapy.** Przy większym zleceniu poproś najpierw o część i o listę
-informacji, których Nexus potrzebuje do reszty.
+## Poprawianie wyniku
 
-**Poprawiaj zdaniem.** Gdy wynik jest bliski oczekiwanego, wskaż zmianę zamiast powtarzać
-całe polecenie. Nexus pracuje wtedy na powstałym pliku.
+Gdy wynik jest blisko oczekiwanego, wskaż samą zmianę. „Zostaw układ, zmień tylko nagłówek
+na ciemniejszy” działa lepiej niż powtórzone całe polecenie. Nexus pracuje wtedy na pliku,
+który już powstał.
+
+Przy większej rozbieżności napisz, co konkretnie nie pasuje. Ocena „słabe” nie niesie
+informacji. „Za mało kontrastu między tłem a tekstem” niesie ją całą.
+
+## Długie zlecenia
+
+Przy dużym zleceniu poproś najpierw o próbkę: dziesięć dokumentów zamiast 300, jedna
+podstrona zamiast całej witryny. Zobaczysz układ wyniku, zanim praca pójdzie na całość.
+
+Poproś też o wykaz informacji potrzebnych do reszty. Dostaniesz wtedy pytania zamiast
+domysłów wpisanych w dokument.
 
 ## Przykłady poleceń
 
-| Zadanie | Polecenie |
-|---|---|
-| Zestawienie z dokumentów | „Z tych trzydziestu faktur zrób zestawienie w arkuszu: data, kontrahent, kwota netto, VAT, kategoria. Przy niepewnych kategoriach dopisz znak zapytania.” |
-| Odpowiedź na pismo | „Przygotuj odpowiedź na to pismo: uprzejmie, ale stanowczo odmawiamy. Zostaw miejsce na moje uzasadnienie na końcu.” |
-| Notatka ze spotkania | „Z tego nagrania zrób notatkę i listę zadań z terminami. Notatka po polsku, najwyżej jedna strona.” |
-| Materiał do druku | „Zaprojektuj plakat A3 na konferencję 12 lipca. Ciemne tło, duża data, plik do druku ze spadami.” |
-| Porządek w archiwum | „Zindeksuj te dokumenty i przygotuj wykaz umów z datami wygaśnięcia.” |
+- **Zestawienie z dokumentów** — „Z tych 30 faktur zrób zestawienie w arkuszu: data,
+  kontrahent, kwota netto, VAT, kategoria; przy niepewnych kategoriach dopisz znak zapytania”.
+- **Odpowiedź na pismo** — „Przygotuj odpowiedź na to pismo: uprzejmie, ale stanowczo
+  odmawiamy; zostaw miejsce na moje uzasadnienie na końcu”.
+- **Notatka ze spotkania** — „Z tego nagrania zrób notatkę i listę zadań z terminami; po
+  polsku, najwyżej jedna strona”.
+- **Materiał do druku** — „Zaprojektuj plakat A3 na konferencję 12 lipca: ciemne tło, duża
+  data, plik do druku ze spadami”.
+- **Porządek w archiwum** — „Zindeksuj te dokumenty i przygotuj wykaz umów z datami
+  wygaśnięcia”.
 
-## Czego nie trzeba robić
+## Pytania przed rozpoczęciem pracy
 
-Nie trzeba wskazywać narzędzia ani jego parametrów. Nie trzeba dzielić pracy na kroki —
-Nexus robi to sam i pokazuje każdy z nich na karcie pracy. Nie trzeba powtarzać kontekstu
-w kolejnych wiadomościach tej samej rozmowy.
+Nexus dopytuje wtedy, gdy polecenie da się wykonać na dwa sposoby, a wybór zmienia wynik.
+Tak jest przy braku formatu w materiale do druku, niejasnym adresacie pisma i dwóch różnych
+kursach w jednym dokumencie finansowym. Odpowiedź jednym zdaniem wystarcza.
+
+## Od czego zacząć
+
+Wejdź na /wyprobuj, dołącz własny plik i opisz wynik jednym zdaniem. Gotowy plik dostaniesz
+w tej samej rozmowie, a później znajdziesz go w module Pliki.

@@ -1,44 +1,54 @@
 # Przetwarzanie danych w Danaco Nexus
 
-Streszczenie zasad przetwarzania danych. Wiążące brzmienie zawiera polityka prywatności.
+Konto, rozmowy, pliki i przestrzeń robocza leżą na serwerze w Polsce, a na Twoim urządzeniu
+zostaje sam interfejs. Poza serwer wychodzi wyłącznie to, czego wymaga bieżące zadanie.
+Poniżej streszczenie zasad; wiążące brzmienie zawiera polityka prywatności.
 
-## Miejsce przetwarzania
+## Praca po stronie serwera
 
-Nexus działa na serwerze Danaco w Polsce. Konto, rozmowy, pliki i przestrzeń robocza
-znajdują się na serwerze; na urządzeniu użytkownika pozostaje wyłącznie interfejs.
-Z tego wynika dostęp do tej samej przestrzeni z komputera, telefonu i tabletu bez
-przenoszenia danych.
+Praca na serwerze rozstrzyga o dwóch rzeczach naraz. Ta sama przestrzeń otwiera się
+z komputera, telefonu i tabletu bez przenoszenia plików. Zadanie liczy się dalej, gdy
+zamkniesz okno, bo nie liczy się na Twoim sprzęcie.
+
+Cenę tego rozwiązania mówimy wprost: pliki, z którymi pracujesz, muszą trafić na serwer.
+Dlatego zakres przekazywanych danych opisujemy poniżej, zamiast zbywać go ogólnym zdaniem
+o bezpieczeństwie.
 
 ## Zakres przekazywany do modelu
 
-Wykonanie zadania wymaga przekazania modelowi językowemu treści polecenia oraz plików
-dołączonych do zadania. Pliki, których użytkownik nie dołączył, oraz rozmowy, których nie
-dotyczy polecenie, nie są przekazywane. Agent pracuje w wydzielonej przestrzeni konta;
-granicę egzekwuje piaskownica systemowa, a nie treść instrukcji.
+Wykonanie zadania wymaga przekazania modelowi językowemu treści polecenia oraz plików,
+które do niego dołączyłeś. Pliki niedołączone i rozmowy niezwiązane z poleceniem zostają
+na miejscu.
+
+Agent pracuje w wydzielonej przestrzeni Twojego konta. Granicy pilnuje piaskownica
+systemowa, a nie treść instrukcji — instrukcję da się obejść zdaniem, piaskownicy nie.
 
 ## Funkcje obejmujące dane osób trzecich
 
-Cztery funkcje wprowadzają do usługi dane osób innych niż użytkownik:
+Cztery funkcje wprowadzają do usługi dane osób innych niż Ty.
 
-- rozpoznawanie twarzy na zdjęciach użytkownika,
-- odczyt treści stron przez dodatek do przeglądarki,
-- szkice odpowiedzi na wiadomości SMS w aplikacji Android,
-- przekazanie zawartości ekranu telefonu do rozmowy.
+- Rozpoznawanie twarzy na Twoich zdjęciach.
+- Odczyt treści stron przez dodatek do przeglądarki.
+- Szkice odpowiedzi na wiadomości SMS w aplikacji na Androida.
+- Przekazanie zawartości ekranu telefonu do rozmowy.
 
-Każda z nich jest domyślnie wyłączona, wymaga osobnej zgody systemowej i działa wyłącznie
-na polecenie użytkownika — żadna nie odczytuje danych w tle. Przed włączeniem warto wiedzieć,
-jaki zakres obejmuje: w wątku SMS znajdują się również wiadomości nadawcy, a na zrzucie
-ekranu wszystko, co w danej chwili widać.
-
-Podstawy prawne przetwarzania w tych przypadkach opisuje polityka prywatności.
+Każda startuje wyłączona, wymaga osobnej zgody systemowej i działa wyłącznie na Twoje
+polecenie. Żadna nie czyta danych w tle. Zanim którąś włączysz, policz jej zasięg:
+w wątku SMS są też wiadomości nadawcy, a na zrzucie ekranu wszystko, co w danej chwili
+widać. Podstawy prawne przetwarzania opisuje polityka prywatności.
 
 ## Poświadczenia i klucze
 
-Hasła do skrzynek pocztowych zapisywane są po stronie serwera w postaci nieodczytywalnej
-dla przeglądarki. Klucze urządzeń są odrębne dla każdego urządzenia i podlegają
-unieważnieniu pojedynczo.
+Hasła do skrzynek pocztowych zapisujemy po stronie serwera w postaci nieczytelnej dla
+przeglądarki. Każde urządzenie łączy się własnym kluczem, a klucz unieważniasz pojedynczo
+w Ustawieniach → Sprzęt.
 
 ## Usuwanie
 
-Rozmowy i pliki usuwa się pojedynczo, konto — w całości, z poziomu ustawień. Usunięcie
-konta obejmuje rozmowy, pliki i przestrzeń roboczą.
+Rozmowy i pliki usuwasz pojedynczo, konto — w całości, z poziomu ustawień. Usunięcie konta
+obejmuje rozmowy, pliki i przestrzeń roboczą.
+
+## Co z tego wynika w praktyce
+
+Wejdź na /wyprobuj i sprawdź to na własnym pliku, zanim wgrasz cokolwiek wrażliwego. Listę
+nadanych zgód przejrzysz później w module Sprzęt, a dane konta w Ustawieniach.
