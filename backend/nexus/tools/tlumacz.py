@@ -41,8 +41,9 @@ def make_translator(ctx: ToolContext, args: TranslateDocumentInput) -> Translate
 
 @registry.register(
     "translate_document",
-    """Tłumaczy dokument na inny język z zachowaniem układu i formatowania: DOCX (akapity, tabele,
-nagłówki, stopki, pola tekstowe), PPTX (slajdy, tabele, notatki), PDF z tekstem cyfrowym (tłumaczenie
+    """Tłumaczy dokument na inny język i zostawia układ na miejscu.
+Tabele, nagłówki i numeracja nie rozjeżdżają się. Obsługuje DOCX (akapity, tabele, nagłówki,
+stopki, pola tekstowe), PPTX (slajdy, tabele, notatki), PDF z tekstem cyfrowym (tłumaczenie
 w tych samych miejscach strony, grafika bez zmian), TXT i MD. Skany PDF najpierw przepuść przez
 ocr_documents. Wynik to nowy plik w tym samym formacie.""",
     TranslateDocumentInput,

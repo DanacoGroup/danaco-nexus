@@ -167,9 +167,10 @@ def _result(result: dict[str, Any], computer: dict[str, Any], summary: str) -> T
 
 @registry.register(
     "pc_info",
-    """Stan komputera użytkownika z Nexus Desktop (Windows): system, procesor, pamięć RAM
-(zajęta/wolna), dyski (wolne miejsce), czas pracy i procesy zużywające najwięcej pamięci.
-Pierwszy krok diagnozy „komputer zwalnia / brakuje miejsca / przycina RAM”.""",
+    """Mówi, w jakim stanie jest Twój komputer: pamięć, dyski, czas pracy i najcięższe programy.
+Zwraca system, procesor, pamięć RAM (zajętą i wolną), wolne miejsce na dyskach, czas pracy
+i procesy zużywające najwięcej pamięci (Nexus Desktop, Windows). Pierwszy krok diagnozy
+„komputer zwalnia / brakuje miejsca / przycina RAM”.""",
     PcInfoInput,
 )
 def pc_info(ctx: ToolContext, args: PcInfoInput) -> ToolResult:
@@ -179,9 +180,9 @@ def pc_info(ctx: ToolContext, args: PcInfoInput) -> ToolResult:
 
 @registry.register(
     "pc_find_files",
-    """Wyszukuje pliki na komputerze użytkownika (Nexus Desktop) po nazwie i/lub treści
-w katalogach użytkownika (Pulpit, Dokumenty, Pobrane, OneDrive…) albo wskazanych katalogach.
-Zwraca ścieżki, rozmiary i daty zmiany. Podgląd lub pobranie pliku: pc_read_file.""",
+    """Znajduje na Twoim komputerze plik po nazwie albo po treści.
+Przeszukuje katalogi użytkownika (Pulpit, Dokumenty, Pobrane, OneDrive…) albo wskazane katalogi
+(Nexus Desktop). Zwraca ścieżkę, rozmiar i datę zmiany.""",
     PcFindFilesInput,
 )
 def pc_find_files(ctx: ToolContext, args: PcFindFilesInput) -> ToolResult:
@@ -194,10 +195,11 @@ def pc_find_files(ctx: ToolContext, args: PcFindFilesInput) -> ToolResult:
 
 @registry.register(
     "pc_read_file",
-    """Podgląd pliku lub katalogu na komputerze użytkownika (Nexus Desktop): tekst pliku,
-obraz jako podgląd, zawartość katalogu, metadane. Z upload=true przesyła cały plik (do 10 MB)
-do rozmowy – wynik ma file_id do dalszej obróbki narzędziami serwera. Pliki z danymi
-logowania (klucze, hasła, profile przeglądarek) są zablokowane.""",
+    """Pokazuje plik albo katalog z Twojego komputera, bez przenoszenia go na serwer.
+Zwraca tekst pliku, obraz jako podgląd, zawartość katalogu i metadane (Nexus Desktop).
+Z upload=true przesyła cały plik (do 10 MB) do rozmowy – wynik ma file_id do dalszej obróbki
+narzędziami serwera. Pliki z danymi logowania (klucze, hasła, profile przeglądarek) są
+zablokowane.""",
     PcReadFileInput,
 )
 def pc_read_file(ctx: ToolContext, args: PcReadFileInput) -> ToolResult:
@@ -225,13 +227,13 @@ def _store_upload(ctx: ToolContext, upload: dict[str, Any]) -> OutputFile:
 
 @registry.register(
     "pc_powershell",
-    """Wykonuje polecenie Windows PowerShell na komputerze użytkownika (Nexus Desktop):
-diagnoza i naprawy (miejsce na dysku, pamięć, usługi, sieć, dziennik zdarzeń, pliki tymczasowe).
-Polecenia tylko do odczytu z białej listy (Get-Process, Get-CimInstance, Get-ChildItem…)
-wykonują się od razu; każde inne wymaga zatwierdzenia przez użytkownika w oknie na komputerze
-(pokazuje pełne polecenie i opis) – odmowa lub brak odpowiedzi kończy się błędem. Opisz uczciwie,
-co polecenie zmienia. Polecenia wymagające uprawnień administratora uruchamiaj z as_admin=true.
-Wynik: tekst wyjścia i kod zakończenia.""",
+    """Wykonuje na Twoim komputerze polecenie, które diagnozuje albo naprawia usterkę.
+Dotyczy miejsca na dysku, pamięci, usług, sieci, dziennika zdarzeń i plików tymczasowych
+(Windows PowerShell przez Nexus Desktop). Polecenia tylko do odczytu z białej listy (Get-Process,
+Get-CimInstance, Get-ChildItem…) wykonują się od razu; każde inne wymaga zatwierdzenia przez
+użytkownika w oknie na komputerze (pokazuje pełne polecenie i opis) – odmowa lub brak odpowiedzi
+kończy się błędem. Opisz uczciwie, co polecenie zmienia. Polecenia wymagające uprawnień
+administratora uruchamiaj z as_admin=true. Wynik: tekst wyjścia i kod zakończenia.""",
     PcPowershellInput,
 )
 def pc_powershell(ctx: ToolContext, args: PcPowershellInput) -> ToolResult:

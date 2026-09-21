@@ -88,12 +88,12 @@ class OtworzInput(ToolInput):
 
 @registry.register(
     "browser_open",
-    """Otwiera stronę w przeglądarce i zostawia ją otwartą — kolejne wywołania browser_click,
-browser_type, browser_scroll i browser_back działają na tej samej karcie. Zwraca tytuł,
-tekst strony i wykaz elementów, w które da się kliknąć albo coś wpisać. Używaj, gdy sama
-treść nie wystarcza: strona doczytuje się skryptem, wymaga kliknięcia, przejścia zakładki
-albo wypełnienia formularza. Do samego odczytu artykułu wystarczy web_fetch_page, a do
-oceny wyglądu strony użytkownika — web_screenshot.""",
+    """Otwiera stronę w przeglądarce i zostawia ją otwartą, żeby dało się na niej klikać i pisać.
+Kolejne wywołania browser_click, browser_type, browser_scroll i browser_back działają na tej
+samej karcie. Zwraca tytuł, tekst strony i wykaz elementów, w które da się kliknąć albo coś
+wpisać. Używaj, gdy sama treść nie wystarcza: strona doczytuje się skryptem, wymaga kliknięcia,
+przejścia zakładki albo wypełnienia formularza. Do samego odczytu artykułu wystarczy
+web_fetch_page, a do oceny wyglądu strony użytkownika — web_screenshot.""",
     OtworzInput,
 )
 def browser_open(ctx: ToolContext, args: OtworzInput) -> ToolResult:

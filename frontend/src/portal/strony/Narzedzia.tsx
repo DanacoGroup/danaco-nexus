@@ -11,12 +11,12 @@ import { odtworz } from "../../modules/mozliwosci/odtwarzanie";
 import { nagranieNarzedzia } from "../../modules/mozliwosci/ruch";
 import { okruszki, usePozycjonowanie } from "../seo";
 import { sciezka } from "../trasy";
-import { NaglowekStrony, OdsylaczPrzycisk, Znacznik } from "../ui";
+import { NaglowekStrony, OdsylaczPrzycisk, Okruszki, Znacznik } from "../ui";
 
 const OPIS =
-  `Pełny wykaz ${LICZBA_NARZEDZI} narzędzi, po które Nexus sięga w Twoim imieniu — od poprawy zdjęcia ` +
-  "i rozpoznania tekstu ze skanu po publikację strony i pracę na Twoim komputerze. Nie wybierasz " +
-  "narzędzia: piszesz zdaniem, co ma powstać.";
+  `Wykaz ${LICZBA_NARZEDZI} narzędzi, po które Nexus sięga w Twoim imieniu — od rozpoznania ` +
+  "tekstu ze skanu po publikację strony. Narzędzia dobiera Nexus: Ty piszesz zdaniem, " +
+  "co ma powstać.";
 
 function Nagranie({ id }: { id: string }) {
   const zrodla = nagranieNarzedzia(id);
@@ -61,7 +61,10 @@ function Nagranie({ id }: { id: string }) {
 
 function Pozycja({ narzedzie }: { narzedzie: Narzedzie }) {
   return (
-    <li className="rounded-xl border border-line bg-raised p-4">
+    // min-w-0 i break-words: pozycja siatki ma domyślnie „min-width: auto”, więc jeden
+    // długi ciąg w opisie (np. wyliczenie formatów przez ukośniki) rozpychał kartę
+    // ponad szerokość telefonu i cała strona jechała w bok.
+    <li className="min-w-0 rounded-xl border border-line bg-raised p-4 break-words">
       <h3 className="font-heading text-base font-semibold text-fg">{narzedzie.nazwa}</h3>
       <p className="mt-1.5 text-sm text-muted">{narzedzie.opis}</p>
       {narzedzie.przyklad && (
@@ -77,12 +80,12 @@ export function Narzedzia() {
   const [szukane, setSzukane] = useState("");
 
   usePozycjonowanie({
-    tytul: "Narzędzia agenta",
+    tytul: "Narzędzia Nexusa",
     opis: OPIS,
     sciezka: sciezka("narzedzia"),
     dane: okruszki([
       { nazwa: "Portal", sciezka: sciezka("glowna") },
-      { nazwa: "Narzędzia agenta", sciezka: sciezka("narzedzia") },
+      { nazwa: "Narzędzia Nexusa", sciezka: sciezka("narzedzia") },
     ]),
   });
 
@@ -105,17 +108,25 @@ export function Narzedzia() {
 
   return (
     <>
-      <NaglowekStrony tytul="Sprawdź, czy Nexus zrobi to, czego potrzebujesz" opis={OPIS}>
-        <Znacznik tekst={`${LICZBA_NARZEDZI} narzędzi`} />
-        <Znacznik tekst={`${DZIEDZINY.length} dziedzin`} ton="cichy" />
-      </NaglowekStrony>
+      <Okruszki
+        pozycje={[
+          { nazwa: "Portal", sciezka: sciezka("glowna") },
+          { nazwa: "Narzędzia Nexusa", sciezka: sciezka("narzedzia") },
+        ]}
+      />
+      <div className="mt-4">
+        <NaglowekStrony tytul="Katalog narzędzi Nexusa" opis={OPIS}>
+          <Znacznik tekst={`${LICZBA_NARZEDZI} narzędzi`} />
+          <Znacznik tekst={`${DZIEDZINY.length} dziedzin`} ton="cichy" />
+        </NaglowekStrony>
+      </div>
 
       <label className="mt-8 block">
         <span className="sr-only">Szukaj wśród narzędzi</span>
         <input
           value={szukane}
           onChange={(zdarzenie) => setSzukane(zdarzenie.target.value)}
-          placeholder="Szukaj: faktura, nagranie, tło, publikacja…"
+          placeholder="Wpisz, co masz do zrobienia: faktura, nagranie, tło, logo, publikacja…"
           className="h-11 w-full rounded-lg border border-line-control bg-raised px-3.5 text-sm outline-none transition-colors focus:border-accent"
         />
       </label>
@@ -125,7 +136,8 @@ export function Narzedzia() {
 
       {widoczne.length === 0 && (
         <p className="mt-10 text-sm text-muted">
-          Nic nie pasuje do „{szukane}”. Napisz do nas — jeśli czegoś brakuje, chcemy o tym wiedzieć.
+          Nic nie pasuje do „{szukane}”. Katalog przeszukuje nazwy, opisy i przykłady poleceń, więc
+          spróbuj nazwać zadanie inaczej. Jeśli takiego narzędzia u nas nie ma, napisz do nas.
         </p>
       )}
 
@@ -160,8 +172,12 @@ export function Narzedzia() {
         </section>
       ))}
 
-      <div className="mt-12 flex flex-wrap gap-3">
-        <OdsylaczPrzycisk adres="/wyprobuj">Wejdź bez rejestracji</OdsylaczPrzycisk>
+      <p className="mt-12 text-sm text-muted">
+        Wejdź na /wyprobuj i zleć jedno z tych zadań na własnym pliku — wynik dostaniesz w tej samej
+        rozmowie. Bez rejestracji, bez karty, bez instalacji.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <OdsylaczPrzycisk adres="/wyprobuj">Wypróbuj bez rejestracji</OdsylaczPrzycisk>
         <OdsylaczPrzycisk adres={sciezka("cennik")} wariant="drugorzedny">
           Zobacz cennik
         </OdsylaczPrzycisk>

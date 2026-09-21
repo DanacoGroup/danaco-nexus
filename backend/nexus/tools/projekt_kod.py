@@ -530,12 +530,13 @@ class KontrolaInput(ToolInput):
 
 @registry.register(
     "code_check",
-    """Kontroluje jakość kodu: podatności i pułapki (semgrep), klucze i hasła wpisane wprost
-w kod (gitleaks), znane podatności bibliotek projektu (osv-scanner), skopiowane fragmenty
-(jscpd), błędy Pythona (ruff), błędy skryptów powłoki (shellcheck), literówki (typos).
-Pracuje na projekcie z modułu Kod albo na plikach wysłanych w rozmowie. Stosuj, gdy
-użytkownik pyta „czy ten kod jest bezpieczny”, „znajdź błędy w projekcie”, „przejrzyj ten
-skrypt”, a także po większej zmianie w kodzie.
+    """Przegląda projekt i wypisuje błędy, podatności oraz hasła zostawione wprost w kodzie.
+Uruchamia kontrolę podatności i pułapek (semgrep), kluczy i haseł w kodzie (gitleaks), znanych
+podatności bibliotek projektu (osv-scanner), skopiowanych fragmentów (jscpd), błędów Pythona
+(ruff), błędów skryptów powłoki (shellcheck) i literówek (typos). Pracuje na projekcie z modułu
+Kod albo na plikach wysłanych w rozmowie. Stosuj, gdy użytkownik pyta „czy ten kod jest
+bezpieczny”, „znajdź błędy w projekcie”, „przejrzyj ten skrypt”, a także po większej zmianie
+w kodzie.
 Zwraca listę usterek z plikiem, wierszem i wagą — nie poprawia ich sam. Do sprawdzenia
 polszczyzny w tekście służy check_grammar, nie ta kontrola.""",
     KontrolaInput,
@@ -688,12 +689,13 @@ class AudytInput(ToolInput):
 
 @registry.register(
     "web_audit",
-    """Bada gotową stronę WWW: dostępność według WCAG 2.1 AA (pa11y: brak opisów obrazów, za słaby
-kontrast, pola bez etykiet) oraz szybkość, dobre praktyki i SEO (Lighthouse, oceny 0–100).
-Działa na szkicu strony z modułu Strony — jeszcze przed publikacją — albo na publicznym adresie.
-Stosuj, gdy użytkownik pyta „czy moja strona nie ma błędów dostępności”, „dlaczego strona wolno
-się ładuje”, „sprawdź stronę przed publikacją”. Pokazuje usterki; poprawki wprowadzasz sam
-narzędziami site_write_file. Żeby zobaczyć, jak strona wygląda, użyj web_screenshot.""",
+    """Sprawdza gotową stronę pod kątem dostępności, szybkości i widoczności w wyszukiwarkach.
+Wytyka brak opisów obrazów, za słaby kontrast i pola bez etykiet według WCAG 2.1 AA (pa11y)
+oraz ocenia szybkość, dobre praktyki i SEO w skali 0–100 (Lighthouse). Działa na szkicu strony
+z modułu Strony — jeszcze przed publikacją — albo na publicznym adresie. Stosuj, gdy użytkownik
+pyta „czy moja strona nie ma błędów dostępności”, „dlaczego strona wolno się ładuje”, „sprawdź
+stronę przed publikacją”. Pokazuje usterki; poprawki wprowadzasz sam narzędziem site_write_file.
+Żeby zobaczyć, jak strona wygląda, użyj web_screenshot.""",
     AudytInput,
 )
 def web_audit(ctx: ToolContext, args: AudytInput) -> ToolResult:
@@ -735,12 +737,11 @@ class ZrzutInput(ToolInput):
 
 @registry.register(
     "web_screenshot",
-    """Robi zrzut strony WWW w przeglądarce (Playwright) i pokazuje go w rozmowie — szkicu z modułu
-Strony albo publicznego adresu, w szerokości telefonu, tabletu lub komputera, w trybie jasnym
-lub ciemnym. Stosuj, gdy właśnie napisałeś albo zmieniłeś stronę i chcesz ją zobaczyć zamiast
-zgadywać, gdy użytkownik pyta „jak to wygląda na telefonie”, i przed pokazaniem strony do
-akceptacji. Ocena liczbowa i lista usterek to web_audit; zrzut ekranu komputera użytkownika
-to pc_screenshot.""",
+    """Robi zrzut strony i pokazuje go w rozmowie, zamiast zgadywać, jak strona wygląda.
+Obsługuje szkic z modułu Strony i publiczny adres, w szerokości telefonu, tabletu albo komputera,
+w trybie jasnym lub ciemnym (Playwright). Stosuj, gdy właśnie napisałeś albo zmieniłeś stronę,
+gdy użytkownik pyta „jak to wygląda na telefonie”, i przed pokazaniem strony do akceptacji.
+Ocena liczbowa i lista usterek to web_audit; zrzut ekranu komputera użytkownika to pc_screenshot.""",
     ZrzutInput,
 )
 def web_screenshot(ctx: ToolContext, args: ZrzutInput) -> ToolResult:
@@ -926,11 +927,12 @@ class IkonyInput(ToolInput):
 
 @registry.register(
     "icon_find",
-    """Znajduje gotową ikonę w zbiorze Iconify (ponad 400 tys. znaków: Lucide, Material, Tabler,
-Phosphor, logotypy marek) i oddaje ją jako kod SVG — a na życzenie zapisuje jako plik w szkicu
-strony. Stosuj, gdy w projekcie graficznym albo na stronie potrzebny jest symbol: koperta,
-telefon, koszyk, strzałka, znak serwisu. Kod SVG możesz wkleić wprost do treści strony albo do
-rysunku w design_vector, zamiast rysować symbol ręcznie. Zapytanie podawaj po angielsku.""",
+    """Znajduje gotową ikonę i wstawia ją do projektu albo do strony.
+Zbiór Iconify ma ponad 400 tys. znaków (Lucide, Material, Tabler, Phosphor, logotypy marek);
+ikona wraca jako kod SVG, a na życzenie jako plik w szkicu strony. Stosuj, gdy w projekcie
+graficznym albo na stronie potrzebny jest symbol: koperta, telefon, koszyk, strzałka, znak
+serwisu. Kod SVG możesz wkleić wprost do treści strony albo do rysunku w design_vector,
+zamiast rysować symbol ręcznie. Zapytanie podawaj po angielsku.""",
     IkonyInput,
 )
 def icon_find(ctx: ToolContext, args: IkonyInput) -> ToolResult:
@@ -1007,11 +1009,11 @@ class OptymalizacjaInput(ToolInput):
 
 @registry.register(
     "site_optimize_assets",
-    """Odchudza pliki graficzne w szkicu strony bez zmiany wyglądu: PNG (oxipng) i SVG (svgo).
-Stosuj, gdy web_audit wytknie zbyt ciężkie obrazy, gdy strona wolno się ładuje albo przed
-publikacją. Zmiana jest bezstratna — obraz wygląda tak samo, waży mniej; pliki cięższe po
-optymalizacji zostają bez zmian. Do zmiany rozmiaru, kadru czy formatu zdjęć służą narzędzia
-obrazów (convert_images), a nie to narzędzie.""",
+    """Odchudza pliki graficzne strony, nie zmieniając jej wyglądu.
+Pracuje na PNG (oxipng) i SVG (svgo). Stosuj, gdy web_audit wytknie zbyt ciężkie obrazy, gdy
+strona wolno się ładuje albo przed publikacją. Zmiana jest bezstratna — obraz wygląda tak samo,
+waży mniej; pliki cięższe po optymalizacji zostają bez zmian. Do zmiany rozmiaru, kadru czy
+formatu zdjęć służą narzędzia obrazów (convert_images), a nie to narzędzie.""",
     OptymalizacjaInput,
 )
 def site_optimize_assets(ctx: ToolContext, args: OptymalizacjaInput) -> ToolResult:

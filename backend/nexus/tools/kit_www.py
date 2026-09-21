@@ -182,14 +182,10 @@ class KatalogInput(ToolInput):
 
 @registry.register(
     "site_kit_catalog",
-    """Co zestaw Danaco Web Kit ma do zaoferowania przy budowie witryny: presety branżowe
-(gotowa struktura i treści), motywy, kroje nagłówkowe, gotowe sekcje z nazwami i opisami,
-szablony aplikacji oraz kolekcja szablonów otwartych. Użyj przed site_from_kit, żeby dobrać
-preset i motyw do branży klienta. Gdy szukasz konkretnej sekcji („cennik z przełącznikiem”,
-„opinie”, „kalkulator”), podaj `szukaj_sekcji` — spis odda pasujące pozycje z wariantami.
-Identyfikator sekcji („rodzina/nazwa”) wstawia się do `site.yaml` podstrony jako
-`sections: [{use: hero/split, props: {...}}]`; gotowe wartości props leżą w `example.json`
-tej sekcji.""",
+    """Pokazuje, z czego można zbudować witrynę, zanim powstanie pierwsza strona.
+Zestaw Danaco Web Kit ma presety branżowe (gotowa struktura i treści), motywy, kroje nagłówkowe,
+nazwane sekcje z opisami, szablony aplikacji oraz kolekcję szablonów otwartych. Bierz go przed
+budową witryny, żeby nie pisać od zera tego, co jest już gotowe.""",
     KatalogInput,
 )
 def site_kit_catalog(ctx: ToolContext, args: KatalogInput) -> ToolResult:
@@ -681,13 +677,13 @@ class ZSzablonuInput(ToolInput):
 
 @registry.register(
     "site_from_template",
-    """Wstawia do szkicu strony użytkownika gotową, już zbudowaną witrynę z kolekcji szablonów
-otwartych (81 pozycji z gotową witryną: blogi, portfolio, dokumentacja, panele, landingi,
-sklepy, strony wydarzeń). Nic się nie buduje — pliki idą prosto do szkicu, więc trwa to
-sekundy, a ścieżki „/assets/…” są przy okazji przestawiane na względne. Różnica wobec
-site_from_kit: tam powstaje witryna z presetu branżowego z treściami po polsku i motywem
-marki, tu dostajesz cudzy, gotowy projekt (własna licencja, treści po angielsku) do
-przerobienia. Listę szablonów daje site_kit_catalog ze `szczegoly: true`.""",
+    """Wstawia do Twojego szkicu gotową, już zbudowaną witrynę z kolekcji szablonów otwartych.
+Do wyboru jest 81 pozycji: blogi, portfolio, dokumentacja, panele, landingi, sklepy i strony
+wydarzeń. Nic się nie buduje — pliki idą prosto do szkicu, więc trwa to sekundy, a ścieżki
+„/assets/…” są przy okazji przestawiane na względne. Różnica wobec site_from_kit: tam powstaje
+witryna z presetu branżowego z treściami po polsku i motywem marki, tu dostajesz cudzy, gotowy
+projekt (własna licencja, treści po angielsku) do przerobienia. Listę szablonów daje
+site_kit_catalog ze `szczegoly: true`.""",
     ZSzablonuInput,
 )
 def site_from_template(ctx: ToolContext, args: ZSzablonuInput) -> ToolResult:

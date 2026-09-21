@@ -140,10 +140,11 @@ def _unpaper(ctx: ToolContext, image: np.ndarray) -> np.ndarray:
 
 @registry.register(
     "enhance_document_scan",
-    """Poprawia jakość skanów i zdjęć dokumentów: wykrycie kartki i korekta perspektywy,
-prostowanie, odszumianie, wyrównanie oświetlenia/cieni i wybielenie tła, usunięcie
-czarnych krawędzi, opcjonalnie unpaper, wyostrzenie tekstu i czerń-biel. Obsługuje obrazy
-i wielostronicowe PDF (wynik PDF). Dobierz opcje po inspect_files; potem możesz wykonać OCR.""",
+    """Doprowadza skan albo zdjęcie dokumentu do postaci, z której da się czytać i rozpoznawać tekst.
+Prostuje kartkę i perspektywę, odszumia, wyrównuje oświetlenie i cienie, wybiela tło, usuwa
+czarne krawędzie, wyostrza tekst i na życzenie sprowadza stronę do czerni i bieli (opcjonalnie
+unpaper). Obsługuje obrazy i wielostronicowe PDF (wynik PDF). Dobierz opcje po inspect_files;
+potem możesz wykonać OCR.""",
     ScanInput,
 )
 def enhance_document_scan(ctx: ToolContext, args: ScanInput) -> ToolResult:
@@ -367,9 +368,9 @@ class UpscaleInput(ToolInput):
 
 @registry.register(
     "upscale_image",
-    """Powiększa i rekonstruuje szczegóły obrazu siecią Real-ESRGAN (AI, na CPU – może
-trwać kilka minut dla dużych zdjęć). Używaj dla małych, rozmytych lub skompresowanych
-zdjęć, gdy potrzebna jest wyższa rozdzielczość.""",
+    """Powiększa zdjęcie i dorysowuje szczegóły, zamiast rozmywać piksele.
+Małe, rozmyte albo mocno skompresowane zdjęcie zyskuje rozdzielczość do druku i na duży ekran
+(Real-ESRGAN; przy dużych plikach liczenie trwa kilka minut).""",
     UpscaleInput,
 )
 def upscale_image(ctx: ToolContext, args: UpscaleInput) -> ToolResult:
@@ -472,9 +473,10 @@ class MagickInput(ToolInput):
 
 @registry.register(
     "imagemagick",
-    """Uruchamia ImageMagick (magick) z listą operacji na jednym obrazie, gdy potrzebna jest
-obróbka, której nie obejmują inne narzędzia (np. przycięcie, obramowanie, sepia, zmiana
-rozmiaru, kolorystyka). Dozwolone są tylko bezpieczne operatory; ścieżki są dodawane automatycznie.""",
+    """Wykonuje na obrazie obróbkę, której nie obejmuje żadne inne narzędzie: przycięcie, obramowanie,
+sepię, zmianę rozmiaru, korektę barw.
+Operacje wykonuje ImageMagick (magick); dozwolone są tylko bezpieczne operatory, a ścieżki
+dodawane są automatycznie.""",
     MagickInput,
 )
 def run_imagemagick(ctx: ToolContext, args: MagickInput) -> ToolResult:
@@ -512,8 +514,8 @@ class ConvertImageInput(ToolInput):
 
 @registry.register(
     "convert_images",
-    """Konwertuje obrazy między formatami (JPG, PNG, WEBP, TIFF, BMP, PDF), opcjonalnie
-zmniejsza je i łączy wiele obrazów w jeden PDF.""",
+    """Zamienia obrazy na inny format i na życzenie składa je w jeden PDF.
+Obsługuje JPG, PNG, WEBP, TIFF, BMP i PDF, a po drodze może zmniejszyć pliki.""",
     ConvertImageInput,
 )
 def convert_images(ctx: ToolContext, args: ConvertImageInput) -> ToolResult:

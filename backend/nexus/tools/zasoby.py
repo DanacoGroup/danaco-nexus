@@ -141,11 +141,11 @@ class WykazInput(ToolInput):
 
 @registry.register(
     "asset_library",
-    """Co leży w bibliotekach materiałów serwera: ilustracje SVG, wzory i tekstury teł,
-gradienty, makiety urządzeń (dział „grafika”), animowane tła WebGL, biblioteki animacji
-i shadery (dział „ruch”), dźwięki, podkłady muzyczne, LUT-y i przejścia wideo (dział „media”).
-Użyj, zanim zaczniesz rysować tło albo szukać materiału w sieci — tu jest gotowe i offline.
-Wybraną pozycję wstawia do strony asset_to_site.""",
+    """Pokazuje, jakie gotowe materiały leżą na serwerze, zanim zaczniesz szukać ich w sieci.
+W dziale „grafika” są ilustracje SVG, wzory i tekstury teł, gradienty i makiety urządzeń,
+w dziale „ruch” — animowane tła WebGL, biblioteki animacji i shadery, w dziale „media” —
+dźwięki, podkłady muzyczne, LUT-y i przejścia wideo. Wszystko jest na miejscu i działa bez
+sieci. Wybraną pozycję wstawia do strony asset_to_site.""",
     WykazInput,
 )
 def asset_library(ctx: ToolContext, args: WykazInput) -> ToolResult:

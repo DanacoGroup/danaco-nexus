@@ -158,12 +158,12 @@ class WykazAplikacjiInput(ToolInput):
 
 @registry.register(
     "app_templates",
-    """Wykaz gotowych aplikacji webowych leżących na serwerze — 35 pozycji: panele
-administracyjne, dashboardy, landingi i strony produktowe na React, Vue, Next, Nuxt,
-Astro, Bootstrap i Tailwindzie. Sprawdź ten spis, zanim zaczniesz pisać aplikację od zera:
-przebranie gotowego szablonu w markę użytkownika jest szybsze i daje lepszy wynik niż kod
-pisany od podstaw. Pole `stos` mówi, na czym stoi szablon, `licencja` — na jakich warunkach
-wolno go użyć. Wybraną pozycję zakłada app_from_template.""",
+    """Pokazuje 35 gotowych aplikacji webowych leżących na serwerze.
+Są wśród nich panele administracyjne, pulpity z danymi, landingi i strony produktowe na React,
+Vue, Next, Nuxt, Astro, Bootstrap i Tailwindzie. Sprawdź ten spis, zanim zaczniesz pisać
+aplikację od zera: przebranie gotowego szablonu w markę użytkownika jest szybsze i daje lepszy
+wynik niż kod pisany od podstaw. Pole `stos` mówi, na czym stoi szablon, `licencja` — na jakich
+warunkach wolno go użyć. Wybraną pozycję zakłada app_from_template.""",
     WykazAplikacjiInput,
 )
 def app_templates(ctx: ToolContext, args: WykazAplikacjiInput) -> ToolResult:
@@ -227,11 +227,8 @@ class ZSzablonuAplikacjiInput(ToolInput):
 
 @registry.register(
     "app_from_template",
-    """Zakłada nowy projekt w module Kod z gotowego szablonu aplikacji (spis: app_templates).
-Pliki szablonu trafiają do przestrzeni projektów użytkownika — bez paczek i bez historii
-gita autora — a dalej pracujesz w nich zwykłymi narzędziami kodu. Po założeniu przebierz
-aplikację w markę użytkownika: podmień tokeny i teksty w plikach wskazanych przez
-`pliki_marki`, zamiast przepisywać układ.""",
+    """Zakłada nowy projekt z gotowego szablonu aplikacji i otwiera go w module Kod.
+Spis szablonów daje app_templates.""",
     ZSzablonuAplikacjiInput,
 )
 def app_from_template(ctx: ToolContext, args: ZSzablonuAplikacjiInput) -> ToolResult:

@@ -142,10 +142,11 @@ def _archive_info(file: FileRef) -> dict[str, Any]:
 
 @registry.register(
     "inspect_files",
-    """Sprawdza pliki: typ, rozmiar, liczbę stron, obecność warstwy tekstowej PDF,
-wymiary i metryki jakości obrazów (jasność, kontrast, ostrość, szum, zafarb, pochylenie
-tekstu), parametry audio/wideo i zawartość archiwów ZIP. Użyj przed doborem obróbki,
-gdy jakość lub rodzaj pliku ma znaczenie. Zwraca też podgląd pierwszej strony/obrazu.""",
+    """Mówi, co jest w pliku i w jakim jest stanie, zanim zacznie się obróbka.
+Zwraca typ, rozmiar, liczbę stron, obecność warstwy tekstowej PDF, wymiary i jakość obrazu
+(jasność, kontrast, ostrość, szum, zafarb, pochylenie tekstu), parametry audio i wideo oraz
+zawartość archiwów ZIP. Użyj przed doborem obróbki, gdy jakość lub rodzaj pliku ma znaczenie.
+Zwraca też podgląd pierwszej strony albo obrazu.""",
     InspectInput,
 )
 def inspect_files(ctx: ToolContext, args: InspectInput) -> ToolResult:
@@ -187,9 +188,8 @@ def inspect_files(ctx: ToolContext, args: InspectInput) -> ToolResult:
 
 @registry.register(
     "view_pages",
-    """Pokazuje wybrane strony dokumentu (PDF, DOCX/XLSX/PPTX po konwersji) lub obraz
-jako podgląd, abyś mógł ocenić treść, układ, jakość albo granice dokumentów.
-Maksymalnie 6 stron w jednym wywołaniu.""",
+    """Pokazuje wybrane strony dokumentu albo obraz, żeby dało się ocenić treść, układ i jakość.
+Obsługuje PDF oraz DOCX/XLSX/PPTX po konwersji. Maksymalnie 6 stron w jednym wywołaniu.""",
     ViewInput,
 )
 def view_pages(ctx: ToolContext, args: ViewInput) -> ToolResult:
@@ -250,10 +250,10 @@ def _tika_text(ctx: ToolContext, file: FileRef) -> str:
 
 @registry.register(
     "extract_text",
-    """Odczytuje tekst z pliku: warstwę tekstową PDF (strona po stronie), dokumenty
-DOCX/XLSX/PPTX/ODT/RTF/HTML/TXT (Apache Tika). Dla skanów bez warstwy tekstowej
-i zdjęć użyj najpierw ocr_documents. Długi tekst jest skracany – wtedy czytaj
-kolejne zakresy stron.""",
+    """Wyciąga z pliku sam tekst, bez układu i grafiki.
+Czyta warstwę tekstową PDF (strona po stronie) oraz dokumenty DOCX/XLSX/PPTX/ODT/RTF/HTML/TXT
+(Apache Tika). Dla skanów bez warstwy tekstowej i zdjęć użyj najpierw ocr_documents. Długi tekst
+jest skracany – wtedy czytaj kolejne zakresy stron.""",
     ExtractTextInput,
 )
 def extract_text(ctx: ToolContext, args: ExtractTextInput) -> ToolResult:

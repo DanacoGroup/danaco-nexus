@@ -96,8 +96,9 @@ class RemoveBackgroundInput(ToolInput):
 
 @registry.register(
     "remove_background",
-    """Usuwa tło ze zdjęcia (AI, rembg): wynik PNG z przezroczystym tłem – do sklepów, ogłoszeń,
-grafik. Dla nowego tła (kolor, gradient, inne zdjęcie, rozmycie) użyj change_background.""",
+    """Usuwa tło ze zdjęcia i zostawia sam obiekt na przezroczystym tle.
+Wynik to PNG gotowy do sklepu, ogłoszenia i grafiki (rembg). Dla nowego tła (kolor, gradient,
+inne zdjęcie, rozmycie) użyj change_background.""",
     RemoveBackgroundInput,
 )
 def remove_background_tool(ctx: ToolContext, args: RemoveBackgroundInput) -> ToolResult:
@@ -138,8 +139,8 @@ class ChangeBackgroundInput(ToolInput):
 
 @registry.register(
     "change_background",
-    """Zmienia tło zdjęcia: wycina obiekt (rembg) i nakłada go na jednolity kolor, gradient, inne
-zdjęcie albo rozmyte oryginalne tło (efekt portretowy).""",
+    """Podmienia tło zdjęcia na jednolity kolor, gradient, inne zdjęcie albo rozmycie jak w portrecie.
+Obiekt z pierwszego planu zostaje wycięty (rembg) i nałożony na nowe tło.""",
     ChangeBackgroundInput,
 )
 def change_background(ctx: ToolContext, args: ChangeBackgroundInput) -> ToolResult:
@@ -194,8 +195,9 @@ class EraseInput(ToolInput):
 
 @registry.register(
     "erase_objects",
-    """Gumka: usuwa ze zdjęcia wskazane obiekty (napis, znak wodny, przewód, przypadkową osobę)
-i wypełnia miejsce tłem z otoczenia (inpainting OpenCV). Obszar wskazuje maska albo prostokąty.""",
+    """Wymazuje ze zdjęcia napis, znak wodny, przewód albo przypadkową osobę.
+Puste miejsce wypełnia tłem z otoczenia (inpainting OpenCV); obszar wskazuje maska albo
+prostokąty.""",
     EraseInput,
 )
 def erase_objects(ctx: ToolContext, args: EraseInput) -> ToolResult:

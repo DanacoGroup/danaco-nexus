@@ -3,10 +3,10 @@
 import { okruszki, usePozycjonowanie } from "../seo";
 import { FUNKCJONALNOSCI } from "../tresc";
 import { sciezka } from "../trasy";
-import { NaglowekStrony, OdsylaczPrzycisk } from "../ui";
+import { NaglowekStrony, OdsylaczPrzycisk, Okruszki } from "../ui";
 
 const OPIS =
-  "Wszystko, co Nexus robi po zalogowaniu — w podziale na obszary pracy. Zadanie zlecasz jednym zdaniem, narzędzia agent dobiera sam.";
+  "Pełny wykaz tego, co Nexus robi po zalogowaniu, w podziale na obszary pracy. Zadanie zlecasz jednym zdaniem — narzędzia Nexus dobiera sam.";
 
 export function Funkcje() {
   usePozycjonowanie({
@@ -22,7 +22,15 @@ export function Funkcje() {
   const grupy = [...new Set(FUNKCJONALNOSCI.map((funkcja) => funkcja.grupa))];
   return (
     <>
-      <NaglowekStrony tytul="Co Nexus załatwi za Ciebie" opis={OPIS} />
+      <Okruszki
+        pozycje={[
+          { nazwa: "Portal", sciezka: sciezka("glowna") },
+          { nazwa: "Funkcje", sciezka: sciezka("funkcje") },
+        ]}
+      />
+      <div className="mt-4">
+        <NaglowekStrony tytul="Co Nexus robi po zalogowaniu" opis={OPIS} />
+      </div>
       {grupy.map((grupa, indeks) => (
         // Identyfikator z indeksu: nazwy grup bywają wielowyrazowe, a spacja w `aria-labelledby`
         // rozdziela listę identyfikatorów i sekcja straciłaby nazwę dostępną.
@@ -40,8 +48,12 @@ export function Funkcje() {
           </ul>
         </section>
       ))}
-      <div className="mt-10 flex flex-wrap gap-3">
-        <OdsylaczPrzycisk adres="/wyprobuj">Zobacz to w działaniu</OdsylaczPrzycisk>
+      <p className="mt-12 text-sm text-muted">
+        Wejdź na /wyprobuj i zleć jedno własne zadanie — przepisz skan, spisz nagranie albo
+        zaprojektuj logo. Plik dostaniesz w tej samej rozmowie, bez rejestracji i bez karty.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <OdsylaczPrzycisk adres="/wyprobuj">Wypróbuj bez rejestracji</OdsylaczPrzycisk>
         <OdsylaczPrzycisk adres={sciezka("dokumentacja")} wariant="drugorzedny">
           Szczegóły w dokumentacji
         </OdsylaczPrzycisk>

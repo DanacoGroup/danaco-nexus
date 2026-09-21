@@ -8,7 +8,7 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "projekt",
     "tytul": "Projektowanie grafiki",
-    "opis": "Logo, plakat, okładka, ulotka, ikona, baner, post — projekt powstaje od zera, z plikiem wektorowym do edycji i PDF‑em do druku.",
+    "opis": "Logo, plakat, ulotka, ikona, baner i post powstają od zera, w rozmowie. Dostajesz plik wektorowy do dalszej edycji i PDF gotowy do druku.",
     "narzedzia": [
       {
         "id": "design_vector",
@@ -25,14 +25,14 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "icon_find",
         "nazwa": "Znajdź ikonę",
-        "opis": "Znajduje gotową ikonę w zbiorze Iconify (ponad 400 tys. znaków:",
+        "opis": "Znajduje gotową ikonę i wstawia ją do projektu albo do strony.",
         "przyklad": "Wstaw tu ikonę koperty w tym samym stylu co reszta."
       },
       {
         "id": "render_lottie",
         "nazwa": "Zamień animację Lottie",
-        "opis": "Zamienia animację Lottie (.json albo .lottie — format animacji z sieci i z pakietów graficznych) w plik, który da się obejrzeć i wstawić:",
-        "przyklad": ""
+        "opis": "Zamienia gotową animację z sieci albo z pakietu graficznego w zwykły film lub obrazek.",
+        "przyklad": "Zrób z tej animacji zwykły film, żeby dało się ją wstawić na stronę."
       },
       {
         "id": "lottie_library",
@@ -43,7 +43,7 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "asset_library",
         "nazwa": "Biblioteka materiałów",
-        "opis": "Co leży w bibliotekach materiałów serwera: ilustracje SVG, wzory i tekstury teł, gradienty, makiety urządzeń (dział „grafika”), animowane tła WebGL, biblioteki animacji i shadery (dział „ruch”), dźwięki, podkłady muzyczne, LUT-y i przejścia wideo (dział „media”).",
+        "opis": "Pokazuje, jakie gotowe materiały leżą na serwerze, zanim zaczniesz szukać ich w sieci.",
         "przyklad": "Pokaż, jakie masz ilustracje i tła do strony."
       }
     ]
@@ -51,7 +51,7 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "zdjecia",
     "tytul": "Zdjęcia i obrazy",
-    "opis": "Poprawa, retusz, powiększanie, tło, montaż — bez programu graficznego.",
+    "opis": "Zdjęcie wraca poprawione, powiększone albo bez tła. Niczego nie instalujesz i nie uczysz się programu graficznego.",
     "narzedzia": [
       {
         "id": "enhance_photo",
@@ -68,104 +68,104 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "restore_faces",
         "nazwa": "Odtwórz twarze na zdjęciu",
-        "opis": "Rekonstruuje twarze na zdjęciu zniszczonym, rozmytym, drobnym albo mocno skompresowanym (CodeFormer lub GFPGAN): odtwarza oczy, usta i kontury, których w pliku po prostu nie ma.",
-        "przyklad": "Twarze na tym starym zdjęciu są rozmyte — odtwórz je."
+        "opis": "Odtwarza twarze na zdjęciu zniszczonym, rozmytym, drobnym albo mocno skompresowanym.",
+        "przyklad": "Twarze na tym starym zdjęciu rozmyły się — odtwórz je."
       },
       {
         "id": "upscale_image",
         "nazwa": "Powiększ obraz",
-        "opis": "Powiększa i rekonstruuje szczegóły obrazu siecią Real-ESRGAN (AI, na CPU – może trwać kilka minut dla dużych zdjęć).",
+        "opis": "Powiększa zdjęcie i dorysowuje szczegóły, zamiast rozmywać piksele.",
         "przyklad": "Powiększ ten skan czterokrotnie, ma iść do druku."
       },
       {
         "id": "colorize_photo",
         "nazwa": "Pokoloruj czarno-białe",
-        "opis": "Koloryzuje zdjęcie czarno-białe albo sepiowe (model DDColor).",
+        "opis": "Nadaje barwy zdjęciu czarno-białemu albo sepiowemu.",
         "przyklad": "Pokoloruj to zdjęcie dziadków z lat 50."
       },
       {
         "id": "remove_background",
         "nazwa": "Wytnij z tła",
-        "opis": "Usuwa tło ze zdjęcia (AI, rembg): wynik PNG z przezroczystym tłem – do sklepów, ogłoszeń, grafik.",
+        "opis": "Usuwa tło ze zdjęcia i zostawia sam obiekt na przezroczystym tle.",
         "przyklad": "Wytnij produkt z tła i zapisz z przezroczystością."
       },
       {
         "id": "change_background",
         "nazwa": "Zmień tło zdjęcia",
-        "opis": "Zmienia tło zdjęcia: wycina obiekt (rembg) i nakłada go na jednolity kolor, gradient, inne zdjęcie albo rozmyte oryginalne tło (efekt portretowy).",
-        "przyklad": "Zamień tło na jednolite szare, jak w studiu."
+        "opis": "Podmienia tło zdjęcia na jednolity kolor, gradient, inne zdjęcie albo rozmycie jak w portrecie.",
+        "przyklad": "Zamień tło na jednolite szare jak w studiu."
       },
       {
         "id": "erase_objects",
         "nazwa": "Wymaż obiekt",
-        "opis": "Gumka: usuwa ze zdjęcia wskazane obiekty (napis, znak wodny, przewód, przypadkową osobę) i wypełnia miejsce tłem z otoczenia (inpainting OpenCV).",
+        "opis": "Wymazuje ze zdjęcia napis, znak wodny, przewód albo przypadkową osobę.",
         "przyklad": "Usuń przechodnia z lewej strony kadru."
       },
       {
         "id": "inpaint_photo",
         "nazwa": "Usuń duży element",
-        "opis": "Usuwa ze zdjęcia duży element i dorysowuje to, co było za nim (model LaMa): przechodnia, samochód, kosz na śmieci, słup, byłego partnera, a w trybie „rysy” także rysy, zagięcia i kurz ze skanu starej odbitki.",
+        "opis": "Usuwa ze zdjęcia duży element i dorysowuje to, co było za nim.",
         "przyklad": "Usuń ten samochód z lewej strony zdjęcia."
       },
       {
         "id": "blur_background_by_depth",
         "nazwa": "Rozmyj tło jak obiektyw",
-        "opis": "Rozmywa tło zdjęcia tak, jak robi to jasny obiektyw: mapa głębi rozdziela plany, więc rozmycie narasta wraz z odległością od wybranego planu, zamiast kończyć się na ostrej obwódce wokół wyciętego obiektu.",
+        "opis": "Rozmywa tło zdjęcia tak, jak robi to jasny obiektyw.",
         "przyklad": "Rozmyj tło tak, żeby wyglądało jak z lustrzanki."
       },
       {
         "id": "depth_map",
         "nazwa": "Policz mapę głębi",
-        "opis": "Liczy mapę głębi zdjęcia (Depth Anything V2):",
-        "przyklad": ""
+        "opis": "Liczy, jak daleko od aparatu leży każdy punkt zdjęcia.",
+        "przyklad": "Policz, co jest na tym zdjęciu bliżej, a co dalej — potrzebuję maski pierwszego planu."
       },
       {
         "id": "animate_photo",
         "nazwa": "Ożyw zdjęcie filmem",
-        "opis": "Zamienia zdjęcie w krótki film z efektem paralaksy 2.5D: mapa głębi rozdziela plany, kamera przesuwa się nad kadrem, a odsłonięte miejsca są dopełniane.",
+        "opis": "Zamienia zdjęcie w krótki film, w którym kamera przesuwa się nad kadrem.",
         "przyklad": "Zrób z tego zdjęcia krótki film na Instagram."
       },
       {
         "id": "find_faces",
         "nazwa": "Znajdź osoby na zdjęciach",
-        "opis": "Znajduje twarze na zdjęciach i — na życzenie — grupuje zdjęcia tej samej osoby (InsightFace).",
+        "opis": "Znajduje twarze na zdjęciach i — na życzenie — układa razem zdjęcia tej samej osoby.",
         "przyklad": "Rozdziel te dwieście zdjęć z wesela według osób."
       },
       {
         "id": "convert_images",
         "nazwa": "Przekonwertuj obraz",
-        "opis": "Konwertuje obrazy między formatami (JPG, PNG, WEBP, TIFF, BMP, PDF), opcjonalnie zmniejsza je i łączy wiele obrazów w jeden PDF.",
-        "przyklad": ""
+        "opis": "Zamienia obrazy na inny format i na życzenie składa je w jeden PDF.",
+        "przyklad": "Zamień te zdjęcia na PNG i złóż je w jeden PDF."
       },
       {
         "id": "imagemagick",
         "nazwa": "Obróbka na życzenie",
-        "opis": "Uruchamia ImageMagick (magick) z listą operacji na jednym obrazie, gdy potrzebna jest obróbka, której nie obejmują inne narzędzia (np. przycięcie, obramowanie, sepia, zmiana rozmiaru, kolorystyka).",
-        "przyklad": ""
+        "opis": "Wykonuje na obrazie obróbkę, której nie obejmuje żadne inne narzędzie: przycięcie, obramowanie, sepię, zmianę rozmiaru, korektę barw.",
+        "przyklad": "Przytnij to zdjęcie do kwadratu i dodaj białą ramkę."
       }
     ]
   },
   {
     "id": "dokumenty",
     "tytul": "Dokumenty i PDF",
-    "opis": "Skany, umowy, faktury, pisma: rozpoznanie tekstu, porządkowanie, składanie i dzielenie.",
+    "opis": "Stos skanów, umów i faktur zamienia się w tekst, w którym da się szukać. Dokumenty rozdzielisz, złożysz na nowo i wyciągniesz z nich dane.",
     "narzedzia": [
       {
         "id": "ocr_documents",
         "nazwa": "Rozpoznaj tekst ze skanu",
-        "opis": "Rozpoznaje tekst (OCR, Tesseract) w skanach PDF i zdjęciach dokumentów.",
+        "opis": "Rozpoznaje tekst w skanach PDF i na zdjęciach dokumentów, także po polsku.",
         "przyklad": "Rozpoznaj tekst z tych skanów i zrób przeszukiwalny PDF."
       },
       {
         "id": "enhance_document_scan",
         "nazwa": "Popraw skan",
-        "opis": "Poprawia jakość skanów i zdjęć dokumentów: wykrycie kartki i korekta perspektywy, prostowanie, odszumianie, wyrównanie oświetlenia/cieni i wybielenie tła, usunięcie czarnych krawędzi, opcjonalnie unpaper, wyostrzenie tekstu i czerń-biel.",
-        "przyklad": ""
+        "opis": "Doprowadza skan albo zdjęcie dokumentu do postaci, z której da się czytać i rozpoznawać tekst.",
+        "przyklad": "Ten skan jest krzywy i szary — wyprostuj go i wybiel tło."
       },
       {
         "id": "detect_document_boundaries",
         "nazwa": "Rozdziel stos skanów",
-        "opis": "Analizuje wielodokumentowy PDF (np. skan wielu pism naraz) strona po stronie: nagłówki i stopki (z OCR, jeśli brak tekstu), numeracja „strona X z Y”, puste strony (separatory), tytuły dokumentów i podobieństwo nagłówków.",
+        "opis": "Znajduje w jednym PDF granice między dokumentami, gdy w stosie skanów leży kilka pism naraz.",
         "przyklad": "Ten PDF to kilka dokumentów — podziel go i nazwij według treści."
       },
       {
@@ -177,73 +177,73 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "pdf_split",
         "nazwa": "Podziel PDF",
-        "opis": "Dzieli PDF na osobne pliki według zakresów stron, bez utraty jakości (strony kopiowane 1:1).",
+        "opis": "Dzieli PDF na osobne pliki według zakresów stron, bez utraty jakości.",
         "przyklad": "Wytnij z umowy strony 12–18."
       },
       {
         "id": "pdf_edit_pages",
         "nazwa": "Poukładaj strony PDF",
-        "opis": "Edytuje strony PDF: wybór i zmiana kolejności stron, usuwanie stron, obracanie.",
-        "przyklad": ""
+        "opis": "Porządkuje strony w PDF: zmienia ich kolejność, usuwa zbędne i obraca te położone bokiem.",
+        "przyklad": "Usuń z tego PDF-u puste strony i obróć te położone bokiem."
       },
       {
         "id": "convert_documents",
         "nazwa": "Przekonwertuj dokument",
-        "opis": "Konwertuje dokumenty pakietem LibreOffice (DOC/DOCX/ODT/RTF/XLS/XLSX/ODS/CSV/PPT/PPTX/ ODP/HTML/TXT ⇄ PDF, DOCX, ODT, XLSX itd.) oraz grafikę wektorową SVG do PDF/PNG (Inkscape).",
-        "przyklad": ""
+        "opis": "Zamienia dokument na inny format: na PDF, do edytora tekstu, do arkusza albo do prezentacji.",
+        "przyklad": "Zamień ten dokument Worda na PDF."
       },
       {
         "id": "extract_text",
         "nazwa": "Wyciągnij tekst",
-        "opis": "Odczytuje tekst z pliku: warstwę tekstową PDF (strona po stronie), dokumenty DOCX/XLSX/PPTX/ODT/RTF/HTML/TXT (Apache Tika).",
-        "przyklad": ""
+        "opis": "Wyciąga z pliku sam tekst, bez układu i grafiki.",
+        "przyklad": "Wyciągnij z tego PDF-u sam tekst."
       },
       {
         "id": "view_pages",
         "nazwa": "Pokaż strony",
-        "opis": "Pokazuje wybrane strony dokumentu (PDF, DOCX/XLSX/PPTX po konwersji) lub obraz jako podgląd, abyś mógł ocenić treść, układ, jakość albo granice dokumentów.",
-        "przyklad": ""
+        "opis": "Pokazuje wybrane strony dokumentu albo obraz, żeby dało się ocenić treść, układ i jakość.",
+        "przyklad": "Pokaż mi strony 3–5 tego dokumentu."
       },
       {
         "id": "write_document",
         "nazwa": "Napisz dokument",
-        "opis": "Tworzy plik z treści przygotowanej przez Ciebie: raport, podsumowanie, pismo, zestawienie.",
+        "opis": "Zapisuje przygotowaną treść jako gotowy plik: raport, podsumowanie, pismo, zestawienie.",
         "przyklad": "Napisz pismo do ubezpieczyciela w DOCX na podstawie tych dokumentów."
       },
       {
         "id": "translate_document",
         "nazwa": "Przetłumacz dokument",
-        "opis": "Tłumaczy dokument na inny język z zachowaniem układu i formatowania:",
+        "opis": "Tłumaczy dokument na inny język i zostawia układ na miejscu.",
         "przyklad": "Przetłumacz tę instrukcję na angielski, zachowaj układ."
       },
       {
         "id": "check_grammar",
         "nazwa": "Sprawdź tekst",
-        "opis": "Sprawdza pisownię, gramatykę, interpunkcję i styl (LanguageTool, domyślnie polski).",
+        "opis": "Sprawdza polską pisownię, gramatykę, interpunkcję i styl, zanim tekst pójdzie dalej.",
         "przyklad": "Sprawdź ten tekst przed wysłaniem."
       },
       {
         "id": "typeset_document",
         "nazwa": "Złóż dokument do druku",
-        "opis": "Składa dokument do druku programem Typst: raport, oferta handlowa, CV, broszura, plakat tekstowy albo umowa (paragrafy § i miejsce na podpisy stron).",
+        "opis": "Składa dokument do druku tak, żeby wyglądał zawodowo, a nie jak wydruk z edytora tekstu.",
         "przyklad": "Złóż z tego ofertę do druku, w jednym stylu i z naszym logo."
       },
       {
         "id": "convert_text_format",
         "nazwa": "Zmień format tekstu",
-        "opis": "Przekształca tekst między formatami wydawniczymi programem pandoc:",
-        "przyklad": ""
+        "opis": "Zamienia tekst w książkę do czytnika, plik dla wydawnictwa albo czysty zapis do dalszej pracy.",
+        "przyklad": "Zrób z tego tekstu e-booka do czytnika."
       },
       {
         "id": "analyze_document_structure",
         "nazwa": "Rozbierz dokument na części",
-        "opis": "Rozbiera dokument na strukturę programem Docling: nagłówki, akapity w kolejności czytania i tabele odtworzone jako dane.",
-        "przyklad": ""
+        "opis": "Rozbiera dokument na części i odtwarza z niego tabele jako dane, a nie jako obrazek.",
+        "przyklad": "Wyciągnij z tej umowy tabelę z terminami, nie sam tekst."
       },
       {
         "id": "read_document_aloud",
         "nazwa": "Przeczytaj dokument na głos",
-        "opis": "Czyta cały dokument na głos i zapisuje to jako plik dźwiękowy (głosy Piper, po polsku).",
+        "opis": "Czyta cały dokument na głos po polsku i zapisuje to jako plik dźwiękowy.",
         "przyklad": "Przeczytaj mi ten raport na głos, posłucham w samochodzie."
       }
     ]
@@ -251,61 +251,61 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "wiedza",
     "tytul": "Wiedza i wyszukiwanie",
-    "opis": "Własne dokumenty jako pamięć agenta oraz źródła z sieci i z publikacji naukowych.",
+    "opis": "Pytasz własnymi słowami, a odpowiedź przychodzi z Twoich dokumentów, ze stron i z publikacji naukowych — razem z adresem źródła.",
     "narzedzia": [
       {
         "id": "index_documents",
         "nazwa": "Dodaj do bazy wiedzy",
-        "opis": "Dodaje dokumenty do prywatnej bazy wiedzy (Qdrant), aby można je było później wyszukiwać po treści i znaczeniu.",
+        "opis": "Dodaje dokumenty do prywatnej bazy wiedzy, żeby dało się w nich szukać własnymi słowami.",
         "przyklad": "Dodaj te dokumenty do bazy wiedzy."
       },
       {
         "id": "search_documents",
         "nazwa": "Szukaj w swoich dokumentach",
-        "opis": "Wyszukuje semantycznie w prywatnej bazie wiedzy (wszystkie zaindeksowane dokumenty, także z innych rozmów).",
+        "opis": "Znajduje w Twoich dokumentach odpowiedź na pytanie zadane własnymi słowami.",
         "przyklad": "Gdzie w moich dokumentach jest mowa o karencji?"
       },
       {
         "id": "knowledge_save",
         "nazwa": "Zapisz źródło",
-        "opis": "Zapisuje źródło (stronę, pracę naukową albo tekst) w bazie wiedzy użytkownika – w kolekcji wskazanej id lub nazwą (nieistniejąca kolekcja o podanej nazwie zostanie utworzona).",
-        "przyklad": ""
+        "opis": "Odkłada stronę, pracę naukową albo własny tekst do bazy wiedzy, w wybranej kolekcji.",
+        "przyklad": "Zapisz tę stronę w kolekcji Dotacje."
       },
       {
         "id": "knowledge_read",
         "nazwa": "Czytaj bazę wiedzy",
-        "opis": "Czyta bazę wiedzy: z source_id – treść źródła (długie czytaj częściami: offset/next_offset), z note_id – notatkę, z collection – spis źródeł i notatek kolekcji, bez parametrów – listę kolekcji.",
-        "przyklad": ""
+        "opis": "Otwiera to, co leży w bazie wiedzy: zapisane źródło, notatkę, spis kolekcji albo jej zawartość.",
+        "przyklad": "Pokaż, co mam zebrane w kolekcji Dotacje."
       },
       {
         "id": "knowledge_notes",
         "nazwa": "Notatki w bazie wiedzy",
-        "opis": "Notatki w bazie wiedzy: action=add zapisuje notatkę (np. wnioski z badania, streszczenie źródła) w kolekcji, action=list zwraca notatki kolekcji (lub wszystkie), opcjonalnie filtrowane tekstem.",
-        "przyklad": ""
+        "opis": "Dopisuje własne wnioski do kolekcji w bazie wiedzy i oddaje je na żądanie.",
+        "przyklad": "Dopisz do tej kolekcji notatkę z wnioskami z dzisiejszego czytania."
       },
       {
         "id": "web_search",
         "nazwa": "Szukaj w sieci",
-        "opis": "Wyszukiwarka internetowa Nexusa (SearXNG albo DuckDuckGo): tytuły, adresy i fragmenty wyników.",
+        "opis": "Szuka w sieci i zwraca tytuły, adresy oraz fragmenty wyników.",
         "przyklad": "Znajdź aktualne stawki i podaj źródła."
       },
       {
         "id": "web_fetch_page",
         "nazwa": "Pobierz stronę",
-        "opis": "Pobiera stronę WWW (HTML, PDF lub tekst) i zwraca jej czysty tekst z tytułem i metadanymi (opis, witryna, autor, data publikacji, język, adres kanoniczny).",
-        "przyklad": ""
+        "opis": "Pobiera stronę i oddaje jej czysty tekst razem z tytułem, autorem i datą publikacji.",
+        "przyklad": "Przeczytaj tę stronę i powiedz, co z niej wynika."
       },
       {
         "id": "browser_open",
         "nazwa": "Otwórz stronę w przeglądarce",
-        "opis": "Otwiera stronę w przeglądarce i zostawia ją otwartą — kolejne wywołania browser_click, browser_type, browser_scroll i browser_back działają na tej samej karcie.",
+        "opis": "Otwiera stronę w przeglądarce i zostawia ją otwartą, żeby dało się na niej klikać i pisać.",
         "przyklad": "Wejdź na tę stronę i sprawdź, czy mają jeszcze wolne terminy."
       },
       {
         "id": "browser_click",
         "nazwa": "Kliknij na stronie",
         "opis": "Klika element na otwartej stronie (przycisk, odsyłacz, zakładkę) i zwraca nowy stan strony.",
-        "przyklad": ""
+        "przyklad": "Kliknij przycisk Dalej i pokaż, co się pojawiło."
       },
       {
         "id": "browser_type",
@@ -317,44 +317,44 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
         "id": "browser_scroll",
         "nazwa": "Przewiń stronę",
         "opis": "Przewija otwartą stronę i zwraca treść, która po przewinięciu weszła w pole widzenia.",
-        "przyklad": ""
+        "przyklad": "Przewiń niżej i sprawdź, czy jest tam cennik."
       },
       {
         "id": "browser_back",
         "nazwa": "Wróć na poprzednią stronę",
         "opis": "Wraca na poprzednią stronę w otwartej karcie.",
-        "przyklad": ""
+        "przyklad": "Wróć na poprzednią stronę."
       },
       {
         "id": "scholar_search",
         "nazwa": "Szukaj publikacji naukowych",
-        "opis": "Wyszukuje prace naukowe w OpenAlex, Semantic Scholar, arXiv i Crossref (równolegle), scala duplikaty i zwraca: tytuł, autorów, rok, czasopismo, DOI, abstrakt, liczbę cytowań, link do PDF w otwartym dostępie oraz gotowe cytowanie APA.",
+        "opis": "Przeszukuje cztery bazy publikacji naukowych naraz i scala powtórzone pozycje.",
         "przyklad": "Poszukaj publikacji o pompach ciepła w budynkach z lat 90."
       },
       {
         "id": "scholar_paper",
         "nazwa": "Szczegóły publikacji",
-        "opis": "Szczegóły pracy naukowej: pełny abstrakt, autorzy, czasopismo, cytowania (także wpływowe), liczba odwołań, TL;DR, dziedziny, słowa kluczowe, link do PDF w otwartym dostępie i cytowanie APA.",
-        "przyklad": ""
+        "opis": "Pokazuje wszystko, co wiadomo o jednej pracy naukowej, razem z gotowym przypisem.",
+        "przyklad": "Pokaż szczegóły tej pracy i gotowy przypis."
       }
     ]
   },
   {
     "id": "poczta",
     "tytul": "Poczta i kalendarz",
-    "opis": "Czytanie, szukanie i redagowanie wiadomości oraz prowadzenie terminarza.",
+    "opis": "Skrzynka i terminarz stoją w tym samym oknie co reszta pracy. Odpowiedź przygotowuje Nexus, wysyłasz ją Ty.",
     "narzedzia": [
       {
         "id": "mail_list",
         "nazwa": "Przejrzyj pocztę",
-        "opis": "Najnowsze wiadomości e-mail użytkownika z folderu (domyślnie Odebrane), lista folderów konta i lista wszystkich kont pocztowych użytkownika. account='wszystkie' przegląda Odebrane wszystkich kont naraz.",
-        "przyklad": ""
+        "opis": "Pokazuje najnowsze wiadomości z wybranego folderu, a także foldery i konta pocztowe.",
+        "przyklad": "Co przyszło dziś na skrzynkę?"
       },
       {
         "id": "mail_read",
         "nazwa": "Przeczytaj wiadomość",
-        "opis": "Czyta wiadomość e-mail (nagłówki, treść tekstowa, lista załączników); opcjonalnie pobiera załączniki do rozmowy.",
-        "przyklad": ""
+        "opis": "Otwiera wiadomość i pokazuje nadawcę, temat, treść oraz listę załączników.",
+        "przyklad": "Otwórz ostatnią wiadomość od biura i powiedz, czego dotyczy."
       },
       {
         "id": "mail_search",
@@ -365,45 +365,45 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "mail_draft",
         "nazwa": "Przygotuj szkic",
-        "opis": "Zapisuje szkic wiadomości e-mail w folderze Szkice skrzynki użytkownika (nie wysyła).",
+        "opis": "Zapisuje szkic odpowiedzi w folderze Szkice Twojej skrzynki.",
         "przyklad": "Przygotuj odpowiedź z terminem, który mi pasuje."
       },
       {
         "id": "mail_send",
         "nazwa": "Wyślij wiadomość",
-        "opis": "Przygotowuje wiadomość e-mail do wysłania.",
-        "przyklad": ""
+        "opis": "Przygotowuje wiadomość, którą wysyłasz sam jednym przyciskiem.",
+        "przyklad": "Wyślij tę odpowiedź do klienta."
       },
       {
         "id": "calendar_list",
         "nazwa": "Przejrzyj kalendarz",
-        "opis": "Wydarzenia z kalendarza użytkownika (Nextcloud) w zakresie dat, z listą kalendarzy.",
-        "przyklad": ""
+        "opis": "Pokazuje wydarzenia z wybranego zakresu dat razem z listą Twoich kalendarzy.",
+        "przyklad": "Co mam w kalendarzu w przyszłym tygodniu?"
       },
       {
         "id": "calendar_create",
         "nazwa": "Wpisz wydarzenie",
-        "opis": "Dodaje wydarzenie do kalendarza użytkownika (spotkanie, termin, przypomnienie).",
+        "opis": "Dodaje do kalendarza spotkanie, termin albo przypomnienie.",
         "przyklad": "Wpisz spotkanie z klientem we wtorek o 10."
       },
       {
         "id": "calendar_update",
         "nazwa": "Zmień wydarzenie",
         "opis": "Zmienia wydarzenie w kalendarzu (tytuł, czas, miejsce, opis, przypomnienie, powtarzanie).",
-        "przyklad": ""
+        "przyklad": "Przesuń spotkanie z czwartku na piątek na 14."
       },
       {
         "id": "calendar_delete",
         "nazwa": "Usuń wydarzenie",
-        "opis": "Prosi o usunięcie wydarzenia z kalendarza.",
-        "przyklad": ""
+        "opis": "Usuwa wydarzenie z kalendarza po Twoim zatwierdzeniu.",
+        "przyklad": "Usuń z kalendarza odwołane szkolenie."
       }
     ]
   },
   {
     "id": "dzwiek",
     "tytul": "Dźwięk i wideo",
-    "opis": "Transkrypcja nagrań, oczyszczanie mowy, rozdzielanie ścieżek, cięcie, montaż filmu ze zdjęć i animacja.",
+    "opis": "Nagranie wraca jako tekst z napisami i podziałem na mówców. Ze zdjęć i klipów powstaje gotowy film, a z opisu — animacja.",
     "narzedzia": [
       {
         "id": "video_compose",
@@ -420,49 +420,49 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "transcribe_audio",
         "nazwa": "Przepisz nagranie",
-        "opis": "Zamienia mowę z nagrania audio lub wideo na tekst (Whisper): transkrypcja ze znacznikami czasu, wykrycie języka, napisy SRT/VTT.",
+        "opis": "Zamienia mowę z nagrania audio albo wideo w tekst ze znacznikami czasu.",
         "przyklad": "Zamień to nagranie w notatkę ze spotkania."
       },
       {
         "id": "transcribe_speakers",
         "nazwa": "Spisz rozmowę z mówcami",
-        "opis": "Spisuje rozmowę z podziałem na mówców i z czasem każdego wypowiedzianego słowa (WhisperX).",
+        "opis": "Spisuje rozmowę z zaznaczeniem, kto co powiedział, i z czasem każdego słowa.",
         "przyklad": "Spisz tę rozmowę z zaznaczeniem, kto co powiedział."
       },
       {
         "id": "media_process",
         "nazwa": "Przetwórz audio i wideo",
-        "opis": "Przetwarza audio i wideo FFmpeg: konwersja formatu, wyodrębnienie ścieżki audio, wycięcie fragmentu, kompresja i zmiana rozdzielczości wideo, normalizacja głośności (EBU R128), klatka podglądu.",
+        "opis": "Tnie, konwertuje i odchudza nagrania dźwiękowe oraz filmy.",
         "przyklad": "Wytnij z nagrania fragment 00:30–02:00 i zapisz jako MP3."
       },
       {
         "id": "clean_audio",
         "nazwa": "Oczyść nagranie",
-        "opis": "Usuwa z nagrania mowy szum, wiatr, brum i pogłos (DeepFilterNet 3).",
-        "przyklad": "To nagranie jest zaszumione — wyczyść je przed spisaniem."
+        "opis": "Usuwa z nagrania mowy szum, wiatr, brum i pogłos.",
+        "przyklad": "W tym nagraniu słychać szum — wyczyść je przed spisaniem."
       },
       {
         "id": "split_audio_tracks",
         "nazwa": "Rozdziel ścieżki utworu",
-        "opis": "Rozdziela nagranie muzyczne na osobne ścieżki (Demucs): wokal, perkusja, bas i reszta — albo sam wokal i podkład.",
+        "opis": "Rozdziela nagranie muzyczne na osobne ścieżki: wokal, perkusja, bas i reszta albo sam wokal i podkład.",
         "przyklad": "Wyciągnij z tego utworu sam wokal."
       },
       {
         "id": "edit_subtitles",
         "nazwa": "Popraw napisy",
-        "opis": "Poprawia gotowy plik napisów SRT: przesuwa czasy o stałą wartość, rozciąga je liniowo, gdy napisy rozjeżdżają się do końca filmu, łączy dwie wersje językowe w jeden plik, usuwa powtórzone kwestie i naprawia uszkodzony zapis.",
-        "przyklad": ""
+        "opis": "Naprawia gotowy plik napisów SRT, gdy rozjeżdżają się z obrazem albo mają uszkodzony zapis.",
+        "przyklad": "Te napisy spóźniają się o dwie sekundy — popraw czasy."
       },
       {
         "id": "video_to_gif",
         "nazwa": "Zrób GIF z filmu",
-        "opis": "Składa GIF z fragmentu filmu w jakości, jakiej nie daje zwykła konwersja: klatki idą z FFmpeg, a barwy dobiera gifski osobno dla każdej klatki.",
+        "opis": "Składa GIF z fragmentu filmu w jakości, jakiej nie daje zwykła konwersja.",
         "przyklad": "Zrób GIF-a z fragmentu 00:10–00:15 tego filmu."
       },
       {
         "id": "animate_explainer",
         "nazwa": "Zrób animację wyjaśniającą",
-        "opis": "Renderuje animację wyjaśniającą z opisanej sceny (silnik Manim): rysujący się wykres, przekształcający się wzór, schemat wchodzący element po elemencie, oś czasu, porównanie.",
+        "opis": "Robi krótką animację, która tłumaczy rzecz trudną do opisania słowami.",
         "przyklad": "Wytłumacz mi na animacji, jak działa procent składany."
       }
     ]
@@ -470,12 +470,12 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "strony",
     "tytul": "Strony internetowe",
-    "opis": "Tworzenie i publikowanie stron z poziomu rozmowy, z wersjami i wycofaniem.",
+    "opis": "Opisujesz stronę, oglądasz szkic i sam zatwierdzasz publikację. Każdą wersję da się zapisać i cofnąć.",
     "narzedzia": [
       {
         "id": "site_kit_catalog",
         "nazwa": "Przejrzyj wzory witryn",
-        "opis": "Co zestaw Danaco Web Kit ma do zaoferowania przy budowie witryny: presety branżowe (gotowa struktura i treści), motywy, kroje nagłówkowe, gotowe sekcje z nazwami i opisami, szablony aplikacji oraz kolekcja szablonów otwartych.",
+        "opis": "Pokazuje, z czego można zbudować witrynę, zanim powstanie pierwsza strona.",
         "przyklad": "Pokaż, jakie masz wzory stron dla restauracji."
       },
       {
@@ -487,7 +487,7 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "site_from_template",
         "nazwa": "Witryna z gotowego szablonu",
-        "opis": "Wstawia do szkicu strony użytkownika gotową, już zbudowaną witrynę z kolekcji szablonów otwartych (81 pozycji z gotową witryną: blogi, portfolio, dokumentacja, panele, landingi, sklepy, strony wydarzeń).",
+        "opis": "Wstawia do Twojego szkicu gotową, już zbudowaną witrynę z kolekcji szablonów otwartych.",
         "przyklad": "Weź ten gotowy szablon bloga i zrób z niego moją stronę."
       },
       {
@@ -499,93 +499,93 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "site_fonts_local",
         "nazwa": "Kroje strony z serwera",
-        "opis": "Przenosi kroje strony z serwerów Google na serwer Danaco: wycina z lokalnego repozytorium podzbiór z polskimi znakami, wkłada pliki .woff2 do szkicu strony, dopisuje arkusz `kroje/kroje.css` i podmienia odsyłacze do fonts.googleapis.com na własny arkusz (usuwając przy okazji `preconnect` do Google).",
+        "opis": "Przenosi kroje pisma Twojej strony z serwerów Google na serwer Danaco.",
         "przyklad": "Przenieś kroje mojej strony z Google na nasz serwer."
       },
       {
         "id": "site_vendor_assets",
         "nazwa": "Zasoby strony z naszego serwera",
-        "opis": "Ściąga do strony użytkownika pliki, które wczytuje ona z cudzych serwerów (skrypty i arkusze z CDN-ów, zdjęcia ze stocków), i podmienia odwołania na własne.",
+        "opis": "Ściąga na nasz serwer wszystko, co Twoja strona bierze z cudzych serwerów.",
         "przyklad": "Ściągnij na nasz serwer wszystko, co strona bierze z obcych serwerów."
       },
       {
         "id": "site_list",
         "nazwa": "Twoje strony",
-        "opis": "Lista stron WWW użytkownika albo – z podanym adresem – lista plików szkicu strony (ścieżki, rozmiary, stan publikacji i wersje).",
-        "przyklad": ""
+        "opis": "Pokazuje Twoje strony, a dla wskazanego adresu — pliki jej szkicu.",
+        "przyklad": "Pokaż moje strony i stan ich publikacji."
       },
       {
         "id": "site_read_file",
         "nazwa": "Odczytaj plik strony",
         "opis": "Odczytuje plik tekstowy szkicu strony (HTML, CSS, JS, JSON, SVG…) przed jego zmianą.",
-        "przyklad": ""
+        "przyklad": "Pokaż, co jest teraz na stronie kontaktowej."
       },
       {
         "id": "site_write_file",
         "nazwa": "Zapisz plik strony",
-        "opis": "Zapisuje (tworzy albo zastępuje w całości) plik tekstowy szkicu strony:",
-        "przyklad": ""
+        "opis": "Zapisuje plik szkicu strony — tworzy nowy albo zastępuje istniejący w całości.",
+        "przyklad": "Zmień tekst na stronie głównej na ten nowy."
       },
       {
         "id": "site_import_file",
         "nazwa": "Dodaj plik do strony",
-        "opis": "Kopiuje plik z rozmowy (obraz, logo, czcionkę, wideo, PDF) do szkicu strony pod podaną ścieżką, aby można go było użyć w HTML/CSS (np. <img src=\"img/logo.png\">).",
-        "przyklad": ""
+        "opis": "Wkłada do strony plik z rozmowy: zdjęcie, logo, krój pisma, film albo PDF.",
+        "przyklad": "Wstaw moje logo na stronę."
       },
       {
         "id": "site_delete_file",
         "nazwa": "Usuń plik strony",
         "opis": "Usuwa plik ze szkicu strony.",
-        "przyklad": ""
+        "przyklad": "Usuń ze strony niepotrzebną podstronę z cennikiem."
       },
       {
         "id": "site_save_version",
         "nazwa": "Zapisz wersję strony",
         "opis": "Zapisuje bieżący szkic strony jako wersję (użytkownik może do niej wrócić w module Strony).",
-        "przyklad": ""
+        "przyklad": "Zapisz obecną wersję strony, zanim zacznę zmieniać układ."
       },
       {
         "id": "site_publish",
         "nazwa": "Opublikuj stronę",
-        "opis": "Zgłasza prośbę o publikację strony pod publicznym adresem /s/<adres>/.",
+        "opis": "Wystawia stronę pod publicznym adresem /s/<adres>/ po Twoim zatwierdzeniu.",
         "przyklad": "Opublikuj tę stronę pod moim adresem."
       },
       {
         "id": "site_unpublish",
         "nazwa": "Wycofaj publikację",
         "opis": "Wycofuje publikację strony – adres publiczny przestaje działać (szkic i wersje zostają).",
-        "przyklad": ""
+        "przyklad": "Zdejmij tę stronę z sieci."
       },
       {
         "id": "web_audit",
         "nazwa": "Zbadaj stronę WWW",
-        "opis": "Bada gotową stronę WWW: dostępność według WCAG 2.1 AA (pa11y: brak opisów obrazów, za słaby kontrast, pola bez etykiet) oraz szybkość, dobre praktyki i SEO (Lighthouse, oceny 0–100).",
+        "opis": "Sprawdza gotową stronę pod kątem dostępności, szybkości i widoczności w wyszukiwarkach.",
         "przyklad": "Sprawdź, czy moja strona nie ma błędów dostępności."
       },
       {
         "id": "web_screenshot",
         "nazwa": "Zrób zrzut strony",
-        "opis": "Robi zrzut strony WWW w przeglądarce (Playwright) i pokazuje go w rozmowie — szkicu z modułu Strony albo publicznego adresu, w szerokości telefonu, tabletu lub komputera, w trybie jasnym lub ciemnym.",
-        "przyklad": ""
+        "opis": "Robi zrzut strony i pokazuje go w rozmowie, zamiast zgadywać, jak strona wygląda.",
+        "przyklad": "Pokaż, jak moja strona wygląda na telefonie."
       },
       {
         "id": "site_optimize_assets",
         "nazwa": "Odchudź pliki strony",
-        "opis": "Odchudza pliki graficzne w szkicu strony bez zmiany wyglądu:",
-        "przyklad": ""
+        "opis": "Odchudza pliki graficzne strony, nie zmieniając jej wyglądu.",
+        "przyklad": "Strona wolno się ładuje — odchudź zdjęcia."
       }
     ]
   },
   {
     "id": "pliki",
     "tytul": "Pliki i chmura",
-    "opis": "Porządek w plikach: przegląd, archiwa i prywatna chmura zamiast cudzego dysku.",
+    "opis": "Pliki zadania idą do archiwum albo do Twojej chmury osobistej, nie na cudzy dysk. Widzisz je potem także na telefonie.",
     "narzedzia": [
       {
         "id": "inspect_files",
         "nazwa": "Sprawdź pliki",
-        "opis": "Sprawdza pliki: typ, rozmiar, liczbę stron, obecność warstwy tekstowej PDF, wymiary i metryki jakości obrazów (jasność, kontrast, ostrość, szum, zafarb, pochylenie tekstu), parametry audio/wideo i zawartość archiwów ZIP.",
-        "przyklad": ""
+        "opis": "Mówi, co jest w pliku i w jakim jest stanie, zanim zacznie się obróbka.",
+        "przyklad": "Sprawdź, czy w tym PDF-ie jest tekst, czy sam skan."
       },
       {
         "id": "create_archive",
@@ -596,25 +596,25 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "extract_archive",
         "nazwa": "Rozpakuj archiwum",
-        "opis": "Rozpakowuje archiwum ZIP; każdy plik staje się osobnym plikiem rozmowy, który możesz dalej przetwarzać (np. OCR wsadowy dokumentów z archiwum).",
-        "przyklad": ""
+        "opis": "Rozpakowuje archiwum ZIP i wkłada każdy plik osobno do rozmowy.",
+        "przyklad": "Rozpakuj to archiwum i rozpoznaj tekst we wszystkich skanach."
       },
       {
         "id": "cloud_browse",
         "nazwa": "Przejrzyj chmurę",
-        "opis": "Wyświetla zawartość katalogu w chmurze osobistej użytkownika (Nextcloud): podkatalogi i pliki z rozmiarem i datą zmiany.",
-        "przyklad": ""
+        "opis": "Pokazuje, co leży w katalogu Twojej chmury osobistej: podkatalogi i pliki z rozmiarem i datą.",
+        "przyklad": "Co mam w chmurze w katalogu Umowy?"
       },
       {
         "id": "cloud_import",
         "nazwa": "Pobierz z chmury",
-        "opis": "Pobiera pliki z chmury osobistej do rozmowy (każdy plik dostaje file_id do dalszej obróbki).",
-        "przyklad": ""
+        "opis": "Wciąga pliki z chmury osobistej do rozmowy, żeby dało się je od razu obrobić.",
+        "przyklad": "Weź z mojej chmury faktury z marca."
       },
       {
         "id": "cloud_save",
         "nazwa": "Zapisz w chmurze",
-        "opis": "Zapisuje pliki rozmowy (np. wyniki OCR, poprawione zdjęcia) w chmurze osobistej użytkownika, we wskazanym katalogu.",
+        "opis": "Odkłada pliki z rozmowy w Twojej chmurze osobistej, we wskazanym katalogu.",
         "przyklad": "Zapisz wynik w mojej chmurze, w katalogu Faktury."
       }
     ]
@@ -622,24 +622,24 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "aplikacje",
     "tytul": "Aplikacje i kod",
-    "opis": "Gotowe aplikacje webowe z serwera — panel, landing, sklep — przebrane w Twoją markę, plus kontrola jakości kodu projektu.",
+    "opis": "Panel, strona sprzedażowa albo sklep powstaje z gotowej aplikacji przebranej w Twoją markę. Obok stoi kontrola jakości kodu projektu.",
     "narzedzia": [
       {
         "id": "app_templates",
         "nazwa": "Gotowe aplikacje serwera",
-        "opis": "Wykaz gotowych aplikacji webowych leżących na serwerze — 35 pozycji: panele administracyjne, dashboardy, landingi i strony produktowe na React, Vue, Next, Nuxt, Astro, Bootstrap i Tailwindzie.",
+        "opis": "Pokazuje 35 gotowych aplikacji webowych leżących na serwerze.",
         "przyklad": "Jakie gotowe aplikacje masz na serwerze?"
       },
       {
         "id": "app_from_template",
         "nazwa": "Załóż aplikację z szablonu",
-        "opis": "Zakłada nowy projekt w module Kod z gotowego szablonu aplikacji (spis: app_templates).",
+        "opis": "Zakłada nowy projekt z gotowego szablonu aplikacji i otwiera go w module Kod.",
         "przyklad": "Załóż mi panel zamówień z gotowego szablonu i przebierz go w moją markę."
       },
       {
         "id": "code_check",
         "nazwa": "Sprawdź jakość kodu",
-        "opis": "Kontroluje jakość kodu: podatności i pułapki (semgrep), klucze i hasła wpisane wprost w kod (gitleaks), znane podatności bibliotek projektu (osv-scanner), skopiowane fragmenty (jscpd), błędy Pythona (ruff), błędy skryptów powłoki (shellcheck), literówki (typos).",
+        "opis": "Przegląda projekt i wypisuje błędy, podatności oraz hasła zostawione wprost w kodzie.",
         "przyklad": "Przejrzyj ten projekt pod kątem błędów i podatności."
       }
     ]
@@ -647,25 +647,25 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "komputer",
     "tytul": "Twój komputer",
-    "opis": "Nexus sięga do komputera, gdy zgodzisz się na połączenie: znajduje pliki, robi zrzut, wykonuje polecenie.",
+    "opis": "Nexus znajdzie plik na dysku, sprawdzi stan sprzętu, zrobi zrzut okna i wykona polecenie. Połączenie z komputerem jest domyślnie wyłączone — włączasz je sam.",
     "narzedzia": [
       {
         "id": "pc_info",
         "nazwa": "Stan komputera",
-        "opis": "Stan komputera użytkownika z Nexus Desktop (Windows): system, procesor, pamięć RAM (zajęta/wolna), dyski (wolne miejsce), czas pracy i procesy zużywające najwięcej pamięci.",
-        "przyklad": ""
+        "opis": "Mówi, w jakim stanie jest Twój komputer: pamięć, dyski, czas pracy i najcięższe programy.",
+        "przyklad": "Komputer zwalnia — sprawdź, co go obciąża."
       },
       {
         "id": "pc_find_files",
         "nazwa": "Znajdź plik na komputerze",
-        "opis": "Wyszukuje pliki na komputerze użytkownika (Nexus Desktop) po nazwie i/lub treści w katalogach użytkownika (Pulpit, Dokumenty, Pobrane, OneDrive…) albo wskazanych katalogach.",
+        "opis": "Znajduje na Twoim komputerze plik po nazwie albo po treści.",
         "przyklad": "Znajdź na moim komputerze umowę najmu z zeszłego roku."
       },
       {
         "id": "pc_read_file",
         "nazwa": "Podejrzyj plik na komputerze",
-        "opis": "Podgląd pliku lub katalogu na komputerze użytkownika (Nexus Desktop): tekst pliku, obraz jako podgląd, zawartość katalogu, metadane.",
-        "przyklad": ""
+        "opis": "Pokazuje plik albo katalog z Twojego komputera, bez przenoszenia go na serwer.",
+        "przyklad": "Pokaż, co jest w tym pliku na moim pulpicie."
       },
       {
         "id": "pc_screenshot",
@@ -676,8 +676,8 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       {
         "id": "pc_powershell",
         "nazwa": "Wykonaj polecenie",
-        "opis": "Wykonuje polecenie Windows PowerShell na komputerze użytkownika (Nexus Desktop): diagnoza i naprawy (miejsce na dysku, pamięć, usługi, sieć, dziennik zdarzeń, pliki tymczasowe).",
-        "przyklad": ""
+        "opis": "Wykonuje na Twoim komputerze polecenie, które diagnozuje albo naprawia usterkę.",
+        "przyklad": "Zrób miejsce na dysku C — wyczyść pliki tymczasowe."
       }
     ]
   }

@@ -51,8 +51,9 @@ class ConvertInput(ToolInput):
 
 @registry.register(
     "convert_documents",
-    """Konwertuje dokumenty pakietem LibreOffice (DOC/DOCX/ODT/RTF/XLS/XLSX/ODS/CSV/PPT/PPTX/
-ODP/HTML/TXT ⇄ PDF, DOCX, ODT, XLSX itd.) oraz grafikę wektorową SVG do PDF/PNG (Inkscape).""",
+    """Zamienia dokument na inny format: na PDF, do edytora tekstu, do arkusza albo do prezentacji.
+Obsługuje DOC/DOCX/ODT/RTF/XLS/XLSX/ODS/CSV/PPT/PPTX/ODP/HTML/TXT ⇄ PDF, DOCX, ODT, XLSX itd.
+(LibreOffice) oraz grafikę wektorową SVG do PDF i PNG (Inkscape).""",
     ConvertInput,
 )
 def convert_documents(ctx: ToolContext, args: ConvertInput) -> ToolResult:
@@ -134,8 +135,8 @@ def markdown_to_docx(content: str) -> DocxDocument:
 
 @registry.register(
     "write_document",
-    """Tworzy plik z treści przygotowanej przez Ciebie: raport, podsumowanie, pismo,
-zestawienie. DOCX/PDF z formatowaniem Markdown, MD, TXT, a tabele jako XLSX/CSV.""",
+    """Zapisuje przygotowaną treść jako gotowy plik: raport, podsumowanie, pismo, zestawienie.
+DOCX/PDF z formatowaniem Markdown, MD, TXT, a tabele jako XLSX/CSV.""",
     WriteDocumentInput,
 )
 def write_document(ctx: ToolContext, args: WriteDocumentInput) -> ToolResult:
@@ -189,8 +190,8 @@ def _check_chunk(ctx: ToolContext, text: str, language: str) -> list[dict[str, A
 
 @registry.register(
     "check_grammar",
-    """Sprawdza pisownię, gramatykę, interpunkcję i styl (LanguageTool, domyślnie polski).
-Zwraca listę uwag z propozycjami poprawek i opcjonalnie poprawiony tekst.""",
+    """Sprawdza polską pisownię, gramatykę, interpunkcję i styl, zanim tekst pójdzie dalej.
+Zwraca listę uwag z propozycjami poprawek i opcjonalnie poprawiony tekst (LanguageTool).""",
     GrammarInput,
 )
 def check_grammar(ctx: ToolContext, args: GrammarInput) -> ToolResult:

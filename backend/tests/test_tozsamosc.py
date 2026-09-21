@@ -81,3 +81,52 @@ def test_strona_produktu_nie_wymienia_silnika_w_metadanych() -> None:
         tresc = (REPO / sciezka).read_text(encoding="utf-8").lower()
         for nazwa in NAZWY:
             assert nazwa not in tresc, f"{sciezka} wymienia „{nazwa}”"
+
+
+#: Silniki, na których stoją narzędzia agenta. Nazwy techniczne wolno mieć w kodzie
+#: i w opisie czytanym przez model — nie wolno ich pokazywać klientowi w katalogu
+#: na stronie. Wykaz obejmuje to, co realnie stało w opisach przed redakcją z 21.09.2026.
+SILNIKI_NARZEDZI = (
+    "tesseract",
+    "whisper",
+    "rembg",
+    "qdrant",
+    "manim",
+    "pa11y",
+    "libreoffice",
+    "insightface",
+    "iconify",
+    "real-esrgan",
+    "ffmpeg",
+    "lighthouse",
+    "languagetool",
+    "playwright",
+    "pyannote",
+    "tika",
+)
+
+
+def test_katalog_narzedzi_na_stronie_nie_wymienia_silnikow() -> None:
+    """Klient czyta, co narzędzie robi — nie, na czym stoi.
+
+    Opis z rejestru ma dwóch czytelników: model, który po nim dobiera narzędzie, i klienta,
+    któremu katalog na stronie pokazuje jego pierwsze zdanie. Nazwa silnika jest dla modelu
+    bez znaczenia, a klientowi mówi o produkcie coś, czego produkt o sobie nie mówi nigdzie
+    indziej. Do 21.09.2026 przeciekały tak trzydzieści dwie nazwy — stąd ta bramka.
+    """
+    katalog = (REPO / "frontend" / "src" / "dane" / "narzedzia.ts").read_text(encoding="utf-8").lower()
+    przeciekly = [nazwa for nazwa in SILNIKI_NARZEDZI if nazwa in katalog]
+    assert przeciekly == [], (
+        f"katalog narzędzi wymienia silniki: {przeciekly} — "
+        "szczegół techniczny przenieś do dalszych zdań opisu w backend/nexus/tools"
+    )
+
+
+def test_katalog_narzedzi_ma_przyklad_przy_kazdej_pozycji() -> None:
+    """Pusty przykład zostawia w katalogu samą nazwę i opis — bez pokazania, jak o to poprosić."""
+    katalog = (REPO / "frontend" / "src" / "dane" / "narzedzia.ts").read_text(encoding="utf-8")
+    wzorzec = (
+        r'"id": "([a-z0-9_]+)",\n\s*"nazwa": "[^"]*",\n\s*"opis": "[^"]*",\n\s*"przyklad": ""'
+    )
+    puste = re.findall(wzorzec, katalog)
+    assert puste == [], f"narzędzia bez przykładu polecenia: {puste}"

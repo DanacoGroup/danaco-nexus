@@ -205,9 +205,9 @@ class CloudSaveInput(ToolInput):
 
 @registry.register(
     "cloud_browse",
-    """Wyświetla zawartość katalogu w chmurze osobistej użytkownika (Nextcloud): podkatalogi
-i pliki z rozmiarem i datą zmiany. Użyj, gdy użytkownik odwołuje się do plików „w chmurze”
-albo gdy trzeba wybrać katalog do zapisu wyników.""",
+    """Pokazuje, co leży w katalogu Twojej chmury osobistej: podkatalogi i pliki z rozmiarem i datą.
+Użyj, gdy użytkownik odwołuje się do plików „w chmurze” albo gdy trzeba wybrać katalog do zapisu
+wyników.""",
     CloudBrowseInput,
 )
 def cloud_browse(ctx: ToolContext, args: CloudBrowseInput) -> ToolResult:
@@ -227,8 +227,9 @@ def cloud_browse(ctx: ToolContext, args: CloudBrowseInput) -> ToolResult:
 
 @registry.register(
     "cloud_import",
-    """Pobiera pliki z chmury osobistej do rozmowy (każdy plik dostaje file_id do dalszej
-obróbki). Wskazanie katalogu pobiera wszystkie pliki z tego katalogu (bez podkatalogów).""",
+    """Wciąga pliki z chmury osobistej do rozmowy, żeby dało się je od razu obrobić.
+Każdy plik dostaje file_id do dalszej obróbki. Wskazanie katalogu pobiera wszystkie pliki z tego
+katalogu (bez podkatalogów).""",
     CloudImportInput,
 )
 def cloud_import(ctx: ToolContext, args: CloudImportInput) -> ToolResult:
@@ -270,9 +271,9 @@ def cloud_import(ctx: ToolContext, args: CloudImportInput) -> ToolResult:
 
 @registry.register(
     "cloud_save",
-    """Zapisuje pliki rozmowy (np. wyniki OCR, poprawione zdjęcia) w chmurze osobistej
-użytkownika, we wskazanym katalogu. Pliki od razu są widoczne w Nextcloud i synchronizują
-się na urządzenia użytkownika.""",
+    """Odkłada pliki z rozmowy w Twojej chmurze osobistej, we wskazanym katalogu.
+Dotyczy wyników OCR, poprawionych zdjęć i każdego innego pliku zadania. Pliki od razu są widoczne
+w chmurze i synchronizują się na urządzenia użytkownika.""",
     CloudSaveInput,
 )
 def cloud_save(ctx: ToolContext, args: CloudSaveInput) -> ToolResult:

@@ -38,9 +38,9 @@ class MediaInput(ToolInput):
 
 @registry.register(
     "media_process",
-    """Przetwarza audio i wideo FFmpeg: konwersja formatu, wyodrębnienie ścieżki audio,
-wycięcie fragmentu, kompresja i zmiana rozdzielczości wideo, normalizacja głośności
-(EBU R128), klatka podglądu.""",
+    """Tnie, konwertuje i odchudza nagrania dźwiękowe oraz filmy.
+Zmienia format, wyciąga ścieżkę dźwiękową, wycina fragment, kompresuje i skaluje wideo,
+wyrównuje głośność (EBU R128) i zapisuje klatkę podglądu (FFmpeg).""",
     MediaInput,
 )
 def media_process(ctx: ToolContext, args: MediaInput) -> ToolResult:

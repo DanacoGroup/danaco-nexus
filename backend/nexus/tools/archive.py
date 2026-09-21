@@ -50,8 +50,8 @@ def create_archive(ctx: ToolContext, args: CreateArchiveInput) -> ToolResult:
 
 @registry.register(
     "extract_archive",
-    """Rozpakowuje archiwum ZIP; każdy plik staje się osobnym plikiem rozmowy, który
-możesz dalej przetwarzać (np. OCR wsadowy dokumentów z archiwum).""",
+    """Rozpakowuje archiwum ZIP i wkłada każdy plik osobno do rozmowy.
+Rozpakowane pliki możesz od razu przetwarzać dalej (np. OCR wsadowy dokumentów z archiwum).""",
     ExtractArchiveInput,
 )
 def extract_archive(ctx: ToolContext, args: ExtractArchiveInput) -> ToolResult:

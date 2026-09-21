@@ -102,8 +102,8 @@ def _pdf_name(name: str) -> str:
 
 @registry.register(
     "pdf_split",
-    """Dzieli PDF na osobne pliki według zakresów stron, bez utraty jakości (strony
-kopiowane 1:1). Nadaj plikom opisowe nazwy (rodzaj dokumentu, numer, data).""",
+    """Dzieli PDF na osobne pliki według zakresów stron, bez utraty jakości.
+Strony kopiowane są 1:1. Nadaj plikom opisowe nazwy (rodzaj dokumentu, numer, data).""",
     SplitInput,
 )
 def pdf_split(ctx: ToolContext, args: SplitInput) -> ToolResult:
@@ -160,7 +160,7 @@ def pdf_merge(ctx: ToolContext, args: MergeInput) -> ToolResult:
 
 @registry.register(
     "pdf_edit_pages",
-    """Edytuje strony PDF: wybór i zmiana kolejności stron, usuwanie stron, obracanie.""",
+    """Porządkuje strony w PDF: zmienia ich kolejność, usuwa zbędne i obraca te położone bokiem.""",
     EditPagesInput,
 )
 def pdf_edit_pages(ctx: ToolContext, args: EditPagesInput) -> ToolResult:
@@ -226,10 +226,10 @@ def _words(text: str) -> set[str]:
 
 @registry.register(
     "detect_document_boundaries",
-    """Analizuje wielodokumentowy PDF (np. skan wielu pism naraz) strona po stronie:
-nagłówki i stopki (z OCR, jeśli brak tekstu), numeracja „strona X z Y”, puste strony
-(separatory), tytuły dokumentów i podobieństwo nagłówków. Zwraca propozycję podziału –
-zweryfikuj niepewne miejsca przez view_pages, potem użyj pdf_split.""",
+    """Znajduje w jednym PDF granice między dokumentami, gdy w stosie skanów leży kilka pism naraz.
+Strona po stronie sprawdza nagłówki i stopki (w razie potrzeby z OCR), numerację „strona X z Y”,
+puste strony rozdzielające, tytuły dokumentów i podobieństwo nagłówków. Zwraca propozycję
+podziału z uzasadnieniem — sam podział wykonuje pdf_split.""",
     BoundariesInput,
 )
 def detect_document_boundaries(ctx: ToolContext, args: BoundariesInput) -> ToolResult:

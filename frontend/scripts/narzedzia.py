@@ -95,7 +95,7 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "aplikacje",
         "Aplikacje i kod",
-        "Panel, landing albo sklep powstaje z gotowej aplikacji przebranej w Twoją markę. "
+        "Panel, strona sprzedażowa albo sklep powstaje z gotowej aplikacji przebranej w Twoją markę. "
         "Obok stoi kontrola jakości kodu projektu.",
         ("app_templates", "app_from_template", "code_check"),
     ),
@@ -117,7 +117,7 @@ PRZYKLADY: dict[str, str] = {
     "retouch_portrait": "Przygotuj z tego zdjęcia portret do CV.",
     "upscale_image": "Powiększ ten skan czterokrotnie, ma iść do druku.",
     "remove_background": "Wytnij produkt z tła i zapisz z przezroczystością.",
-    "change_background": "Zamień tło na jednolite szare, jak w studiu.",
+    "change_background": "Zamień tło na jednolite szare jak w studiu.",
     "erase_objects": "Usuń przechodnia z lewej strony kadru.",
     "ocr_documents": "Rozpoznaj tekst z tych skanów i zrób przeszukiwalny PDF.",
     "detect_document_boundaries": "Ten PDF to kilka dokumentów — podziel go i nazwij według treści.",
@@ -139,7 +139,7 @@ PRZYKLADY: dict[str, str] = {
     "typeset_document": "Złóż z tego ofertę do druku, w jednym stylu i z naszym logo.",
     "transcribe_speakers": "Spisz tę rozmowę z zaznaczeniem, kto co powiedział.",
     "read_document_aloud": "Przeczytaj mi ten raport na głos, posłucham w samochodzie.",
-    "restore_faces": "Twarze na tym starym zdjęciu są rozmyte — odtwórz je.",
+    "restore_faces": "Twarze na tym starym zdjęciu rozmyły się — odtwórz je.",
     "inpaint_photo": "Usuń ten samochód z lewej strony zdjęcia.",
     "blur_background_by_depth": "Rozmyj tło tak, żeby wyglądało jak z lustrzanki.",
     "icon_find": "Wstaw tu ikonę koperty w tym samym stylu co reszta.",
@@ -151,7 +151,7 @@ PRZYKLADY: dict[str, str] = {
     "site_vendor_assets": "Ściągnij na nasz serwer wszystko, co strona bierze z obcych serwerów.",
     "app_templates": "Jakie gotowe aplikacje masz na serwerze?",
     "app_from_template": "Załóż mi panel zamówień z gotowego szablonu i przebierz go w moją markę.",
-    "clean_audio": "To nagranie jest zaszumione — wyczyść je przed spisaniem.",
+    "clean_audio": "W tym nagraniu słychać szum — wyczyść je przed spisaniem.",
     "split_audio_tracks": "Wyciągnij z tego utworu sam wokal.",
     "transcribe_audio": "Zamień to nagranie w notatkę ze spotkania.",
     "media_process": "Wytnij z nagrania fragment 00:30–02:00 i zapisz jako MP3.",

@@ -86,8 +86,8 @@ class KoloryzacjaInput(ToolInput):
 
 @registry.register(
     "colorize_photo",
-    """Koloryzuje zdjęcie czarno-białe albo sepiowe (model DDColor). Barwy są nadawane od nowa
-na podstawie treści zdjęcia — do zdjęć rodzinnych, archiwalnych i skanów starych odbitek.
+    """Nadaje barwy zdjęciu czarno-białemu albo sepiowemu. Barwy powstają od nowa
+na podstawie treści zdjęcia (model DDColor) — do zdjęć rodzinnych, archiwalnych i skanów starych odbitek.
 Zdjęcie kolorowe zostaje najpierw sprowadzone do jasności, więc narzędzie nadaje się też do
 przebarwienia materiału o zepsutych kolorach. Do zwykłej korekty barw służy enhance_photo.""",
     KoloryzacjaInput,
@@ -141,10 +141,10 @@ class OdszumInput(ToolInput):
 
 @registry.register(
     "clean_audio",
-    """Usuwa z nagrania mowy szum, wiatr, brum i pogłos (DeepFilterNet 3). Stosuj przed
+    """Usuwa z nagrania mowy szum, wiatr, brum i pogłos. Stosuj przed
 transkrypcją słabego nagrania oraz wtedy, gdy nagranie ma pójść do publikacji — rozmowa
 ze spotkania, wywiad, dyktafon, ścieżka dźwiękowa filmu. Przyjmuje też pliki wideo:
-wynikiem jest wtedy sam oczyszczony dźwięk.""",
+wynikiem jest wtedy sam oczyszczony dźwięk. Silnik: DeepFilterNet 3.""",
     OdszumInput,
 )
 def clean_audio(ctx: ToolContext, args: OdszumInput) -> ToolResult:
@@ -179,8 +179,9 @@ class OzywienieInput(ToolInput):
 
 @registry.register(
     "animate_photo",
-    """Zamienia zdjęcie w krótki film z efektem paralaksy 2.5D: mapa głębi rozdziela plany,
-kamera przesuwa się nad kadrem, a odsłonięte miejsca są dopełniane. Do ożywienia zdjęcia
+    """Zamienia zdjęcie w krótki film, w którym kamera przesuwa się nad kadrem.
+Mapa głębi rozdziela plany, więc pierwszy plan idzie szybciej niż tło (efekt paralaksy 2.5D),
+a odsłonięte miejsca Nexus dopełnia. Do ożywienia zdjęcia
 archiwalnego, wstawki do filmu, posta w mediach społecznościowych albo prezentacji.
 Wynik to plik MP4 bez dźwięku.""",
     OzywienieInput,
@@ -221,9 +222,9 @@ class RozdzielenieInput(ToolInput):
 
 @registry.register(
     "split_audio_tracks",
-    """Rozdziela nagranie muzyczne na osobne ścieżki (Demucs): wokal, perkusja, bas i reszta —
-albo sam wokal i podkład. Do karaoke, podkładu pod film, wyciągnięcia głosu z nagrania
-z muzyką w tle i do pracy nad materiałem dźwiękowym.""",
+    """Rozdziela nagranie muzyczne na osobne ścieżki: wokal, perkusja, bas i reszta albo sam wokal
+i podkład. Do karaoke, podkładu pod film, wyciągnięcia głosu z nagrania
+z muzyką w tle i do pracy nad materiałem dźwiękowym. Silnik: Demucs.""",
     RozdzielenieInput,
 )
 def split_audio_tracks(ctx: ToolContext, args: RozdzielenieInput) -> ToolResult:
@@ -267,8 +268,8 @@ class TwarzeInput(ToolInput):
 
 @registry.register(
     "find_faces",
-    """Znajduje twarze na zdjęciach i — na życzenie — grupuje zdjęcia tej samej osoby
-(InsightFace). Do porządkowania archiwum rodzinnego i zbioru zdjęć z wydarzenia:
+    """Znajduje twarze na zdjęciach i — na życzenie — układa razem zdjęcia tej samej osoby.
+Do porządkowania archiwum rodzinnego (InsightFace) i zbioru zdjęć z wydarzenia:
 „na których zdjęciach jest babcia”, „rozdziel te dwieście zdjęć według osób”.
 Zwraca liczbę i położenie twarzy, a przy grupowaniu — przypisanie zdjęć do osób.
 Nie rozpoznaje tożsamości: mówi wyłącznie, które twarze są do siebie podobne.""",

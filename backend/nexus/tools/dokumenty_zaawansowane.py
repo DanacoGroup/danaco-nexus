@@ -508,11 +508,11 @@ def _zrodlo(args: SkladInput) -> str:
 
 @registry.register(
     "typeset_document",
-    """Składa dokument do druku programem Typst: raport, oferta handlowa, CV, broszura,
-plakat tekstowy albo umowa (paragrafy § i miejsce na podpisy stron). Treść podajesz
-w sekcjach i blokach (akapit, lista, tabela, pary
+    """Składa dokument do druku tak, żeby wyglądał zawodowo, a nie jak wydruk z edytora tekstu.
+Robi raport, ofertę handlową, CV, broszurę, plakat tekstowy albo umowę z paragrafami §
+i miejscem na podpisy stron. Treść podajesz w sekcjach i blokach (akapit, lista, tabela, pary
 etykieta–wartość, cytat, ramka), a narzędzie dba o typografię: kroje, światło, tabele,
-nagłówki, numerację stron i barwę wiodącą. Używaj go zawsze, gdy PDF ma wyglądać
+nagłówki, numerację stron i barwę wiodącą (skład: Typst). Używaj go zawsze, gdy PDF ma wyglądać
 zawodowo — write_document daje zwykły wydruk z edytora tekstu, a convert_documents
 tylko przepuszcza gotowy plik przez LibreOffice.""",
     SkladInput,
@@ -629,12 +629,11 @@ def _zrodlo_konwersji(ctx: ToolContext, args: KonwersjaInput) -> tuple[Path, str
 
 @registry.register(
     "convert_text_format",
-    """Przekształca tekst między formatami wydawniczymi programem pandoc: Markdown, HTML,
-LaTeX, reStructuredText, Org, Typst, DOCX, ODT i — przede wszystkim — EPUB, czyli
-książkę do czytnika. Stąd bierze się e-book z napisanego tekstu, plik LaTeX do czasopisma
-i czysty Markdown z DOCX-a razem ze strukturą nagłówków. Do zwykłej zamiany dokumentu
-biurowego na PDF czy DOCX służy convert_documents (LibreOffice), a do składu do druku —
-typeset_document.""",
+    """Zamienia tekst w książkę do czytnika, plik dla wydawnictwa albo czysty zapis do dalszej pracy.
+Obsługuje Markdown, HTML, LaTeX, reStructuredText, Org, Typst, DOCX, ODT i — przede wszystkim —
+EPUB (pandoc). Stąd bierze się e-book z napisanego tekstu, plik LaTeX do czasopisma i czysty
+Markdown z DOCX-a razem ze strukturą nagłówków. Do zwykłej zamiany dokumentu biurowego na PDF
+czy DOCX służy convert_documents (LibreOffice), a do składu do druku — typeset_document.""",
     KonwersjaInput,
 )
 def convert_text_format(ctx: ToolContext, args: KonwersjaInput) -> ToolResult:
@@ -708,11 +707,12 @@ class StrukturaInput(ToolInput):
 
 @registry.register(
     "analyze_document_structure",
-    """Rozbiera dokument na strukturę programem Docling: nagłówki, akapity w kolejności
-czytania i tabele odtworzone jako dane. Oddaje Markdown i pełny opis w JSON, więc nadaje
-się do umowy, faktury, sprawozdania i skanu, z którego trzeba wyjąć tabelę, a nie samo
-zdanie. Do szybkiego odczytu treści wystarczy extract_text, a do wgrania warstwy tekstowej
-w skan — ocr_documents; to narzędzie bierz wtedy, gdy liczy się układ i tabele.""",
+    """Rozbiera dokument na części i odtwarza z niego tabele jako dane, a nie jako obrazek.
+Zwraca nagłówki, akapity w kolejności czytania i zawartość tabel (Docling). Oddaje Markdown
+i pełny opis w JSON, więc nadaje się do umowy, faktury, sprawozdania i skanu, z którego trzeba
+wyjąć tabelę, a nie samo zdanie. Do szybkiego odczytu treści wystarczy extract_text, a do
+wgrania warstwy tekstowej w skan — ocr_documents; to narzędzie bierz wtedy, gdy liczy się
+układ i tabele.""",
     StrukturaInput,
 )
 def analyze_document_structure(ctx: ToolContext, args: StrukturaInput) -> ToolResult:
@@ -782,10 +782,10 @@ class MowcyInput(ToolInput):
 
 @registry.register(
     "transcribe_speakers",
-    """Spisuje rozmowę z podziałem na mówców i z czasem każdego wypowiedzianego słowa
-(WhisperX). Bierz to narzędzie do spotkania, wywiadu, rozprawy i podcastu, czyli wszędzie
-tam, gdzie trzeba wiedzieć, kto powiedział które zdanie, albo dociąć napisy co do słowa.
-Do zwykłego spisania nagrania jednej osoby szybsze jest transcribe_audio.""",
+    """Spisuje rozmowę z zaznaczeniem, kto co powiedział, i z czasem każdego słowa.
+Bierz to narzędzie do spotkania, wywiadu, rozprawy i podcastu, czyli wszędzie tam, gdzie trzeba
+wiedzieć, kto powiedział które zdanie, albo dociąć napisy co do słowa (WhisperX). Do zwykłego
+spisania nagrania jednej osoby szybsze jest transcribe_audio.""",
     MowcyInput,
 )
 def transcribe_speakers(ctx: ToolContext, args: MowcyInput) -> ToolResult:
@@ -901,10 +901,11 @@ def _czas(wartosc: str, pole: str) -> str:
 
 @registry.register(
     "edit_subtitles",
-    """Poprawia gotowy plik napisów SRT: przesuwa czasy o stałą wartość, rozciąga je liniowo,
-gdy napisy rozjeżdżają się do końca filmu, łączy dwie wersje językowe w jeden plik, usuwa
-powtórzone kwestie i naprawia uszkodzony zapis. Do wytworzenia napisów z nagrania służą
-transcribe_audio i transcribe_speakers — to narzędzie pracuje na istniejącym pliku.""",
+    """Naprawia gotowy plik napisów SRT, gdy rozjeżdżają się z obrazem albo mają uszkodzony zapis.
+Przesuwa czasy o stałą wartość, rozciąga je liniowo, gdy napisy rozjeżdżają się do końca filmu,
+łączy dwie wersje językowe w jeden plik, usuwa powtórzone kwestie i naprawia uszkodzony zapis.
+Do wytworzenia napisów z nagrania służą transcribe_audio i transcribe_speakers — to narzędzie
+pracuje na istniejącym pliku.""",
     NapisyInput,
 )
 def edit_subtitles(ctx: ToolContext, args: NapisyInput) -> ToolResult:
@@ -1010,9 +1011,9 @@ def _porcje(tekst: str) -> list[str]:
 
 @registry.register(
     "read_document_aloud",
-    """Czyta cały dokument na głos i zapisuje to jako plik dźwiękowy (głosy Piper, po polsku).
-Z raportu, umowy, artykułu albo własnego tekstu robi nagranie do odsłuchania w drodze —
-audiobook, wersję dla osoby słabowidzącej, ścieżkę lektorską pod film. Rozmowa głosowa
+    """Czyta cały dokument na głos po polsku i zapisuje to jako plik dźwiękowy.
+Z raportu, umowy, artykułu albo własnego tekstu robi nagranie do odsłuchania w drodze (głosy
+Piper) — audiobook, wersję dla osoby słabowidzącej, ścieżkę lektorską pod film. Rozmowa głosowa
 w oknie programu czyta wyłącznie bieżącą odpowiedź; tu powstaje plik z całości.""",
     CzytanieInput,
 )

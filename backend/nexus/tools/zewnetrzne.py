@@ -116,12 +116,9 @@ class ZasobyInput(ToolInput):
 
 @registry.register(
     "site_vendor_assets",
-    """Ściąga do strony użytkownika pliki, które wczytuje ona z cudzych serwerów (skrypty
-i arkusze z CDN-ów, zdjęcia ze stocków), i podmienia odwołania na własne. Po tym strona
-działa bez internetu, a przeglądarka odwiedzającego nie łączy się z obcym serwerem — co
-przy stronie firmowej trzeba by wpisać do informacji o przetwarzaniu. Użyj, gdy
-site_from_template albo site_from_kit zgłosi w polu `uwagi` zasoby z sieci. Kroje Google
-pomija: te przenosi site_fonts_local z repozytorium serwera, bez pobierania.""",
+    """Ściąga na nasz serwer wszystko, co Twoja strona bierze z cudzych serwerów.
+Dotyczy skryptów i arkuszy z CDN-ów oraz zdjęć ze stocków; odwołania w kodzie strony zostają
+podmienione na własne.""",
     ZasobyInput,
 )
 def site_vendor_assets(ctx: ToolContext, args: ZasobyInput) -> ToolResult:

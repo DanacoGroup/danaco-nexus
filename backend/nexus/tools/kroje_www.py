@@ -84,13 +84,10 @@ class KrojeInput(ToolInput):
 
 @registry.register(
     "site_fonts_local",
-    """Przenosi kroje strony z serwerów Google na serwer Danaco: wycina z lokalnego
-repozytorium podzbiór z polskimi znakami, wkłada pliki .woff2 do szkicu strony, dopisuje
-arkusz `kroje/kroje.css` i podmienia odsyłacze do fonts.googleapis.com na własny arkusz
-(usuwając przy okazji `preconnect` do Google). Użyj zawsze, gdy site_from_template albo
-site_from_kit zgłosi zasoby z serwerów Google: bez tego każde wejście na stronę wysyła
-adres IP odwiedzającego do Google i strona nie działa bez internetu. Rodziny możesz podać
-wprost, ale zwykle nie trzeba — narzędzie czyta je z odsyłaczy w szkicu.""",
+    """Przenosi kroje pisma Twojej strony z serwerów Google na serwer Danaco.
+Wycina z lokalnego repozytorium podzbiór z polskimi znakami, wkłada pliki .woff2 do szkicu
+strony, dopisuje arkusz `kroje/kroje.css` i podmienia odsyłacze do fonts.googleapis.com na
+własny arkusz, usuwając przy okazji `preconnect` do Google.""",
     KrojeInput,
 )
 def site_fonts_local(ctx: ToolContext, args: KrojeInput) -> ToolResult:

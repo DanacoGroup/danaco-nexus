@@ -85,7 +85,7 @@ class CalendarDeleteInput(ToolInput):
 
 @registry.register(
     "calendar_list",
-    """Wydarzenia z kalendarza użytkownika (Nextcloud) w zakresie dat, z listą kalendarzy.
+    """Pokazuje wydarzenia z wybranego zakresu dat razem z listą Twoich kalendarzy.
 Wydarzenia cykliczne są rozwinięte w wystąpienia. Czasy w strefie Europa/Warszawa.""",
     CalendarListInput,
 )
@@ -109,8 +109,7 @@ def calendar_list(ctx: ToolContext, args: CalendarListInput) -> ToolResult:
 
 @registry.register(
     "calendar_create",
-    """Dodaje wydarzenie do kalendarza użytkownika (spotkanie, termin, przypomnienie). Podaj czas
-lokalny; wydarzenie od razu synchronizuje się z telefonem i komputerem.""",
+    """Dodaje do kalendarza spotkanie, termin albo przypomnienie.""",
     CalendarEventInput,
 )
 def calendar_create(ctx: ToolContext, args: CalendarEventInput) -> ToolResult:
@@ -160,9 +159,9 @@ def calendar_update(ctx: ToolContext, args: CalendarUpdateInput) -> ToolResult:
 
 @registry.register(
     "calendar_delete",
-    """Prosi o usunięcie wydarzenia z kalendarza. Wydarzenie NIE jest usuwane od razu: użytkownik
-zatwierdza usunięcie w module Kalendarz (dla serii – usuwana jest cała seria). Poinformuj o tym
-użytkownika.""",
+    """Usuwa wydarzenie z kalendarza po Twoim zatwierdzeniu.
+Wydarzenie NIE jest usuwane od razu: użytkownik zatwierdza usunięcie w module Kalendarz
+(dla serii – usuwana jest cała seria). Poinformuj o tym użytkownika.""",
     CalendarDeleteInput,
 )
 def calendar_delete(ctx: ToolContext, args: CalendarDeleteInput) -> ToolResult:

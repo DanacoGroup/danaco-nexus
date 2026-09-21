@@ -57,9 +57,9 @@ class TranscribeInput(ToolInput):
 
 @registry.register(
     "transcribe_audio",
-    """Zamienia mowę z nagrania audio lub wideo na tekst (Whisper): transkrypcja ze znacznikami
-czasu, wykrycie języka, napisy SRT/VTT. Treść wraca do Ciebie, więc możesz ją streścić,
-przetłumaczyć albo przygotować z niej notatkę czy protokół (write_document).""",
+    """Zamienia mowę z nagrania audio albo wideo w tekst ze znacznikami czasu.
+Rozpoznaje język i zapisuje napisy SRT oraz VTT (Whisper). Treść wraca do Ciebie, więc możesz
+ją streścić, przetłumaczyć albo przygotować z niej notatkę czy protokół (write_document).""",
     TranscribeInput,
 )
 def transcribe_audio(ctx: ToolContext, args: TranscribeInput) -> ToolResult:

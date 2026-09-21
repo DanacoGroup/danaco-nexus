@@ -160,8 +160,8 @@ class TwarzeInput(ToolInput):
 
 @registry.register(
     "restore_faces",
-    """Rekonstruuje twarze na zdjęciu zniszczonym, rozmytym, drobnym albo mocno skompresowanym
-(CodeFormer lub GFPGAN): odtwarza oczy, usta i kontury, których w pliku po prostu nie ma.
+    """Odtwarza twarze na zdjęciu zniszczonym, rozmytym, drobnym albo mocno skompresowanym.
+Dorysowuje oczy, usta i kontury, których w pliku po prostu nie ma (CodeFormer lub GFPGAN).
 Do zdjęć archiwalnych, skanów odbitek, kadrów z monitoringu i starych plików z telefonu.
 Różnica wobec sąsiadów: retouch_portrait tylko wygładza istniejącą skórę, upscale_image
 powiększa cały obraz bez wiedzy o twarzy, a to narzędzie dorysowuje brakujące rysy.""",
@@ -242,10 +242,10 @@ class NaprawaInput(ToolInput):
 
 @registry.register(
     "inpaint_photo",
-    """Usuwa ze zdjęcia duży element i dorysowuje to, co było za nim (model LaMa): przechodnia,
-samochód, kosz na śmieci, słup, byłego partnera, a w trybie „rysy” także rysy, zagięcia
-i kurz ze skanu starej odbitki. Obszar wskazuje maska albo prostokąty; tryb rys działa
-bez wskazywania czegokolwiek. Do drobnego napisu, znaku wodnego czy pyłku szybciej użyć
+    """Usuwa ze zdjęcia duży element i dorysowuje to, co było za nim.
+Znika przechodzień, samochód, kosz na śmieci albo słup, a w trybie „rysy” także rysy, zagięcia
+i kurz ze skanu starej odbitki (model LaMa). Obszar wskazuje maska albo prostokąty; tryb rys
+działa bez wskazywania czegokolwiek. Do drobnego napisu, znaku wodnego czy pyłku szybciej użyć
 erase_objects (bez modelu) — tutaj model dopowiada całą treść, więc znika też duży obiekt
 na niejednolitym tle.""",
     NaprawaInput,
@@ -292,11 +292,12 @@ class GlebiaInput(ToolInput):
 
 @registry.register(
     "depth_map",
-    """Liczy mapę głębi zdjęcia (Depth Anything V2): PNG 16-bit, w którym jaśniejszy piksel
-znaczy „bliżej aparatu”, plus barwny podgląd do obejrzenia. Przydaje się, gdy planami
-zdjęcia ma zająć się coś dalszego: maska pierwszego planu, relief albo model 3D, efekt
-paralaksy w innym programie, warstwy do montażu. Do samego rozmycia tła służy
-blur_background_by_depth, a do gotowego filmu z paralaksą — animate_photo.""",
+    """Liczy, jak daleko od aparatu leży każdy punkt zdjęcia.
+Wynikiem jest PNG 16-bit, w którym jaśniejszy piksel znaczy „bliżej aparatu”, plus barwny
+podgląd do obejrzenia (Depth Anything V2). Przydaje się, gdy planami zdjęcia ma zająć się coś
+dalszego: maska pierwszego planu, relief albo model 3D, efekt paralaksy w innym programie,
+warstwy do montażu. Do samego rozmycia tła służy blur_background_by_depth, a do gotowego filmu
+z paralaksą — animate_photo.""",
     GlebiaInput,
 )
 def depth_map(ctx: ToolContext, args: GlebiaInput) -> ToolResult:
@@ -344,11 +345,11 @@ class RozmycieInput(ToolInput):
 
 @registry.register(
     "blur_background_by_depth",
-    """Rozmywa tło zdjęcia tak, jak robi to jasny obiektyw: mapa głębi rozdziela plany, więc
-rozmycie narasta wraz z odległością od wybranego planu, zamiast kończyć się na ostrej
-obwódce wokół wyciętego obiektu. Do zdjęć krajobrazu, wnętrza, stołu, produktu i grupy
-osób — wszędzie tam, gdzie „tło” nie jest jednym przedmiotem. Dla pojedynczej osoby albo
-produktu na wycince wystarczy change_background w trybie „blur”.""",
+    """Rozmywa tło zdjęcia tak, jak robi to jasny obiektyw.
+Mapa głębi rozdziela plany, więc rozmycie narasta wraz z odległością od wybranego planu,
+zamiast kończyć się na ostrej obwódce wokół wyciętego obiektu. Do zdjęć krajobrazu, wnętrza,
+stołu, produktu i grupy osób — wszędzie tam, gdzie „tło” nie jest jednym przedmiotem.
+Dla pojedynczej osoby albo produktu na wycince wystarczy change_background w trybie „blur”.""",
     RozmycieInput,
 )
 def blur_background_by_depth(ctx: ToolContext, args: RozmycieInput) -> ToolResult:
@@ -410,11 +411,11 @@ class GifInput(ToolInput):
 
 @registry.register(
     "video_to_gif",
-    """Składa GIF z fragmentu filmu w jakości, jakiej nie daje zwykła konwersja: klatki idą
-z FFmpeg, a barwy dobiera gifski osobno dla każdej klatki. Do wstawki na stronę, do
-wiadomości, do dokumentacji i do pokazania ruchu tam, gdzie film się nie odtworzy.
-Narzędzie media_process też zapisze GIF, ale ubogą paletą i w 10 klatkach na sekundę —
-tego używaj, gdy wynik ma dobrze wyglądać.""",
+    """Składa GIF z fragmentu filmu w jakości, jakiej nie daje zwykła konwersja.
+Barwy dobierane są osobno dla każdej klatki (FFmpeg i gifski), więc obraz nie rozsypuje się
+na plamy. Do wstawki na stronę, do wiadomości, do dokumentacji i do pokazania ruchu tam, gdzie
+film się nie odtworzy. Narzędzie media_process też zapisze GIF, ale ubogą paletą i w 10 klatkach
+na sekundę — tego używaj, gdy wynik ma dobrze wyglądać.""",
     GifInput,
 )
 def video_to_gif(ctx: ToolContext, args: GifInput) -> ToolResult:
@@ -570,10 +571,10 @@ class LottieInput(ToolInput):
 
 @registry.register(
     "render_lottie",
-    """Zamienia animację Lottie (.json albo .lottie — format animacji z sieci i z pakietów
-graficznych) w plik, który da się obejrzeć i wstawić: MP4, WEBM z przezroczystością,
-GIF albo pojedynczą klatkę PNG. Używaj, gdy użytkownik przyniósł taką animację i chce
-z niej film, obrazek albo wstawkę do posta; nic innego w zestawie nie otwiera tego formatu.""",
+    """Zamienia gotową animację z sieci albo z pakietu graficznego w zwykły film lub obrazek.
+Z pliku .json albo .lottie powstaje MP4, WEBM z przezroczystością, GIF albo pojedyncza klatka
+PNG. Używaj, gdy użytkownik przyniósł taką animację i chce z niej film, obrazek albo wstawkę
+do posta; nic innego w zestawie nie otwiera tego formatu.""",
     LottieInput,
 )
 def render_lottie(ctx: ToolContext, args: LottieInput) -> ToolResult:

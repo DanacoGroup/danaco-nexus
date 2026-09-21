@@ -85,12 +85,12 @@ def _sprawdz_kod(kod: str) -> None:
 
 @registry.register(
     "animate_explainer",
-    """Renderuje animację wyjaśniającą z opisanej sceny (silnik Manim): rysujący się wykres,
-przekształcający się wzór, schemat wchodzący element po elemencie, oś czasu, porównanie.
-Scenę piszesz sam w Pythonie — jedna klasa dziedzicząca po Scene z metodą construct.
-Stosuj, gdy rzecz łatwiej pokazać w ruchu niż opisać: zależność, proces, mechanizm, dowód.
-Do ożywienia zdjęcia jest animate_photo, do złożenia gotowych elementów design_compose,
-do animacji interfejsu render_lottie.""",
+    """Robi krótką animację, która tłumaczy rzecz trudną do opisania słowami.
+Powstaje rysujący się wykres, przekształcający się wzór, schemat wchodzący element po elemencie,
+oś czasu albo porównanie (silnik Manim). Scenę piszesz sam w Pythonie — jedna klasa dziedzicząca
+po Scene z metodą construct. Stosuj, gdy rzecz łatwiej pokazać w ruchu niż opisać: zależność,
+proces, mechanizm, dowód. Do ożywienia zdjęcia jest animate_photo, do złożenia gotowych
+elementów design_compose, do animacji interfejsu render_lottie.""",
     AnimacjaInput,
 )
 def animate_explainer(ctx: ToolContext, args: AnimacjaInput) -> ToolResult:

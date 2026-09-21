@@ -58,9 +58,9 @@ def _preprocessing(mode: str) -> PreprocessingSettings:
 
 @registry.register(
     "ocr_documents",
-    """Rozpoznaje tekst (OCR, Tesseract) w skanach PDF i zdjęciach dokumentów. Tworzy
-przeszukiwalny PDF identyczny wizualnie z oryginałem (niewidoczna warstwa tekstowa,
-strony wyprostowane do pionu), opcjonalnie TXT z zachowaniem układu i DOCX.
+    """Rozpoznaje tekst w skanach PDF i na zdjęciach dokumentów, także po polsku.
+Tworzy przeszukiwalny PDF identyczny wizualnie z oryginałem (niewidoczna warstwa tekstowa,
+strony wyprostowane do pionu), opcjonalnie TXT z zachowaniem układu i DOCX (OCR, Tesseract).
 Obsługuje wiele plików naraz (OCR wsadowy). Strony z istniejącym tekstem są pomijane.""",
     OcrInput,
 )

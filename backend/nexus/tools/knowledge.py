@@ -34,9 +34,9 @@ def knowledge_base(ctx: ToolContext) -> KnowledgeBase:
 
 @registry.register(
     "index_documents",
-    """Dodaje dokumenty do prywatnej bazy wiedzy (Qdrant), aby można je było później
-wyszukiwać po treści i znaczeniu. Wymaga tekstu: dla skanów najpierw wykonaj OCR
-i indeksuj przeszukiwalny PDF. Ponowne indeksowanie zastępuje poprzedni indeks pliku.""",
+    """Dodaje dokumenty do prywatnej bazy wiedzy, żeby dało się w nich szukać własnymi słowami.
+Indeks (Qdrant) wymaga tekstu: dla skanów najpierw wykonaj OCR i indeksuj przeszukiwalny PDF.
+Ponowne indeksowanie zastępuje poprzedni indeks pliku.""",
     IndexInput,
 )
 def index_documents(ctx: ToolContext, args: IndexInput) -> ToolResult:
@@ -73,8 +73,9 @@ def index_documents(ctx: ToolContext, args: IndexInput) -> ToolResult:
 
 @registry.register(
     "search_documents",
-    """Wyszukuje semantycznie w prywatnej bazie wiedzy (wszystkie zaindeksowane dokumenty,
-także z innych rozmów). Zwraca fragmenty z nazwą pliku, stroną i identyfikatorem pliku.""",
+    """Znajduje w Twoich dokumentach odpowiedź na pytanie zadane własnymi słowami.
+Szuka po znaczeniu we wszystkich zaindeksowanych dokumentach, także z innych rozmów. Zwraca
+fragmenty z nazwą pliku, stroną i identyfikatorem pliku.""",
     SearchInput,
 )
 def search_documents(ctx: ToolContext, args: SearchInput) -> ToolResult:

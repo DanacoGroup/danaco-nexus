@@ -31,8 +31,8 @@ class SiteListInput(ToolInput):
 
 @registry.register(
     "site_list",
-    """Lista stron WWW użytkownika albo – z podanym adresem – lista plików szkicu strony
-(ścieżki, rozmiary, stan publikacji i wersje).""",
+    """Pokazuje Twoje strony, a dla wskazanego adresu — pliki jej szkicu.
+Zwraca ścieżki, rozmiary, stan publikacji i wersje.""",
     SiteListInput,
 )
 def site_list(ctx: ToolContext, args: SiteListInput) -> ToolResult:
@@ -92,8 +92,9 @@ class SiteWriteInput(ToolInput):
 
 @registry.register(
     "site_write_file",
-    """Zapisuje (tworzy albo zastępuje w całości) plik tekstowy szkicu strony: HTML, CSS, JS, JSON,
-SVG, TXT, MD, XML. Podgląd strony u użytkownika odświeża się na żywo po każdym zapisie.""",
+    """Zapisuje plik szkicu strony — tworzy nowy albo zastępuje istniejący w całości.
+Obsługuje HTML, CSS, JS, JSON, SVG, TXT, MD i XML. Podgląd strony u użytkownika odświeża się
+na żywo po każdym zapisie.""",
     SiteWriteInput,
 )
 def site_write_file(ctx: ToolContext, args: SiteWriteInput) -> ToolResult:
@@ -112,8 +113,8 @@ class SiteImportInput(ToolInput):
 
 @registry.register(
     "site_import_file",
-    """Kopiuje plik z rozmowy (obraz, logo, czcionkę, wideo, PDF) do szkicu strony pod podaną ścieżką,
-aby można go było użyć w HTML/CSS (np. <img src="img/logo.png">).""",
+    """Wkłada do strony plik z rozmowy: zdjęcie, logo, krój pisma, film albo PDF.
+Plik trafia pod wskazaną ścieżkę, więc da się go użyć w HTML i CSS (np. <img src="img/logo.png">).""",
     SiteImportInput,
 )
 def site_import_file(ctx: ToolContext, args: SiteImportInput) -> ToolResult:
@@ -164,12 +165,12 @@ def site_save_version(ctx: ToolContext, args: SiteVersionInput) -> ToolResult:
 
 @registry.register(
     "site_publish",
-    """Zgłasza prośbę o publikację strony pod publicznym adresem /s/<adres>/. Publikacja NIE następuje
-od razu: użytkownik musi ją zatwierdzić przyciskiem w module Strony. Wywołuj tylko, gdy użytkownik
-prosi o publikację; w odpowiedzi poinformuj go, że czeka ona na potwierdzenie. Wynik może zawierać
-pole `do_sprzatniecia` — odwołania do cudzych serwerów i cudze adresy kanoniczne, które po
-publikacji dotyczą już odwiedzających. Wymień je użytkownikowi i zaproponuj site_vendor_assets
-oraz site_fonts_local, zanim potwierdzi.""",
+    """Wystawia stronę pod publicznym adresem /s/<adres>/ po Twoim zatwierdzeniu.
+Publikacja NIE następuje od razu: użytkownik musi ją zatwierdzić przyciskiem w module Strony.
+Wywołuj tylko, gdy użytkownik prosi o publikację; w odpowiedzi poinformuj go, że czeka ona na
+potwierdzenie. Wynik może zawierać pole `do_sprzatniecia` — odwołania do cudzych serwerów
+i cudze adresy kanoniczne, które po publikacji dotyczą już odwiedzających. Wymień je
+użytkownikowi i zaproponuj site_vendor_assets oraz site_fonts_local, zanim potwierdzi.""",
     SiteVersionInput,
 )
 def site_publish(ctx: ToolContext, args: SiteVersionInput) -> ToolResult:
