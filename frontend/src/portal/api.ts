@@ -74,6 +74,12 @@ export interface WiadomoscKontaktowa {
 export interface StanPortalu {
   registration_open: boolean;
   admin: boolean;
+  /** Czy wiadomości portalu naprawdę wychodzą (podłączona skrzynka i nadawca SMTP).
+   *
+   * Bez tego interfejs obiecywał wiadomość, która nigdy nie przychodziła. Starsze wydania
+   * serwera tego pola nie mają — wtedy zostaje `undefined` i ekrany zachowują się jak dotąd.
+   */
+  poczta_dziala?: boolean;
 }
 
 export interface ZnacznikTresci {

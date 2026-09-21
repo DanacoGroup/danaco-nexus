@@ -94,7 +94,16 @@ def test_diagnostyka_widzi_sprzecznosc_licencji_ze_sprzedaza(monkeypatch: pytest
     assert bez_sprzedazy.ok is True
     assert "sprzedaż wyłączona" in bez_sprzedazy.detail
 
+    # Klucz **testowy**: zakupy robią testerzy kartami próbnymi, prawdziwe pieniądze nie
+    # płyną. Kontrola mówi wtedy o stanie, zamiast zapalać czerwone światło przy każdym
+    # wdrożeniu — inaczej ostrzeżenie, które ma znaczyć „sprzeczność”, staje się tłem.
     monkeypatch.setenv("NEXUS_PLATNOSCI_STRIPE_KLUCZ", "sk_test_licencja")
+    probna = check_licencje_narzedzi(ustawienia)
+    assert probna.ok is True
+    assert "trybie próbnym" in probna.detail and "find_faces" in probna.detail
+
+    # Klucz produkcyjny: czerwone światło wraca samo, bez niczyjej zmiany w kodzie.
+    monkeypatch.setenv("NEXUS_PLATNOSCI_STRIPE_KLUCZ", "sk_live_licencja")
     ze_sprzedaza = check_licencje_narzedzi(ustawienia)
     assert ze_sprzedaza.ok is False
     assert "find_faces" in ze_sprzedaza.detail

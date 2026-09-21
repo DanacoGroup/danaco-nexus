@@ -151,6 +151,17 @@ class UstawieniaPlatnosci(BaseSettings):
         """Czy można w ogóle rozmawiać ze Stripe (jest klucz tajny)."""
         return bool(self.klucz)
 
+    @property
+    def tryb_probny(self) -> bool:
+        """Czy sprzedaż chodzi na kluczu **testowym** Stripe.
+
+        Klucz testowy (``sk_test_…``) nie przyjmuje prawdziwych pieniędzy: obsługuje karty
+        próbne i służy do sprawdzenia przebiegu zakupu. Rozróżnienie ma znaczenie poza samą
+        bramką płatności — np. diagnostyka pyta o licencje narzędzi wyłącznie wtedy, gdy
+        produkt jest naprawdę sprzedawany, a nie gdy testerzy klikają zakupy próbne.
+        """
+        return self.klucz.startswith(("sk_test_", "rk_test_"))
+
 
 @dataclass(frozen=True)
 class AdresyPowrotu:

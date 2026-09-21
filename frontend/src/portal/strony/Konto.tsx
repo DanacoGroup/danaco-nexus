@@ -47,9 +47,11 @@ function bladHasla(haslo: string): string {
 
 function FormularzGoscia({
   rejestracjaOtwarta,
+  pocztaDziala,
   poZalogowaniu,
 }: {
   rejestracjaOtwarta: boolean;
+  pocztaDziala: boolean;
   poZalogowaniu: () => void;
 }) {
   const [widok, setWidok] = useState<Widok>("logowanie");
@@ -96,9 +98,15 @@ function FormularzGoscia({
         poZalogowaniu();
       } else {
         await portalApi.konto.odzyskiwanie(adres.trim());
+        // Bez podłączonej skrzynki wiadomość nie wychodzi — trafia do dziennika aplikacji.
+        // Obiecywanie jej użytkownikowi jest nieprawdą, a przy odzyskiwaniu hasła najbardziej
+        // dotkliwą: człowiek czeka na coś, co nie przyjdzie, i nie ma jak się dowiedzieć dlaczego.
         setInformacja(
-          "Jeżeli konto o tym adresie istnieje, wysłaliśmy odsyłacz do ustawienia nowego hasła. " +
-            "Sprawdź skrzynkę, także folder ze spamem – odsyłacz działa raz i przez ograniczony czas.",
+          pocztaDziala
+            ? "Jeżeli konto o tym adresie istnieje, wysłaliśmy odsyłacz do ustawienia nowego hasła. " +
+                "Sprawdź skrzynkę, także folder ze spamem – odsyłacz działa raz i przez ograniczony czas."
+            : "Wysyłka wiadomości nie jest jeszcze podłączona na tym serwerze, więc odsyłacz do Ciebie " +
+                "nie dojdzie. Napisz do nas ze strony Kontakt – ustawimy nowe hasło ręcznie.",
         );
       }
     } catch (error) {
@@ -172,6 +180,14 @@ function FormularzGoscia({
           </Przycisk>
         )}
       </div>
+      {/* Uprzedzenie **przed** wpisaniem adresu, a nie dopiero po wysłaniu formularza:
+        kto wie z góry, że wiadomość nie dojdzie, nie traci czasu na czekanie. */}
+      {widok === "odzyskiwanie" && !pocztaDziala && (
+        <p className="mt-4 rounded-xl border border-line px-3.5 py-2.5 text-sm text-muted">
+          Wysyłka wiadomości nie jest jeszcze podłączona na tym serwerze. Odsyłacz do ustawienia
+          hasła nie dojdzie — napisz do nas ze strony Kontakt, ustawimy hasło ręcznie.
+        </p>
+      )}
     </Karta>
   );
 }
@@ -278,7 +294,7 @@ function PotwierdzenieAdresu({ token, dalej }: { token: string; dalej: () => voi
   );
 }
 
-function PasekPotwierdzenia({ adres }: { adres: string }) {
+function PasekPotwierdzenia({ adres, pocztaDziala }: { adres: string; pocztaDziala: boolean }) {
   const [wynik, setWynik] = useState("");
   const [blad, setBlad] = useState("");
   const [trwa, setTrwa] = useState(false);
@@ -289,7 +305,12 @@ function PasekPotwierdzenia({ adres }: { adres: string }) {
     setTrwa(true);
     try {
       await portalApi.konto.wyslijPotwierdzenie();
-      setWynik("Wysłaliśmy odsyłacz. Sprawdź skrzynkę, także folder ze spamem.");
+      setWynik(
+        pocztaDziala
+          ? "Wysłaliśmy odsyłacz. Sprawdź skrzynkę, także folder ze spamem."
+          : "Wysyłka wiadomości nie jest jeszcze podłączona na tym serwerze, więc odsyłacz nie dojdzie. " +
+              "Potwierdzenie adresu niczego nie blokuje — konto działa normalnie.",
+      );
     } catch (error) {
       setBlad(komunikat(error, "Nie udało się wysłać odsyłacza. Spróbuj ponownie za chwilę."));
     } finally {
@@ -548,11 +569,13 @@ function PoZakonczeniuSesji({ rodzaj, dalej }: { rodzaj: Zakonczenie; dalej: () 
 function Profil({
   konto,
   odswiez,
+  pocztaDziala,
   token,
   poZakonczeniu,
 }: {
   konto: ProfilKlienta;
   odswiez: () => void;
+  pocztaDziala: boolean;
   token: string;
   poZakonczeniu: () => void;
 }) {
@@ -577,7 +600,7 @@ function Profil({
 
   return (
     <>
-      {!konto.email_confirmed && <PasekPotwierdzenia adres={konto.email} />}
+      {!konto.email_confirmed && <PasekPotwierdzenia adres={konto.email} pocztaDziala={pocztaDziala} />}
       {token && (
         <Karta className="mt-8">
           <Komunikat
@@ -617,11 +640,14 @@ export function Konto({
   konto,
   odswiez,
   rejestracjaOtwarta,
+  pocztaDziala,
   token,
 }: {
   konto: ProfilKlienta | null;
   odswiez: () => void;
   rejestracjaOtwarta: boolean;
+  /** Czy wiadomości portalu naprawdę wychodzą. Fałsz zmienia treść ekranów, które je obiecują. */
+  pocztaDziala: boolean;
   token: string;
 }) {
   const nawiguj = useNawigacja();
@@ -651,10 +677,20 @@ export function Konto({
         <UstawienieHasla token={token} poUstawieniu={() => nawiguj(sciezka("konto"))} />
       )}
       {!potwierdzenie && !token && !konto && (
-        <FormularzGoscia rejestracjaOtwarta={rejestracjaOtwarta} poZalogowaniu={odswiez} />
+        <FormularzGoscia
+          rejestracjaOtwarta={rejestracjaOtwarta}
+          pocztaDziala={pocztaDziala}
+          poZalogowaniu={odswiez}
+        />
       )}
       {!potwierdzenie && konto && (
-        <Profil konto={konto} odswiez={odswiez} token={token} poZakonczeniu={zakonczSesje} />
+        <Profil
+          konto={konto}
+          odswiez={odswiez}
+          pocztaDziala={pocztaDziala}
+          token={token}
+          poZakonczeniu={zakonczSesje}
+        />
       )}
     </>
   );

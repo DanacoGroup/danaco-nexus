@@ -449,11 +449,23 @@ def check_licencje_narzedzi(settings: Settings) -> Check:
     obecne = [nazwa for nazwa in NARZEDZIA_NIEKOMERCYJNE if nazwa in set(registry.names())]
     if not obecne:
         return Check("licencje narzędzi", True, "żadne narzędzie niekomercyjne nie jest w rejestrze")
-    if not UstawieniaPlatnosci().skonfigurowane:
+    platnosci = UstawieniaPlatnosci()
+    if not platnosci.skonfigurowane:
         return Check(
             "licencje narzędzi",
             True,
             f"sprzedaż wyłączona; niekomercyjne: {', '.join(obecne)}",
+        )
+    if platnosci.tryb_probny:
+        # Klucz testowy Stripe nie przyjmuje prawdziwych pieniędzy — zakupy robią testerzy
+        # kartami próbnymi. To nie jest jeszcze sprzedaż w rozumieniu licencji, więc
+        # kontrola mówi o stanie, zamiast zapalać czerwone światło przy każdym wdrożeniu.
+        # Czerwone światło wraca samo w chwili wpisania klucza produkcyjnego.
+        return Check(
+            "licencje narzędzi",
+            True,
+            f"sprzedaż w trybie próbnym (klucz testowy Stripe); niekomercyjne: {', '.join(obecne)} "
+            "— przed kluczem produkcyjnym trzeba to rozstrzygnąć",
         )
     powody = "; ".join(f"{nazwa} ({NARZEDZIA_NIEKOMERCYJNE[nazwa]})" for nazwa in obecne)
     return Check(

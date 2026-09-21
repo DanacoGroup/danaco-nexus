@@ -56,7 +56,16 @@ function pokaz(
   wlasciwosci: Partial<Parameters<typeof Konto>[0]> = {},
   nawiguj: (sciezka: string) => void = () => {},
 ) {
-  const dane = { konto: null, odswiez: () => {}, rejestracjaOtwarta: true, token: "", ...wlasciwosci };
+  const dane = {
+    konto: null,
+    odswiez: () => {},
+    rejestracjaOtwarta: true,
+    // Domyślnie „poczta działa” — tak wygląda serwer z podłączoną skrzynką i tak zachowują
+    // się wszystkie dotychczasowe przypadki. Brak wysyłki sprawdza osobny test.
+    pocztaDziala: true,
+    token: "",
+    ...wlasciwosci,
+  };
   return render(
     <DostawcaNawigacji nawiguj={nawiguj}>
       <Konto {...dane} />
@@ -281,5 +290,23 @@ describe("potwierdzenie adresu e-mail", () => {
     podstawFetch();
     pokaz({ konto: KLIENT });
     expect(screen.queryByRole("heading", { name: "Adres e-mail bez potwierdzenia" })).toBeNull();
+  });
+});
+
+
+describe("gdy wysyłka wiadomości nie jest podłączona", () => {
+  // Serwer bez skrzynki zapisuje wiadomości do dziennika aplikacji. Interfejs mówił mimo to
+  // „wysłaliśmy odsyłacz, sprawdź skrzynkę” — przy odzyskiwaniu hasła znaczyło to, że ktoś
+  // czeka na coś, co nie przyjdzie, i nie ma jak się dowiedzieć dlaczego.
+  it("uprzedza o tym **przed** wpisaniem adresu, a nie po wysłaniu", () => {
+    pokaz({ pocztaDziala: false });
+    fireEvent.click(screen.getByRole("button", { name: "Nie pamiętam hasła" }));
+    expect(screen.getByText(/Wysyłka wiadomości nie jest jeszcze podłączona/)).toBeTruthy();
+  });
+
+  it("z podłączoną skrzynką nie straszy niczym", () => {
+    pokaz({ pocztaDziala: true });
+    fireEvent.click(screen.getByRole("button", { name: "Nie pamiętam hasła" }));
+    expect(screen.queryByText(/Wysyłka wiadomości nie jest jeszcze podłączona/)).toBeNull();
   });
 });

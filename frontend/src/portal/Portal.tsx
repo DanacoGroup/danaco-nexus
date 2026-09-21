@@ -350,6 +350,7 @@ function Zawartosc({
           konto={konto}
           odswiez={odswiezKonto}
           rejestracjaOtwarta={stan?.registration_open ?? true}
+          pocztaDziala={stan?.poczta_dziala ?? true}
           token={trasa.parametr}
         />
       );

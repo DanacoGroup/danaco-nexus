@@ -780,8 +780,15 @@ async def potwierdz_odzyskiwanie(payload: NoweHaslo, request: Request) -> dict[s
 
 @publiczny.get("/stan")
 async def stan_portalu(request: Request) -> dict[str, Any]:
-    """Stan portalu dla interfejsu: czy rejestracja jest otwarta i czy trwa sesja administratora."""
-    _, portal = _ustawienia(request)
+    """Stan portalu dla interfejsu: rejestracja, poczta i sesja administratora.
+
+    Pole ``poczta_dziala`` mówi, czy wiadomości portalu naprawdę wychodzą. Bez tego
+    interfejs obiecywał wiadomość, która nigdy nie przyszła: ekran mówił „wysłaliśmy
+    odsyłacz, sprawdź skrzynkę”, a wiadomość trafiała do dziennika aplikacji. Najgorzej
+    przy odzyskiwaniu hasła — tam człowiek czeka na coś, co nie nadejdzie, i nie ma jak
+    się dowiedzieć dlaczego.
+    """
+    ustawienia, portal = _ustawienia(request)
     administrator = False
     token = request.cookies.get(COOKIE_ADMINISTRATORA)
     if token:
@@ -792,7 +799,15 @@ async def stan_portalu(request: Request) -> dict[str, Any]:
         administrator = (
             record is not None and record.expires_at >= utcnow() and record.owner_id == ADMIN_OWNER
         )
-    return {"registration_open": portal.registration_open, "admin": administrator}
+    from nexus import mail
+    from nexus.portal.ustawienia import NADAWCA_SMTP
+
+    poczta_dziala = portal.mail_sender == NADAWCA_SMTP and mail.is_configured(ustawienia)
+    return {
+        "registration_open": portal.registration_open,
+        "admin": administrator,
+        "poczta_dziala": poczta_dziala,
+    }
 
 
 router = APIRouter()
