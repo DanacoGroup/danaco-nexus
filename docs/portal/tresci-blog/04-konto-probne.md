@@ -15,11 +15,13 @@ zlecania pracy.
 
 ## Trwałość danych na koncie próbnym
 
-Rozmowy i pliki z konta próbnego znikają wraz z nim. To miejsce na sprawdzenie, a nie na
+Konto próbne żyje dwa dni, a rozmowy i pliki znikają razem z nim. To miejsce na sprawdzenie, a nie na
 pracę, której szkoda stracić — zanim wgrasz materiał, który ma zostać, załóż konto własne.
 
-Przestrzeń konta próbnego jest mniejsza niż w planach płatnych, więc do testu lepiej
-nadaje się dziesięć skanów niż całe archiwum z trzech lat.
+Przestrzeń konta próbnego to 100 MB, czyli mniej niż w planach płatnych. Do testu lepiej
+nadaje się więc dziesięć skanów niż całe archiwum z trzech lat.
+
+Z jednego łącza da się założyć kilka kont próbnych; potem Nexus prosi o zwykłą rejestrację.
 
 ## Trzy rzeczy warte sprawdzenia
 
