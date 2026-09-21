@@ -300,5 +300,5 @@ export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
 
 export const KONTAKT = {
   adresPoczty: "support@danaco-group.pl",
-  opis: "Odpowiadamy w dni robocze. Napisz, co chcesz załatwiać w Nexusie — dobierzemy plan i podpowiemy, od czego zacząć.",
+  opis: "Odpowiadamy w dni robocze na podany adres. Napisz, co masz do zrobienia i na jakich plikach pracujesz — wskażemy plan i pierwsze zadanie.",
 };

@@ -5,18 +5,19 @@ import { komunikat, portalApi } from "../api";
 import { okruszki, usePozycjonowanie } from "../seo";
 import { KONTAKT } from "../tresc";
 import { sciezka } from "../trasy";
-import { Komunikat, NaglowekStrony, Pole, Przycisk } from "../ui";
+import { Komunikat, NaglowekStrony, Okruszki, Pole, Przycisk } from "../ui";
 
-const OPIS = "Napisz, co chcesz załatwiać w Nexusie — odpowiemy na wskazany adres i podpowiemy, od czego zacząć.";
+const OPIS =
+  "Napisz, co chcesz załatwiać w Nexusie. Odpowiadamy na wskazany adres w dni robocze; wiadomość z weekendu odbieramy w poniedziałek.";
 
 /** Adres musi dać się odpisać: znak małpy, kropka w domenie, bez spacji. */
 const ADRES_POCZTY = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
 
 /** Pierwszy brak w formularzu albo pusty napis, gdy komplet. Komunikat wskazuje jedno pole. */
 export function sprawdzPola(imie: string, adres: string, wiadomosc: string): string {
-  if (imie.trim().length < 2) return "Podaj imię i nazwisko — potrzebujemy co najmniej dwóch znaków.";
-  if (!ADRES_POCZTY.test(adres.trim())) return "Podaj adres e-mail w postaci nazwa@domena.pl — na niego wyślemy odpowiedź.";
-  if (wiadomosc.trim().length < 10) return "Opisz sprawę w co najmniej 10 znakach — napisz, co chcesz załatwić.";
+  if (imie.trim().length < 2) return "Wpisz imię i nazwisko — co najmniej dwa znaki. Tak wiemy, do kogo piszemy.";
+  if (!ADRES_POCZTY.test(adres.trim())) return "Popraw adres e-mail — potrzebujemy postaci nazwa@domena.pl, bo na ten adres idzie odpowiedź.";
+  if (wiadomosc.trim().length < 10) return "Opisz sprawę w co najmniej 10 znakach — napisz, co masz do zrobienia i w jakich plikach.";
   return "";
 }
 
@@ -61,7 +62,7 @@ export function Kontakt() {
       setTemat("");
       setWiadomosc("");
     } catch (error) {
-      setBlad(komunikat(error, "Nie udało się wysłać wiadomości."));
+      setBlad(komunikat(error, "Nie udało się wysłać wiadomości. Spróbuj jeszcze raz albo napisz wprost na support@danaco-group.pl."));
     } finally {
       setTrwa(false);
     }
@@ -69,8 +70,18 @@ export function Kontakt() {
 
   return (
     <>
-      <NaglowekStrony tytul="Napisz — podpowiemy, od czego zacząć" opis={OPIS} />
-      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_20rem]">
+      <Okruszki
+        pozycje={[
+          { nazwa: "Portal", sciezka: sciezka("glowna") },
+          { nazwa: "Kontakt", sciezka: sciezka("kontakt") },
+        ]}
+      />
+      <div className="mt-4">
+        <NaglowekStrony tytul="Napisz, co masz do zrobienia" opis={OPIS} />
+      </div>
+      {/* items-start: bez tego karta obok formularza rozciąga się na jego wysokość
+          i zostaje pod tekstem kilkaset pikseli pustego tła. */}
+      <div className="mt-8 grid items-start gap-10 lg:grid-cols-[1fr_20rem]">
         <form
           noValidate
           onSubmit={(zdarzenie) => {
@@ -89,17 +100,22 @@ export function Kontakt() {
             autoUzupelnianie="email"
             podpowiedz="Na ten adres wyślemy odpowiedź. Nie trafi on do żadnej wysyłki reklamowej."
           />
-          <Pole etykieta="Temat" wartosc={temat} naZmiane={setTemat} />
+          <Pole etykieta="Temat (opcjonalnie)" wartosc={temat} naZmiane={setTemat} />
           <Pole
             etykieta="Treść zapytania"
             wartosc={wiadomosc}
             naZmiane={setWiadomosc}
             wieloliniowe
             wymagane
-            podpowiedz="Napisz, co chcesz załatwiać: jakie pliki, ile osób, czy potrzebna jest poczta i kalendarz."
+            podpowiedz="Trzy rzeczy skracają drogę do odpowiedzi: co ma powstać, na jakich plikach pracujesz i ile osób będzie korzystać."
           />
           {blad && <Komunikat tekst={blad} rodzaj="blad" />}
-          {wyslano && <Komunikat tekst="Wiadomość przyjęta. Odpowiadamy w dni robocze — do tego czasu możesz uruchomić gotowe zadania bez konta." rodzaj="sukces" />}
+          {wyslano && (
+            <Komunikat
+              tekst="Wiadomość przyjęta. Odpowiedź pójdzie na podany adres w dni robocze. Zanim odpiszemy, zrób własne zadanie na /wyprobuj — bez rejestracji."
+              rodzaj="sukces"
+            />
+          )}
           <div>
             <Przycisk type="submit" disabled={trwa}>
               {trwa ? "Wysyłanie…" : "Wyślij zapytanie"}

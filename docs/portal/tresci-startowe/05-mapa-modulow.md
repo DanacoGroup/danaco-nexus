@@ -1,10 +1,12 @@
 # Co gdzie znajdziesz
 
-Pasek po lewej stronie okna prowadzi do modułów. Nie trzeba ich znać, żeby pracować — Nexus sam sięga po właściwe narzędzia — ale kiedy chcesz zajrzeć do wyniku albo czegoś poszukać, warto wiedzieć, gdzie to leży.
+Pasek po lewej stronie okna prowadzi do modułów. Do pracy nie trzeba ich znać — narzędzia dobiera Nexus. Przydają się wtedy, gdy chcesz zajrzeć do wyniku albo czegoś poszukać.
+
+Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, Sprzęt, Płatności i Ustawienia. Na telefonie pasek przenosi się na dół ekranu i mieści pięć miejsc, a reszta czeka pod **Więcej**. Do dowolnego modułu najszybciej trafisz paletą poleceń: Ctrl + K.
 
 ## Rozmowa
 
-- **Czat** — rozmowy z asystentem, pliki i zadania. Tu zaczyna się każda praca.
+- **Czat** — rozmowy z Nexusem, pliki i zadania. Tu zaczyna się każda praca.
 - **Głos** — rozmowa głosowa: mówisz, Nexus odpowiada na głos. Działa na komputerze i w telefonie.
 
 ## Twoje rzeczy
@@ -15,8 +17,8 @@ Pasek po lewej stronie okna prowadzi do modułów. Nie trzeba ich znać, żeby p
 
 ## Biuro
 
-- **Poczta** — skrzynka: czytanie, wyszukiwanie, odpowiedzi przygotowane przez Nexusa i wysyłanie po Twoim zatwierdzeniu.
-- **Kalendarz** — terminy i spotkania: widok tygodnia i miesiąca, planowanie z Nexusem, synchronizacja z telefonem.
+- **Poczta** — skrzynka: czytanie, wyszukiwanie, odpowiedzi przygotowane przez Nexusa i wysyłka po Twoim zatwierdzeniu.
+- **Kalendarz** — terminy i spotkania: widok listy, tygodnia i miesiąca, planowanie z Nexusem, synchronizacja z telefonem.
 
 ## Tworzenie
 
@@ -34,6 +36,10 @@ Pasek po lewej stronie okna prowadzi do modułów. Nie trzeba ich znać, żeby p
 
 ## Nexus
 
-- **Narzędzia** — pełny wykaz tego, po co Nexus sięga w Twoim imieniu, z przykładem przy każdej pozycji.
+- **Narzędzia** — wykaz tego, po co Nexus sięga w Twoim imieniu, z przykładem przy każdej pozycji.
 - **Płatności** — plan i subskrypcja, faktury i kody rabatowe. Płatność obsługuje Stripe.
 - **Ustawienia** — konto, wygląd, praca, głos, powiadomienia i Twoje dane.
+
+## Moduły, które trzeba najpierw podłączyć
+
+Poczta czeka na dane skrzynki, a kalendarz i chmura na przestrzeń w chmurze osobistej. Do tego czasu moduł pokazuje ekran z przyciskiem podłączenia, a nie pustą listę. Kroki opisuje materiał „Poczta i kalendarz”.

@@ -1,10 +1,12 @@
-# Szkice pierwszych materiałów do dokumentacji portalu
+# Materiały dokumentacji portalu
 
-Blog, centrum wiedzy i dokumentacja na `danaco-nexus.pl/portal` są dziś puste — sekcje
-zachowują się poprawnie (mówią, że czekają na materiały, i podają dwa działające wyjścia),
-ale spis nie ma ani jednej pozycji. Te pliki są **materiałami źródłowymi**: treść mieszka
-w bazie (`portal_content`), bo to z niej portal buduje adresy, zajawki, indeks wyszukiwania
-i mapę witryny, a pliki są jej wersją do przejrzenia w historii zmian.
+Dokumentacja opisuje ekrany i moduły Nexusa — „gdzie to jest i co robi”. Poradniki
+mieszkają osobno, w `docs/portal/tresci-wiedza`, a zmiany w produkcie w `tresci-blog`;
+te trzy działy nie mogą powtarzać tych samych pozycji.
+
+Te pliki są **materiałami źródłowymi**: treść mieszka w bazie (`portal_content`), bo to
+z niej portal buduje adresy, zajawki, indeks wyszukiwania i mapę witryny, a pliki są jej
+wersją do przejrzenia w historii zmian.
 
 ## Jak opublikować
 
@@ -19,6 +21,10 @@ obejrzy na `/portal/admin` i nie opublikuje. `--opublikuj` zapisuje od razu jako
 opublikowane, `--rodzaj` wybiera dział (`blog`, `wiedza`, `dokumentacja`, `strona`),
 a `--autor` dokłada podpis. Wczytanie jest powtarzalne: pozycja o tym samym adresie
 zostaje nadpisana, a nie powielona, więc poprawiony plik wystarczy wczytać ponownie.
+
+`--synchronizuj` czyni katalog jedynym źródłem prawdy dla swojego rodzaju: pozycja,
+której nie ma wśród plików, znika z portalu. Bez tej opcji materiał wycofany
+z repozytorium — albo taki, któremu zmieniono adres — zostaje w bazie sierotą.
 
 Ręcznie — przez panel administratora (`/portal/admin`), gdy chodzi o jedną pozycję:
 dodaj pozycję rodzaju **dokumentacja**, wklej tytuł i treść, zapisz jako szkic,
@@ -36,6 +42,10 @@ Po publikacji pozycja pojawia się w spisie dokumentacji, w wyszukiwarce portalu
 | `03-ustawienia-okna.md` | dokumentacja | Motyw, ruch, wysyłanie wiadomości, moduł na start |
 | `04-pliki-i-chmura.md` | dokumentacja | Gdzie lądują wyniki pracy, ile jest miejsca, kto to widzi |
 | `05-mapa-modulow.md` | dokumentacja | Co znajdziesz w którym module paska |
+| `06-poczta-i-kalendarz.md` | dokumentacja | Podłączenie skrzynki, odpowiedzi do zatwierdzenia, terminy |
+| `07-strony-www.md` | dokumentacja | Twórca stron: opis, podgląd, wersje, publikacja |
+| `08-praca-glosem.md` | dokumentacja | Dyktowanie i rozmowa głosowa |
+| `09-urzadzenia-i-zgody.md` | dokumentacja | Telefon, komputer, rozszerzenie, powiadomienia i granice zgody |
 
 Każdy szkic opisuje wyłącznie zachowanie sprawdzone w działającym wydaniu — bez obietnic
 na przyszłość. Przy zmianie interfejsu trzeba je przejrzeć razem z resztą treści.

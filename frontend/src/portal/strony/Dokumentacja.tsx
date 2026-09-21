@@ -8,11 +8,13 @@ import { SCIEZKA } from "../../shell/route";
 import { sciezka } from "../trasy";
 import { Komunikat, Ladowanie, NaglowekStrony, Odsylacz, Okruszki } from "../ui";
 
-const OPIS = "Jak uruchomić Nexusa, podłączyć pocztę, kalendarz i chmurę oraz pracować z każdym modułem.";
+const OPIS =
+  "Jak uruchomić Nexusa, zlecać zadania, podłączyć pocztę, kalendarz i chmurę oraz pracować z każdym modułem.";
 
 function SpisTresci({ aktywny, pozycje, ladowanie }: { aktywny: string | null; pozycje: SkrotTresci[]; ladowanie: boolean }) {
   if (ladowanie) return <Ladowanie wierszy={4} etykieta="Wczytywanie spisu dokumentacji" />;
-  if (pozycje.length === 0) return <p className="text-sm text-muted">Spis jest jeszcze pusty. Napisz do nas — podeślemy opis potrzebnego zagadnienia.</p>;
+  if (pozycje.length === 0)
+    return <p className="text-sm text-muted">Spis jest jeszcze pusty. Napisz, czego szukasz — odpiszemy i dopiszemy opis tego zagadnienia.</p>;
   return (
     <nav aria-label="Spis dokumentacji">
       <ul className="flex flex-col gap-1">
@@ -72,7 +74,7 @@ function TrescStrony({ slug }: { slug: string }) {
         <h1 tabIndex={-1} id="portal-tytul" className="font-heading text-3xl font-semibold text-fg">
           Nie znaleziono strony
         </h1>
-        <p className="mt-4 text-muted">{zasob.blad || "Tej strony dokumentacji nie ma pod tym adresem. Wybierz zagadnienie ze spisu treści."}</p>
+        <p className="mt-4 text-muted">{zasob.blad || "Tej strony dokumentacji nie ma pod tym adresem. Wybierz zagadnienie ze spisu treści albo poszukaj go w wyszukiwarce portalu."}</p>
       </>
     );
   }
@@ -83,7 +85,7 @@ function TrescStrony({ slug }: { slug: string }) {
       </h1>
       {pozycja.excerpt && <p className="mt-3 text-muted">{pozycja.excerpt}</p>}
       <div className="mt-6 max-w-prose">
-        {pozycja.body ? <Markdown text={pozycja.body} proza /> : <Komunikat tekst="Ta strona jest w opracowaniu. Do czasu jej publikacji odpowiemy na pytanie pocztą: support@danaco-group.pl." />}
+        {pozycja.body ? <Markdown text={pozycja.body} proza /> : <Komunikat tekst="Ta strona powstaje. Zanim się ukaże, odpowiemy na pytanie pocztą: support@danaco-group.pl." />}
       </div>
     </article>
   );
@@ -127,20 +129,40 @@ function Wprowadzenie({ pusty }: { pusty: boolean }) {
         <div className="mt-4 max-w-prose space-y-4 text-muted">
           <p>
             Dokumentacja opisuje ekrany i moduły Nexusa: gdzie co jest, co robi i czego się
-            po nim spodziewać. Wybierz zagadnienie ze spisu treści albo zacznij od początku.
+            po nim spodziewać. Wybierz zagadnienie ze spisu treści albo idź po kolei.
           </p>
+          {/* Tytuły materiałów w cudzysłowie: bez niego zdanie „Pasek modułów opisuje Co
+              gdzie znajdziesz” czyta się jak dwa orzeczenia bez spójnika. */}
           <p>
+            Zacznij od trzech materiałów. „
             <Odsylacz
               adres={sciezka("dokumentacja", "pierwsze-uruchomienie")}
               className="font-medium text-accent hover:underline"
             >
               Pierwsze uruchomienie
-            </Odsylacz>{" "}
-            — pierwsze zadanie, instalacja we własnym oknie i to, co warto zrobić na start.
+            </Odsylacz>
+            ” prowadzi od wejścia na stronę do pierwszego gotowego pliku. „
+            <Odsylacz
+              adres={sciezka("dokumentacja", "jak-zlecac-zadania")}
+              className="font-medium text-accent hover:underline"
+            >
+              Jak zlecać zadania
+            </Odsylacz>
+            ” mówi, co napisać, żeby dostać właściwy plik. Pasek modułów opisuje „
+            <Odsylacz
+              adres={sciezka("dokumentacja", "mapa-modulow")}
+              className="font-medium text-accent hover:underline"
+            >
+              Co gdzie znajdziesz
+            </Odsylacz>
+            ”.
           </p>
           <p>
-            Szukasz raczej poradnika niż opisu ekranu? Odpowiedzi na częste pytania i gotowe
-            sposoby na powtarzalne zadania zebraliśmy w{" "}
+            Dalej idą osobne części: poczta i kalendarz, pliki i chmura osobista, twórca stron,
+            praca głosem oraz urządzenia i granice zgody.
+          </p>
+          <p>
+            Poradniki i odpowiedzi na częste pytania stoją w{" "}
             <Odsylacz adres={sciezka("wiedza")} className="text-accent hover:underline">
               centrum wiedzy
             </Odsylacz>

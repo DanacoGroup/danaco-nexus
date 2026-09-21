@@ -24,14 +24,17 @@ export function Szukaj({ zapytanie }: { zapytanie: string }) {
 
   usePozycjonowanie({
     tytul: zapytanie ? `Wyniki: ${zapytanie}` : "Wyszukiwanie",
-    opis: "Wyszukiwanie w treściach portalu Danaco Nexus.",
+    opis: "Wyszukiwanie w blogu, centrum wiedzy i dokumentacji Danaco Nexus.",
     sciezka: sciezka("szukaj"),
     noindex: true,
   });
 
   return (
     <>
-      <NaglowekStrony tytul="Wyszukiwanie" opis="Wpisz, czego szukasz — przejrzymy blog, centrum wiedzy i dokumentację naraz." />
+      <NaglowekStrony
+        tytul="Wyszukiwanie"
+        opis="Wpisz jedno słowo albo nazwę ekranu. Przeglądamy blog, centrum wiedzy i dokumentację naraz."
+      />
       <form
         role="search"
         className="mt-6 flex flex-wrap items-end gap-3"
@@ -41,7 +44,7 @@ export function Szukaj({ zapytanie }: { zapytanie: string }) {
         }}
       >
         <div className="min-w-64 grow">
-          <Pole etykieta="Szukana fraza" wartosc={tekst} naZmiane={setTekst} typ="search" />
+          <Pole etykieta="Czego szukasz" wartosc={tekst} naZmiane={setTekst} typ="search" podpowiedz="Na przykład „poczta”, „chmura”, „napisy”." />
         </div>
         <Przycisk type="submit">Szukaj</Przycisk>
       </form>
@@ -50,7 +53,27 @@ export function Szukaj({ zapytanie }: { zapytanie: string }) {
         {zapytanie && wyniki.ladowanie && <Ladowanie wierszy={3} etykieta="Wyszukiwanie" />}
         {wyniki.blad && <Komunikat tekst={wyniki.blad} rodzaj="blad" />}
         {zapytanie && !wyniki.ladowanie && (wyniki.dane?.total ?? 0) === 0 && (
-          <Komunikat tekst={`Nic nie pasuje do frazy „${zapytanie}”. Szukamy w blogu, centrum wiedzy i dokumentacji — spróbuj krótszego słowa.`} />
+          <>
+            <Komunikat tekst={`Nic nie pasuje do „${zapytanie}”. Spróbuj jednego słowa zamiast całego pytania — na przykład „poczta”, nie „jak podłączyć pocztę”.`} />
+            {/* Pusty wynik kończył rozmowę jednym zdaniem. Trzy wyjścia poniżej działają
+                niezależnie od tego, co ktoś wpisał: spis dokumentacji, centrum wiedzy
+                i prośba o opis zagadnienia. */}
+            <p className="mt-4 text-sm text-muted">
+              Możesz też otworzyć{" "}
+              <Odsylacz adres={sciezka("dokumentacja")} className="text-accent hover:underline">
+                spis dokumentacji
+              </Odsylacz>{" "}
+              albo{" "}
+              <Odsylacz adres={sciezka("wiedza")} className="text-accent hover:underline">
+                centrum wiedzy
+              </Odsylacz>
+              . Jeżeli opisu nadal nie ma,{" "}
+              <Odsylacz adres={sciezka("kontakt")} className="text-accent hover:underline">
+                napisz, czego szukasz
+              </Odsylacz>{" "}
+              — odpowiemy i dopiszemy brakujący materiał.
+            </p>
+          </>
         )}
         {(wyniki.dane?.total ?? 0) > 0 && (
           <>
