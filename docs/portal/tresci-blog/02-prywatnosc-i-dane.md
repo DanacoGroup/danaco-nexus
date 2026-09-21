@@ -25,10 +25,12 @@ Cztery funkcje wprowadzają do usługi dane osób innych niż użytkownik:
 - szkice odpowiedzi na wiadomości SMS w aplikacji Android,
 - przekazanie zawartości ekranu telefonu do rozmowy.
 
-Każda z nich jest domyślnie wyłączona i uruchamiana wyłącznie przez użytkownika. W zakresie
-danych osób trzecich administratorem jest użytkownik, a Danaco występuje jako podmiot
-przetwarzający. Dla klientów prowadzących działalność gospodarczą wiąże się to z umową
-powierzenia przetwarzania.
+Każda z nich jest domyślnie wyłączona, wymaga osobnej zgody systemowej i działa wyłącznie
+na polecenie użytkownika — żadna nie odczytuje danych w tle. Przed włączeniem warto wiedzieć,
+jaki zakres obejmuje: w wątku SMS znajdują się również wiadomości nadawcy, a na zrzucie
+ekranu wszystko, co w danej chwili widać.
+
+Podstawy prawne przetwarzania w tych przypadkach opisuje polityka prywatności.
 
 ## Poświadczenia i klucze
 

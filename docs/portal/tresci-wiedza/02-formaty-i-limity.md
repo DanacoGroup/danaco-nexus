@@ -26,8 +26,12 @@ po zamknięciu rozmowy.
 ## Limity
 
 Wielkość pojedynczego pliku, łączna przestrzeń oraz liczba zadań wykonywanych równolegle
-zależą od planu. Bieżące wartości widać w module Płatności. Przekroczenie limitu Nexus
-zgłasza przed rozpoczęciem pracy, a nie w jej trakcie.
+zależą od planu. Bieżące wartości widać w module Płatności.
+
+Oba limity sprawdzane są przy wgrywaniu pliku, zanim zacznie się praca: zapełnioną
+przestrzeń konta Nexus zgłasza przed przyjęciem pliku, a przekroczenie dopuszczalnej
+wielkości — w trakcie jego odbioru. W żadnym przypadku zadanie nie rusza i nie przerywa
+się w połowie.
 
 ## Uwagi praktyczne
 
