@@ -24,7 +24,9 @@ const STEPS: { title: string; link: keyof SyncInfo["clients"]; linkLabel: string
     linkLabel: "Nextcloud w Google Play",
     steps: [
       "Zainstaluj aplikację Nextcloud (Google Play albo F-Droid).",
-      "Wybierz „Zaloguj się” i zeskanuj kod QR obok albo wpisz adres serwera.",
+      // „powyżej”, nie „obok”: kod QR stoi w osobnej sekcji **nad** kartami platform —
+      // na każdej szerokości, a na telefonie dodatkowo nad adresem serwera.
+      "Wybierz „Zaloguj się” i zeskanuj kod QR powyżej albo wpisz adres serwera.",
       "Zaloguj się kontem Nexusa w otwartym oknie przeglądarki.",
       "W ustawieniach aplikacji włącz „Automatyczne przesyłanie”, aby zdjęcia z telefonu trafiały do chmury.",
     ],

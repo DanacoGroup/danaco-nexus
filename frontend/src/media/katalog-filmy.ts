@@ -133,5 +133,32 @@ export const FILMY = [
     },
     "plakat": "/film/okladki/okladka-1920x1080.webp",
     "napisy": {}
+  },
+  {
+    "id": "nexus-praca-60s-16x9",
+    "tytul": "Nexus w pracy",
+    "opis": "Minuta o dniu pracy: poczta, terminy, badania, projekty, strona i kod.",
+    "kadr": "16:9",
+    "zrodla": {
+      "mp4": "/film/katalog/nexus-praca-60s-16x9.mp4",
+      "webm": "/film/katalog/nexus-praca-60s-16x9.webm"
+    },
+    "plakat": "/film/okladki/okladka-praca-1920x1080.webp",
+    "napisy": {
+      "pl": "/film/katalog/nexus-praca-60s-16x9.pl.vtt",
+      "en": "/film/katalog/nexus-praca-60s-16x9.en.vtt"
+    }
+  },
+  {
+    "id": "nexus-praca-6s-16x9",
+    "tytul": "Nexus w pracy — zajawka",
+    "opis": "Sześć sekund z drugiego filmu.",
+    "kadr": "16:9",
+    "zrodla": {
+      "mp4": "/film/katalog/nexus-praca-6s-16x9.mp4",
+      "webm": "/film/katalog/nexus-praca-6s-16x9.webm"
+    },
+    "plakat": "/film/okladki/okladka-praca-1920x1080.webp",
+    "napisy": {}
   }
 ] as const;

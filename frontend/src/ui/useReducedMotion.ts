@@ -1,24 +1,32 @@
 // Odczyt preferencji „ograniczony ruch”. Jedno źródło dla animacji sterowanych skryptem.
+//
+// Liczy się jedno i drugie: ustawienie systemu (media query) oraz przełącznik na koncie.
+// Wcześniej hook widział tylko media query, więc przełącznik w Ustawieniach wyciszał
+// nagrania, ale nie przejścia widoków — ustawienie działało w połowie.
 
 import { useEffect, useState } from "react";
+import { ograniczonyRuch, przySmianiePreferencji, zastosujRuch } from "../preferencje";
 
 const ZAPYTANIE = "(prefers-reduced-motion: reduce)";
 
-function odczytaj(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia(ZAPYTANIE).matches;
-}
-
 export function useReducedMotion(): boolean {
-  const [ograniczony, setOgraniczony] = useState(odczytaj);
+  const [ograniczony, setOgraniczony] = useState(ograniczonyRuch);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const odswiez = () => {
+      const stan = ograniczonyRuch();
+      setOgraniczony(stan);
+      zastosujRuch(stan);
+    };
+    odswiez();
+    const odepnij = przySmianiePreferencji(odswiez);
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return odepnij;
     const lista = window.matchMedia(ZAPYTANIE);
-    const zmiana = (zdarzenie: MediaQueryListEvent) => setOgraniczony(zdarzenie.matches);
-    setOgraniczony(lista.matches);
-    lista.addEventListener("change", zmiana);
-    return () => lista.removeEventListener("change", zmiana);
+    lista.addEventListener("change", odswiez);
+    return () => {
+      odepnij();
+      lista.removeEventListener("change", odswiez);
+    };
   }, []);
 
   return ograniczony;

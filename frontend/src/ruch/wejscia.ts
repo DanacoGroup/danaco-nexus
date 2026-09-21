@@ -76,3 +76,46 @@ export function useWidocznosc<T extends Element>({
 
   return [uchwyt.current, widoczne];
 }
+
+/** Odtwarza nagranie tylko wtedy, gdy jest w polu widzenia; poza nim zatrzymuje.
+ *
+ * Nagranie z `autoplay loop` kręci się przez całą wizytę na stronie — także kilkanaście
+ * tysięcy pikseli niżej, gdzie nikt go nie widzi. Procesor dekoduje wtedy obraz, którego
+ * nie ma na ekranie, a na telefonie schodzi z tego bateria. Ten hak wiąże odtwarzanie
+ * z widocznością: wchodzi w kadr — gra, wychodzi — staje.
+ *
+ * `wstrzymane` to ręczne zatrzymanie przez oglądającego (WCAG 2.2.2). Ma pierwszeństwo
+ * przed widocznością: bez tego przewinięcie nagrania poza kadr i z powrotem wznawiałoby
+ * ruch, którego ktoś przed chwilą świadomie nie chciał. Flagę trzeba podać także
+ * w `zalezne`, żeby hak przeliczył się po jej zmianie.
+ *
+ * Bez `IntersectionObserver` (stare przeglądarki, środowisko testowe) pilnuje samego
+ * wstrzymania; poza nim nagranie zachowuje się tak, jak zapisano w atrybutach elementu.
+ */
+export function useOdtwarzajWWidoku(
+  wideo: RefObject<HTMLVideoElement | null>,
+  zalezne: unknown[] = [],
+  wstrzymane = false,
+): void {
+  useEffect(() => {
+    const element = wideo.current;
+    if (!element) return;
+    if (wstrzymane) {
+      element.pause();
+      return;
+    }
+    if (typeof IntersectionObserver !== "function") return;
+    const obserwator = new IntersectionObserver(
+      (wpisy) => {
+        for (const wpis of wpisy) {
+          if (wpis.isIntersecting) void Promise.resolve(element.play()).catch(() => undefined);
+          else element.pause();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    obserwator.observe(element);
+    return () => obserwator.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, zalezne);
+}

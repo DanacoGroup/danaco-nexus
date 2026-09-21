@@ -3,12 +3,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlusIcon, SparkIcon } from "../../components/icons";
+import { ApiError } from "../../api";
 import type { ModulePageProps } from "../registry";
 import { describe } from "../_biuro/http";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, PinIcon, SyncIcon } from "../_biuro/icons";
 import { buttonClass, copyText, EmptyState, ErrorBanner, Field, inputClass, Loading, Modal, useConfirm, useToast } from "../_biuro/ui";
 import { calendarApi, type CalendarEvent, type CalendarInfo, type PendingDeletion } from "./api";
 import { EventDialog, type EventDraft } from "./EventDialog";
+import { PanelBoczny } from "./PanelBoczny";
 import {
   addDays,
   eventsOnDay,
@@ -37,7 +39,7 @@ function initialView(): View {
   return typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches ? "lista" : "tydzien";
 }
 
-export function KalendarzPage({ openConversation }: ModulePageProps) {
+export function KalendarzPage({ openConversation, openChat }: ModulePageProps) {
   const [view, setView] = useState<View>(initialView);
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [calendars, setCalendars] = useState<CalendarInfo[] | null>(null);
@@ -45,6 +47,10 @@ export function KalendarzPage({ openConversation }: ModulePageProps) {
   const [events, setEvents] = useState<CalendarEvent[] | null>(null);
   const [pending, setPending] = useState<PendingDeletion[]>([]);
   const [error, setError] = useState("");
+  // Serwer odpowiada 503 „Kalendarz nie jest skonfigurowany (brak adresu chmury lub hasła
+  // aplikacji)”. To nie jest awaria, tylko stan przed podłączeniem — a wyglądało na awarię:
+  // czerwony pasek z komunikatem dla administratora nad pustą siatką tygodnia.
+  const [niepodlaczony, setNiepodlaczony] = useState(false);
   const [dialog, setDialog] = useState<{ event: CalendarEvent | null; draft: EventDraft | null } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -56,8 +62,10 @@ export function KalendarzPage({ openConversation }: ModulePageProps) {
     setError("");
     try {
       setEvents(await calendarApi.events(isoDay(from), isoDay(to)));
+      setNiepodlaczony(false);
     } catch (failure) {
-      setError(describe(failure));
+      if (failure instanceof ApiError && failure.status === 503) setNiepodlaczony(true);
+      else setError(describe(failure));
       setEvents([]);
     }
   }, [from, to]);
@@ -71,9 +79,13 @@ export function KalendarzPage({ openConversation }: ModulePageProps) {
   useEffect(() => {
     calendarApi
       .calendars()
-      .then(setCalendars)
+      .then((lista) => {
+        setCalendars(lista);
+        setNiepodlaczony(false);
+      })
       .catch((failure) => {
-        setError(describe(failure));
+        if (failure instanceof ApiError && failure.status === 503) setNiepodlaczony(true);
+        else setError(describe(failure));
         setCalendars([]);
       });
     loadPending();
@@ -127,8 +139,38 @@ export function KalendarzPage({ openConversation }: ModulePageProps) {
   const openEvent = (event: CalendarEvent) => setDialog({ event, draft: null });
   const newEvent = (draft: EventDraft | null = null) => setDialog({ event: null, draft: draft ?? { day: anchor } });
 
+  if (niepodlaczony)
+    return (
+      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-app">
+        {/* Tytuł strony dla czytnika ekranu: na telefonie niesie go pasek kompaktowy
+            powłoki, a w stanie „niepodłączone” moduł nie rysował na komputerze żadnego
+            `h1`. Wzorzec jak w gałęzi z pełnym interfejsem: ukryty poniżej `md`. */}
+        <h1 className="sr-only">Kalendarz</h1>
+        <EmptyState icon={<CalendarIcon size={26} />} title="Kalendarz nie jest jeszcze podłączony" szerokosc="max-w-lg" poziom={2}>
+          <p>
+            Terminy trzyma Twoja przestrzeń w chmurze — kalendarz pokaże je, gdy ta przestrzeń będzie gotowa.
+            Na koncie próbnym jeszcze jej nie ma, więc nie ma też czego wyświetlić.
+          </p>
+          <p className="mt-3">
+            Zaplanować dzień możesz mimo to: napisz Nexusowi, co Cię czeka, a ułoży plan i przypomni o terminach,
+            gdy kalendarz będzie już podłączony.
+          </p>
+          <button
+            type="button"
+            className={`mt-5 ${buttonClass.primary}`}
+            onClick={() => openChat("Zaplanuj mi ten tydzień — mam ")}
+          >
+            Zaplanuj w rozmowie
+          </button>
+        </EmptyState>
+      </div>
+    );
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-app">
+      {/* Tytuł strony na telefonie: widoczny nagłówek modułu jest ukryty poniżej `md`,
+          a pasek powłoki niesie tylko etykietę. */}
+      <h1 className="sr-only md:hidden">Kalendarz</h1>
       <header className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5 md:px-5">
         <h1 className="mr-2 hidden text-lg font-semibold md:block">Kalendarz</h1>
         <div className="flex items-center">
@@ -218,16 +260,22 @@ export function KalendarzPage({ openConversation }: ModulePageProps) {
         </div>
       )}
 
-      <div className="relative min-h-0 flex-1">
-        {events === null || calendars === null ? (
-          <Loading />
-        ) : view === "miesiac" ? (
-          <MonthView anchor={anchor} events={visible} onEvent={openEvent} onDay={(day) => newEvent({ day })} />
-        ) : view === "tydzien" ? (
-          <WeekView anchor={anchor} events={visible} onEvent={openEvent} onSlot={(day, hour) => newEvent({ day, hour })} />
-        ) : (
-          <ListView from={from} events={visible} onEvent={openEvent} />
-        )}
+      {/* Siatka i boczna kolumna obok siebie: kalendarz mówi, co jest w tym tygodniu,
+          kolumna — co przed Tobą i czym ma się zająć Nexus. Na węższym oknie kolumna
+          znika, bo siatka tygodnia potrzebuje całej szerokości. */}
+      <div className="flex min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1">
+          {events === null || calendars === null ? (
+            <Loading />
+          ) : view === "miesiac" ? (
+            <MonthView anchor={anchor} events={visible} onEvent={openEvent} onDay={(day) => newEvent({ day })} />
+          ) : view === "tydzien" ? (
+            <WeekView anchor={anchor} events={visible} onEvent={openEvent} onSlot={(day, hour) => newEvent({ day, hour })} />
+          ) : (
+            <ListView from={from} events={visible} onEvent={openEvent} />
+          )}
+        </div>
+        <PanelBoczny events={visible} onEvent={openEvent} onOtworzRozmowe={openConversation} />
       </div>
 
       {dialog && (

@@ -4,21 +4,26 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import { api, type AssistantTurn, type FileInfo, type VoiceConfig } from "../api";
 import { Composer } from "../components/Composer";
-import { Logo, MenuIcon, PaperclipIcon, PlusIcon } from "../components/icons";
+import { CloseIcon, Logo, MenuIcon, PaperclipIcon, PlusIcon } from "../components/icons";
 import { PreviewModal } from "../components/PreviewModal";
 import { Sidebar } from "../components/Sidebar";
 import { AssistantMessage, UserMessage } from "../components/Turns";
 import { findModule, MODULES } from "../modules/registry";
 import { BrakKredytow } from "../platnosci/BrakKredytow";
 import { takeSharedContent } from "../share";
+import { ObszarOgloszen } from "../ui/ObszarOgloszen";
 import { applyTheme, nextTheme, saveTheme, storedTheme, type ThemeChoice } from "../theme";
 import { useEscZatrzymaj } from "./useEscZatrzymaj";
 import { unlockAudio } from "../voice/player";
 import { VoiceMode } from "../voice/VoiceMode";
+import { ArrowRightIcon, PanelIcon } from "./icons";
 import { BottomBar, NavRail, navEntries } from "./ModuleNav";
-import { NagranieStartu, ograniczonyRuch } from "../ruch";
+import { NagranieStanu, NagranieStartu, ograniczonyRuch, PrzejscieWidoku, ZnakRuchu } from "../ruch";
+import { useNieprzeczytaneNowosci } from "../nowosci";
 import { BezPolaczenia } from "./BezPolaczenia";
+import { EkranWylogowania } from "./EkranWylogowania";
 import { Paleta } from "./Paleta";
+import { PasekAktualizacji } from "./PasekAktualizacji";
 import { PasekKontaProbnego } from "./PasekKontaProbnego";
 import type { Route } from "./route";
 import { TasksButton, TasksPanel, useActiveTasks } from "./TasksPanel";
@@ -26,42 +31,84 @@ import { Toasts, type Toast } from "./Toasts";
 import { displayTurn } from "./turnDisplay";
 import { useChat } from "./useChat";
 
-// Podpowiedzi mają pokazać zakres aplikacji i brzmieć tak, jak mówi człowiek, który
-// czegoś potrzebuje — a nie jak polecenie dla maszyny. Każda dotyka innej dziedziny
-// z rejestru narzędzi: projektu graficznego, zdjęć, dokumentów, poczty i terminarza,
-// nagrań, badania ze źródłami, strony internetowej i własnego komputera.
-const SUGGESTIONS = [
+// Podpowiedzi na pustym czacie: krótki tytuł mówi, co z tego będzie, a zdanie pod nim
+// jest gotowym poleceniem, które trafia do pola wiadomości. Tytuł to nazwa rezultatu
+// („Logo firmy”), nie polecenie dla maszyny — człowiek wybiera wzrokiem po tym, czego
+// chce, a nie po czasowniku. Osiem pozycji dotyka ośmiu różnych dziedzin rejestru.
+interface Podpowiedz {
+  /** Nazwa rezultatu — to, co użytkownik dostanie. */
+  tytul: string;
+  /** Jedno zdanie o tym, co się wydarzy; ton jak w rozmowie, nie jak w instrukcji. */
+  opis: string;
+  /** Treść wstawiana do pola wiadomości po kliknięciu. */
+  polecenie: string;
+}
+
+const SUGGESTIONS: Podpowiedz[] = [
   {
-    title: "Zaprojektuj logo",
-    text: "Zaprojektuj logo dla mojej firmy — nazwa i prosty znak, w ciemnej i jasnej wersji. Daj plik do druku i do sieci.",
+    tytul: "Logo firmy",
+    opis: "Znak i nazwa w wersji ciemnej i jasnej, z plikiem do druku.",
+    polecenie:
+      "Zaprojektuj logo dla mojej firmy — znak i nazwa, w wersji na ciemnym i jasnym tle. " +
+      "Przygotuj plik do sieci i osobno do druku.",
   },
   {
-    title: "Popraw stare zdjęcie",
-    text: "To zdjęcie jest wyblakłe i krzywo zeskanowane. Wyprostuj je, popraw kolory i przygotuj wersję do powiększenia.",
+    tytul: "Odnowione zdjęcie",
+    opis: "Wyblakłe i krzywo zeskanowane wraca do formy.",
+    polecenie:
+      "To zdjęcie jest wyblakłe i krzywo zeskanowane. Wyprostuj je, popraw kolory " +
+      "i przygotuj wersję nadającą się do powiększenia.",
   },
   {
-    title: "Zrób porządek w dokumentach",
-    text: "Tu jest plik ze skanami kilku dokumentów naraz. Rozdziel je, rozpoznaj tekst i nazwij każdy po tym, czym jest.",
+    tytul: "Uporządkowane dokumenty",
+    opis: "Jeden plik ze skanami rozdzielony na osobne, nazwane sprawy.",
+    polecenie:
+      "W tym pliku jest kilka dokumentów zeskanowanych jeden po drugim. Rozdziel je na osobne " +
+      "pliki, rozpoznaj tekst i nazwij każdy zgodnie z tym, czego dotyczy.",
   },
   {
-    title: "Napisz pismo",
-    text: "Przeczytaj te dokumenty i napisz na ich podstawie pismo do ubezpieczyciela. Chcę je dostać w Wordzie.",
+    tytul: "Pismo na podstawie akt",
+    opis: "Nexus czyta dokumenty i pisze z nich gotowe pismo.",
+    polecenie:
+      "Przeczytaj te dokumenty i napisz na ich podstawie pismo do ubezpieczyciela. " +
+      "Chcę je dostać w Wordzie, gotowe do podpisu.",
   },
   {
-    title: "Ogarnij pocztę i termin",
-    text: "Sprawdź, na co nie odpisałem w tym tygodniu. Przygotuj odpowiedzi i wpisz do kalendarza terminy, które się pojawią.",
+    tytul: "Zaległa poczta",
+    opis: "Odpowiedzi przygotowane, terminy wpisane do kalendarza.",
+    polecenie:
+      "Sprawdź, na które wiadomości nie odpisałem w tym tygodniu. Przygotuj odpowiedzi " +
+      "do zatwierdzenia, a terminy, które się w nich pojawią, wpisz do kalendarza.",
   },
   {
-    title: "Notatka z nagrania",
-    text: "Z tego nagrania ze spotkania zrób notatkę: o czym rozmawialiśmy, co zostało ustalone i kto co ma zrobić.",
+    tytul: "Notatka ze spotkania",
+    opis: "Z nagrania powstają ustalenia i lista zadań.",
+    polecenie:
+      "Z tego nagrania ze spotkania zrób notatkę: o czym była mowa, co zostało ustalone " +
+      "i kto się czym zajmuje.",
   },
   {
-    title: "Sprawdź temat i podaj źródła",
-    text: "Zastanawiam się nad pompą ciepła w domu z lat 90. Sprawdź, czy to ma sens, i napisz raport z linkami do źródeł.",
+    tytul: "Raport ze źródłami",
+    opis: "Rzetelna odpowiedź z przypisami, nie luźna opinia.",
+    polecenie:
+      "Zastanawiam się nad pompą ciepła w domu z lat dziewięćdziesiątych. Sprawdź, czy to ma sens, " +
+      "i napisz raport z odnośnikami do źródeł.",
   },
   {
-    title: "Zrób i opublikuj stronę",
-    text: "Zrób jednostronicową wizytówkę mojej firmy — kontakt, oferta, zdjęcia — i opublikuj ją pod moim adresem.",
+    tytul: "Strona firmy",
+    opis: "Wizytówka zbudowana i opublikowana pod Twoim adresem.",
+    polecenie:
+      "Zrób jednostronicową wizytówkę mojej firmy — kontakt, oferta, zdjęcia — " +
+      "i po mojej akceptacji opublikuj ją pod moim adresem.",
+  },
+  {
+    // Serwer ma biblioteki materiałów (tła WebGL, ilustracje, animacje) — podpowiedź
+    // pokazuje, że strona nie musi być płaskim prostokątem w jednym kolorze.
+    tytul: "Strona, która żyje",
+    opis: "Animowane tło, ilustracje i ruch zamiast płaskiego koloru.",
+    polecenie:
+      "Zrób stronę dla mojej marki z animowanym tłem i ilustracjami — ma wyglądać nowocześnie, " +
+      "a nie jak jednokolorowy szablon. Pokaż mi ją, zanim cokolwiek opublikujesz.",
   },
 ];
 
@@ -78,6 +125,26 @@ interface Props {
 export function Workspace({ username, cloudUrl, gosc = false, route, navigate, onLoggedOut }: Props) {
   const [theme, setTheme] = useState<ThemeChoice>(storedTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Wyjście z aplikacji ma swoje ujęcie w pakiecie ruchu; bez niego kliknięcie „Wyloguj”
+  // gasiło okno w tej samej klatce i wyglądało jak awaria, a nie jak zamknięcie sesji.
+  const [wylogowanie, setWylogowanie] = useState(false);
+  // Zwinięcie panelu rozmów na komputerze. Wybór zostaje między sesjami: kto raz
+  // zdecydował, że chce szersze okno rozmowy, nie ma go ustawiać przy każdym wejściu.
+  const [panelZwiniety, setPanelZwiniety] = useState(() => {
+    try {
+      return localStorage.getItem("nexus-panel-zwiniety") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const zwinPanel = useCallback((zwiniety: boolean) => {
+    setPanelZwiniety(zwiniety);
+    try {
+      localStorage.setItem("nexus-panel-zwiniety", zwiniety ? "1" : "0");
+    } catch {
+      // Zablokowane dane witryny — wybór działa w tej sesji i tyle.
+    }
+  }, []);
   const [preview, setPreview] = useState<FileInfo | null>(null);
   const [dragging, setDragging] = useState(false);
   const [dropped, setDropped] = useState<File[]>([]);
@@ -90,7 +157,14 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
-  const activeId = route.view === "module" ? route.moduleId : "chat";
+  // Adres bywa aliasem („/m/chmura” zamiast „/m/cloud”), a cała powłoka — podświetlenie
+  // w pasku, klucz przejścia widoku, przełączanie na czat — porównuje się do identyfikatora
+  // modułu. Sprowadzamy więc alias do identyfikatora od razu tutaj, żeby nie robić tego
+  // w każdym z tych miejsc osobno.
+  const activeId = route.view === "module" ? (findModule(route.moduleId)?.id ?? route.moduleId) : "chat";
+  // Pasek modułów jest w drzewie dwa razy (bok na komputerze, dół na telefonie) — jedną
+  // odmianę chowa arkusz stylów. Pytanie o wydanie zadajemy więc tutaj, raz.
+  const noweZmiany = useNieprzeczytaneNowosci();
   const chat = useChat({
     onUnauthorized: onLoggedOut,
     onOpened: (id) => {
@@ -207,6 +281,11 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
   // „moduł niedostępny”.
   useEffect(() => {
     if (activeId !== "glos") return;
+    // Dopóki nie wiadomo, czy głos jest dostępny, nie wyrokujemy: wejście pod /m/glos
+    // wołało `startVoice()` z `voiceConfig === null` (ustawienia jeszcze się pobierały)
+    // i na ekranie zapalał się czerwony komunikat „serwer nie ma modeli mowy” — także
+    // wtedy, gdy chwilę później okazywało się, że głos działa.
+    if (voiceConfig === null) return;
     navigate(chat.currentId ? `/c/${chat.currentId}` : "/", true);
     startVoice();
     // Uruchamiane przy wejściu pod adres modułu głosu.
@@ -242,6 +321,16 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
   const entries = navEntries(MODULES);
   const module = activeId === "chat" ? undefined : findModule(activeId);
   const turns = chat.detail?.turns ?? [];
+  // Tytuł okna mówił „Danaco Nexus” niezależnie od tego, co jest na ekranie: `applyIndexing`
+  // zna tylko rodzaj ekranu („app”), nie moduł. Przy zainstalowanej aplikacji to tytuł
+  // w przełączniku okien systemu, a przy kilku kartach — jedyny sposób odróżnienia ich
+  // od siebie. Nazwy modułów mieszkają w rejestrze, którego nie wolno wciągać do `App.tsx`
+  // (import jest `eager`, więc przyszłyby z nim wszystkie strony modułów), więc tytuł
+  // ustawia powłoka — jedyne miejsce, które i tak zna moduł i tytuł rozmowy.
+  const nazwaEkranu = module?.label ?? chat.detail?.title ?? "";
+  useEffect(() => {
+    document.title = nazwaEkranu ? `${nazwaEkranu} — Danaco Nexus` : "Danaco Nexus";
+  }, [nazwaEkranu]);
   const voiceTurn = voiceRunId
     ? turns.find((turn): turn is AssistantTurn => turn.type === "assistant" && turn.run_id === voiceRunId)
     : undefined;
@@ -268,8 +357,16 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
         }}
         onRename={(id, title) => void chat.rename(id, title)}
         onDelete={(id) => void chat.remove(id)}
-        onLogout={() => api.logout().finally(onLoggedOut)}
+        onLogout={() => {
+          // Sesję zamykamy od razu; ujęcie przykrywa tylko ten moment.
+          setWylogowanie(true);
+          void api.logout().catch(() => undefined);
+        }}
         onClose={() => setSidebarOpen(false)}
+        onZwin={() => zwinPanel(true)}
+        zwiniety={panelZwiniety}
+        onUstawienia={() => navigate("/m/ustawienia")}
+        onDostep={() => navigate("/m/platnosci")}
       />
       <main
         className="relative flex min-w-0 flex-1 flex-col bg-app"
@@ -286,6 +383,19 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
           <button type="button" className="icon-btn md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Historia rozmów">
             <MenuIcon />
           </button>
+          {/* Powrót panelu rozmów. Bez tego przycisku zwinięcie byłoby pułapką:
+              panel znikał, a rozmowy nie dało się już otworzyć inaczej niż z adresu. */}
+          {panelZwiniety && (
+            <button
+              type="button"
+              className="icon-btn z-etykieta hidden md:inline-grid"
+              data-etykieta="Pokaż panel rozmów"
+              onClick={() => zwinPanel(false)}
+              aria-label="Pokaż panel rozmów"
+            >
+              <PanelIcon size={18} />
+            </button>
+          )}
           <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium">{chat.detail?.title ?? "Nowa rozmowa"}</h1>
           <span className="md:hidden">
             <TasksButton tasks={tasks} onClick={() => setTasksOpen(true)} />
@@ -303,6 +413,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
           </button>
         </header>
         <BezPolaczenia />
+        <PasekAktualizacji />
         {gosc && <PasekKontaProbnego onZaloz={() => window.location.assign("/portal/konto")} />}
         <div
           className="min-h-0 flex-1 overflow-y-auto"
@@ -315,26 +426,69 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
           <div className="mx-auto w-full max-w-3xl px-4 pt-4 pb-10 md:px-6">
             {turns.length === 0 ? (
               <div className="flex min-h-[calc(100dvh-320px)] animate-rise flex-col items-center justify-center py-8 text-center">
-                <Logo size={56} className="mb-5 rounded-2xl shadow-lg shadow-accent/20" />
+                {/* Pusty ekran witał płaskim znaczkiem — po oknie nie było widać, że
+                  aplikacja w ogóle żyje. Znak w spoczynku oddycha; przy ograniczonym
+                  ruchu zostaje ten sam znak bez animacji. */}
+                {ograniczonyRuch() ? (
+                  <Logo size={56} className="mb-5 rounded-2xl shadow-lg shadow-accent/20" />
+                ) : (
+                  <ZnakRuchu moment="spoczynek" rozmiar={64} className="mb-4" />
+                )}
                 <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">W czym mogę pomóc?</h2>
                 <p className="mt-2 max-w-md text-muted">
                   Opisz zadanie i dodaj pliki – dokumenty, zdjęcia, PDF, nagrania. Sam dobiorę narzędzia, wykonam pracę
                   i oddam gotowy wynik.
                 </p>
+                {/* Trzy formy, nie osiem jednakowych kafli.
+                  Poprzednio wszystkie propozycje wyglądały tak samo ważne, więc oko nie
+                  miało się czego złapać i całość czytało się jak spis treści. Teraz dwie
+                  pierwsze są kartami z opisem — to one mają zaczepić; reszta schodzi do
+                  jednowierszowych podpowiedzi, bo do nich wystarczy sama nazwa rezultatu.
+                  Na telefonie karty zostają, podpowiedzi zwijają się do czterech: kafle
+                  mają podpowiadać, a nie zasłaniać drogi do pola wiadomości. */}
                 <div className="mt-8 grid w-full gap-2.5 sm:grid-cols-2">
-                  {SUGGESTIONS.map((suggestion) => (
+                  {SUGGESTIONS.slice(0, 2).map((podpowiedz, indeks) => (
                     <button
-                      key={suggestion.title}
+                      key={podpowiedz.tytul}
                       type="button"
-                      className="rounded-2xl border border-line px-4 py-3 text-left transition-colors hover:bg-raised"
-                      onClick={() => setPrefill(suggestion.text)}
+                      // Karty wchodzą kaskadą i unoszą się pod kursorem — to jedyne
+                      // elementy na pustym ekranie, więc martwe wyglądają na atrapę.
+                      // `flex flex-col` zamiast domyślnego układu przycisku: bez tego krótszy opis był
+                      // wyśrodkowany w pionie i tytuły dwóch kart obok siebie stały na różnej wysokości.
+                      className="ui-nacisk group animate-rise flex flex-col items-start rounded-2xl border border-line bg-raised/40 px-4 py-4 text-left transition-[background-color,border-color,transform] duration-(--duration-base) hover:-translate-y-0.5 hover:border-accent/50 hover:bg-raised"
+                      style={{ animationDelay: `calc(var(--stagger-step) * ${indeks})` }}
+                      onClick={() => setPrefill(podpowiedz.polecenie)}
                     >
-                      <span className="block text-sm font-medium">{suggestion.title}</span>
-                      <span className="mt-0.5 line-clamp-2 block text-sm text-muted">{suggestion.text}</span>
+                      <span className="flex items-center gap-1.5 font-heading text-base font-semibold tracking-tight text-fg">
+                        {podpowiedz.tytul}
+                        <ArrowRightIcon
+                          size={15}
+                          className="shrink-0 -translate-x-1 text-accent opacity-0 transition-[opacity,transform] duration-(--duration-base) group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
+                        />
+                      </span>
+                      <span className="mt-1.5 block text-[13px] leading-relaxed text-muted">
+                        {podpowiedz.opis}
+                      </span>
                     </button>
                   ))}
                 </div>
-                <p className="mt-6 text-sm text-subtle">
+                <div className="mt-3 flex w-full flex-wrap justify-center gap-2">
+                  {SUGGESTIONS.slice(2).map((podpowiedz, indeks) => (
+                    <button
+                      key={podpowiedz.tytul}
+                      type="button"
+                      title={podpowiedz.opis}
+                      className={`ui-nacisk animate-rise rounded-full border border-line px-3.5 py-1.5 text-[13px] text-muted transition-colors duration-(--duration-base) hover:border-line-strong hover:bg-raised hover:text-fg ${
+                        indeks >= 4 ? "hidden sm:inline-flex" : ""
+                      }`}
+                      style={{ animationDelay: `calc(var(--stagger-step) * ${indeks + 2})` }}
+                      onClick={() => setPrefill(podpowiedz.polecenie)}
+                    >
+                      {podpowiedz.tytul}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-6 hidden text-sm text-subtle sm:block">
                   Naciśnij <kbd className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd>{" "}
                   <kbd className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-xs">K</kbd>, aby otworzyć paletę poleceń.
                 </p>
@@ -345,7 +499,12 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
                   turn.type === "user" ? (
                     <UserMessage key={`u${turn.id}`} turn={displayTurn(turn)} onPreview={setPreview} />
                   ) : (
-                    <AssistantMessage key={`a${turn.run_id ?? index}-${index}`} turn={turn} onPreview={setPreview} />
+                    <AssistantMessage
+                      key={`a${turn.run_id ?? index}-${index}`}
+                      turn={turn}
+                      onPreview={setPreview}
+                      ostatnia={index === turns.length - 1}
+                    />
                   ),
                 )}
               </div>
@@ -376,6 +535,22 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
                   <NagranieStartu nazwa="moment-blad" className="size-6 shrink-0 object-contain" />
                 )}
                 <span className="min-w-0 flex-1">{chat.error}</span>
+                {/* Zamknięcie kliknięciem w pasek jest wygodne myszą, ale klawiatura nie
+                  ma czego nacisnąć: `div` z `onClick` nie trafia w kolejność tabulacji
+                  ani nie reaguje na Enter. Kto pracuje klawiaturą albo czytnikiem ekranu,
+                  zostawał z komunikatem na stałe. Przycisk jest prawdziwym `button`, więc
+                  działa tabulatorem, Enterem i spacją. */}
+                <button
+                  type="button"
+                  aria-label="Zamknij komunikat"
+                  className="-mr-1 shrink-0 rounded-lg px-2 py-1 text-danger/80 transition-colors hover:bg-danger/10 hover:text-danger"
+                  onClick={(zdarzenie) => {
+                    zdarzenie.stopPropagation();
+                    chat.setError("");
+                  }}
+                >
+                  <CloseIcon size={16} />
+                </button>
               </div>
             )
           )}
@@ -396,7 +571,13 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
         </div>
         {dragging && (
           <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent bg-accent-soft/90 text-lg font-medium text-accent">
-            <PaperclipIcon size={32} />
+            {/* Przeciąganie pliku ma w pakiecie ruchu własne ujęcie (stany/upuszczanie);
+              przy ograniczonym ruchu zostaje spinacz. */}
+            {ograniczonyRuch() ? (
+              <PaperclipIcon size={32} />
+            ) : (
+              <NagranieStanu nazwa="upuszczanie" className="h-20 w-32 object-contain" />
+            )}
             Upuść pliki, aby je dodać
           </div>
         )}
@@ -408,7 +589,10 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
     <main className="relative flex min-w-0 flex-1 flex-col bg-app">
       <header className="safe-top flex items-center gap-2 border-b border-line/60 px-3 py-2 md:hidden">
         <Logo size={24} className="rounded-md" />
-        <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium">{module?.label ?? "Moduł"}</h1>
+        {/* Etykieta paska, nie tytuł dokumentu: własny nagłówek rysuje moduł. Gdy oba były
+            `h1`, na telefonie ta sama nazwa padała dwa razy (np. „Obrazy” w pasku i w nagłówku
+            modułu), a czytnik ekranu ogłaszał dwa tytuły tej samej strony. */}
+        <p className="min-w-0 flex-1 truncate text-[15px] font-medium">{module?.label ?? "Moduł"}</p>
         <TasksButton tasks={tasks} onClick={() => setTasksOpen(true)} />
       </header>
       <div className="min-h-0 flex-1">
@@ -416,7 +600,10 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
           <module.Page openConversation={openConversation} openModule={(id) => navigate(`/m/${id}`)} openChat={openChat} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-            <h2 className="text-xl font-semibold">Ten moduł nie jest dostępny</h2>
+            {/* Nagłówek pierwszego stopnia, bo tu nie ma strony modułu, która by go niosła.
+              Zmierzone na wydaniu 21.09.2026: `/m/<nieznany>` miał zero widocznych `h1`,
+              więc czytnik ekranu nie miał od czego zacząć — choć sam komunikat był na miejscu. */}
+            <h1 className="text-xl font-semibold">Ten moduł nie jest dostępny</h1>
             <p className="max-w-sm text-sm text-muted">Moduł „{activeId}” nie jest zainstalowany w tej wersji Nexusa.</p>
             <button type="button" className="rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent" onClick={() => navigate("/")}>
               Wróć do czatu
@@ -426,6 +613,9 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
       </div>
     </main>
   );
+
+  // Wyjście z aplikacji: ujęcie zamknięcia sesji zamiast natychmiastowego skoku na logowanie.
+  if (wylogowanie) return <EkranWylogowania onKoniec={onLoggedOut} />;
 
   return (
     <div className="flex h-full flex-col overflow-hidden md:flex-row">
@@ -442,11 +632,23 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
         activeId={activeId}
         onSelect={selectEntry}
         railFooter={<TasksButton variant="rail" tasks={tasks} onClick={() => setTasksOpen(true)} />}
+        noweZmiany={noweZmiany}
       />
-      <div id="tresc-aplikacji" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1">
+      <ObszarOgloszen />
+      {/* Przejście między modułami. Aplikacja podmieniała cały obszar bez śladu ruchu —
+        moduł znikał, drugi pojawiał się w tej samej klatce, więc nie było widać, że to
+        zmiana widoku, a nie przeładowanie. Ujęcie bierze sam podmieniany obszar, więc
+        pasek modułów i panel rozmów zostają nieruchome. */}
+      <PrzejscieWidoku
+        klucz={activeId}
+        id="tresc-aplikacji"
+        tabIndex={-1}
+        className="flex min-h-0 min-w-0 flex-1"
+        klasaWnetrza="flex min-h-0 min-w-0 flex-1"
+      >
         {activeId === "chat" ? chatView : moduleView}
-      </div>
-      <BottomBar entries={entries} activeId={activeId} onSelect={selectEntry} />
+      </PrzejscieWidoku>
+      <BottomBar entries={entries} activeId={activeId} onSelect={selectEntry} noweZmiany={noweZmiany} />
       {preview && <PreviewModal file={preview} onClose={() => setPreview(null)} />}
       {tasksOpen && (
         <TasksPanel

@@ -19,11 +19,15 @@ export const labelClass = "mb-1 block text-xs font-medium tracking-wide text-mut
 export function ModuleHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
   return (
     <header className="safe-top flex flex-wrap items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
+      {/* Na telefonie podpis modułu przegrywał z przyciskami obok i urywał się w pół
+        słowa („Nagranie: transkrypcja, n…”). Tytuł zostaje w jednym wierszu, a podpis
+        schodzi pod spód na całą szerokość — tam ma miejsce, żeby się zmieścić. */}
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="truncate text-sm text-muted">{subtitle}</p>}
+        {subtitle && <p className="hidden truncate text-sm text-muted sm:block">{subtitle}</p>}
       </div>
       {children}
+      {subtitle && <p className="w-full text-sm text-muted sm:hidden">{subtitle}</p>}
     </header>
   );
 }
@@ -73,28 +77,44 @@ export function ErrorBanner({ text, onClose }: { text: string; onClose: () => vo
 }
 
 /** Pole wyboru pliku (klik lub upuszczenie) z przesyłaniem na serwer i paskiem postępu. */
+/** Pole na plik. W wersji pełnej ma własną wysokość: wcześniej był to pasek wysokości
+ * stu kilkudziesięciu pikseli na środku pustego modułu, przez co ekran wyglądał na
+ * niedokończony, a nie na „czekam na plik”. */
 export function FileDrop({
   accept,
   hint,
   onUploaded,
   onError,
   compact = false,
+  multiple = false,
 }: {
   accept: string;
   hint: string;
   onUploaded: (file: FileInfo) => void;
   onError: (message: string) => void;
   compact?: boolean;
+  /** Przyjmuje całą paczkę naraz – montaż filmu zaczyna się od kilkunastu zdjęć, nie od jednego. */
+  multiple?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [over, setOver] = useState(false);
 
-  const upload = (file: File | undefined) => {
-    if (!file) return;
+  const upload = (wybrane: FileList | null | undefined) => {
+    const lista = Array.from(wybrane ?? []).slice(0, multiple ? 40 : 1);
+    if (!lista.length) return;
     setProgress(0);
-    uploadFile(file, null, setProgress)
-      .promise.then(onUploaded)
+    // Pliki idą po kolei, żeby kolejność ujęć odpowiadała kolejności wyboru.
+    lista
+      .reduce(
+        (poprzedni, plik, numer) =>
+          poprzedni.then(() =>
+            uploadFile(plik, null, (ile) => setProgress((numer + ile) / lista.length))
+              .promise.then(onUploaded)
+              .then(() => undefined),
+          ),
+        Promise.resolve(),
+      )
       .catch((failure: Error) => onError(failure.message))
       .finally(() => setProgress(null));
   };
@@ -103,7 +123,7 @@ export function FileDrop({
     <div
       className={`relative flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-center transition-colors ${
         over ? "border-accent bg-accent-soft/60" : "border-line hover:border-line-strong"
-      } ${compact ? "px-4 py-4" : "px-6 py-10"}`}
+      } ${compact ? "px-4 py-4" : "min-h-[min(44vh,380px)] px-6 py-10"}`}
       onDragOver={(event) => {
         event.preventDefault();
         setOver(true);
@@ -112,21 +132,23 @@ export function FileDrop({
       onDrop={(event) => {
         event.preventDefault();
         setOver(false);
-        upload(event.dataTransfer.files[0]);
+        upload(event.dataTransfer.files);
       }}
     >
       <UploadIcon size={compact ? 20 : 28} className="text-muted" />
       <p className="text-sm text-muted">{hint}</p>
       <button type="button" className={buttonSecondary} onClick={() => input.current?.click()} disabled={progress !== null}>
-        {progress !== null ? `Przesyłanie… ${Math.round(progress * 100)}%` : "Wybierz plik"}
+        {progress !== null ? `Przesyłanie… ${Math.round(progress * 100)}%` : multiple ? "Wybierz pliki" : "Wybierz plik"}
       </button>
       <input
         ref={input}
         type="file"
         accept={accept}
+        multiple={multiple}
         className="hidden"
+        aria-label={hint}
         onChange={(event) => {
-          upload(event.target.files?.[0]);
+          upload(event.target.files);
           event.target.value = "";
         }}
       />

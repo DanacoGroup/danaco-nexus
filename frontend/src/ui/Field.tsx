@@ -23,9 +23,24 @@ export function opisPola(id: string, description?: string, error?: string): stri
   return czesci.length ? czesci.join(" ") : undefined;
 }
 
+/** Czy klasa od wywołującego sama ustawia szerokość pola.
+ *
+ * Pole domyślnie zajmuje całą szerokość rodzica — tak wygląda formularz. Ale `w-full`
+ * i podana obok `w-44` to dwie klasy tej samej warstwy: o zwycięzcy decyduje kolejność
+ * w arkuszu, nie kolejność w atrybucie, i wygrywało `w-full`. W Tłumaczu pasek z wyborem
+ * języków zamieniał się przez to na komputerze w cztery kontrolki na całą szerokość,
+ * jedna pod drugą, choć miały stać obok siebie. Gdy wywołujący sam mówi, jak szerokie ma
+ * być pole, nie dokładamy już nic od siebie.
+ */
+const WLASNA_SZEROKOSC = /(?:^|\s)(?:w-|basis-|flex-1|flex-auto)/;
+
 export function Field({ id, label, hideLabel, optional, description, error, labelAside, className, children, ...reszta }: FieldProps) {
   return (
-    <div className={cx("flex w-full flex-col", className)} style={{ gap: "var(--space-role-stack-tight)" }} {...reszta}>
+    <div
+      className={cx("flex flex-col", !WLASNA_SZEROKOSC.test(className ?? "") && "w-full", className)}
+      style={{ gap: "var(--space-role-stack-tight)" }}
+      {...reszta}
+    >
       <div className={cx("flex items-baseline justify-between", hideLabel && "sr-only")} style={{ gap: "var(--space-2)" }}>
         <label id={`${id}-etykieta`} htmlFor={id} className="text-fg" style={{ font: "var(--text-style-label)" }}>
           {label}

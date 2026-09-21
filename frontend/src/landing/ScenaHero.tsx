@@ -7,10 +7,17 @@
 //
 // Kliknięcie powiększa scenę na pełny ekran — na stronie produktu makieta bez
 // powiększenia jest bezużyteczna, bo szczegółów interfejsu nie da się odczytać.
+//
+// Nagranie chodzi w pętli (jeden obieg to niecałe trzy sekundy), więc ruch trwa tak
+// długo, jak długo ktoś patrzy na hero. WCAG 2.2.2 wymaga przy takim ruchu sposobu
+// zatrzymania go — stąd przycisk „Wstrzymaj pokaz” w rogu sceny. Wstrzymanie jest
+// mocniejsze niż widoczność: po przewinięciu strony w dół i z powrotem nagranie stoi
+// dalej, dopóki ktoś sam go nie wznowi.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CloseIcon } from "../components/icons";
+import { CloseIcon, PauseIcon, PlayIcon } from "../components/icons";
 import { odtworz } from "../modules/mozliwosci/odtwarzanie";
+import { useOdtwarzajWWidoku } from "../ruch";
 import { useOknoModalne } from "../ui/useOknoModalne";
 import { HeroMock } from "./HeroMock";
 
@@ -27,9 +34,14 @@ export function ScenaHero() {
   const [bezRuchu, setBezRuchu] = useState(true);
   const [awaria, setAwaria] = useState(false);
   const [powiekszona, setPowiekszona] = useState(false);
+  const [wstrzymane, setWstrzymane] = useState(false);
   const wideo = useRef<HTMLVideoElement>(null);
 
   useEffect(() => setBezRuchu(ograniczonyRuch()), []);
+
+  // Scena chodzi w pętli, bo pokazuje produkt — ale tylko wtedy, gdy ktoś na nią patrzy
+  // i nie poprosił o ciszę przyciskiem.
+  useOdtwarzajWWidoku(wideo, [bezRuchu, awaria, powiekszona, wstrzymane], wstrzymane);
 
   if (bezRuchu || awaria) return <HeroMock />;
 
@@ -40,7 +52,7 @@ export function ScenaHero() {
       muted
       loop
       playsInline
-      autoPlay
+      autoPlay={!wstrzymane}
       preload="metadata"
       poster={`${NAGRANIE}.png`}
       aria-hidden="true"
@@ -52,19 +64,33 @@ export function ScenaHero() {
     </video>
   );
 
+  // Przycisk sterowania nie może siedzieć w przycisku powiększenia (zagnieżdżony
+  // <button> to nieprawidłowy HTML i klawiatura go nie osiąga), więc oba są rodzeństwem
+  // we wspólnej ramce.
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setPowiekszona(true)}
-        aria-label="Powiększ podgląd aplikacji"
-        className="group relative mx-auto block w-full max-w-[1040px] cursor-zoom-in overflow-hidden rounded-xl border border-line-strong bg-app shadow-[var(--shadow-floating)] md:rounded-2xl"
-      >
-        {film("block w-full")}
-        <span className="absolute right-4 bottom-4 rounded-full bg-app/85 px-3 py-1.5 text-xs text-fg opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-          Powiększ
-        </span>
-      </button>
+      <div className="relative mx-auto w-full max-w-[1040px]">
+        <button
+          type="button"
+          onClick={() => setPowiekszona(true)}
+          aria-label="Powiększ podgląd aplikacji"
+          className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-line-strong bg-app shadow-[var(--shadow-floating)] md:rounded-2xl"
+        >
+          {film("block w-full")}
+          <span className="absolute right-4 bottom-4 rounded-full bg-app/85 px-3 py-1.5 text-xs text-fg opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            Powiększ
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setWstrzymane((stan) => !stan)}
+          aria-label={wstrzymane ? "Wznów pokaz aplikacji" : "Wstrzymaj pokaz aplikacji"}
+          className="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-app/85 px-3 py-1.5 text-xs text-fg backdrop-blur transition-colors hover:bg-app"
+        >
+          {wstrzymane ? <PlayIcon size={14} /> : <PauseIcon size={14} />}
+          {wstrzymane ? "Wznów pokaz" : "Wstrzymaj pokaz"}
+        </button>
+      </div>
 
       {powiekszona && <Powiekszenie onZamknij={() => setPowiekszona(false)}>{film}</Powiekszenie>}
     </>

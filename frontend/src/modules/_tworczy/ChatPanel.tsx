@@ -130,6 +130,7 @@ export function ChatPanel({ conversation, conversationId, placeholder, empty, pr
                 multiple
                 accept={accept}
                 className="hidden"
+                aria-label="Wybierz pliki do rozmowy"
                 onChange={(event) => {
                   attach(event.target.files);
                   event.target.value = "";

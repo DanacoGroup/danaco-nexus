@@ -83,11 +83,35 @@ export default defineConfig({
             ],
           },
         },
+        // Skróty z menu kontekstowego ikony (długie przytrzymanie na telefonie, prawy
+        // przycisk na pulpicie). Android i Windows pokazują do czterech; dawaliśmy jeden,
+        // więc menu instalacji było niemal puste. Kolejność od najczęstszego użycia.
+        // Bez rozmowy głosowej: `/m/glos` nie jest modułem rejestru, tylko nakładką, a gdy
+        // głos jest niedostępny, adres odsyła na czat — sprawdzone w przeglądarce. Skrót,
+        // który czasem prowadzi gdzie indziej, jest gorszy niż brak skrótu.
         shortcuts: [
           {
             name: "Nowa rozmowa",
             short_name: "Nowa",
             url: "/?source=shortcut",
+            icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+          },
+          {
+            name: "Obrazy",
+            short_name: "Obrazy",
+            url: "/m/obrazy?source=shortcut",
+            icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+          },
+          {
+            name: "Pliki",
+            short_name: "Pliki",
+            url: "/m/pliki?source=shortcut",
+            icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+          },
+          {
+            name: "Możliwości",
+            short_name: "Możliwości",
+            url: "/m/mozliwosci?source=shortcut",
             icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
           },
         ],

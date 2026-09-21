@@ -1,19 +1,24 @@
-// Pasek konta próbnego: jedyne miejsce, w którym aplikacja mówi, że praca toczy się
-// na koncie tymczasowym. Gość ma pełne okno, więc bez tego paska nie miałby skąd
-// wiedzieć, że rozmowy i pliki znikną wraz z kontem.
+// Pasek konta próbnego: jedyna informacja, że praca toczy się na koncie tymczasowym.
 
 import { useEffect, useState } from "react";
-import { platnosciApi } from "../platnosci/api";
+import { platnosciApi, type KredytyInfo } from "../platnosci/api";
+
+/** Zdanie o pozostałym dostępie — bez liczb, tak jak wszędzie indziej w produkcie. */
+const OPISY: Record<KredytyInfo["stan"], string> = {
+  w_porzadku: "",
+  konczy_sie: "Dostęp konta próbnego dobiega końca.",
+  wyczerpany: "Dostęp konta próbnego się wyczerpał.",
+};
 
 export function PasekKontaProbnego({ onZaloz }: { onZaloz: () => void }) {
-  const [saldo, setSaldo] = useState<number | null>(null);
+  const [dostep, setDostep] = useState<KredytyInfo | null>(null);
 
   useEffect(() => {
     let aktualne = true;
     platnosciApi
       .kredyty()
       .then((stan) => {
-        if (aktualne) setSaldo(stan.saldo);
+        if (aktualne) setDostep(stan);
       })
       .catch(() => undefined);
     return () => {
@@ -22,20 +27,26 @@ export function PasekKontaProbnego({ onZaloz }: { onZaloz: () => void }) {
   }, []);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line/60 bg-raised/70 px-4 py-2 text-sm">
-      <span className="font-medium text-fg">Konto próbne</span>
-      <span className="text-muted">
+    <div className="flex flex-nowrap items-center gap-x-3 gap-y-1 border-b border-line/60 bg-raised/70 px-4 py-2 text-sm sm:flex-wrap">
+      <span className="shrink-0 font-medium whitespace-nowrap text-fg">Konto próbne</span>
+      {/* Na telefonie pasek ma być jednym wierszem nad rozmową, a nie akapitem: pełne
+        zdanie zajmowało tam trzy linijki i spychało pole wiadomości poza ekran. */}
+      <span className="hidden text-muted sm:inline">
         Pracujesz w pełnej aplikacji. Rozmowy i pliki znikną razem z kontem próbnym.
       </span>
-      {saldo !== null && (
-        <span className="text-subtle tabular-nums">{saldo.toLocaleString("pl-PL")} kredytów</span>
+      {/* Krótsze zdanie na telefonie: poprzednie („dane znikną razem z kontem”) nie mieściło
+        się w wierszu obok przycisku i kończyło wielokropkiem w połowie wyrazu. */}
+      <span className="min-w-0 truncate text-muted sm:hidden">dane znikną po wyjściu</span>
+      {dostep && OPISY[dostep.stan] && (
+        <span className={dostep.stan === "wyczerpany" ? "text-danger" : "text-warning"}>
+          {OPISY[dostep.stan]}
+        </span>
       )}
       <button
         type="button"
         onClick={onZaloz}
-        // Wypełnienie przycisku to „accent-fill”, nie „accent”: biel na akcencie tekstowym
-        // motywu ciemnego daje 2,48:1 zamiast wymaganych 4,5:1 (DESIGN_SYSTEM, rozdz. 4.4).
-        className="ml-auto rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover"
+        // „accent-fill”, nie „accent”: biel na akcencie tekstowym daje 2,48:1 (DESIGN_SYSTEM, 4.4).
+        className="ml-auto shrink-0 rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover"
       >
         Załóż konto
       </button>

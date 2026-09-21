@@ -111,9 +111,12 @@ export function parentPath(path: string): string {
   return `/${parts.join("/")}`;
 }
 
-/** Okruchy ścieżki: [{name: "Cloud", path: "/"}, {name: "Dokumenty", path: "/Dokumenty"}…]. */
+/** Okruchy ścieżki: [{name: "Chmura", path: "/"}, {name: "Dokumenty", path: "/Dokumenty"}…].
+ *
+ * Korzeń nazywa się tak samo jak moduł w pasku nawigacji. Wcześniej stało tam „Cloud”:
+ * jedyne angielskie słowo na całym ekranie, tuż pod nagłówkiem „Chmura”. */
 export function breadcrumbs(path: string): { name: string; path: string }[] {
-  const result = [{ name: "Cloud", path: "/" }];
+  const result = [{ name: "Chmura", path: "/" }];
   let current = "";
   for (const part of path.split("/").filter(Boolean)) {
     current += `/${part}`;

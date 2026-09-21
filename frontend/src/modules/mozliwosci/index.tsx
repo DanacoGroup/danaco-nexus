@@ -41,6 +41,19 @@ function KartaNarzedzia({ narzedzie, onUzyj }: { narzedzie: Narzedzie; onUzyj: (
       onFocusCapture={() => setRuch(true)}
       onBlurCapture={() => setRuch(false)}
     >
+      {/* Narzędzia bez nagrania dostają pole o tych samych proporcjach. Bez niego karta
+        w rzędzie obok kart z podglądem rozciągała opis na całą wysokość i zostawiała
+        w środku dziurę, a przykład zjeżdżał na sam dół — rząd wyglądał na uszkodzony. */}
+      {!nagranie && (
+        <div
+          aria-hidden="true"
+          className="relative flex aspect-video items-center justify-center overflow-hidden border-b border-line/60 bg-[radial-gradient(ellipse_70%_70%_at_50%_40%,var(--hover)_0%,var(--app)_100%)]"
+        >
+          <span className="font-heading text-3xl font-bold text-subtle/60">
+            {narzedzie.nazwa.slice(0, 1).toLocaleUpperCase("pl-PL")}
+          </span>
+        </div>
+      )}
       {nagranie && (
         <div className="relative aspect-video overflow-hidden border-b border-line/60 bg-app">
           <video
@@ -182,6 +195,8 @@ function Strona({ openChat }: ModulePageProps) {
 
 export const module: NexusModule = {
   id: "mozliwosci",
+  // Nazwa z paska nawigacji też otwiera moduł.
+  aliasy: ["narzedzia"],
   label: "Narzędzia",
   description: `Wszystko, co Nexus potrafi — ${LICZBA_NARZEDZI} narzędzi z przykładami`,
   icon: SparkIcon,

@@ -3,7 +3,9 @@
 export { PasSwitu, TloNaZywo, WarstwaZiarna, type PasSwituProps, type TloNaZywoProps } from "./TloNaZywo";
 export { ZnakRuchu, type MomentZnaku, type ZnakRuchuProps } from "./ZnakRuchu";
 export { PrzejscieWidoku, type PrzejscieWidokuProps } from "./PrzejscieWidoku";
-export { kaskada, useWidocznosc } from "./wejscia";
+export { EkranPrzejscia, type EkranPrzejsciaProps } from "./EkranPrzejscia";
+export { kaskada, useOdtwarzajWWidoku, useWidocznosc } from "./wejscia";
+export { otwarcieZagra, useOtwarcie } from "./otwarcie";
 export {
   klatkaZastepcza,
   wczytajTlo,
@@ -14,8 +16,10 @@ export {
 } from "./tla";
 export {
   NagranieStartu,
-  ograniczonyRuch,
   zrodlaStartu,
   type IdStartu,
   type NagranieStartuProps,
 } from "./NagranieStartu";
+// Ograniczony ruch mieszka przy preferencjach konta — to jedno źródło dla skryptu i CSS.
+export { ograniczonyRuch, zastosujRuch } from "../preferencje";
+export { NagranieStanu, zrodlaStanu, type IdStanu, type NagranieStanuProps } from "./NagranieStanu";

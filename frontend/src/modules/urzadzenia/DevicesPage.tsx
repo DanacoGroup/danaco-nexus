@@ -25,8 +25,13 @@ const KIND_ICONS: Record<DeviceKind, ComponentType<IconProps>> = {
 };
 
 const KIND_HINTS: Record<DeviceKind, string> = {
-  android: "W aplikacji Nexus na telefonie wybierz „Połącz z serwerem” i zeskanuj kod QR albo wklej klucz.",
-  desktop: "W Nexus Desktop otwórz ustawienia i wklej adres serwera oraz klucz.",
+  // Telefon nie ma ekranu „Połącz z serwerem” ani czytnika kodów: aplikacja Android zakłada
+  // klucz sama, przy pierwszym zalogowaniu w oknie Nexusa. Podpowiedź mówiła co innego, więc
+  // użytkownik szukał w aplikacji funkcji, której tam nie ma.
+  android: "Zaloguj się w aplikacji Nexus na telefonie — klucz urządzenia powstanie sam. Ten klucz przyda się, gdy chcesz go wpisać ręcznie.",
+  // Pulpit ma prostszą drogę: „Połącz komputer” robi klucz z sesji okna. Ręczne wklejenie
+  // zostaje jako zapas (`desktop/src/ui/settings.html` — sekcja „Wklej klucz ręcznie”).
+  desktop: "W Nexus Desktop wystarczy „Połącz komputer” w ustawieniach — klucz powstanie z sesji okna. Ten klucz wklej, gdy wolisz zrobić to ręcznie.",
   rozszerzenie: "Kliknij ikonę rozszerzenia Nexus, otwórz ustawienia i wklej adres serwera oraz klucz.",
   inne: "Urządzenie wysyła klucz w nagłówku Authorization: Bearer <klucz>.",
 };

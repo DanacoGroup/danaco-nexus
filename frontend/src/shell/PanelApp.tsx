@@ -6,6 +6,7 @@ import { api, ApiError, setDeviceToken, type AssistantTurn, type FileInfo } from
 import { Composer } from "../components/Composer";
 import { CheckIcon, CloseIcon, Logo, MonitorIcon, PlusIcon } from "../components/icons";
 import { PreviewModal } from "../components/PreviewModal";
+import { ObszarOgloszen } from "../ui/ObszarOgloszen";
 import { AssistantMessage, UserMessage } from "../components/Turns";
 import {
   assistantText,
@@ -160,6 +161,7 @@ export function PanelApp() {
   const turns = chat.detail?.turns ?? [];
   return (
     <div className="flex h-full flex-col bg-app">
+      <ObszarOgloszen />
       <header className="flex items-center gap-1.5 border-b border-line/70 px-2.5 py-2">
         <Logo size={24} className="shrink-0 rounded-md" />
         <select

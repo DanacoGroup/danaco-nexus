@@ -9,6 +9,11 @@ describe("parseRoute", () => {
     expect(parseRoute(`/c/${ID}`, "")).toEqual({ view: "chat", conversationId: ID });
     expect(parseRoute("/m/urzadzenia", "")).toEqual({ view: "module", moduleId: "urzadzenia" });
     expect(parseRoute("/m/deep-research/", "")).toEqual({ view: "module", moduleId: "deep-research" });
+    // W pasku „Czat” stoi obok modułów, więc adres /m/czat jest naturalny — ma prowadzić
+    // do rozmowy, a nie do planszy „moduł nie jest zainstalowany”.
+    for (const nazwa of ["czat", "chat", "rozmowa"]) {
+      expect(parseRoute(`/m/${nazwa}`, "")).toEqual({ view: "chat", conversationId: null });
+    }
     expect(parseRoute("/zaloguj", "?next=/m/kod")).toEqual({ view: "login" });
     expect(parseRoute("/start", "")).toEqual({ view: "landing" });
   });

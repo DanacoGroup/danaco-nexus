@@ -5,9 +5,17 @@ import { api, downloadUrl, FINAL_EVENTS, subscribeRun, type FileInfo, type Turn 
 import { AssistantMessage, UserMessage } from "../../components/Turns";
 import { SendIcon, StopIcon } from "../../components/icons";
 import { applyRunEvent, emptyAssistantTurn } from "../../runState";
+import { Button, Select } from "../../ui";
 import { kodApi, type CodeConversation } from "./api";
 
 const openFile = (file: FileInfo) => window.open(downloadUrl(file, true), "_blank", "noopener");
+
+/** Zdania na start sesji: zakres, w jakim ten moduł naprawdę pracuje. */
+const ZACZEPY = [
+  "Przejrzyj projekt i powiedz, co tu jest i jak jest zbudowane.",
+  "Uruchom testy i napraw to, co się nie zgadza.",
+  "Dodaj walidację formularza razem z testami.",
+];
 
 export function SesjaKodu({
   project,
@@ -139,43 +147,59 @@ export function SesjaKodu({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label="Sesja kodu">
+      {/* Lista sesji szła dotąd natywnym `select`-em: szary prostokąt z systemową strzałką,
+        jedyny taki element w całym produkcie. Tu jest lista wyboru z biblioteki — te same
+        kroje, barwy i obsługa klawiaturą co wszędzie indziej. */}
       <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-        <select
+        <Select
+          label="Sesja"
+          hideLabel
+          size="sm"
+          className="min-w-0 flex-1"
           value={conversationId ?? ""}
-          onChange={(event) => setConversationId(event.target.value || null)}
-          className="min-w-0 flex-1 rounded-lg border border-line bg-app px-2 py-1 text-sm"
-          aria-label="Sesja"
-        >
-          {conversations.length === 0 && <option value="">Nowa sesja</option>}
-          {conversations.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title} · {new Date(item.updated_at).toLocaleDateString("pl-PL")}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => void newSession().catch((reason) => setError(String(reason)))}
-          className="rounded-lg border border-line px-2 py-1 text-xs text-muted hover:text-fg"
-        >
+          onChange={(wybor) => setConversationId(wybor || null)}
+          placeholder="Nowa sesja"
+          options={
+            conversations.length === 0
+              ? [{ value: "", label: "Nowa sesja" }]
+              : conversations.map((item) => ({
+                  value: item.id,
+                  label: item.title,
+                  description: new Date(item.updated_at).toLocaleDateString("pl-PL"),
+                }))
+          }
+        />
+        <Button size="sm" variant="secondary" onClick={() => void newSession().catch((reason) => setError(String(reason)))}>
           Nowa
-        </button>
+        </Button>
         {conversationId && (
-          <button
-            type="button"
-            onClick={() => openConversation(conversationId)}
-            className="rounded-lg border border-line px-2 py-1 text-xs text-muted hover:text-fg"
-          >
+          <Button size="sm" variant="ghost" onClick={() => openConversation(conversationId)}>
             W czacie
-          </button>
+          </Button>
         )}
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4">
         {turns.length === 0 && (
-          <p className="text-sm text-muted">
-            Nexus pracuje w katalogu projektu: czyta i zmienia pliki, uruchamia testy i polecenia git. Opisz,
-            co zrobić – np. „Dodaj walidację formularza i testy”.
-          </p>
+          // Akapit z przykładem w cudzysłowie trzeba było przepisać ręcznie do pola.
+          // Gotowe zdania wstawiają się kliknięciem — a przy okazji pokazują, w jakiej
+          // skali warto zlecać pracę w tym module.
+          <div className="space-y-3">
+            <p className="text-sm text-muted">
+              Nexus pracuje w katalogu projektu: czyta i zmienia pliki, uruchamia testy i polecenia git.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {ZACZEPY.map((zdanie) => (
+                <button
+                  key={zdanie}
+                  type="button"
+                  onClick={() => setText(zdanie)}
+                  className="ui-nacisk rounded-xl border border-line px-3 py-2 text-left text-[13px] text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
+                >
+                  {zdanie}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {turns.map((turn) =>
           turn.type === "user" ? (

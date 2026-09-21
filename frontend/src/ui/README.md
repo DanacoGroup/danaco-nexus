@@ -105,6 +105,7 @@ Typy wspólne (`types.ts`): `ControlSize`, `Tone`, `Shortcut`, `BaseProps`, `cx`
 | `Table` | `Table.tsx` | 6.1 |
 | `Progress`, `ProgressRing`, `Spinner` | `Progress.tsx` | 9.5 |
 | `Skeleton` | `Skeleton.tsx` | 9.6 |
+| `GranicaBledu` | `GranicaBledu.tsx` | — (ostatnia siatka: zamiast pustej strony po wyjątku) |
 | `EmptyState` | `EmptyState.tsx` | 9.7 |
 | `Kbd` | `Kbd.tsx` | 9.8 |
 | `CommandPalette` | `CommandPalette.tsx` | 10.3 |

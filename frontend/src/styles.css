@@ -166,6 +166,37 @@
   [hidden] {
     display: none !important;
   }
+
+  /* Natywne pole wyboru w barwach produktu.
+     W modułach zostało kilkanaście zwykłych `select`-ów — listy plików, języków, kalendarzy,
+     formatów. Każdy rysował się strzałką i tłem systemu, więc w motywie ciemnym odstawał od
+     reszty jak łata i był jedynym elementem, po którym widać, że to strona, a nie aplikacja.
+     Jedna reguła ustawia je wszystkie naraz: własna strzałka, tło i barwa z tokenów, a
+     `color-scheme` (tokens.css) pilnuje, żeby rozwinięta lista też była ciemna.
+     Komponent `ui/Select` zostaje dla miejsc, gdzie pozycja ma mieć opis albo ikonę. */
+  select:not([multiple]):not([size]) {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: var(--app);
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position:
+      right 1rem top 55%,
+      right 0.72rem top 55%;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 2rem;
+    color: var(--fg);
+  }
+  select:not([multiple]):not([size]):hover {
+    border-color: var(--line-strong);
+  }
+  select option {
+    background: var(--raised);
+    color: var(--fg);
+  }
 }
 
 @layer components {
@@ -231,6 +262,49 @@
     @apply inline-grid shrink-0 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-40;
     width: var(--control-md);
     height: var(--control-md);
+  }
+
+  /* Etykieta przy ikonie bez podpisu.
+     Sam znak graficzny nie mówi, co zrobi przycisk — trzeba go kliknąć, żeby się
+     dowiedzieć, a to zły sposób poznawania funkcji, które coś zmieniają. Natywny
+     `title` pojawia się po sekundzie i nie da się go opanować wzrokiem; ten działa
+     od razu i pokazuje się też przy dojściu klawiaturą. */
+  .z-etykieta {
+    position: relative;
+  }
+  .z-etykieta::after {
+    content: attr(data-etykieta);
+    position: absolute;
+    inset-inline-start: calc(100% + 8px);
+    top: 50%;
+    z-index: var(--z-popover);
+    translate: 0 -50%;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--raised);
+    color: var(--fg);
+    font-size: 12px;
+    line-height: 1.3;
+    white-space: nowrap;
+    box-shadow: var(--shadow-floating);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--easing-standard);
+  }
+  .z-etykieta:hover::after,
+  .z-etykieta:focus-visible::after {
+    opacity: 1;
+  }
+  /* Przy prawej krawędzi okna etykieta wychodzi w lewo, żeby nie uciekła poza ekran. */
+  .z-etykieta[data-strona="lewo"]::after {
+    inset-inline-start: auto;
+    inset-inline-end: calc(100% + 8px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .z-etykieta::after {
+      transition: none;
+    }
   }
 
   /* Aurora = „AI pracuje”. Wyłącznie znak, awatar asystenta, wysyłka i stan agenta. */
@@ -322,20 +396,6 @@
   /* Hero: styk z paskiem nawigacji wygaszamy krócej i łagodniej niż w sekcjach.
      Pełna barwa tła przez pierwsze 16% wysokości gasiła zorzę dokładnie tam, gdzie
      stoi nagłówek — pierwszy ekran wyglądał na przyciemniony bez powodu. */
-  /* Nakładka otwarcia gaśnie, zanim zniknie — strona nie „wyskakuje” spod niej.
-     Zanikanie jest krótkie celowo: przy dłuższym widać przez półprzezroczystą zasłonę
-     gotowy nagłówek, a znak wisi nad nim jak przyklejony. Zanika cała nakładka razem
-     z tłem, więc w połowie przejścia nie ma mieszanki „ciemna szyba plus logo”. */
-  .otwarcie {
-    transition: opacity var(--duration-base) var(--easing-exit);
-    will-change: opacity;
-  }
-  .otwarcie[data-gasnie="true"] {
-    opacity: 0;
-    /* Od chwili zanikania nakładka przestaje łapać kliknięcia — strona jest już pod nią. */
-    pointer-events: none;
-  }
-
   /* Poświata pod kolumną treści hero: kontrast tekstu bez ściemniania całego ekranu.
      Elipsa sięga poza kolumnę, więc jej krawędź nie rysuje się na tle zorzy. */
   .hero-tresc {
@@ -370,6 +430,29 @@
   .wejscie {
     animation: wejscie var(--czas-wejscia, var(--duration-slower)) var(--easing-emphasized) both;
     animation-delay: var(--opoznienie, 0ms);
+  }
+  /* Dopóki plansza otwarcia (ekran ładowania marki) zasłania stronę, wejście hero stoi
+     w pierwszej klatce. Bez tego kaskada nagłówka przewijała się pod zasłoną i kończyła,
+     zanim zasłona zeszła — widać było końcówkę jednego ruchu nałożoną na drugi. Teraz jest
+     po kolei: znak rysuje się na planszy, przelatuje w łuk hero, a strona wchodzi za nim. */
+  .landing[data-otwarcie="gra"] .wejscie,
+  .landing[data-otwarcie="gra"] .wejscie-slowo,
+  .landing[data-otwarcie="gra"] .luk-rysuje,
+  .landing[data-otwarcie="gra"] .punkt-opada {
+    animation-play-state: paused;
+  }
+  /* To samo na logowaniu. Plansza zasłania każdą powierzchnię, nie tylko stronę produktu,
+     a karta logowania wchodziła pod nią — gasnący znak leżał na polach formularza.
+
+     Karta ma własną klasę zamiast narzędziowej `animate-rise`, bo skrót `animation`
+     z warstwy narzędzi **zeruje** `animation-play-state` na „running” i pauza nadana
+     wcześniej nie miała żadnego skutku. Tu animacja i jej wstrzymanie stoją obok siebie
+     w jednej warstwie, więc kolejność jest przewidywalna. */
+  .logowanie-karta {
+    animation: rise var(--duration-base) var(--easing-enter);
+  }
+  .logowanie[data-otwarcie="gra"] .logowanie-karta {
+    animation-play-state: paused;
   }
   /* Hero ma własną skalę wejścia. Przy wspólnych tokenach (16 px w 640 ms) ruch na
      ekranie wysokości okna był niedostrzegalny — pierwsze wrażenie wyglądało tak,
@@ -494,13 +577,21 @@
   .landing-karta:focus-within::after {
     opacity: 1;
   }
-  /* Pasek zdań: dwa tory w przeciwnych kierunkach; zatrzymują się pod kursorem i przy fokusie. */
+  /* Pasek zdań: dwa tory w przeciwnych kierunkach.
+     Zatrzymują się pod kursorem, przy fokusie i na żądanie; zatrzymanie poza kadrem
+     (`[data-widoczny="false"]`) stoi w `ruch/wejscia.css` razem z resztą reguł widoczności.
+
+     Przycisk jest tu warunkiem dostępności: ruch leci w kółko, więc trwa dłużej niż pięć
+     sekund i WCAG 2.2.2 wymaga sposobu wstrzymania go. Samo `:hover`/`:focus-within` nie
+     wystarcza — kapsuły są zwykłymi `<span>`, więc fokus nigdy do toru nie wchodzi
+     i klawiatura nie miała czym zatrzymać. */
   .pasek-tor {
     animation: przesuw var(--czas, calc(var(--duration-ambient) * 30)) var(--easing-linear) infinite;
     animation-direction: var(--kierunek, normal);
   }
   .pasek-tor:hover,
-  .pasek-tor:focus-within {
+  .pasek-tor:focus-within,
+  [data-pasek-wstrzymany="true"] .pasek-tor {
     animation-play-state: paused;
   }
   @keyframes przesuw {
@@ -562,8 +653,38 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* Samo zerowanie czasu trwania nie wystarcza. Kaskada trzyma opóźnienie osobno
+       (`--ui-opoznienie`, do 320 ms), a `fill: both` zostawia pozycję na krycie 0 —
+       więc przy ograniczonym ruchu treść zamiast wejść od razu stała niewidoczna
+       i wyskakiwała schodkami, jedna pozycja po drugiej. Zmierzone na wydaniu
+       21.09.2026: czas 0,00001 s, opóźnienie dalej 0,08–0,32 s. */
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* To samo, ale z ustawienia konta („Ustawienia → Wygląd i ruch”). Znacznik na korzeniu
+   stawia `zastosujRuch()`. Bez tej gałęzi przełącznik wyciszał wyłącznie nagrania
+   sterowane skryptem, a kaskady i przejścia widoków szły dalej — ustawienie działało
+   w połowie i wyglądało na zepsute. */
+:root[data-ruch="ograniczony"] {
+  --distance-nudge: 0px;
+  --distance-small: 0px;
+  --distance-medium: 0px;
+}
+
+:root[data-ruch="ograniczony"] *,
+:root[data-ruch="ograniczony"] *::before,
+:root[data-ruch="ograniczony"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  /* Opóźnienie kaskady zerujemy tak samo jak wyżej — inaczej ustawienie konta wycisza
+     ruch, ale zostawia schodkowe wyskakiwanie treści. */
+  animation-delay: 0ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* Aplikacja zainstalowana na Windows z nakładką przycisków okna. */

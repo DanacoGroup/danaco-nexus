@@ -1,18 +1,17 @@
 // Dokumentacja: spis stron po lewej, treść wybranej strony po prawej.
 
 import { Markdown } from "../../components/Markdown";
-import { portalApi } from "../api";
+import { portalApi, type SkrotTresci } from "../api";
 import { useZasob } from "../dane";
 import { artykul, okruszki, usePozycjonowanie } from "../seo";
+import { SCIEZKA } from "../../shell/route";
 import { sciezka } from "../trasy";
 import { Komunikat, Ladowanie, NaglowekStrony, Odsylacz, Okruszki } from "../ui";
 
 const OPIS = "Jak uruchomić Nexusa, podłączyć pocztę, kalendarz i chmurę oraz pracować z każdym modułem.";
 
-function SpisTresci({ aktywny }: { aktywny: string | null }) {
-  const spis = useZasob(() => portalApi.lista({ typ: "dokumentacja", na_stronie: 50 }), "spis-dokumentacji");
-  if (spis.ladowanie) return <Ladowanie wierszy={4} etykieta="Wczytywanie spisu dokumentacji" />;
-  const pozycje = spis.dane?.items ?? [];
+function SpisTresci({ aktywny, pozycje, ladowanie }: { aktywny: string | null; pozycje: SkrotTresci[]; ladowanie: boolean }) {
+  if (ladowanie) return <Ladowanie wierszy={4} etykieta="Wczytywanie spisu dokumentacji" />;
   if (pozycje.length === 0) return <p className="text-sm text-muted">Spis jest jeszcze pusty. Napisz do nas — podeślemy opis potrzebnego zagadnienia.</p>;
   return (
     <nav aria-label="Spis dokumentacji">
@@ -73,7 +72,7 @@ function TrescStrony({ slug }: { slug: string }) {
         <h1 tabIndex={-1} id="portal-tytul" className="font-heading text-3xl font-semibold text-fg">
           Nie znaleziono strony
         </h1>
-        <p className="mt-4 text-muted">{zasob.blad || "Tej strony dokumentacji nie ma pod tym adresem. Wybierz zagadnienie ze spisu obok."}</p>
+        <p className="mt-4 text-muted">{zasob.blad || "Tej strony dokumentacji nie ma pod tym adresem. Wybierz zagadnienie ze spisu treści."}</p>
       </>
     );
   }
@@ -90,7 +89,7 @@ function TrescStrony({ slug }: { slug: string }) {
   );
 }
 
-function Wprowadzenie() {
+function Wprowadzenie({ pusty }: { pusty: boolean }) {
   usePozycjonowanie({
     tytul: "Dokumentacja",
     opis: OPIS,
@@ -103,12 +102,34 @@ function Wprowadzenie() {
   return (
     <>
       <NaglowekStrony tytul="Uruchom Nexusa i podłącz swoje konta" opis={OPIS} />
-      <p className="mt-4 text-muted">Wybierz zagadnienie ze spisu obok. Jeżeli zaczynasz, otwórz stronę o pierwszym uruchomieniu.</p>
+      {/* Spis bywa pusty (dokumentacja jest redagowana w panelu), a wtedy „wybierz zagadnienie
+          ze spisu treści” każe zrobić coś niewykonalnego. W takim stanie strona mówi, co jest,
+          i podaje dwa wyjścia, które działają już teraz. */}
+      {pusty ? (
+        <p className="mt-4 max-w-prose text-muted">
+          Spis dokumentacji jeszcze powstaje. Zanim się zapełni:{" "}
+          <Odsylacz adres={SCIEZKA.piaskownica} className="text-accent hover:underline">
+            wypróbuj Nexusa bez rejestracji
+          </Odsylacz>{" "}
+          albo{" "}
+          <Odsylacz adres={sciezka("kontakt")} className="text-accent hover:underline">
+            napisz, czego potrzebujesz
+          </Odsylacz>{" "}
+          — podeślemy opis zagadnienia.
+        </p>
+      ) : (
+        // „ze spisu treści”, a nie „obok”: spis stoi obok tekstu dopiero na szerokim
+        // ekranie. Na telefonie jest **nad** tekstem, więc „obok” kazało szukać czegoś,
+        // czego tam nie ma.
+        <p className="mt-4 text-muted">Wybierz zagadnienie ze spisu treści.</p>
+      )}
     </>
   );
 }
 
 export function Dokumentacja({ slug }: { slug: string | null }) {
+  const spis = useZasob(() => portalApi.lista({ typ: "dokumentacja", na_stronie: 50 }), "spis-dokumentacji");
+  const pozycje = spis.dane?.items ?? [];
   return (
     <div className="pt-8">
       <Okruszki
@@ -120,9 +141,9 @@ export function Dokumentacja({ slug }: { slug: string | null }) {
       <div className="mt-6 grid gap-10 lg:grid-cols-[16rem_1fr]">
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <h2 className="mb-3 text-sm font-semibold tracking-wide text-subtle uppercase">Spis treści</h2>
-          <SpisTresci aktywny={slug} />
+          <SpisTresci aktywny={slug} pozycje={pozycje} ladowanie={spis.ladowanie} />
         </aside>
-        <div className="min-h-[24rem]">{slug ? <TrescStrony slug={slug} /> : <Wprowadzenie />}</div>
+        <div className="min-h-[24rem]">{slug ? <TrescStrony slug={slug} /> : <Wprowadzenie pusty={!spis.ladowanie && pozycje.length === 0} />}</div>
       </div>
     </div>
   );

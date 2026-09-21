@@ -13,6 +13,14 @@ import { MaskCanvas, type MaskHandle } from "./MaskCanvas";
 type Tool = "remove" | "background" | "erase" | "upscale";
 type BackgroundMode = "color" | "gradient" | "image" | "blur" | "transparent";
 
+/** Co moduł robi ze zdjęciem — pokazywane, zanim jest co przetwarzać. */
+const ZASTOSOWANIA = [
+  { tytul: "Zdjęcie produktu bez tła", opis: "Wycięty obiekt w PNG z przezroczystością, gotowy na sklep i ofertę." },
+  { tytul: "Nowe tło pod zdjęciem", opis: "Kolor, gradient, własne zdjęcie albo rozmycie — bez programu graficznego." },
+  { tytul: "Znikający element", opis: "Zamaluj, co ma zniknąć: przechodzień, kabel, napis. Reszta kadru zostaje." },
+  { tytul: "Małe zdjęcie do druku", opis: "Powiększenie z rekonstrukcją szczegółów, bez rozmazanych krawędzi." },
+];
+
 const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.heic";
 const SWATCHES = ["#FFFFFF", "#EFF2FB", "#191B25", "#E8DCC8", "#DFEFFF", "#FEE6E8", "#BFFED8"];
 const BASE = "/api/obrazy";
@@ -303,9 +311,23 @@ function ImagesPage(_: ModulePageProps) {
           </aside>
           <section className="min-w-0">
             {!source ? (
-              <FileDrop accept={IMAGE_ACCEPT} hint="Przeciągnij zdjęcie albo wybierz plik (JPG, PNG, WEBP, HEIC)" onUploaded={pickSource} onError={setError} />
+              <>
+                <FileDrop accept={IMAGE_ACCEPT} hint="Przeciągnij zdjęcie albo wybierz plik (JPG, PNG, WEBP, HEIC)" onUploaded={pickSource} onError={setError} />
+                {/* Pod polem na plik było pół ekranu pustki. Tu jest to, czego szuka ktoś,
+                  kto wszedł pierwszy raz: co ten moduł właściwie robi ze zdjęciem. */}
+                <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+                  {ZASTOSOWANIA.map((pozycja) => (
+                    <li key={pozycja.tytul} className="rounded-xl border border-line bg-raised/60 px-4 py-3">
+                      <span className="block text-sm font-medium text-fg">{pozycja.tytul}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{pozycja.opis}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : result ? (
-              <div className="space-y-3">
+              /* Wynik pojawia się po pracy narzędzia, a nie przy wejściu do modułu —
+                 wejście go zapowiada, zamiast podmieniać kadr bez uprzedzenia. */
+              <div className="ui-wejscie space-y-3">
                 <BeforeAfter before={downloadUrl(source, true)} after={downloadUrl(result, true)} alt={source.name} />
                 <div className="flex flex-wrap justify-center gap-2">
                   <a className={buttonPrimary} href={downloadUrl(result)} download={result.name}>

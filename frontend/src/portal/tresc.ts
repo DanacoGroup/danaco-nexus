@@ -1,4 +1,6 @@
-// Treść stron stałych portalu (Oferta, Funkcje, Cennik, Kontakt).
+// Treść stron stałych portalu (Oferta, Funkcje, Kontakt) i pytań na stronie cennika.
+// Samych planów tu nie ma: cennik bierze je z serwera (`/api/platnosci/plany`), bo cena,
+// dostępność i zakres planu zmieniają się w katalogu płatności, a nie w tekście strony.
 // Materiał redakcyjny trzymany osobno od układu – zmiana tekstu nie wymaga zmian w komponentach.
 
 export interface PozycjaOferty {
@@ -14,16 +16,6 @@ export interface Funkcjonalnosc {
   grupa: string;
 }
 
-export interface Plan {
-  nazwa: string;
-  cena: string;
-  okres: string;
-  opis: string;
-  zakres: string[];
-  wyrozniony?: boolean;
-  /** Plan gotowy do użycia dziś; pozostałe czekają na start i nie podają ceny ani daty. */
-  dostepny?: boolean;
-}
 
 export const OFERTA: PozycjaOferty[] = [
   {
@@ -78,7 +70,7 @@ export const OFERTA: PozycjaOferty[] = [
 
 export const FUNKCJONALNOSCI: Funkcjonalnosc[] = [
   { grupa: "Rozmowa", nazwa: "Historia rozmów", opis: "Wątki z załącznikami, wynikami narzędzi i powrotem do wcześniejszych tur — wracasz do sprawy sprzed miesiąca bez szukania." },
-  { grupa: "Rozmowa", nazwa: "Mowa", opis: "Dyktujesz zamiast pisać, a odpowiedź słyszysz jednym z trzech polskich głosów. Działa na komputerze i w telefonie." },
+  { grupa: "Rozmowa", nazwa: "Mowa", opis: "Dyktujesz zamiast pisać, a odpowiedź słyszysz jednym z trzydziestu polskich głosów. Działa na komputerze i w telefonie." },
   { grupa: "Rozmowa", nazwa: "Praca w tle", opis: "Długie zadania idą własnym torem: widzisz każdy krok z nazwą narzędzia i czasem, a rozmowę prowadzisz dalej." },
   { grupa: "Dokumenty", nazwa: "Rozpoznawanie tekstu", opis: "OCR skanów, zdjęć i plików PDF z prostowaniem stron. Wynik wygląda jak oryginał, ale da się w nim szukać." },
   { grupa: "Dokumenty", nazwa: "Konwersja formatów", opis: "PDF, DOCX, PPTX, arkusze, obrazy i pliki dźwiękowe w obie strony — bez instalowania pakietu biurowego." },
@@ -97,58 +89,11 @@ export const FUNKCJONALNOSCI: Funkcjonalnosc[] = [
   { grupa: "Urządzenia", nazwa: "Pomoc przy komputerze", opis: "Po włączeniu połączenia agent znajdzie plik, sprawdzi stan sprzętu i zrobi zrzut okna — zmiany dopiero po Twojej zgodzie." },
 ];
 
-// Plany zgodne ze specyfikacją strony produktu (rozdz. 7.11) i katalogiem modułu Płatności.
-export const PLANY: Plan[] = [
-  {
-    nazwa: "Osobisty",
-    // Katalog planów (backend/nexus/platnosci/plany.py) nie zna planu bezpłatnego: każdy jest
-    // płatny, a Osobisty otwiera się 7 dniami próbnymi z kartą podaną od razu.
-    cena: "Cena przy starcie",
-    okres: "7 dni próbnych",
-    opis: "Dla jednej osoby — do pracy i do życia.",
-    zakres: [
-      "Rozmowa z Nexusem, także głosowa",
-      "Zdjęcia, dokumenty i nagrania",
-      "OCR z językiem polskim",
-      "Wyszukiwanie w Twoich plikach",
-      "Chmura osobista",
-      "Aplikacja na komputer i telefon",
-    ],
-    wyrozniony: true,
-    dostepny: true,
-  },
-  {
-    nazwa: "Pro",
-    cena: "Cena przy starcie",
-    okres: "wkrótce",
-    opis: "Dla tych, którzy używają Nexusa codziennie i dużo.",
-    zakres: [
-      "Wszystko z planu Osobistego",
-      "Więcej zadań jednocześnie",
-      "Automatyzacje według harmonogramu",
-      "Pierwszeństwo w pomocy technicznej",
-    ],
-  },
-  {
-    nazwa: "Grupa",
-    cena: "49 zł / użytkownik",
-    okres: "miesięcznie",
-    opis: "Dla rodziny albo małego zespołu — cena za każdego użytkownika, kredyty wspólne.",
-    zakres: [
-      "Wszystko z planu Pro",
-      "Osobne konta dla każdej osoby",
-      "Wspólna pula kredytów — dokupuje ją założyciel grupy",
-      "Wspólne katalogi i baza wiedzy",
-      "Role, uprawnienia i dziennik działań",
-    ],
-  },
-];
-
 export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
   {
     pytanie: "Ile kosztuje Nexus na start?",
     odpowiedz:
-      "Plan Osobisty zaczyna się od 7 dni próbnych i obejmuje rozmowę z Nexusem, pracę na plikach, OCR, wyszukiwanie i chmurę osobistą. Plany Pro i Grupa dokładają więcej kredytów i zadań naraz.",
+      "Plan Osobisty zaczyna się od 7 dni próbnych i obejmuje rozmowę z Nexusem, pracę na plikach, OCR, wyszukiwanie i chmurę osobistą. Plany Pro i Grupa dokładają szerszy zakres pracy i więcej zadań naraz.",
   },
   {
     pytanie: "Gdzie przechowywane są dane?",
@@ -163,7 +108,7 @@ export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
   {
     pytanie: "Jak zacząć bez zakładania konta?",
     odpowiedz:
-      "Pod adresem /wyprobuj czeka pięć gotowych zadań: faktura ze skanu, stare zdjęcie od nowa, przeszukiwalny PDF, notatka z nagrania i szukanie po znaczeniu. Uruchamiasz je w przeglądarce, bez rejestracji.",
+      "Pod adresem /wyprobuj otwiera się pełna aplikacja na koncie próbnym — bez rejestracji, bez karty, bez instalacji. Pracujesz w niej tak jak klienci: opisujesz zadanie, dołączasz pliki, odbierasz wynik. Rozmowy i pliki znikają razem z kontem próbnym, więc to miejsce na sprawdzenie, a nie na pracę, której szkoda stracić.",
   },
   {
     pytanie: "Jak wygląda uruchomienie?",

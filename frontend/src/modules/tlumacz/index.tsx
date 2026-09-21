@@ -7,7 +7,8 @@ import type { ModulePageProps, NexusModule } from "../registry";
 import { cancelJob, errorText, requestJson, waitForJob, type JobState } from "../_tworczy/http";
 import { CopyIcon, SwapIcon, TranslateIcon } from "../_tworczy/icons";
 import { worthTranslating } from "../_tworczy/logic";
-import { buttonPrimary, buttonSecondary, ErrorBanner, FileDrop, inputClass, labelClass, ModuleHeader, Segmented, selectInlineClass, Spinner } from "../_tworczy/ui";
+import { buttonPrimary, buttonSecondary, ErrorBanner, FileDrop, inputClass, labelClass, ModuleHeader, Segmented, Spinner } from "../_tworczy/ui";
+import { Select } from "../../ui";
 
 const BASE = "/api/tlumacz";
 const DOCUMENT_ACCEPT = ".docx,.pptx,.pdf,.txt,.md";
@@ -35,15 +36,21 @@ function LanguageSelect({
   allowAuto?: boolean;
   label: string;
 }) {
+  // Lista z biblioteki, nie `select` systemowy: w oknie produktu natywne pole wyboru
+  // rysuje się barwami systemu i w motywie ciemnym odstaje od reszty jak łata.
   return (
-    <select className={`${selectInlineClass} min-w-36`} value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
-      {allowAuto && <option value="auto">Wykryj język</option>}
-      {languages.map((language) => (
-        <option key={language.code} value={language.code}>
-          {language.name}
-        </option>
-      ))}
-    </select>
+    <Select
+      label={label}
+      hideLabel
+      size="sm"
+      className="w-44"
+      value={value}
+      onChange={onChange}
+      options={[
+        ...(allowAuto ? [{ value: "auto", label: "Wykryj język" }] : []),
+        ...languages.map((language) => ({ value: language.code, label: language.name })),
+      ]}
+    />
   );
 }
 
@@ -176,13 +183,19 @@ function TranslatorPage(_: ModulePageProps) {
               <SwapIcon size={18} />
             </button>
             <LanguageSelect label="Język docelowy" value={target} onChange={setTarget} languages={languages} />
-            <select className={selectInlineClass} value={style} onChange={(event) => setStyle(event.target.value)} aria-label="Styl tłumaczenia">
-              {styles.map((item) => (
-                <option key={item.id} value={item.id} title={item.description}>
-                  Styl: {item.id}
-                </option>
-              ))}
-            </select>
+            <Select
+              label="Styl tłumaczenia"
+              hideLabel
+              size="sm"
+              className="w-52"
+              value={style}
+              onChange={setStyle}
+              options={styles.map((item) => ({
+                value: item.id,
+                label: `Styl: ${item.id}`,
+                description: item.description,
+              }))}
+            />
             <button type="button" className={buttonSecondary} onClick={() => setShowGlossary((value) => !value)} aria-expanded={showGlossary}>
               Słowniczek{glossary.trim() ? " ✓" : ""}
             </button>

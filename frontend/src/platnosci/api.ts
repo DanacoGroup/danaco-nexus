@@ -116,22 +116,32 @@ export interface KuponInfo {
   wygasa_at: string | null;
 }
 
-/** Ruch kredytów: przydział (dodatni) albo zużycie (ujemne). */
-export interface RuchKredytow {
-  id: string;
-  zmiana: number;
-  saldo_po: number;
+/** Zdarzenie w historii dostępu — co się wydarzyło, bez wartości.
+ *
+ * Liczby kredytów nie wychodzą poza serwer: użytkownik kupuje dostęp, nie sztuki
+ * jednostek rozliczeniowych, więc historia mówi „praca agenta”, a nie „−437”.
+ */
+export interface ZdarzenieDostepu {
   powod: string;
   opis: string;
-  run_id: string | null;
   kiedy: string;
 }
 
+/** Warunki przedłużenia dostępu podane przez serwer (kwoty w groszach). */
+export interface WarunkiDoladowania {
+  minimum_gr: number;
+  maksimum_gr: number;
+  kwoty_szybkie_gr: number[];
+  sprzedaz: boolean;
+}
+
 export interface KredytyInfo {
-  saldo: number;
-  przydzielone: number;
-  zuzyte: number;
-  historia: RuchKredytow[];
+  /** Udział zużycia od 0 do 1 — z tego interfejs rysuje pasek. */
+  zuzycie: number;
+  stan: "w_porzadku" | "konczy_sie" | "wyczerpany";
+  wyczerpane: boolean;
+  historia: ZdarzenieDostepu[];
+  doladowanie: WarunkiDoladowania;
 }
 
 /** Pakiet kredytów do dokupienia poza subskrypcją (jedna płatność). */
@@ -150,20 +160,60 @@ export interface PakietyInfo {
 
 /** Opis powodu zmiany salda w języku użytkownika. */
 export const POWODY: Record<string, string> = {
-  start: "Przydział startowy",
-  plan: "Przydział z planu",
-  zakup: "Zakup pakietu",
+  start: "Dostęp na start",
+  plan: "Dostęp z planu",
+  zakup: "Przedłużenie dostępu",
   odnowienie: "Odnowienie planu",
   przebieg: "Praca agenta",
-  "konto-testowe": "Przydział konta testowego",
+  "konto-testowe": "Dostęp konta testowego",
+};
+
+/** Plan rozliczany za każdego użytkownika — cenę pokazujemy wtedy jako cenę za osobę. */
+export const PLAN_ZA_UZYTKOWNIKA = "zespol";
+
+/** Członek grupy widziany w panelu: adres, nazwa konta i rola. */
+export interface CzlonekGrupy {
+  uzytkownik_id: string;
+  email: string;
+  nazwa: string;
+  rola: "zalozyciel" | "czlonek";
+  to_ja: boolean;
+}
+
+export interface GrupaInfo {
+  id: string;
+  nazwa: string;
+  jestem_zalozycielem: boolean;
+  miejsca: number;
+  czlonkowie: CzlonekGrupy[];
+  zaproszenia: Array<{ email: string; wygasa: string }>;
+}
+
+export interface OdpowiedzGrupy {
+  grupa: GrupaInfo | null;
+  miejsca?: number;
+}
+
+/** Grupa: wspólna pula dostępu kupiona przez założyciela. */
+export const grupaApi = {
+  moja: () => apiRequest<OdpowiedzGrupy>("GET", "/api/grupa"),
+  zaloz: (nazwa: string) => apiRequest<OdpowiedzGrupy>("POST", "/api/grupa", { nazwa }),
+  zapros: (email: string) =>
+    apiRequest<OdpowiedzGrupy & { odsylacz: string }>("POST", "/api/grupa/zaproszenia", { email }),
+  przyjmij: (token: string) => apiRequest<OdpowiedzGrupy>("POST", "/api/grupa/przyjmij", { token }),
+  usun: (uzytkownikId: string) =>
+    apiRequest<OdpowiedzGrupy>("DELETE", `/api/grupa/czlonkowie/${uzytkownikId}`),
+  przekaz: (uzytkownikId: string) =>
+    apiRequest<OdpowiedzGrupy>("POST", "/api/grupa/zalozyciel", { uzytkownik_id: uzytkownikId }),
+  rozwiaz: () => apiRequest<OdpowiedzGrupy>("DELETE", "/api/grupa"),
 };
 
 export const platnosciApi = {
   kredyty: () => apiRequest<KredytyInfo>("GET", "/api/platnosci/kredyty"),
-  pakiety: () => apiRequest<PakietyInfo>("GET", "/api/platnosci/pakiety"),
-  zakupPakietu: (pakiet: string) =>
-    apiRequest<{ url: string; tryb: string; pakiet: string }>("POST", "/api/platnosci/pakiety/checkout", {
-      pakiet,
+  /** Przedłużenie dostępu kwotą podaną przez użytkownika (w groszach). */
+  doladowanie: (kwotaGr: number) =>
+    apiRequest<{ url: string; tryb: string }>("POST", "/api/platnosci/doladowanie/checkout", {
+      kwota_gr: kwotaGr,
     }),
   cennik: () => apiRequest<CennikInfo>("GET", "/api/platnosci/plany"),
   cennikPubliczny: () => apiRequest<CennikPubliczny>("GET", "/api/platnosci/cennik"),
@@ -270,13 +320,22 @@ function wyliczenie(czesci: string[]): string {
 export function opisOkresuProbnego(plan: PlanInfo): string {
   if (plan.okres_probny_dni <= 0) return "";
   const zakres = plan.probny;
-  const kredyty = zakres.kredyty.toLocaleString("pl-PL");
   const braki = brakiOkresuProbnego(zakres);
+  // Bez liczby kredytów: to jednostka rozliczeniowa między nami a dostawcą modelu, nie
+  // towar, który klient kupuje. Zdanie ma powiedzieć, ile pracy się mieści i czego w tych
+  // dniach nie ma — resztę i tak widać paskiem wykorzystania w aplikacji.
   const obejmuje =
-    `Pierwsze ${plan.okres_probny_dni} dni bez opłaty obejmują ${kredyty} kredytów ` +
+    `Pierwsze ${plan.okres_probny_dni} dni bez opłaty obejmują ${opisZakresuProbnego(zakres)} ` +
     `i ${opisPrzestrzeni(zakres.przestrzen_mb)} miejsca`;
   const zastrzezenie = braki.length > 0 ? `, bez ${wyliczenie(braki)}` : "";
   return `${obejmuje}${zastrzezenie}. Kartę podajesz od razu — po tym czasie plan przechodzi w płatny i dostajesz pełny zakres opisany wyżej.`;
+}
+
+/** Ile pracy mieści się w okresie próbnym — słowami, nie w jednostkach rozliczeniowych. */
+function opisZakresuProbnego(zakres: PlanInfo["probny"]): string {
+  if (zakres.kredyty >= 1_000) return "swobodną pracę z Nexusem";
+  if (zakres.kredyty >= 200) return "kilkadziesiąt zadań";
+  return "kilka pierwszych zadań";
 }
 
 /** Nazwa okresu rozliczeniowego w zdaniu („rozliczenie roczne”). */
@@ -284,6 +343,26 @@ export function opisOkresu(okres: string): string {
   if (okres === "rok") return "rozliczenie roczne";
   if (okres === "miesiac") return "rozliczenie miesięczne";
   return "";
+}
+
+/** Zakres pracy planu opisany słowami zamiast liczbą kredytów.
+ *
+ * Kupujący ma zobaczyć różnicę między planami, a nie porównywać jednostki, których
+ * nigdzie indziej w produkcie nie widzi. Opis idzie za tym, co plan naprawdę zmienia:
+ * ile zadań naraz i jak długo można pracować bez przedłużania dostępu.
+ */
+export function opisZakresuPracy(plan: PlanInfo): string {
+  const zadania =
+    plan.limity.zadania_rownolegle > 1
+      ? `${plan.limity.zadania_rownolegle} zadania naraz`
+      : "jedno zadanie naraz";
+  const ile =
+    plan.kredyty_okresowo >= 40_000
+      ? "Praca bez oglądania się na limity"
+      : plan.kredyty_okresowo >= 10_000
+        ? "Codzienna praca z Nexusem"
+        : "Praca od czasu do czasu";
+  return `${ile} · ${zadania}`;
 }
 
 /** Czy plan w danym okresie jest właśnie tym, który konto ma opłacony. */

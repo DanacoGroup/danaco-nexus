@@ -1,14 +1,50 @@
 // Wyświetlanie tur rozmowy: wiadomości użytkownika, odpowiedzi, przemyślenia, działania narzędzi
 // i podagentów (zwijane bloki z własnym tekstem i narzędziami).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AssistantTurn, FileInfo, TurnItem, UserTurn } from "../api";
 import { agentInfo, agentStats, toolDetail, toolLabel, type AgentInfo } from "../runState";
 import { NagranieKroku } from "./NagranieKroku";
-import { NagranieStartu, ograniczonyRuch } from "../ruch";
+import { ograniczonyRuch, ZnakRuchu, type MomentZnaku } from "../ruch";
 import { FileCard } from "./FileCard";
 import { AlertIcon, CheckIcon, ChevronIcon, Logo, MicIcon, ToolIcon } from "./icons";
 import { Markdown } from "./Markdown";
+import { ogloszenie } from "../ui/ObszarOgloszen";
+
+/**
+ * Zgłasza oczekiwanie na pierwsze słowo odpowiedzi do stałego obszaru „status” powłoki.
+ * Region istnieje przed turą, więc sam wpis treści wystarcza do ogłoszenia (WCAG 2.2, 4.1.3).
+ */
+function useOgloszenieOczekiwania(czekanie: boolean): void {
+  useEffect(() => {
+    if (!czekanie) return;
+    ogloszenie("Pracuję nad odpowiedzią.");
+    return () => ogloszenie("");
+  }, [czekanie]);
+}
+
+/**
+ * Czy zadanie stoi w kolejce dłużej, niż powinno.
+ *
+ * Zadanie czeka w stanie „queued”, dopóki nie weźmie go proces roboczy — zwykle ułamek
+ * sekundy. Gdy procesu nie ma albo jest zajęty, tura wygląda dokładnie tak samo jak praca
+ * w toku: kropki migają w nieskończoność i nic tego nie prostuje. Po progu mówimy wprost,
+ * że zadanie czeka, zamiast udawać, że agent myśli.
+ */
+const PROG_KOLEJKI_MS = 45_000;
+
+function useDlugaKolejka(wKolejce: boolean): boolean {
+  const [dlugo, setDlugo] = useState(false);
+  useEffect(() => {
+    if (!wKolejce) {
+      setDlugo(false);
+      return;
+    }
+    const czasomierz = window.setTimeout(() => setDlugo(true), PROG_KOLEJKI_MS);
+    return () => window.clearTimeout(czasomierz);
+  }, [wKolejce]);
+  return dlugo;
+}
 
 type Preview = (file: FileInfo) => void;
 type ToolItemData = Extract<TurnItem, { kind: "tool" }>;
@@ -207,37 +243,73 @@ function TurnItems({ items, live, onPreview }: { items: TurnItem[]; live: boolea
   );
 }
 
-export function AssistantMessage({ turn, onPreview }: { turn: AssistantTurn; onPreview: Preview }) {
+/** Moment znaku dla stanu tury: to on niesie informację, czy praca trwa i jak się skończyła. */
+function momentTury(turn: AssistantTurn): MomentZnaku {
+  if (turn.status === "running" || turn.status === "queued") return "mysli";
+  if (turn.status === "failed" || turn.status === "cancelled") return "blad";
+  return "sukces";
+}
+
+export function AssistantMessage({
+  turn,
+  onPreview,
+  ostatnia = false,
+}: {
+  turn: AssistantTurn;
+  onPreview: Preview;
+  /** Czy to ostatnia odpowiedź w rozmowie — tylko ona rozbłyska po skończonej pracy. */
+  ostatnia?: boolean;
+}) {
   const live = turn.status === "running" || turn.status === "queued";
+  const czekanie = live && turn.items.length === 0;
+  const dlugaKolejka = useDlugaKolejka(turn.status === "queued");
+  useOgloszenieOczekiwania(czekanie);
   return (
     <div className="flex animate-rise gap-3">
-      <Logo size={28} className="mt-0.5 shrink-0 rounded-lg" />
+      {/* Znak przy odpowiedzi nie jest ozdobą: pulsuje, gdy agent pracuje, rozbłyska po
+        skończonej turze i gaśnie przy błędzie. Wcześniej stało tu płaskie logo, więc po
+        oknie nie było widać, że cokolwiek się dzieje. */}
+      {/* Historia rozmowy zostaje spokojna: rozbłysk „skończone” należy się ostatniej
+        odpowiedzi, nie każdej z pięćdziesięciu przy przewijaniu wstecz. Praca w toku
+        i niepowodzenie pokazują się zawsze — to informacja, nie ozdoba. */}
+      {ograniczonyRuch() || (!ostatnia && momentTury(turn) === "sukces") ? (
+        <Logo size={28} className="mt-0.5 shrink-0 rounded-lg" />
+      ) : (
+        <ZnakRuchu moment={momentTury(turn)} rozmiar={32} className="-mt-0.5 shrink-0" />
+      )}
       <div className="min-w-0 flex-1 space-y-3">
         <TurnItems items={turn.items} live={live} onPreview={onPreview} />
-        {live && turn.items.length === 0 && (
-          // Chwila przed pierwszym słowem ma własne ujęcie w pakiecie ruchu (moment-mysli).
-          // Przy ograniczonym ruchu zostają trzy kropki — ten sam komunikat, bez animacji.
-          <div className="flex h-9 items-center" role="status">
-            {/* Obszar „status” ogłasza swoją treść, nie swoją etykietę: bez tego zdania
-                czytnik ekranu milczał, bo w środku jest sama animacja (WCAG 2.2, 4.1.3). */}
-            <span className="sr-only">Pracuję nad odpowiedzią.</span>
-            {ograniczonyRuch() ? (
-              <span className="flex items-center gap-1.5">
-                {[0, 1, 2].map((dot) => (
-                  <span
-                    key={dot}
-                    className="size-2 animate-blink rounded-full bg-muted"
-                    style={{ animationDelay: `${dot * 0.18}s` }}
-                  />
-                ))}
-              </span>
-            ) : (
-              <NagranieStartu nazwa="moment-mysli" petla className="h-9 w-24 object-contain" />
-            )}
+        {czekanie && (
+          // Sygnał pracy niesie znak przy odpowiedzi (moment „mysli”). Stało tu jeszcze
+          // osobne ujęcie `moment-mysli` — dwa znaki obok siebie w tej samej chwili
+          // czytały się jak podwojone logo, a każdy z osobna był za mały, żeby go
+          // zauważyć. Zostają kropki: mówią „liczy”, nie udając drugiego znaku.
+          <div className="flex h-9 items-center" aria-hidden="true">
+            <span className="flex items-center gap-1.5">
+              {[0, 1, 2].map((dot) => (
+                <span
+                  key={dot}
+                  className="size-2 animate-blink rounded-full bg-muted"
+                  style={{ animationDelay: `${dot * 0.18}s` }}
+                />
+              ))}
+            </span>
           </div>
         )}
+        {dlugaKolejka && (
+          <p className="text-sm text-muted">
+            Zadanie czeka w kolejce dłużej niż zwykle. Jeśli nic się nie ruszy, odśwież okno
+            albo napisz jeszcze raz — nic z Twojej pracy nie przepadło.
+          </p>
+        )}
         {(turn.status === "failed" || turn.status === "cancelled") && turn.error && (
+          // Ten komunikat pojawia się **po** wysłaniu wiadomości, czyli wtedy, gdy nikt
+          // już na to miejsce nie patrzy. Bez roli czytnik ekranu go nie ogłosi i osoba
+          // niewidoma zostaje z ciszą zamiast z informacją, że zadanie się nie udało.
+          // Niepowodzenie ogłaszamy stanowczo (`alert`), anulowanie — spokojnie
+          // (`status`), bo to użytkownik je wywołał i wie, co się stało.
           <div
+            role={turn.status === "failed" ? "alert" : "status"}
             className={`rounded-xl border px-3.5 py-2 text-sm ${
               turn.status === "failed" ? "border-danger/40 bg-danger-soft text-danger" : "border-line bg-raised text-muted"
             }`}

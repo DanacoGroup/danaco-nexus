@@ -1,4 +1,4 @@
-// „Dziewięć dziedzin, wszystkie narzędzia” — sekcja strony produktu z pełnym zakresem agenta.
+// „Dziesięć dziedzin, wszystkie narzędzia” — sekcja strony produktu z pełnym zakresem agenta.
 //
 // Do tej pory strona mówiła o narzędziach ogólnikiem, przez co Nexus wyglądał na program
 // do faktur i kartek. Spis pochodzi z rejestru backend/nexus/tools (frontend/scripts/narzedzia.py),
@@ -37,7 +37,7 @@ export function SekcjaNarzedzi() {
     <Sekcja id="narzedzia" className="landing-tlo" style={tlo("aurora-mgla", 0.5)}>
       <Naglowek
         nad="Zakres"
-        tytul="Dziewięć dziedzin. Jedna rozmowa."
+        tytul="Dziesięć dziedzin. Jedna rozmowa."
         akapit={`Nexus ma ${LICZBA_NARZEDZI} narzędzi — projektuje grafikę od zera, prowadzi badanie ze źródłami, odpisuje na pocztę i pilnuje terminarza, publikuje stronę pod Twoim adresem i pracuje na Twoim komputerze. Nie wybierasz narzędzia: piszesz zdaniem, co ma powstać.`}
       />
 

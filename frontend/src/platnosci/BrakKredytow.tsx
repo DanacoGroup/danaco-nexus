@@ -1,8 +1,11 @@
-// Stan „konto bez kredytów” w oknie rozmowy.
+// Stan „dostęp się wyczerpał” w oknie rozmowy.
 //
 // Serwer odmawia zlecenia (402) i podaje powód. Pokazany jak zwykły błąd wyglądałby na
 // awarię, a to jest stan konta z jednym wyjściem — dlatego osobny widok z przejściem do
-// dokupienia pakietu zamiast czerwonego paska.
+// przedłużenia zamiast czerwonego paska.
+//
+// Nie pada tu słowo „kredyty”: jednostka rozliczeniowa jest nasza, nie użytkownika.
+// Człowiek ma wiedzieć, że praca stanęła i jak ją wznowić, a nie ile czego mu zabrakło.
 
 const PRZYCISK = "rounded-xl px-4 py-2.5 text-sm font-medium transition-colors";
 
@@ -22,7 +25,7 @@ export function BrakKredytow({
       className="rounded-2xl border border-warning/50 bg-raised p-4 shadow-lg"
     >
       <h2 id="brak-kredytow-naglowek" className="font-heading text-base font-semibold text-fg">
-        Skończyły się kredyty
+        Dostęp się wyczerpał
       </h2>
       <p className="mt-1 text-sm text-muted">{komunikat}</p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -31,7 +34,7 @@ export function BrakKredytow({
           onClick={onDokup}
           className={`${PRZYCISK} bg-accent-fill text-on-accent hover:bg-accent-fill-hover`}
         >
-          Dokup kredyty
+          Przedłuż dostęp
         </button>
         <button type="button" onClick={onZamknij} className={`${PRZYCISK} border border-line text-muted hover:text-fg`}>
           Zamknij

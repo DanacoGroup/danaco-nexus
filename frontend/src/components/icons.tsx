@@ -1,6 +1,6 @@
 // Ikony SVG (obrys 1.75 px, kolor z currentColor).
 
-import type { SVGProps } from "react";
+import { useEffect, useState, type SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -73,6 +73,16 @@ export const FileIcon = (p: IconProps) => (
 export const CheckIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 12.5 10 17 19 7" />
+  </Icon>
+);
+export const PauseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9.5 5.5v13M14.5 5.5v13" />
+  </Icon>
+);
+export const PlayIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 5.5 18.5 12 8 18.5z" />
   </Icon>
 );
 export const AlertIcon = (p: IconProps) => (
@@ -183,12 +193,61 @@ export function Mark({ size = 20, className = "" }: { size?: number; className?:
   );
 }
 
-/** Logotyp poziomy (znak i napis) — wariant dobrany do motywu klasą `.dark`. */
+/** Czy okno jest w motywie ciemnym — z klasy `.dark`, odświeżane przy jej zmianie.
+ *
+ * Wcześniej logotyp wstawiał oba pliki i chował jeden klasą `dark:hidden`. Przeglądarka
+ * pobiera obrazek także wtedy, gdy ma `display: none`, więc każde wejście ciągnęło 9 kB
+ * grafiki, której nikt nie zobaczy (w pasku i w stopce razem 18 kB).
+ */
+/** Czy logotyp ma być w wariancie na ciemne tło.
+ *
+ * Zwykle decyduje motyw aplikacji. W trybie wysokiego kontrastu (`forced-colors`) barwy
+ * narzuca system, a nie my: tło jest wtedy takie, jakie wybrał użytkownik systemu, więc
+ * logotyp dobrany pod nasz motyw potrafi zniknąć (jasny napis na białym tle). W tym trybie
+ * pytamy więc o schemat systemu, nie o klasę korzenia dokumentu.
+ */
+function useMotywCiemny(): boolean {
+  const odczyt = () => {
+    if (typeof window === "undefined" || typeof document === "undefined") return true;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(forced-colors: active)").matches) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return document.documentElement.classList.contains("dark");
+  };
+  const [ciemny, setCiemny] = useState(odczyt);
+  useEffect(() => {
+    const korzen = document.documentElement;
+    const odswiez = () => setCiemny(odczyt());
+    odswiez();
+    const obserwator = new MutationObserver(odswiez);
+    obserwator.observe(korzen, { attributes: true, attributeFilter: ["class"] });
+    // `matchMedia` nie istnieje w każdym środowisku (np. w testach jsdom) — wtedy zostaje
+    // sam motyw aplikacji, co jest zachowaniem sprzed tej zmiany.
+    const pytania =
+      typeof window.matchMedia === "function"
+        ? [window.matchMedia("(forced-colors: active)"), window.matchMedia("(prefers-color-scheme: dark)")]
+        : [];
+    for (const pytanie of pytania) pytanie.addEventListener("change", odswiez);
+    return () => {
+      obserwator.disconnect();
+      for (const pytanie of pytania) pytanie.removeEventListener("change", odswiez);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return ciemny;
+}
+
+/** Logotyp poziomy (znak i napis) — wariant dobrany do motywu. */
 export function Logotype({ height = 24, className = "" }: { height?: number; className?: string }) {
+  const ciemny = useMotywCiemny();
   return (
     <span className={`inline-flex ${className}`} style={{ height }}>
-      <img src="/znak/logo-poziome-jasny.svg" style={{ height }} className="dark:hidden" alt="Danaco Nexus" draggable={false} />
-      <img src="/znak/logo-poziome-ciemny.svg" style={{ height }} className="hidden dark:block" alt="Danaco Nexus" draggable={false} />
+      <img
+        src={ciemny ? "/znak/logo-poziome-ciemny.svg" : "/znak/logo-poziome-jasny.svg"}
+        style={{ height }}
+        alt="Danaco Nexus"
+        draggable={false}
+      />
     </span>
   );
 }

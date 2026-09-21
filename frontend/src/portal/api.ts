@@ -112,6 +112,8 @@ export const portalApi = {
 
   konto: {
     ja: () => apiRequest<ProfilKlienta>("GET", `${PORTAL}/konto/ja`),
+    /** Kto jest zalogowany (albo nikt) — pytanie o stan, więc bez 401 dla gościa. */
+    sesja: () => apiRequest<{ konto: ProfilKlienta | null }>("GET", `${PORTAL}/konto/sesja`),
     rejestracja: (dane: { email: string; password: string; name: string; company?: string }) =>
       apiRequest<ProfilKlienta>("POST", `${PORTAL}/konto/rejestracja`, dane),
     logowanie: (dane: { email: string; password: string }) =>

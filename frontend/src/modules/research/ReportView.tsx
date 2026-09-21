@@ -199,7 +199,7 @@ export function ReportView({ reportId, collections, openConversation, onChanged,
         <div className="mx-auto w-full max-w-3xl px-4 pt-5 pb-16 md:px-8">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 font-medium text-accent">
-              <KindIcon size={13} /> {detail.kind === "scholar" ? "Scholar Research" : "Deep Research"}
+              <KindIcon size={13} /> {detail.kind === "scholar" ? "Prace naukowe" : "Sieć"}
             </span>
             <span>{DEPTH_LABELS[detail.depth] ?? detail.depth}</span>
             <span>·</span>

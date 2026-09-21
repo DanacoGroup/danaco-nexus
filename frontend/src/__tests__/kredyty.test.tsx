@@ -8,11 +8,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Dopasowanie liczby niezależne od spacji, jakiej użyje `toLocaleString("pl-PL")`. */
-function liczba(wartosc: string) {
-  return (tresc: string) => tresc.replace(/[\s\u00a0\u202f]/g, "") === wartosc;
-}
-
 function odpowiedz(dane: unknown) {
   vi.stubGlobal(
     "fetch",
@@ -20,42 +15,51 @@ function odpowiedz(dane: unknown) {
   );
 }
 
-const PELNE = {
-  saldo: 1840,
-  przydzielone: 2000,
-  zuzyte: 160,
-  historia: [
-    { id: "1", zmiana: -160, saldo_po: 1840, powod: "przebieg", opis: "", run_id: "r1", kiedy: "2026-09-20T10:00:00Z" },
-    { id: "2", zmiana: 2000, saldo_po: 2000, powod: "start", opis: "", run_id: null, kiedy: "2026-09-19T10:00:00Z" },
-  ],
+const DOLADOWANIE = {
+  minimum_gr: 1000,
+  maksimum_gr: 500_000,
+  kwoty_szybkie_gr: [2000, 5000, 7000, 15_000],
+  sprzedaz: true,
 };
 
-describe("panel kredytów", () => {
-  it("pokazuje saldo i historię po polsku", async () => {
+const PELNE = {
+  zuzycie: 0.08,
+  stan: "w_porzadku",
+  wyczerpane: false,
+  historia: [
+    { powod: "przebieg", opis: "", kiedy: "2026-09-20T10:00:00Z" },
+    { powod: "start", opis: "", kiedy: "2026-09-19T10:00:00Z" },
+  ],
+  doladowanie: DOLADOWANIE,
+};
+
+describe("panel wykorzystania dostępu", () => {
+  it("pokazuje pasek i historię po polsku, bez liczb", async () => {
     odpowiedz(PELNE);
-    render(<Kredyty />);
-    await waitFor(() => expect(screen.getByText(liczba("1840"))).toBeTruthy());
+    const { container } = render(<Kredyty />);
+    await waitFor(() => expect(screen.getByRole("meter", { name: "Wykorzystanie dostępu" })).toBeTruthy());
     expect(screen.getByText("Praca agenta")).toBeTruthy();
-    expect(screen.getByText("Przydział startowy")).toBeTruthy();
-    expect(screen.getByText(liczba("+2000"))).toBeTruthy();
+    expect(screen.getByText("Dostęp na start")).toBeTruthy();
+    // Kredyt jest jednostką rozliczeniową między nami a dostawcą — nie pada na ekranie.
+    expect((container.textContent ?? "").toLowerCase()).not.toContain("kredyt");
   });
 
-  it("puste saldo mówi wprost, że zadania staną do czasu doładowania", async () => {
-    odpowiedz({ ...PELNE, saldo: 0 });
+  it("wyczerpany dostęp mówi wprost, że zadania staną", async () => {
+    odpowiedz({ ...PELNE, zuzycie: 1, stan: "wyczerpany", wyczerpane: true });
     render(<Kredyty />);
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/doładowaniu/));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/wyczerpał/));
   });
 
-  it("niskie saldo ostrzega, zanim zadania staną", async () => {
-    odpowiedz({ ...PELNE, saldo: 50 });
+  it("kończący się dostęp ostrzega, zanim zadania staną", async () => {
+    odpowiedz({ ...PELNE, zuzycie: 0.93, stan: "konczy_sie" });
     render(<Kredyty />);
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/niewiele kredytów/));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/dobiega końca/));
   });
 
   it("nie pokazuje niczego o silniku ani o kontach usługodawcy", async () => {
     odpowiedz(PELNE);
     const { container } = render(<Kredyty />);
-    await waitFor(() => expect(screen.getByText(liczba("1840"))).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("meter", { name: "Wykorzystanie dostępu" })).toBeTruthy());
     const tresc = (container.textContent ?? "").toLowerCase();
     for (const slowo of ["claude", "anthropic", "limit 5", "token", "api"]) {
       expect(tresc).not.toContain(slowo);
@@ -70,7 +74,7 @@ describe("odmowa z braku kredytów w rozmowie", () => {
       "fetch",
       vi.fn(async (adres: string) =>
         String(adres).endsWith("/messages")
-          ? new Response(JSON.stringify({ detail: "Skończyły się kredyty na tym koncie." }), {
+          ? new Response(JSON.stringify({ detail: "Dostęp na tym koncie się wyczerpał." }), {
               status: 402,
               headers: { "content-type": "application/json" },
             })
@@ -84,6 +88,6 @@ describe("odmowa z braku kredytów w rozmowie", () => {
       await result.current.send("policz to", []);
     });
     await waitFor(() => expect(result.current.brakKredytow).toBe(true));
-    expect(result.current.error).toMatch(/Skończyły się kredyty/);
+    expect(result.current.error).toMatch(/się wyczerpał/);
   });
 });

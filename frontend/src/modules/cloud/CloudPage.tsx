@@ -1,8 +1,9 @@
 // Moduł Cloud: przeglądarka plików chmury osobistej (Nextcloud) – foldery, wgrywanie, wersje, linki, kosz.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { CloseIcon, DownloadIcon, EditIcon, EyeIcon, FileIcon, TrashIcon } from "../../components/icons";
+import { CloseIcon, CloudIcon, DownloadIcon, EditIcon, EyeIcon, FileIcon, TrashIcon } from "../../components/icons";
 import { formatSize } from "../../runState";
+import { ApiError } from "../../api";
 import type { ModulePageProps } from "../registry";
 import { describe } from "../_biuro/http";
 import {
@@ -104,6 +105,8 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CloudEntry[] | null>(null);
   const [error, setError] = useState("");
+  /** Konto bez własnej przestrzeni w chmurze (m.in. konto próbne). */
+  const [niepodlaczona, setNiepodlaczona] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -131,7 +134,11 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
         setTrash(await cloudApi.trash());
       }
     } catch (failure) {
-      setError(describe(failure));
+      // 503 to nie awaria, tylko stan przed podłączeniem przestrzeni — komunikat
+      // („brak adresu Nextcloud lub hasła aplikacji”) jest dla administratora, a moduł
+      // stawiał go na czerwonym pasku alarmowym nad pustym folderem.
+      if (failure instanceof ApiError && failure.status === 503) setNiepodlaczona(true);
+      else setError(describe(failure));
       setEntries([]);
       setTrash([]);
     }
@@ -315,6 +322,28 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
 
   const activeUploads = uploads.filter((upload) => upload.status === "uploading").length;
 
+  if (niepodlaczona)
+    return (
+      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-app">
+        {/* Tytuł strony dla czytnika ekranu: na telefonie niesie go pasek kompaktowy
+            powłoki, a w stanie „niepodłączone” moduł nie rysował na komputerze żadnego
+            `h1`. Wzorzec jak w gałęzi z pełnym interfejsem: ukryty poniżej `md`. */}
+        <h1 className="sr-only">Chmura</h1>
+        <EmptyState icon={<CloudIcon size={26} />} title="Chmura nie jest jeszcze podłączona" szerokosc="max-w-lg" poziom={2}>
+          <p>
+            Tu stanie Twoja przestrzeń na pliki: wszystko, co Nexus dla Ciebie zrobi, i wszystko, co sam wgrasz —
+            z kopią, wersjami i dostępem z telefonu. Na koncie próbnym przestrzeni jeszcze nie ma.
+          </p>
+          <p className="mt-3">
+            Pliki z rozmowy są w module „Pliki”; przestrzeń w chmurze dochodzi razem z własnym kontem.
+          </p>
+          <button type="button" className={`mt-5 ${buttonClass.primary}`} onClick={() => openModule("pliki")}>
+            Otwórz Pliki
+          </button>
+        </EmptyState>
+      </div>
+    );
+
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-app md:flex-row"
@@ -326,8 +355,17 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
       onDragLeave={(event) => event.currentTarget === event.target && setDragging(false)}
       onDrop={onDrop}
     >
-      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-line px-3 py-2 md:w-56 md:flex-col md:border-r md:border-b-0 md:bg-side md:px-2 md:py-4">
-        <h1 className="hidden px-3 pb-3 text-lg font-semibold md:block">Cloud</h1>
+      {/* Tytuł strony na telefonie: widoczny nagłówek modułu jest ukryty poniżej `md`,
+          a pasek powłoki niesie tylko etykietę. */}
+      <h1 className="sr-only md:hidden">Chmura</h1>
+      {/* Na telefonie pasek zakładek zawija się zamiast przewijać w bok: „Synchronizacja”
+        kończyła się za krawędzią ekranu i nic nie mówiło, że jest tam jeszcze jedna
+        zakładka. Od `md` wraca kolumna z boku. */}
+      <nav className="flex shrink-0 flex-wrap gap-1 border-b border-line px-3 py-2 md:w-56 md:flex-col md:flex-nowrap md:border-r md:border-b-0 md:bg-side md:px-2 md:py-4">
+        {/* „Chmura”, nie „Cloud”: w pasku modułów, w menu konta i w treści produktu
+          ta przestrzeń nazywa się po polsku. Dwie nazwy na jeden byt każą się zastanawiać,
+          czy to na pewno to samo miejsce. */}
+        <h1 className="hidden px-3 pb-3 text-lg font-semibold md:block">Chmura</h1>
         {VIEWS.map((item) => (
           <button
             key={item.id}
@@ -409,6 +447,7 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
                     type="file"
                     multiple
                     hidden
+                    aria-label="Wgraj pliki"
                     onChange={(event) => {
                       startUploads(Array.from(event.target.files ?? []));
                       event.target.value = "";

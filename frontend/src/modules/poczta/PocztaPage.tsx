@@ -30,16 +30,46 @@ type Compose = { initial: DraftPayload; pending?: PendingMail } | null;
 
 function NotConfigured({ state, onPodlacz }: { state: MailState; onPodlacz: () => void }) {
   return (
-    <EmptyState icon={<MailIcon size={26} />} title="Poczta nie jest jeszcze podłączona">
-      <p>
-        Podaj adres i hasło swojej skrzynki, a Nexus zacznie czytać, szukać i przygotowywać odpowiedzi.
-        Hasło zapisuje się po Twojej stronie konta i nie wraca do przeglądarki.
-      </p>
-      {state.error && <p className="mt-3 text-danger">{state.error}</p>}
-      <button type="button" onClick={onPodlacz} className={`mt-5 ${buttonClass.primary}`}>
-        Podłącz skrzynkę
-      </button>
-    </EmptyState>
+    <>
+      {/* Tytuł strony dla czytnika ekranu: na telefonie niesie go pasek kompaktowy powłoki,
+          a w stanie „niepodłączona” moduł nie rysował na komputerze żadnego `h1`. */}
+      <h1 className="sr-only">Poczta</h1>
+      <EmptyState icon={<MailIcon size={26} />} title="Poczta nie jest jeszcze podłączona" szerokosc="max-w-2xl" poziom={2}>
+        <p className="mx-auto max-w-lg">
+          Podaj adres i hasło swojej skrzynki, a Nexus zacznie czytać, szukać i przygotowywać odpowiedzi.
+          Hasło zapisuje się po Twojej stronie konta i nie wraca do przeglądarki.
+        </p>
+        {state.error && <p className="mt-3 text-danger">{state.error}</p>}
+        <button type="button" onClick={onPodlacz} className={`mt-5 ${buttonClass.primary}`}>
+          Podłącz skrzynkę
+        </button>
+        {/* Pusty moduł kończył się jednym zdaniem i przyciskiem. Tu jest jeszcze to, o co
+          pyta każdy przed podaniem hasła: skąd Nexus weźmie ustawienia serwera i co
+          właściwie zrobi ze skrzynką. */}
+        <p className="mt-8 text-xs tracking-wide text-subtle uppercase">Ustawienia serwera wpiszą się same</p>
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {["Gmail", "Outlook", "WP", "Onet", "Interia", "o2", "własny IMAP"].map((nazwa) => (
+            <span key={nazwa} className="rounded-full border border-line px-3 py-1 text-xs text-muted">
+              {nazwa}
+            </span>
+          ))}
+        </div>
+        <ul className="mt-6 grid gap-2 text-left text-sm text-muted sm:grid-cols-2">
+          <li className="rounded-xl border border-line bg-raised/50 px-3 py-2">
+            Szuka w skrzynce konkretnej sprawy, nie tylko po słowie w temacie.
+          </li>
+          <li className="rounded-xl border border-line bg-raised/50 px-3 py-2">
+            Pisze odpowiedź i zostawia ją w wersjach roboczych — wysyłasz Ty.
+          </li>
+          <li className="rounded-xl border border-line bg-raised/50 px-3 py-2">
+            Wyciąga z wiadomości terminy i wstawia je do kalendarza.
+          </li>
+          <li className="rounded-xl border border-line bg-raised/50 px-3 py-2">
+            Zapisuje załączniki w Twoich plikach i od razu je rozumie.
+          </li>
+        </ul>
+      </EmptyState>
+    </>
   );
 }
 
@@ -217,6 +247,9 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
 
   return (
     <div className="flex h-full min-h-0 bg-app">
+      {/* Tytuł strony na telefonie: widoczny nagłówek modułu jest ukryty poniżej `md`,
+          a pasek powłoki niesie tylko etykietę. */}
+      <h1 className="sr-only md:hidden">Poczta</h1>
       {/* Foldery */}
       <nav className="hidden w-56 shrink-0 flex-col border-r border-line bg-side md:flex">
         <div className="px-3 pt-4 pb-2">
@@ -371,7 +404,11 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
                         onClick={() => read(item)}
                       >
                         <span className="flex items-center gap-2">
-                          {!item.seen && <span className="size-2 shrink-0 rounded-full bg-accent-fill" aria-label="Nieprzeczytana" />}
+                          {/* Kropka niesie całą informację „nieprzeczytana”, więc ma nazwę — a nazwa na `span`
+                            bez roli jest zakazana (ARIA in HTML) i mogła nie dotrzeć do czytnika ekranu. */}
+                          {!item.seen && (
+                            <span role="img" className="size-2 shrink-0 rounded-full bg-accent-fill" aria-label="Nieprzeczytana" />
+                          )}
                           <span className={`min-w-0 flex-1 truncate text-sm ${item.seen ? "" : "font-semibold"}`}>
                             {folder === folders.find((f) => f.role === "\\Sent")?.name ? `Do: ${displayName(item.to)}` : displayName(item.from)}
                           </span>

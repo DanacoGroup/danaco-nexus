@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type SVGProps } from "react";
 import { AlertIcon, CheckIcon, StopIcon } from "../../components/icons";
 import type { ModulePageProps, NexusModule } from "../registry";
+import { WlasniAgenci } from "./WlasniAgenci";
 import {
   MODE_LABELS,
   agenciApi,
@@ -277,15 +278,17 @@ export function AgenciPage({ openConversation }: ModulePageProps) {
     <div className="mx-auto w-full max-w-4xl space-y-5 px-4 py-6">
       <header className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold">Agenci</h1>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">Agenci</h1>
           <p className="text-sm text-muted">
-            Sesje pracujące równolegle i ich podagenci.
+            Twoje specjalizacje i wszystko, co teraz pracuje w tle.
             {overview &&
               ` Pracuje ${running} z ${overview.config.concurrency} miejsc` +
                 (overview.config.queued ? `, w kolejce: ${overview.config.queued}.` : ".")}
           </p>
         </div>
       </header>
+
+      <WlasniAgenci onOtworzRozmowe={openConversation} />
 
       <NewTaskForm
         onCreated={() => {
@@ -295,9 +298,16 @@ export function AgenciPage({ openConversation }: ModulePageProps) {
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
+      {/* Pusty wykaz zadań kończył stronę samotnym zdaniem pod ostatnią ramką — wyglądało to
+        na urwany widok. Komunikat dostaje własną ramkę, taką samą jak kafle wyżej, więc
+        „nic tu nie ma” czyta się jako stan, a nie jako brakujący kawałek interfejsu. */}
       <section className="space-y-3" aria-label="Zadania w toku">
         <h2 className="text-sm font-medium text-muted uppercase">W toku</h2>
-        {overview && overview.active.length === 0 && <p className="text-sm text-muted">Brak zadań w toku.</p>}
+        {overview && overview.active.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
+            Brak zadań w toku. Zleć zadanie powyżej — wynik znajdziesz tutaj.
+          </p>
+        )}
         {overview?.active.map((task) => (
           <TaskCard
             key={task.id}
@@ -324,7 +334,7 @@ export function AgenciPage({ openConversation }: ModulePageProps) {
 export const module: NexusModule = {
   id: "agenci",
   label: "Agenci",
-  description: "Kilka zadań naraz, każde z własnym postępem — zlecasz i wracasz po gotowy wynik.",
+  description: "Twoi agenci i zadania w tle — zlecasz i wracasz po gotowy wynik.",
   icon: AgentsIcon,
   order: 70,
   Page: AgenciPage,

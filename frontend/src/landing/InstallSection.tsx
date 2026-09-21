@@ -66,25 +66,36 @@ function MomentInstalacji() {
  */
 export function PrzyciskInstalacji({ rozmiar = "duzy" }: { rozmiar?: "duzy" | "maly" }) {
   const pwa = usePwa();
-  const wymiar = rozmiar === "duzy" ? "h-12 w-full px-6 sm:w-auto" : "h-9 px-4 text-sm";
+  // W pasku (`maly`) pełna nazwa łamała się na dwa wiersze przy szerokości telefonu
+  // i rozpychała nagłówek. Na wąskim ekranie zostaje samo „Zainstaluj”; pełne wezwanie
+  // i tak stoi w hero kilka centymetrów niżej.
+  const maly = rozmiar === "maly";
+  const wymiar = maly ? "h-9 shrink-0 whitespace-nowrap px-4 text-sm" : "h-12 w-full px-6 sm:w-auto";
+  const nazwa = maly ? (
+    <>
+      Zainstaluj<span className="hidden sm:inline"> aplikację</span>
+    </>
+  ) : (
+    "Zainstaluj aplikację"
+  );
 
   if (isStandalone()) {
     return (
       <a href="/" className={`${GLOWNY} ${wymiar}`}>
-        Otwórz aplikację
+        Otwórz<span className={maly ? "hidden sm:inline" : ""}> aplikację</span>
       </a>
     );
   }
   if (pwa.canInstall) {
     return (
       <button type="button" className={`${GLOWNY} ${wymiar}`} onClick={() => void pwa.install()}>
-        <InstallIcon size={rozmiar === "duzy" ? 18 : 16} /> Zainstaluj aplikację
+        <InstallIcon size={maly ? 16 : 18} /> {nazwa}
       </button>
     );
   }
   return (
     <a href="#instalacja" className={`${GLOWNY} ${wymiar}`}>
-      Zainstaluj aplikację
+      {nazwa}
     </a>
   );
 }
@@ -92,6 +103,8 @@ export function PrzyciskInstalacji({ rozmiar = "duzy" }: { rozmiar?: "duzy" | "m
 export function InstallSection() {
   const [platforma, setPlatforma] = useState<Platforma>("windows");
   const [kroki, widoczne] = useWidocznosc<HTMLOListElement>();
+  // Margines 300 px: nagranie ma być gotowe, zanim sekcja wjedzie na ekran.
+  const [ramkaNagrania, nagranieWidoczne] = useWidocznosc<HTMLDivElement>({ margines: "300px" });
 
   useEffect(() => setPlatforma(platformaGoscia()), []);
 
@@ -105,15 +118,42 @@ export function InstallSection() {
         srodek
       />
 
-      {/* Ujęcie „moment-instalacja” z pakietu ruchu: pokazuje to, co opisują kroki obok. */}
+      {/* Ujęcie „moment-instalacja” z pakietu ruchu: pokazuje to, co opisują kroki obok.
+        Scena jest nagrana w ciasnym kadrze 760 × 600 px (rama pulpitu, okno potwierdzenia, dok),
+        więc nic tu nie przycinamy — pokazujemy ją w całości w naturalnych proporcjach. */}
+      {/* Nagranie wchodzi do drzewa dopiero, gdy sekcja zbliża się do ekranu. `NagranieStartu`
+        ma `preload="auto"` — słusznie, bo w oknie aplikacji ujęcie musi ruszyć od razu — ale
+        tutaj sekcja instalacji leży daleko pod pierwszym ekranem i 125 kB pobierało się
+        każdemu, kto tylko zajrzał na stronę (zmierzone Lighthouse'em 21.09.2026). Ramka
+        trzyma proporcje z góry, więc odłożone wczytanie nie przesuwa układu (CLS zostaje 0). */}
       {!ograniczonyRuch() && (
-        <div className="mx-auto mt-10 max-w-lg overflow-hidden rounded-2xl border border-line bg-raised/60">
-          <NagranieStartu nazwa="moment-instalacja" petla className="aspect-video w-full object-cover" />
+        <div
+          ref={ramkaNagrania}
+          className="mx-auto mt-10 aspect-[19/15] w-full max-w-[440px] overflow-hidden rounded-2xl border border-line bg-raised/60"
+        >
+          {nagranieWidoczne && (
+          <NagranieStartu
+            nazwa="moment-instalacja"
+            // Ujęcie trwa 1,2 s. Przy trzysekundowej przerwie przez większość czasu stała
+            // na ekranie ostatnia klatka — sam dok z ikoną, czyli obrazek, nie animacja.
+            // Przerwa równa długości ujęcia daje ruch mniej więcej co drugą sekundę.
+            powtarzaj={1500}
+            className="size-full object-contain"
+          />
+          )}
         </div>
       )}
 
       <div className="mx-auto mt-12 max-w-3xl">
-        <div role="tablist" aria-label="System urządzenia" className="flex justify-center gap-2">
+        {/* Na telefonie trzy zakładki nie mieszczą się w jednym wierszu: „iPhone i iPad”
+          łamało się na dwie linijki i odrywało od swojej ikony. Etykiety zostają więc
+          w całości, a sam wiersz zawija się na kolejną linijkę — przewijanie w bok ucinało
+          ostatnią zakładkę przy krawędzi i wyglądało jak usterka. */}
+        <div
+          role="tablist"
+          aria-label="System urządzenia"
+          className="flex flex-wrap justify-center gap-2 px-4 sm:px-0"
+        >
           {(Object.keys(KROKI) as Platforma[]).map((klucz) => {
             const { etykieta, ikona: Ikona } = KROKI[klucz];
             const aktywna = klucz === platforma;
@@ -124,7 +164,7 @@ export function InstallSection() {
                 role="tab"
                 aria-selected={aktywna}
                 onClick={() => setPlatforma(klucz)}
-                className={`ui-nacisk inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors ${
+                className={`ui-nacisk inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors ${
                   aktywna ? "bg-accent-soft text-accent" : "text-muted hover:bg-hover hover:text-fg"
                 }`}
               >

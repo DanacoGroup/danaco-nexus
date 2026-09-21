@@ -50,7 +50,7 @@ export function Szukaj({ zapytanie }: { zapytanie: string }) {
         {zapytanie && wyniki.ladowanie && <Ladowanie wierszy={3} etykieta="Wyszukiwanie" />}
         {wyniki.blad && <Komunikat tekst={wyniki.blad} rodzaj="blad" />}
         {zapytanie && !wyniki.ladowanie && (wyniki.dane?.total ?? 0) === 0 && (
-          <Komunikat tekst={`Nic nie pasuje do frazy „${zapytanie}”. Spróbuj krótszego słowa albo przejrzyj spis dokumentacji.`} />
+          <Komunikat tekst={`Nic nie pasuje do frazy „${zapytanie}”. Szukamy w blogu, centrum wiedzy i dokumentacji — spróbuj krótszego słowa.`} />
         )}
         {(wyniki.dane?.total ?? 0) > 0 && (
           <>

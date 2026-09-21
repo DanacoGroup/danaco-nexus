@@ -4,6 +4,7 @@ import { useState } from "react";
 import { dataPolska, portalApi, type RodzajTresci, type SkrotTresci } from "../api";
 import { useZasob } from "../dane";
 import { okruszki, usePozycjonowanie } from "../seo";
+import { SCIEZKA } from "../../shell/route";
 import { sciezka, type PortalStrona } from "../trasy";
 import { Karta, Komunikat, Ladowanie, NaglowekStrony, Odsylacz, Okruszki, Przycisk, Znacznik } from "../ui";
 
@@ -102,7 +103,27 @@ export function ListaWpisow({
         {lista.ladowanie && <Ladowanie wierszy={3} etykieta="Wczytywanie listy" />}
         {!lista.ladowanie && lista.blad && <Komunikat tekst={lista.blad} rodzaj="blad" />}
         {!lista.ladowanie && !lista.blad && pozycje.length === 0 && (
-          <Komunikat tekst={tag ? `Nic nie pasuje do znacznika „${tag}”. Wybierz „Wszystkie”, aby zobaczyć całą listę.` : "Ta sekcja czeka na pierwsze materiały. Zajrzyj do dokumentacji — opisuje pracę z każdym modułem."} />
+          tag ? (
+            <Komunikat tekst={`Nic nie pasuje do znacznika „${tag}”. Wybierz „Wszystkie”, aby zobaczyć całą listę.`} />
+          ) : (
+            // Wcześniej pusta sekcja odsyłała do dokumentacji, która sama bywa pusta — rada
+            // prowadziła donikąd. Te dwa wyjścia działają niezależnie od tego, czy redakcja
+            // zdążyła cokolwiek opublikować.
+            <div className="max-w-prose">
+              <Komunikat tekst="Ta sekcja czeka na pierwsze materiały." />
+              <p className="mt-4 text-sm text-muted">
+                Zanim się zapełni:{" "}
+                <Odsylacz adres={SCIEZKA.piaskownica} className="text-accent hover:underline">
+                  wypróbuj Nexusa bez rejestracji
+                </Odsylacz>{" "}
+                albo{" "}
+                <Odsylacz adres={sciezka("kontakt")} className="text-accent hover:underline">
+                  napisz, czego potrzebujesz
+                </Odsylacz>
+                .
+              </p>
+            </div>
+          )
         )}
         {pozycje.length > 0 && (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

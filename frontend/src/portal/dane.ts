@@ -1,7 +1,6 @@
 // Pobieranie danych portalu: jeden hook dla wszystkich stron (stan wczytywania, błąd, odświeżenie).
 
 import { useCallback, useEffect, useState } from "react";
-import { komunikat } from "./api";
 
 export interface Zasob<T> {
   dane: T | null;
@@ -33,7 +32,15 @@ export function useZasob<T>(pobierz: () => Promise<T>, klucz: string): Zasob<T> 
       .catch((error: unknown) => {
         if (!aktualne) return;
         setDane(null);
-        setBlad(komunikat(error, "Nie udało się pobrać treści."));
+        // Komunikat serwera nie trafia na stronę. Ten hak wczytuje **treść** portalu —
+        // stronę główną, wpisy, dokumentację, wyszukiwanie — czyli miejsca, które czyta
+        // każdy, kto wejdzie z wyszukiwarki. Odpowiedź serwera jest pisana do klienta
+        // albo do administratora i potrafi powiedzieć odwiedzającemu „Wymagane logowanie.”
+        // na stronie, na której nie ma czego logować. Zdanie jest więc jedno i nasze,
+        // a szczegół idzie do konsoli. Komunikaty serwera zostają tam, gdzie są na miejscu:
+        // przy formularzach (`komunikat()` w `portal/api.ts`), bo tam niosą treść walidacji.
+        console.warn("Portal — nie udało się pobrać treści:", error);
+        setBlad("Nie udało się pobrać treści. Odśwież stronę za chwilę albo napisz do nas.");
         setLadowanie(false);
       });
     return () => {

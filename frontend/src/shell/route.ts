@@ -14,6 +14,7 @@ export type Screen = "panel" | "landing" | "demo" | "login" | "app";
 
 const CONVERSATION = /^\/c\/([0-9a-f-]{36})\/?$/;
 const MODULE = /^\/m\/([a-z0-9][a-z0-9-]{0,39})\/?$/;
+const CZAT = new Set(["czat", "chat", "rozmowa"]);
 
 /** Stałe adresy części publicznej; portal odsyła do nich po nazwie. */
 export const SCIEZKA = {
@@ -35,7 +36,12 @@ export function parseRoute(pathname: string, search: string): Route {
   const conversation = pathname.match(CONVERSATION);
   if (conversation) return { view: "chat", conversationId: conversation[1] };
   const module = pathname.match(MODULE);
-  if (module) return { view: "module", moduleId: module[1] };
+  if (module) {
+    // Czat jest w pasku jedną z pozycji i nazywa się tak samo jak moduły, ale w rejestrze
+    // modułem nie jest. Bez tego /m/czat kończyło się planszą „moduł nie jest zainstalowany”.
+    if (CZAT.has(module[1])) return { view: "chat", conversationId: null };
+    return { view: "module", moduleId: module[1] };
+  }
   return { view: "chat", conversationId: null };
 }
 

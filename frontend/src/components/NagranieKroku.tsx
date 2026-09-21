@@ -8,12 +8,7 @@
 import { useEffect, useRef } from "react";
 import { odtworz } from "../modules/mozliwosci/odtwarzanie";
 import { nagranieNarzedzia } from "../modules/mozliwosci/ruch";
-
-/** Czy system prosi o ograniczenie ruchu (ustawienie dostępności przeglądarki). */
-function ograniczonyRuch(): boolean {
-  if (typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+import { ograniczonyRuch } from "../preferencje";
 
 export function NagranieKroku({ narzedzie }: { narzedzie: string }) {
   const wideo = useRef<HTMLVideoElement>(null);

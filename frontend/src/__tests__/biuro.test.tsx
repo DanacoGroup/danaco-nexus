@@ -2,12 +2,13 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { findModule, MODULES } from "../modules/registry";
 import { breadcrumbs, chunkRanges, joinPath, parentPath, uploadToCloud, type CloudEntry } from "../modules/cloud/api";
-import { sortEntries } from "../modules/cloud/CloudPage";
+import { CloudPage, sortEntries } from "../modules/cloud/CloudPage";
 import { previewKind } from "../modules/cloud/dialogs";
 import { formToInput, initialForm } from "../modules/kalendarz/EventDialog";
 import type { CalendarEvent } from "../modules/kalendarz/api";
 import { eventsOnDay, isoDay, layoutDay, monthGrid, rangeLabel, startOfWeek, viewRange } from "../modules/kalendarz/grid";
 import { listDate, parseAddresses, replyDraft, type MailMessage } from "../modules/poczta/api";
+import { KalendarzPage } from "../modules/kalendarz/KalendarzPage";
 import { PocztaPage } from "../modules/poczta/PocztaPage";
 import { sanitizeEmailHtml } from "../modules/poczta/sanitize";
 
@@ -49,7 +50,7 @@ describe("Cloud – ścieżki i sortowanie", () => {
     expect(parentPath("/a/b/c.txt")).toBe("/a/b");
     expect(parentPath("/a")).toBe("/");
     expect(breadcrumbs("/Dokumenty/Umowy")).toEqual([
-      { name: "Cloud", path: "/" },
+      { name: "Chmura", path: "/" },
       { name: "Dokumenty", path: "/Dokumenty" },
       { name: "Umowy", path: "/Dokumenty/Umowy" },
     ]);
@@ -237,6 +238,43 @@ describe("Poczta – odpowiedzi i adresy", () => {
     // czyta tę samą skrzynkę.
     expect(screen.getByRole("button", { name: "Podłącz skrzynkę" })).toBeTruthy();
     expect(screen.queryByText(/sudo -u danaco-serwis/)).toBeNull();
+  });
+
+  it("chmura bez przestrzeni mówi to po ludzku, a nie czerwonym paskiem", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ detail: "Chmura osobista nie jest skonfigurowana (brak adresu Nextcloud lub hasła aplikacji)." }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+    render(<CloudPage openConversation={() => undefined} openModule={() => undefined} openChat={() => undefined} />);
+    await waitFor(() => expect(screen.getByText("Chmura nie jest jeszcze podłączona")).toBeTruthy());
+    expect(screen.queryByText(/hasła aplikacji/)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("kalendarz bez przestrzeni w chmurze mówi to po ludzku, a nie czerwonym paskiem", async () => {
+    // Serwer odpowiada 503 z komunikatem dla administratora („brak adresu chmury lub hasła
+    // aplikacji”). Wcześniej szedł on wprost na czerwony pasek nad pustą siatką tygodnia,
+    // więc stan przed podłączeniem wyglądał na awarię aplikacji.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ detail: "Kalendarz nie jest skonfigurowany (brak adresu chmury lub hasła aplikacji)." }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+    render(<KalendarzPage openConversation={() => undefined} openModule={() => undefined} openChat={() => undefined} />);
+    await waitFor(() => expect(screen.getByText("Kalendarz nie jest jeszcze podłączony")).toBeTruthy());
+    expect(screen.queryByText(/hasła aplikacji/)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

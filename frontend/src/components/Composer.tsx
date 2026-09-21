@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { uploadFile, type FileInfo } from "../api";
+import { preferencje } from "../preferencje";
 import { formatSize } from "../runState";
 import { CloseIcon, FileIcon, MicIcon, PaperclipIcon, SendIcon, StopIcon, WaveIcon } from "./icons";
 import { dyktowanieDostepne, useDyktowanie } from "../voice/useDyktowanie";
@@ -124,10 +125,14 @@ export function Composer(props: Props) {
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     // Na telefonie Enter dodaje nową linię; wysyła przycisk.
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.innerWidth > 700) {
-      event.preventDefault();
-      void submit();
-    }
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || window.innerWidth <= 700) return;
+    // Ustawienie konta („Ustawienia → Praca”): Enter albo Ctrl/⌘ + Enter. Kto pisze
+    // wiadomości wielolinijkowe, nie chce ich wysyłać połową z nich.
+    const ctrlem = preferencje().wysylka === "ctrl-enter";
+    const wyslij = ctrlem ? event.ctrlKey || event.metaKey : !event.shiftKey;
+    if (!wyslij) return;
+    event.preventDefault();
+    void submit();
   };
 
   const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {

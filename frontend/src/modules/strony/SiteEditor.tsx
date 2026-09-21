@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RunEvent } from "../../api";
 import { CloseIcon, RefreshIcon } from "../../components/icons";
 import { formatSize } from "../../runState";
+import { useOknoModalne } from "../../ui/useOknoModalne";
 import { ChatPanel } from "../_tworczy/ChatPanel";
 import { errorText } from "../_tworczy/http";
 import {
@@ -223,7 +224,10 @@ export function SiteEditor({
             accept="image/*,.svg,.pdf,.woff2,.ttf,.mp4,.webm"
             empty={
               <div className="space-y-2">
-                <p>Opisz, co ma się znaleźć na stronie – asystent zbuduje ją i zobaczysz efekt na żywo obok.</p>
+                {/* „w podglądzie”, a nie „obok”: obok jest dopiero od szerokości `lg`. Niżej
+                    podgląd siedzi w zakładce (patrz `mobileTab`), więc „obok” kazało szukać
+                    czegoś, czego na telefonie nie widać. */}
+                <p>Opisz, co ma się znaleźć na stronie – asystent zbuduje ją i zobaczysz efekt na żywo w podglądzie.</p>
                 {conversationId && (
                   <button type="button" className="text-accent hover:underline" onClick={() => openConversation(conversationId)}>
                     Otwórz tę rozmowę na czacie
@@ -344,24 +348,34 @@ export function SiteEditor({
         )}
       </div>
 
-      {source && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={() => setSource(null)}>
-          <div
-            role="dialog"
-            aria-label={`Kod pliku ${source.path}`}
-            className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-line bg-app shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5">
-              <span className="flex-1 truncate font-mono text-sm">{source.path}</span>
-              <button type="button" className="icon-btn" onClick={() => setSource(null)} aria-label="Zamknij">
-                <CloseIcon size={18} />
-              </button>
-            </div>
-            <pre className="min-h-0 flex-1 overflow-auto bg-code p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">{source.content}</pre>
-          </div>
+      {source && <PodgladKodu path={source.path} content={source.content} onClose={() => setSource(null)} />}
+    </div>
+  );
+}
+
+/** Nakładka z kodem pliku. Własny komponent, bo hak okna modalnego wymaga stałego wywołania. */
+function PodgladKodu({ path, content, onClose }: { path: string; content: string; onClose: () => void }) {
+  const nakladka = useRef<HTMLDivElement>(null);
+  useOknoModalne(nakladka, onClose);
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        ref={nakladka}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-label={`Kod pliku ${path}`}
+        className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-line bg-app shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5">
+          <span className="flex-1 truncate font-mono text-sm">{path}</span>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Zamknij">
+            <CloseIcon size={18} />
+          </button>
         </div>
-      )}
+        <pre className="min-h-0 flex-1 overflow-auto bg-code p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">{content}</pre>
+      </div>
     </div>
   );
 }

@@ -240,7 +240,9 @@ class WindowHelper {
       windowsHide: true,
     });
     this.child = child;
+    let odrzuc = () => {};
     this.ready = new Promise((resolve, reject) => {
+      odrzuc = reject;
       const lines = readline.createInterface({ input: child.stdout });
       const timer = setTimeout(() => reject(new Error('Proces pomocniczy PowerShell nie wystartował.')), 20000);
       lines.on('line', (line) => {
@@ -263,6 +265,19 @@ class WindowHelper {
       });
     });
     this.ready.catch(() => {});
+    // Bez tego nasłuchu nieudany `spawn` (brak PowerShella, zablokowane uruchamianie,
+    // uruchomienie poza Windows) zgłasza zdarzenie „error” **bez słuchacza**, a Node
+    // zamienia je wtedy w nieobsłużony wyjątek w procesie głównym Electrona. Reszta kodu
+    // jest napisana tak, żeby brak procesu pomocniczego **przeżyć** (`this.ready.catch`
+    // wyżej i `state.helper.start().catch(...)` w `main.js`) — i ten jeden nasłuch
+    // decyduje o tym, czy ta odporność w ogóle zadziała.
+    child.on('error', (error) => {
+      this.child = null;
+      this.log.warn('Proces pomocniczy PowerShell nie wystartował', { message: error.message });
+      for (const waiting of this.pending.values()) waiting.reject(error);
+      this.pending.clear();
+      odrzuc(error);
+    });
     child.stderr.on('data', (chunk) => this.log.warn('Proces pomocniczy PowerShell', { stderr: chunk.toString('utf8').slice(0, 500) }));
     child.on('exit', () => {
       this.child = null;

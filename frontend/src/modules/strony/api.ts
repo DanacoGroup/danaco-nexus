@@ -37,8 +37,32 @@ export interface SiteDetail extends Site {
 
 const base = (address: string) => `/api/strony/${encodeURIComponent(address)}`;
 
+export interface Preset {
+  preset: string;
+  nazwa: string;
+  opis: string;
+}
+
+export interface SzablonKolekcji {
+  id: string;
+  nazwa: string;
+  charakter: string[];
+  podstrony: number;
+  licencja: string;
+}
+
+export interface KatalogKitu {
+  dostepny: boolean;
+  presety: Preset[];
+  motywy: string[];
+  /** Szablony otwarte z gotową, zbudowaną witryną — wstawiane do szkicu bez budowania. */
+  szablony: SzablonKolekcji[];
+}
+
 export const sitesApi = {
   list: () => requestJson<Site[]>("GET", "/api/strony"),
+  /** Presety branżowe zestawu Danaco Web Kit — gotowe układy na start. */
+  kit: () => requestJson<KatalogKitu>("GET", "/api/strony/kit"),
   create: (title: string, description: string, address?: string) =>
     requestJson<Site>("POST", "/api/strony", { title, description, address: address || null }),
   get: (address: string) => requestJson<SiteDetail>("GET", base(address)),

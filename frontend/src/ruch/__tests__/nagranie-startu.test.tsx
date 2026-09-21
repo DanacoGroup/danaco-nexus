@@ -6,15 +6,21 @@ import { describe, expect, it } from "vitest";
 import { START } from "../../media/katalog";
 import { BEZ_PODPISU, zrodlaStartu, type IdStartu } from "../NagranieStartu";
 
-/** Nazwy podpięte w kodzie aplikacji i strony produktu. */
+/** Nazwy podpięte w kodzie aplikacji i strony produktu.
+ *
+ * Wykaz nie jest spisem całego pakietu, tylko tego, co naprawdę gra. Ubyły z niego trzy
+ * ujęcia i każde z innego powodu: `intro-znaku` (otwarcie strony rysuje ekran ładowania
+ * marki, a nagranie było drugą planszą pod rząd), `logowanie-ciemny` i `logowanie-jasny`
+ * (makiety produktu z cudzym adresem i powitaniem „Dzień dobry, Dariuszu” — domknięcie
+ * logowania rysuje teraz znak) oraz `moment-mysli` (obok animowanego znaku w rozmowie
+ * wyglądało jak dwa znaki naraz).
+ */
 const UZYWANE: IdStartu[] = [
-  "intro-znaku",
-  "logowanie-ciemny",
-  "logowanie-jasny",
+  "moment-blad",
   "moment-brak-polaczenia",
   "moment-instalacja",
-  "moment-mysli",
   "moment-sukces",
+  "moment-wylogowanie",
   "uruchomienie-komputer-ciemny",
   "uruchomienie-komputer-jasny",
   "uruchomienie-krotkie-komputer-ciemny",
@@ -32,7 +38,12 @@ describe("nagrania startowe", () => {
   });
 
   it("katalog nie zgubił żadnej pozycji pakietu", () => {
-    expect(START.length).toBe(18);
+    // Pakiet ma osiemnaście ujęć startowych, ale trzy z nich do `public` nie trafiają
+    // (`POMIJANE_NAGRANIA` w `frontend/scripts/zasoby.py`): makieta logowania w trzech
+    // wariantach pokazuje formularz z prawdziwym adresem właściciela i powitanie
+    // „Dzień dobry, Dariuszu”. Spis powstaje z katalogu publicznego, więc ich tu nie ma.
+    expect(START.length).toBe(15);
+    expect(START.map((pozycja) => pozycja.id).filter((id) => id.startsWith("logowanie"))).toEqual([]);
   });
 
   it("momenty z wariantem bez podpisu mają plik w katalogu publicznym", async () => {

@@ -21,7 +21,7 @@
     <meta property="og:site_name" content="Danaco Nexus" />
     <meta property="og:locale" content="pl_PL" />
     <meta property="og:title" content="Danaco Nexus — powiedz, co zrobić. Odbierz gotowe." />
-    <meta property="og:description" content="Twój osobisty agent AI do pracy i do życia. Własna przestrzeń w chmurze, 2 GB na start." />
+    <meta property="og:description" content="Twój osobisty agent AI do pracy i do życia. Własna przestrzeń w chmurze, 1 GB w planie Osobistym." />
     <meta property="og:image" content="https://danaco-nexus.pl/og.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
@@ -29,7 +29,7 @@
     <meta property="og:image:alt" content="Znak Danaco Nexus i hasło „Powiedz, co zrobić. Odbierz gotowe.”" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Danaco Nexus — powiedz, co zrobić. Odbierz gotowe." />
-    <meta name="twitter:description" content="Twój osobisty agent AI do pracy i do życia. Własna przestrzeń w chmurze, 2 GB na start." />
+    <meta name="twitter:description" content="Twój osobisty agent AI do pracy i do życia. Własna przestrzeń w chmurze, 1 GB w planie Osobistym." />
     <meta name="twitter:image" content="https://danaco-nexus.pl/og.png" />
     <meta name="twitter:image:alt" content="Znak Danaco Nexus i hasło „Powiedz, co zrobić. Odbierz gotowe.”" />
     <!-- Barwa paska systemowego; po starcie ustawia ją wybrany motyw (src/theme.ts). -->
@@ -100,7 +100,24 @@
          „defer” zdejmuje blokadę rysowania (22 kB skryptu przed #root), a kolejność wykonania
          zostaje: skrypty odroczone i moduły idą w kolejności zapisu, więc ekran nadal startuje
          przed main.tsx. -->
+    <!-- Ustawienia ekranu ładowania (m.in. „graj zawsze przy pierwszym wejściu w sesji”)
+         idą osobnym plikiem, a nie skryptem w treści strony: nagłówek Content-Security-Policy
+         ma „script-src 'self'” bez „'unsafe-inline'”, więc kod wpisany tutaj wprost nie
+         wykonałby się na produkcji ani razu. -->
+    <script src="/ladowanie/opcje.js" defer></script>
     <script src="/ladowanie/ladowanie.js" data-raz="sesja" defer></script>
+    <!-- Bez JavaScriptu zostaje pusta strona: ani powłoka aplikacji, ani portal nie mają
+         wersji serwerowej. Jedno zdanie jest uczciwsze niż biała kartka; styl jest tutaj
+         wprost, bo arkusz też wchodzi dopiero z modułem. -->
+    <noscript>
+      <div style="max-width:34rem;margin:12vh auto;padding:0 1.5rem;font-family:system-ui,sans-serif;line-height:1.6;color:#e8eaf0">
+        <h1 style="font-size:1.25rem;margin:0 0 .75rem">Danaco Nexus potrzebuje JavaScriptu</h1>
+        <p style="margin:0;color:#a8adbd">
+          To okno pracy, nie zwykła strona: rozmowa z agentem, pliki i moduły działają w przeglądarce.
+          Włącz JavaScript dla tej witryny albo napisz do nas na support@danaco-group.pl.
+        </p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

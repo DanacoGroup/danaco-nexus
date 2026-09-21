@@ -97,12 +97,36 @@ export function ErrorBanner({ message, onClose }: { message: string; onClose?: (
   );
 }
 
-export function EmptyState({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
+/** Pusty stan modułu.
+ *
+ * Treść ma własne ograniczenie szerokości, bo wiersz przez cały ekran czyta się źle.
+ * Stałe `max-w-sm` (384 px) było jednak za ciasne na wszystko poza jednym zdaniem:
+ * w Poczcie mieścił się pod nim opis łamany na cztery wiersze, a lista czterech rzeczy,
+ * które Nexus zrobi ze skrzynką, ściskała się w dwie wąskie kolumny pośrodku pustego
+ * ekranu — moduł wyglądał na niedokończony. Domyślna szerokość jest więc na jeden
+ * akapit, a stan z bogatszą treścią podaje własną.
+ */
+export function EmptyState({
+  icon,
+  title,
+  children,
+  szerokosc = "max-w-md",
+  poziom = 3,
+}: {
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  szerokosc?: string;
+  /** Poziom nagłówka: 3 wewnątrz sekcji z własnym `h2`, 2 gdy pustostan idzie wprost
+   *  pod tytułem modułu. Bez tego czytnik ekranu słyszał skok z jedynki na trójkę. */
+  poziom?: 2 | 3;
+}) {
+  const Naglowek = poziom === 2 ? "h2" : "h3";
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
       <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-raised text-muted">{icon}</div>
-      <h3 className="text-base font-semibold">{title}</h3>
-      {children && <div className="mt-1.5 max-w-sm text-sm text-muted">{children}</div>}
+      <Naglowek className="text-base font-semibold">{title}</Naglowek>
+      {children && <div className={`mt-1.5 w-full ${szerokosc} text-sm text-muted`}>{children}</div>}
     </div>
   );
 }

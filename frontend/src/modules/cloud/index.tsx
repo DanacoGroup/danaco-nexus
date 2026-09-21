@@ -6,6 +6,8 @@ import { CloudPage } from "./CloudPage";
 
 export const module: NexusModule = {
   id: "cloud",
+  // Polska nazwa z paska nawigacji też otwiera moduł.
+  aliasy: ["chmura"],
   label: "Chmura",
   description:
     "Twoja przestrzeń w chmurze — sąsiad zakładki Pliki: wersje, udostępnianie linkiem " +

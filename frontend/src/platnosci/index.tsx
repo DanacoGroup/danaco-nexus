@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState, type SVGProps } from "react";
 import { ApiError } from "../api";
 import { AlertIcon, CheckIcon } from "../components/icons";
 import type { NexusModule } from "../modules/registry";
+import { Grupa } from "./Grupa";
 import { Kredyty } from "./Kredyty";
 import { MojaSubskrypcja } from "./MojaSubskrypcja";
 import { Plany } from "./Plany";
@@ -133,7 +134,7 @@ export function PlatnosciPage() {
           <AlertIcon size={16} /> {blad}
         </p>
         <p className="text-sm text-muted">
-          Cennik pobiera się z serwera. Odśwież stronę za chwilę — saldo kredytów i plan pozostają
+          Cennik pobiera się z serwera. Odśwież stronę za chwilę — dostęp i plan pozostają
           bez zmian.
         </p>
       </div>
@@ -152,6 +153,12 @@ export function PlatnosciPage() {
 
   return (
     <div className={RAMKA}>
+      {/* Tytuł strony stał dotąd tylko w gałęzi wczytywania i błędu — gotowa strona
+        płatności nie miała nagłówka pierwszego stopnia wcale (zmierzone na wydaniu
+        21.09.2026: `/m/platnosci` zero widocznych `h1`). Czytnik ekranu nie miał od
+        czego zacząć, a moduł jako jedyny wyłamywał się z układu pozostałych. */}
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Płatności</h1>
+
       {powrot === "udany" && <Potwierdzenie cennik={cennik} />}
       {powrot === "anulowany" && (
         <p className="rounded-xl border border-line px-3.5 py-2.5 text-sm text-muted">
@@ -203,6 +210,7 @@ export function PlatnosciPage() {
       ) : (
         <>
           <Kredyty />
+          <Grupa />
           <MojaSubskrypcja
             subskrypcja={cennik.subskrypcja}
             poZakupie={powrot === "udany"}

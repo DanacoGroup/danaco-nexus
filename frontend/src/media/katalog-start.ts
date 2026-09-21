@@ -17,27 +17,6 @@ export const START = [
     }
   },
   {
-    "id": "logowanie-ciemny",
-    "zrodla": {
-      "mp4": "/ruch/start/logowanie-ciemny.mp4",
-      "webm": "/ruch/start/logowanie-ciemny.webm"
-    }
-  },
-  {
-    "id": "logowanie-jasny",
-    "zrodla": {
-      "mp4": "/ruch/start/logowanie-jasny.mp4",
-      "webm": "/ruch/start/logowanie-jasny.webm"
-    }
-  },
-  {
-    "id": "logowanie-ograniczone-ciemny",
-    "zrodla": {
-      "mp4": "/ruch/start/logowanie-ograniczone-ciemny.mp4",
-      "webm": "/ruch/start/logowanie-ograniczone-ciemny.webm"
-    }
-  },
-  {
     "id": "moment-blad",
     "zrodla": {
       "mp4": "/ruch/start/moment-blad.mp4",

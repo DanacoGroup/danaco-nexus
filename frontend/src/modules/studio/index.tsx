@@ -1,5 +1,6 @@
-// Moduł Studio: nagrania audio i wideo – odtwarzacz z zaznaczaniem fragmentu, transkrypcja, napisy,
-// wycinanie, konwersja i streszczenie. Akcje wykonuje asystent w rozmowie widocznej obok.
+// Moduł Studio. Dwie części: „Nagranie” – przeróbka gotowego audio/wideo (transkrypcja, napisy,
+// wycinanie, konwersja, streszczenie) oraz „Montaż” – złożenie nowego filmu ze zdjęć i klipów.
+// Akcje wykonuje asystent w rozmowie widocznej obok.
 
 import { useRef, useState } from "react";
 import { api, downloadUrl, type FileInfo } from "../../api";
@@ -9,6 +10,7 @@ import { errorText } from "../_tworczy/http";
 import { FilmIcon, ScissorsIcon } from "../_tworczy/icons";
 import { ffmpegTime, formatTime, isVideo, parseTime, studioPrompt, type StudioAction, type StudioOptions } from "../_tworczy/logic";
 import { buttonSecondary, ErrorBanner, FileDrop, inputClass, labelClass, ModuleHeader } from "../_tworczy/ui";
+import { MontazPanel, montazPrompt, type Kadr, type Ujecie } from "./Montaz";
 import { useConversation } from "../_tworczy/useConversation";
 
 const MEDIA_ACCEPT = ".mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.mkv,.webm,.avi";
@@ -31,7 +33,12 @@ const ACTIONS: { id: StudioAction; title: string; description: string; video?: b
   { id: "compress", title: "Kompresja wideo", description: "Mniejszy plik, dobra jakość", video: true },
 ];
 
+const USTAWIENIA_POCZATKOWE = { tytul: "", kadr: "16:9" as Kadr, przejscie: "fade", nastroj: "korporacyjny" };
+
 function StudioPage({ openConversation }: ModulePageProps) {
+  const [tryb, setTryb] = useState<"nagranie" | "montaz">("nagranie");
+  const [ujecia, setUjecia] = useState<Ujecie[]>([]);
+  const [montaz, setMontaz] = useState(USTAWIENIA_POCZATKOWE);
   const [file, setFile] = useState<FileInfo | null>(null);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -60,6 +67,38 @@ function StudioPage({ openConversation }: ModulePageProps) {
     (which === "start" ? setStart : setEnd)(formatTime(current));
   };
 
+  const wyslij = async (prompt: string, pliki: FileInfo[]) => {
+    setStarting(true);
+    setError("");
+    try {
+      if (conversationId) {
+        await conversation.send(prompt, pliki);
+      } else {
+        // Nowa rozmowa: wiadomość wysłana przed podpięciem panelu, który sam podejmie trwające zadanie.
+        const id = (await api.createConversation()).id;
+        await api.sendMessage(
+          id,
+          prompt,
+          pliki.map((plik) => plik.id),
+        );
+        setConversationId(id);
+      }
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const zlozFilm = async () => {
+    if (!ujecia.length || conversation.running || starting) return;
+    // Ten sam plik może wystąpić w kilku ujęciach – do rozmowy idzie raz.
+    const pliki = ujecia
+      .map((ujecie) => ujecie.plik)
+      .filter((plik, numer, wszystkie) => wszystkie.findIndex((inny) => inny.id === plik.id) === numer);
+    await wyslij(montazPrompt(ujecia, montaz), pliki);
+  };
+
   const run = async (action: StudioAction) => {
     if (!file || conversation.running || starting) return;
     if (action === "trim" && startSeconds === null && endSeconds === null) {
@@ -74,23 +113,7 @@ function StudioPage({ openConversation }: ModulePageProps) {
       end: endSeconds,
       withNotes,
     };
-    setStarting(true);
-    setError("");
-    try {
-      const prompt = studioPrompt(action, options, file.name);
-      if (conversationId) {
-        await conversation.send(prompt, [file]);
-      } else {
-        // Nowa rozmowa: wiadomość wysłana przed podpięciem panelu, który sam podejmie trwające zadanie.
-        const id = (await api.createConversation()).id;
-        await api.sendMessage(id, prompt, [file.id]);
-        setConversationId(id);
-      }
-    } catch (failure) {
-      setError(errorText(failure));
-    } finally {
-      setStarting(false);
-    }
+    await wyslij(studioPrompt(action, options, file.name), [file]);
   };
 
   const reset = () => {
@@ -98,14 +121,38 @@ function StudioPage({ openConversation }: ModulePageProps) {
     setConversationId(null);
     setStart("");
     setEnd("");
+    setUjecia([]);
+    setMontaz(USTAWIENIA_POCZATKOWE);
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ModuleHeader title="Studio" subtitle="Audio i wideo: transkrypcja, napisy, cięcie, konwersja, streszczenie">
-        {file && (
+      <ModuleHeader
+        title="Studio"
+        subtitle={
+          tryb === "nagranie"
+            ? "Nagranie: transkrypcja, napisy, cięcie, konwersja, streszczenie"
+            : "Montaż: film ze zdjęć i klipów – ruch kamery, napisy, podkład"
+        }
+      >
+        <div className="flex rounded-xl border border-line p-0.5">
+          {(["nagranie", "montaz"] as const).map((pozycja) => (
+            <button
+              key={pozycja}
+              type="button"
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                tryb === pozycja ? "bg-accent-soft text-fg" : "text-muted hover:text-fg"
+              }`}
+              aria-pressed={tryb === pozycja}
+              onClick={() => setTryb(pozycja)}
+            >
+              {pozycja === "nagranie" ? "Nagranie" : "Montaż"}
+            </button>
+          ))}
+        </div>
+        {(file || ujecia.length > 0 || conversationId) && (
           <button type="button" className={buttonSecondary} onClick={reset}>
-            Nowe nagranie
+            Od nowa
           </button>
         )}
       </ModuleHeader>
@@ -113,8 +160,42 @@ function StudioPage({ openConversation }: ModulePageProps) {
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6">
           <div className="mx-auto max-w-3xl space-y-5">
             <ErrorBanner text={error} onClose={() => setError("")} />
-            {!file ? (
-              <FileDrop accept={MEDIA_ACCEPT} hint="Nagranie audio lub wideo (MP3, WAV, M4A, MP4, MOV, MKV…)" onUploaded={setFile} onError={setError} />
+            {tryb === "montaz" ? (
+              <MontazPanel
+                ujecia={ujecia}
+                onZmiana={setUjecia}
+                onDodano={(plik) => setUjecia((poprzednie) => [...poprzednie, { plik, sekundy: 4, napis: "", lektor: "", ruch: isVideo(plik.mime, plik.name) ? "brak" : "najazd" }])}
+                onBlad={setError}
+                ustawienia={montaz}
+                onUstawienia={setMontaz}
+                onZloz={zlozFilm}
+                zajete={conversation.running || starting}
+              />
+            ) : !file ? (
+              // Samo pole na plik zostawiało na ekranie jeden prostokąt i pustkę pod nim —
+              // po module nie było widać, że potrafi cokolwiek poza przyjęciem pliku.
+              // Wykaz działań stoi więc od razu, zanim jest co przetwarzać.
+              <>
+                <FileDrop accept={MEDIA_ACCEPT} hint="Nagranie audio lub wideo (MP3, WAV, M4A, MP4, MOV, MKV…)" onUploaded={setFile} onError={setError} />
+                <div>
+                  <h2 className="text-sm font-medium text-fg">Co Studio zrobi z nagraniem</h2>
+                  <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {ACTIONS.map((akcja) => (
+                      <li key={akcja.id} className="rounded-xl border border-line bg-raised/60 px-4 py-3">
+                        <span className="block text-sm font-medium text-fg">{akcja.title}</span>
+                        <span className="mt-0.5 block text-xs text-muted">
+                          {akcja.description}
+                          {akcja.video ? " · tylko wideo" : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs text-muted">
+                    Wszystko dzieje się po wgraniu pliku: wybierasz działanie, a Nexus wykonuje je
+                    w rozmowie obok i oddaje gotowy plik.
+                  </p>
+                </div>
+              </>
             ) : (
               <>
                 <div className="overflow-hidden rounded-2xl border border-line bg-black/90">
@@ -206,7 +287,9 @@ function StudioPage({ openConversation }: ModulePageProps) {
         {conversationId && (
           <aside className="flex min-h-[50vh] flex-col border-t border-line/60 lg:min-h-0 lg:w-[440px] lg:border-t-0 lg:border-l">
             <div className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5">
-              <h2 className="flex-1 text-sm font-medium">Wyniki i rozmowa o nagraniu</h2>
+              <h2 className="flex-1 text-sm font-medium">
+                {tryb === "montaz" ? "Montaż i rozmowa o filmie" : "Wyniki i rozmowa o nagraniu"}
+              </h2>
               <button type="button" className="text-sm text-accent hover:underline" onClick={() => openConversation(conversationId)}>
                 Otwórz na czacie
               </button>
@@ -215,7 +298,7 @@ function StudioPage({ openConversation }: ModulePageProps) {
               <ChatPanel
                 conversation={conversation}
                 conversationId={conversationId}
-                placeholder="Zapytaj o nagranie, np. „kto obiecał wysłać ofertę?”"
+                placeholder={tryb === "montaz" ? "Popraw film, np. „skróć drugie ujęcie do 2 s”" : "Zapytaj o nagranie, np. „kto obiecał wysłać ofertę?”"}
                 empty={<p>Wybierz akcję – wynik pojawi się tutaj.</p>}
               />
             </div>
@@ -229,7 +312,9 @@ function StudioPage({ openConversation }: ModulePageProps) {
 export const module: NexusModule = {
   id: "studio",
   label: "Studio",
-  description: "Audio i wideo: transkrypcja, napisy, wycinanie fragmentów, konwersja i streszczenia nagrań.",
+  description:
+    "Audio i wideo: transkrypcja, napisy, wycinanie fragmentów, konwersja i streszczenia nagrań, " +
+    "a także montaż filmu ze zdjęć i klipów – z ruchem kamery, napisami i podkładem muzycznym.",
   icon: FilmIcon,
   order: 66,
   Page: StudioPage,

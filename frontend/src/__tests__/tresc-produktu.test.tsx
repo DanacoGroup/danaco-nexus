@@ -1,11 +1,12 @@
 // Treść dla użytkownika: język polski, jedna nazwa na byt, liczby z rejestru i obietnice
 // pokrywające się z tym, co produkt robi. Testy pilnują tekstów, których nie widać w typach.
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ODSYLACZE_PRAWNE } from "../landing/Landing";
 import {
   DZIEN,
+  FILMY,
   GWARANCJE,
   KARTY,
   KROKI,
@@ -16,12 +17,12 @@ import {
   ROZNICE,
   ZASADY,
 } from "../landing/tresc";
-import { Brama, SekcjaCennik } from "../landing/sekcje";
+import { Brama, SekcjaCennik, SekcjaFilmy } from "../landing/sekcje";
 import { LICZBA_NARZEDZI } from "../dane/narzedzia";
 import { module as modulChmury } from "../modules/cloud";
 import { module as modulStron } from "../modules/strony";
 import { nazwaRodzaju } from "../modules/research";
-import { FUNKCJONALNOSCI, OFERTA, PLANY as PLANY_PORTALU, PYTANIA } from "../portal/tresc";
+import { FUNKCJONALNOSCI, OFERTA, PYTANIA } from "../portal/tresc";
 import { Funkcje } from "../portal/strony/Funkcje";
 import { parsujTrase } from "../portal/trasy";
 
@@ -126,8 +127,14 @@ describe("cennik na stronie produktu i w portalu", () => {
     for (const plan of PLANY) {
       expect(`${plan.znacznik} ${plan.cena}`, plan.nazwa).not.toMatch(DARMOWE);
     }
-    for (const plan of PLANY_PORTALU) {
-      expect(`${plan.cena} ${plan.okres}`, plan.nazwa).not.toMatch(DARMOWE);
+  });
+
+  // Katalog planów zna limit „automatyzacje”, ale modułu, w którym dałoby się je ustawić,
+  // w produkcie nie ma (`backend/nexus/platnosci/uprawnienia.py`). Dopóki go nie ma, karta
+  // planu nie może ich obiecywać — kupujący sprawdzi to pierwszego dnia.
+  it("nie obiecuje automatyzacji, których produkt jeszcze nie robi", () => {
+    for (const plan of PLANY) {
+      expect(plan.zawartosc.join(" "), plan.nazwa).not.toMatch(/automatyzacj/i);
     }
   });
 
@@ -175,5 +182,31 @@ describe("podpowiedź synchronizacji kalendarza", () => {
   it("wskazuje moduł o nazwie, którą widzi użytkownik", () => {
     // Instrukcja w module Kalendarz odsyła do „moduł Chmura → Synchronizacja”; test pilnuje obu nazw.
     expect(modulChmury.label).toBe("Chmura");
+  });
+});
+
+describe("sekcja z filmami na stronie produktu", () => {
+  it("pokazuje oba filmy z tytułem i zdaniem opisu", () => {
+    render(<SekcjaFilmy />);
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toContain("Nexusa w działaniu");
+    FILMY.forEach((film) => {
+      expect(screen.getByRole("heading", { level: 3, name: film.tytul })).toBeTruthy();
+      expect(screen.getByText(film.opis)).toBeTruthy();
+    });
+  });
+
+  it("opisuje oba zakresy: życie codzienne i pracę zawodową", () => {
+    const opisy = FILMY.map((film) => film.opis.toLowerCase());
+    expect(opisy.some((opis) => opis.includes("życie codzienne"))).toBe(true);
+    expect(opisy.some((opis) => opis.includes("praca zawodowa"))).toBe(true);
+  });
+
+  it("po kliknięciu plakatu otwiera film w powiększeniu", () => {
+    render(<SekcjaFilmy />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByLabelText(/Odtwórz film „Nexus w pracy”/));
+    expect(screen.getByRole("dialog").getAttribute("aria-label")).toContain("Nexus w pracy");
+    fireEvent.click(screen.getByRole("button", { name: "Zamknij" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

@@ -5,6 +5,8 @@ import { useState, type FormEvent } from "react";
 import { ApiError } from "../api";
 import { AlertIcon, CheckIcon } from "../components/icons";
 import {
+  PLAN_ZA_UZYTKOWNIKA,
+  opisZakresuPracy,
   cenaPlanu,
   kwota,
   opisOkresu,
@@ -46,11 +48,18 @@ function Cena({ plan, okres, waluta }: { plan: PlanInfo; okres: Okres; waluta: s
   const groszy = cenaPlanu(plan, okres);
   if (groszy <= 0) return <p className="font-heading text-3xl text-muted">Cena przy starcie</p>;
   const oszczednosc = okres === "rok" ? oszczednoscRoczna(plan) : 0;
+  // Plan grupowy rozlicza się za każdego użytkownika i tak jest kupowany w kasie. Sama
+  // kwota obok „/ miesiąc” czytałaby się jak cena całej grupy — a to pięć razy mniej,
+  // niż klient naprawdę zapłaci.
+  const zaOsobe = plan.kod === PLAN_ZA_UZYTKOWNIKA;
   return (
     <div>
       <p className="font-heading text-3xl">
         {kwota(groszy, waluta)}
-        <span className="ml-1 text-base font-normal text-muted">{okres === "rok" ? "/ rok" : "/ miesiąc"}</span>
+        <span className="ml-1 text-base font-normal text-muted">
+          {zaOsobe ? "za osobę " : ""}
+          {okres === "rok" ? "/ rok" : "/ miesiąc"}
+        </span>
       </p>
       {oszczednosc > 0 && <p className="mt-1 text-sm text-success">Rocznie taniej o {oszczednosc}%</p>}
     </div>
@@ -106,12 +115,10 @@ function Karta({
           </li>
         ))}
       </ul>
-      <p className="mt-5 text-sm">
-        <strong className="font-semibold tabular-nums">
-          {plan.kredyty_okresowo.toLocaleString("pl-PL")} kredytów
-        </strong>{" "}
-        <span className="text-muted">na okres rozliczeniowy</span>
-      </p>
+      {/* Liczby kredytów nie pokazujemy: to jednostka rozliczeniowa między nami
+          a dostawcą modelu, nie miara, którą kupujący ma porównywać między planami.
+          Różnicę między planami widać po tym, ile pracy się nimi wykona. */}
+      <p className="mt-5 text-sm text-muted">{opisZakresuPracy(plan)}</p>
       <p className="mt-1 text-xs text-muted">Plik do {plan.limity.plik_mb} MB</p>
       {opisOkresuProbnego(plan) && !biezacy && (
         <p className="mt-3 text-xs text-muted">{opisOkresuProbnego(plan)}</p>
@@ -191,9 +198,12 @@ export function Plany({ cennik }: { cennik: CennikInfo }) {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="font-heading text-2xl">Wybierz plan</h1>
+        {/* Drugi stopień: cennik jest sekcją strony „Płatności”, a nie osobną stroną.
+          Jako `h1` dawał na tym widoku dwa nagłówki pierwszego stopnia. */}
+        <h2 className="font-heading text-2xl">Wybierz plan</h2>
         <p className="text-sm text-muted">
-          Każdy plan daje kredyty na okres rozliczeniowy — to z nich pracuje Nexus. Plan zmienisz
+          Każdy plan daje dostęp na okres rozliczeniowy — im wyższy, tym więcej pracy zdążysz
+          zlecić i tym więcej zadań naraz. Plan zmienisz
           i zakończysz w każdej chwili. Płatność obsługuje Stripe — Nexus nie przechowuje danych karty.
         </p>
       </header>
@@ -202,7 +212,7 @@ export function Plany({ cennik }: { cennik: CennikInfo }) {
         <section className="rounded-3xl border border-line bg-raised/40 p-5 md:p-6">
           <h2 className="font-heading text-lg">Sprzedaż nie jest jeszcze włączona</h2>
           <p className="mt-2 text-sm text-muted">
-            Planów nie da się dziś kupić. Konto pracuje na przydzielonych kredytach — ich stan
+            Planów nie da się dziś kupić. Konto pracuje na przydzielonym zakresie — jego wykorzystanie
             widzisz w sekcji „Moja subskrypcja”.
           </p>
         </section>

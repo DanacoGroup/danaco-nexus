@@ -1,8 +1,9 @@
 // Panel klienta: stan subskrypcji, skróty do aplikacji i materiałów, wylogowanie z portalu.
 
+import { useEffect, useState } from "react";
 import { dataPolska, portalApi, type ProfilKlienta } from "../api";
+import { platnosciApi, type PlanInfo } from "../../platnosci/api";
 import { usePozycjonowanie } from "../seo";
-import { PLANY } from "../tresc";
 import { sciezka } from "../trasy";
 import { Karta, Komunikat, NaglowekStrony, OdsylaczPrzycisk, Przycisk } from "../ui";
 
@@ -35,7 +36,39 @@ export function PanelKlienta({ konto, odswiez }: { konto: ProfilKlienta | null; 
     );
   }
 
-  const plan = PLANY.find((pozycja) => pozycja.nazwa.toLowerCase() === konto.plan.toLowerCase()) ?? PLANY[0];
+  return <PanelZalogowanego konto={konto} odswiez={odswiez} />;
+}
+
+/** Karta subskrypcji i skróty — widok po zalogowaniu. */
+function PanelZalogowanego({ konto, odswiez }: { konto: ProfilKlienta; odswiez: () => void }) {
+  // Zakres planu bierze się z katalogu płatności, nie z tekstu strony: nazwa, opis
+  // i zawartość planu zmieniają się w `backend/nexus/platnosci/plany.py`, a kopia
+  // w pliku portalu obiecywała klientowi rzeczy, których katalog już nie zna.
+  const [plan, setPlan] = useState<PlanInfo | null>(null);
+
+  useEffect(() => {
+    let aktualne = true;
+    const wczytaj = async () => {
+      try {
+        const cennik = await platnosciApi.cennikPubliczny();
+        const szukany = konto.plan.toLowerCase();
+        const znaleziony =
+          cennik.plany.find((pozycja) => pozycja.kod.toLowerCase() === szukany) ??
+          cennik.plany.find((pozycja) => pozycja.nazwa.toLowerCase() === szukany) ??
+          null;
+        if (aktualne) setPlan(znaleziony);
+      } catch {
+        // Milczenie serwera nie jest powodem, żeby zmyślić zakres planu — karta powie
+        // tylko tyle, ile wie na pewno.
+        if (aktualne) setPlan(null);
+      }
+    };
+    void wczytaj();
+    return () => {
+      aktualne = false;
+    };
+  }, [konto.plan]);
+
   return (
     <>
       <NaglowekStrony tytul="Panel klienta" opis={`Konto ${konto.email}`} />
@@ -43,18 +76,25 @@ export function PanelKlienta({ konto, odswiez }: { konto: ProfilKlienta | null; 
         <Karta>
           <h2 className="font-heading text-lg font-semibold text-fg">Subskrypcja</h2>
           <p className="mt-3 text-sm text-muted">
-            Plan <span className="text-fg">{plan.nazwa}</span> — {plan.opis}
+            Plan <span className="text-fg">{plan?.nazwa ?? konto.plan}</span>
+            {plan?.opis ? ` — ${plan.opis}` : ""}
           </p>
-          <ul className="mt-4 flex flex-col gap-1.5 text-sm text-muted">
-            {plan.zakres.map((element) => (
-              <li key={element} className="flex gap-2">
-                <span aria-hidden="true" className="text-accent">
-                  •
-                </span>
-                {element}
-              </li>
-            ))}
-          </ul>
+          {plan ? (
+            <ul className="mt-4 flex flex-col gap-1.5 text-sm text-muted">
+              {plan.zawartosc.map((element) => (
+                <li key={element} className="flex gap-2">
+                  <span aria-hidden="true" className="text-accent">
+                    •
+                  </span>
+                  {element}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-muted">
+              Zakres planu jest na stronie cennika — tam stoi zawsze aktualny.
+            </p>
+          )}
           <div className="mt-5 flex flex-wrap gap-3">
             <OdsylaczPrzycisk adres={sciezka("cennik")} wariant="drugorzedny">
               Porównaj plany

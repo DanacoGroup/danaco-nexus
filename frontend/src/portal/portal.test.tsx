@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseRoute, routePath } from "../shell/route";
 import { czyPortal, parsujTrase, rodzajTresci, sciezka } from "./trasy";
@@ -180,6 +180,78 @@ describe("powłoka portalu", () => {
     await waitFor(() =>
       expect(screen.getByRole("heading", { level: 1, name: "Powiedz, co ma powstać. Odbierz gotowy plik." })).toBeTruthy(),
     );
+  });
+
+  it("trzyma pasek w jednym wierszu: krótka nawigacja i zawsze dostępne menu", async () => {
+    vi.stubGlobal("fetch", async (adres: string) => {
+      const dane = adres.includes("/konto/ja")
+        ? { detail: "Wymagane logowanie." }
+        : adres.includes("/stan")
+          ? { registration_open: true, admin: false }
+          : { items: [], total: 0, page: 1, pages: 1, per_page: 10 };
+      return new Response(JSON.stringify(dane), {
+        status: adres.includes("/konto/ja") ? 401 : 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const { Portal } = await import("./Portal");
+    render(<Portal />);
+    // Pasmo treści daje na nazwy 650 px; pięć pozycji zajmuje 482 px, dziewięć zajmowało 874 px
+    // i spychało akcje do drugiego wiersza. Reszta mapy portalu jest pod „Menu”.
+    const pasek = within(screen.getByRole("navigation", { name: "Nawigacja portalu" }));
+    const nazwy = pasek.getAllByRole("link").map((odsylacz) => odsylacz.textContent);
+    expect(nazwy).toEqual(["Oferta", "Funkcje", "Zastosowania", "Narzędzia agenta", "Cennik"]);
+    const przyciskMenu = screen.getByRole("button", { name: "Menu" });
+    expect(przyciskMenu.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(przyciskMenu);
+    const menu = within(screen.getByRole("navigation", { name: "Menu portalu" }));
+    for (const nazwa of ["Dokumentacja", "Blog", "Centrum wiedzy", "Kontakt"]) {
+      expect(menu.getByRole("link", { name: nazwa })).toBeTruthy();
+    }
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "Menu" }).getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("puste sekcje portalu", () => {
+  // Pusta sekcja radziła wcześniej „zajrzyj do dokumentacji”, a dokumentacja bywa pusta
+  // tak samo — rada prowadziła donikąd. Test pilnuje, że zostają wyjścia, które działają
+  // niezależnie od tego, czy redakcja zdążyła cokolwiek opublikować.
+  it("blog bez wpisów podaje dwa działające wyjścia", async () => {
+    vi.stubGlobal("fetch", async (adres: string) =>
+      new Response(JSON.stringify(adres.includes("znaczniki") ? [] : { items: [], total: 0, page: 1, pages: 1, per_page: 9 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { ListaWpisow } = await import("./strony/ListaWpisow");
+    render(
+      <DostawcaNawigacji nawiguj={() => {}}>
+        <ListaWpisow strona="blog" rodzaj="blog" tytul="Blog" opis="Materiały o pracy z Danaco Nexus." />
+      </DostawcaNawigacji>,
+    );
+    await waitFor(() => expect(screen.getByText("Ta sekcja czeka na pierwsze materiały.")).toBeTruthy());
+    expect(screen.getByRole("link", { name: "wypróbuj Nexusa bez rejestracji" }).getAttribute("href")).toBe("/wyprobuj");
+    expect(screen.getByRole("link", { name: "napisz, czego potrzebujesz" }).getAttribute("href")).toBe("/portal/kontakt");
+    expect(screen.queryByText(/Zajrzyj do dokumentacji/)).toBeNull();
+  });
+
+  it("dokumentacja bez spisu nie każe wybierać zagadnienia ze spisu", async () => {
+    vi.stubGlobal("fetch", async () =>
+      new Response(JSON.stringify({ items: [], total: 0, page: 1, pages: 1, per_page: 50 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { Dokumentacja } = await import("./strony/Dokumentacja");
+    render(
+      <DostawcaNawigacji nawiguj={() => {}}>
+        <Dokumentacja slug={null} />
+      </DostawcaNawigacji>,
+    );
+    await waitFor(() => expect(screen.getByText(/Spis dokumentacji jeszcze powstaje/)).toBeTruthy());
+    expect(screen.queryByText(/Wybierz zagadnienie ze spisu obok/)).toBeNull();
+    expect(screen.getByRole("link", { name: "wypróbuj Nexusa bez rejestracji" })).toBeTruthy();
   });
 });
 

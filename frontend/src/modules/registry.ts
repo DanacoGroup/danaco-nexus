@@ -18,6 +18,14 @@ export interface ModulePageProps {
 export interface NexusModule {
   /** Identyfikator w adresie: /m/<id>. */
   id: string;
+  /** Inne identyfikatory prowadzące do tego modułu (adresy w obiegu, nazwa po polsku).
+   *
+   * Dwa moduły mają identyfikator po angielsku, a w nawigacji polską nazwę: `cloud`
+   * („Chmura”) i `research` („Badania”). Kto przepisał adres z nazwy na pasku albo
+   * dostał go od kogoś, trafiał pod `/m/chmura` na komunikat „Ten moduł nie jest
+   * zainstalowany w tej wersji Nexusa” — moduł był na miejscu, tylko pod inną nazwą.
+   */
+  aliasy?: readonly string[];
   /** Krótka nazwa w nawigacji (1–2 słowa). */
   label: string;
   /** Opis w podpowiedzi i na stronie startowej. */
@@ -38,5 +46,6 @@ export const MODULES: NexusModule[] = Object.values(found)
   .sort((a, b) => a.order - b.order);
 
 export function findModule(id: string | null): NexusModule | undefined {
-  return MODULES.find((item) => item.id === id);
+  if (!id) return undefined;
+  return MODULES.find((item) => item.id === id || item.aliasy?.includes(id));
 }

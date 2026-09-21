@@ -52,6 +52,13 @@ export const kodApi = {
   create: (name: string, repoUrl: string) =>
     request<Project>("POST", "/api/kod/projekty", { name, repo_url: repoUrl }),
   remove: (name: string) => request<{ ok: boolean }>("DELETE", base(name)),
+  /** Uruchamia polecenie w katalogu projektu (nie powłoka — wykaz programów po stronie serwera). */
+  polecenie: (name: string, polecenie: string) =>
+    request<{ kod: number; wyjscie: string; obciete: boolean; polecenie: string }>(
+      "POST",
+      `${base(name)}/polecenie`,
+      { polecenie },
+    ),
   tree: (name: string, path: string) =>
     request<{ path: string; entries: TreeEntry[] }>("GET", `${base(name)}/drzewo${query(path)}`),
   file: (name: string, path: string) => request<FilePreview>("GET", `${base(name)}/plik${query(path)}`),

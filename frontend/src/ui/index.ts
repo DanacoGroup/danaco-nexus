@@ -43,3 +43,4 @@ export { useReveal, type RevealOptions, type RevealResult } from "./useReveal";
 export { usePress, type PressOptions, type PressResult } from "./usePress";
 export { Stagger, opoznienieKaskady, type StaggerProps } from "./Stagger";
 export { PageTransition, type PageTransitionProps } from "./PageTransition";
+export { GranicaBledu } from "./GranicaBledu";

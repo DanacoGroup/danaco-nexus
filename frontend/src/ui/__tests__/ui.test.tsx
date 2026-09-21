@@ -9,6 +9,7 @@ import { Checkbox } from "../Checkbox";
 import { CommandPalette, type CommandItem } from "../CommandPalette";
 import { Dialog } from "../Dialog";
 import { EmptyState } from "../EmptyState";
+import { Field } from "../Field";
 import { CheckIcon } from "../Icons";
 import { Input } from "../Input";
 import { Menu } from "../Menu";
@@ -506,5 +507,49 @@ describe("Stagger", () => {
     expect(dzieci[3]?.style.getPropertyValue("--ui-opoznienie")).toContain("* 3");
     expect(dzieci[5]?.style.getPropertyValue("--ui-opoznienie")).toContain("* 4");
     expect(dzieci[0]?.className).toContain("ui-wejscie");
+  });
+});
+
+describe("Field", () => {
+  // `w-full` i podana obok `w-44` to dwie klasy tej samej warstwy: o zwycięzcy decyduje
+  // kolejność w arkuszu, nie w atrybucie — i wygrywało `w-full`. Pasek wyboru języków
+  // w Tłumaczu rozjeżdżał się przez to na komputerze na cztery kontrolki jedna pod drugą.
+  const korzen = (container: HTMLElement) => container.firstElementChild as HTMLElement;
+
+  it("bez własnej szerokości zajmuje całą szerokość rodzica", () => {
+    const { container } = render(
+      <Field id="a" label="A">
+        <input id="a" />
+      </Field>,
+    );
+    expect(korzen(container).className).toContain("w-full");
+  });
+
+  it("nie dokłada „w-full”, gdy szerokość podaje wywołujący", () => {
+    const { container } = render(
+      <Field id="b" label="B" className="w-44">
+        <input id="b" />
+      </Field>,
+    );
+    expect(korzen(container).className).toContain("w-44");
+    expect(korzen(container).className).not.toContain("w-full");
+  });
+
+  it("uznaje też szerokość z układu elastycznego", () => {
+    const { container } = render(
+      <Field id="c" label="C" className="min-w-0 flex-1">
+        <input id="c" />
+      </Field>,
+    );
+    expect(korzen(container).className).not.toContain("w-full");
+  });
+
+  it("„min-w-0” samo w sobie szerokości nie ustala", () => {
+    const { container } = render(
+      <Field id="d" label="D" className="min-w-0">
+        <input id="d" />
+      </Field>,
+    );
+    expect(korzen(container).className).toContain("w-full");
   });
 });

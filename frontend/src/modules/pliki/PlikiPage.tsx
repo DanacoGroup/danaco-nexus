@@ -10,6 +10,7 @@ import { describe } from "../_biuro/http";
 import { buttonClass, EmptyState, ErrorBanner, inputClass, Loading, useConfirm, useToast } from "../_biuro/ui";
 import { FolderIcon, SearchIcon } from "../_biuro/icons";
 import { formatSize } from "../../runState";
+import { Stagger } from "../../ui";
 import { plikiApi, RODZAJE, type Katalog, type PlikPrzestrzeni, type Przestrzen, type RodzajTresci } from "./api";
 
 const WSZYSTKIE = "__wszystkie__";
@@ -183,6 +184,9 @@ export function PlikiPage() {
 
   return (
     <div className="flex h-full min-h-0 bg-app">
+      {/* Tytuł strony na telefonie: widoczny `h1` modułu siedzi w panelu katalogów,
+          który poniżej `md` jest schowany. */}
+      <h1 className="sr-only md:hidden">Pliki</h1>
       <nav className="hidden w-60 shrink-0 flex-col border-r border-line bg-side md:flex" aria-label="Katalogi">
         <div className="px-3 pt-4 pb-2">
           <h1 className="px-2 text-lg font-semibold">Pliki</h1>
@@ -230,7 +234,10 @@ export function PlikiPage() {
                 type="button"
                 title={`Zmień nazwę katalogu „${katalog.nazwa}”`}
                 onClick={() => void zmienNazwe(katalog)}
-                className={`${buttonClass.ghost} opacity-0 group-hover:opacity-100`}
+                // `opacity-0` nie wyjmuje przycisku z kolejności tabulacji: klawiatura
+                // zatrzymywała się na czymś, czego nie widać. Ustawienie ostrości
+                // odsłania go tak samo jak najechanie myszą.
+                className={`${buttonClass.ghost} opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
               >
                 Zmień
               </button>
@@ -238,7 +245,10 @@ export function PlikiPage() {
                 type="button"
                 title={`Usuń katalog „${katalog.nazwa}”`}
                 onClick={() => void usunKatalog(katalog)}
-                className={`${buttonClass.ghost} opacity-0 group-hover:opacity-100`}
+                // `opacity-0` nie wyjmuje przycisku z kolejności tabulacji: klawiatura
+                // zatrzymywała się na czymś, czego nie widać. Ustawienie ostrości
+                // odsłania go tak samo jak najechanie myszą.
+                className={`${buttonClass.ghost} opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
               >
                 Usuń
               </button>
@@ -339,7 +349,9 @@ export function PlikiPage() {
               </p>
             </EmptyState>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            /* Lista dociera po odpowiedzi serwera, więc kaskada nie zderza się z przejściem
+               widoku — ono skończyło się wcześniej (motion, rozdz. 5 i 13). */
+            <Stagger as="ul" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {pliki.map((plik) => (
                 <li
                   key={plik.id}
@@ -395,7 +407,7 @@ export function PlikiPage() {
                   </div>
                 </li>
               ))}
-            </ul>
+            </Stagger>
           )}
         </div>
       </main>

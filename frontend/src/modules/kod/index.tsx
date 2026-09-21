@@ -3,6 +3,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type SVGProps } from "react";
 import { ChevronIcon, DownloadIcon, FileIcon, PlusIcon, RefreshIcon, TrashIcon } from "../../components/icons";
+import { MoreIcon } from "../../shell/icons";
+import { Menu } from "../../ui";
 import { formatSize } from "../../runState";
 import type { ModulePageProps, NexusModule } from "../registry";
 import {
@@ -20,8 +22,9 @@ import {
 import "./kod.css";
 import { highlightCode } from "./podswietlanie";
 import { SesjaKodu } from "./SesjaKodu";
+import { Terminal } from "./Terminal";
 
-type Tab = "pliki" | "zmiany" | "historia" | "sesja";
+type Tab = "pliki" | "zmiany" | "historia" | "terminal" | "sesja";
 
 function CodeIcon({ size = 20, ...props }: SVGProps<SVGSVGElement> & { size?: number }) {
   return (
@@ -390,6 +393,7 @@ export function KodPage({ openConversation }: ModulePageProps) {
   const [version, setVersion] = useState(0);
   const [error, setError] = useState("");
   const wide = useWide();
+  const [podzial, setPodzial] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -405,7 +409,30 @@ export function KodPage({ openConversation }: ModulePageProps) {
     void loadProjects();
   }, [loadProjects]);
 
-  useEffect(() => setFile(null), [current]);
+  // Po otwarciu projektu środkowa kolumna pokazywała pustkę z jednym zdaniem, choć plik
+  // do pokazania był tuż obok. Otwieramy więc od razu opis projektu (README), a gdy go nie
+  // ma — pierwszy plik z korzenia. Wybór użytkownika to nadpisuje.
+  useEffect(() => {
+    setFile(null);
+    if (!current) return;
+    let aktualne = true;
+    void (async () => {
+      try {
+        const { entries } = await kodApi.tree(current, "");
+        const pliki = entries.filter((wpis) => wpis.type === "file");
+        const start =
+          pliki.find((wpis) => /^readme(\.|$)/i.test(wpis.name)) ?? pliki[0] ?? null;
+        if (!start) return;
+        const podglad = await kodApi.file(current, start.path);
+        if (aktualne) setFile(podglad);
+      } catch {
+        // Brak dostępu albo pusty projekt — zostaje stan „nic nie wybrano”.
+      }
+    })();
+    return () => {
+      aktualne = false;
+    };
+  }, [current]);
 
   const refresh = useCallback(() => setVersion((value) => value + 1), []);
 
@@ -430,10 +457,13 @@ export function KodPage({ openConversation }: ModulePageProps) {
     }
   };
 
+  const biezacyProjekt = projects.find((pozycja) => pozycja.name === current) ?? null;
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "pliki", label: "Pliki" },
     { id: "zmiany", label: "Zmiany" },
     { id: "historia", label: "Historia" },
+    { id: "terminal", label: "Terminal" },
     ...(wide ? [] : [{ id: "sesja" as const, label: "Sesja" }]),
   ];
   const activeTab: Tab = wide && tab === "sesja" ? "pliki" : tab;
@@ -441,8 +471,11 @@ export function KodPage({ openConversation }: ModulePageProps) {
   return (
     <div className="flex h-full min-h-0 w-full flex-col lg:flex-row">
       <aside className="shrink-0 border-b border-line p-3 lg:w-60 lg:overflow-y-auto lg:border-r lg:border-b-0">
+        {/* „Projekty”, nie „Kod”: nazwa modułu stoi już w pasku obok, a ta kolumna
+          zawiera wyłącznie listę projektów. Dwa razy to samo słowo na sąsiadujących
+          elementach nie mówi nic nowego i każe szukać różnicy, której nie ma. */}
         <div className="mb-2 flex items-center gap-2">
-          <h1 className="flex-1 text-lg font-semibold">Kod</h1>
+          <h1 className="flex-1 text-lg font-semibold">Projekty</h1>
           <button
             type="button"
             onClick={() => setAdding(!adding)}
@@ -479,7 +512,10 @@ export function KodPage({ openConversation }: ModulePageProps) {
           ))}
         </ul>
         {projects.length === 0 && !adding && (
-          <p className="mt-2 text-sm text-muted">Brak projektów – utwórz nowy albo sklonuj repozytorium.</p>
+          <p className="mt-2 text-sm text-muted">
+            Nie masz jeszcze projektu. Załóż pusty przyciskiem <b className="text-fg">+</b> albo
+            sklonuj repozytorium — Nexus będzie w nim czytał i zmieniał pliki, uruchamiał testy i git.
+          </p>
         )}
       </aside>
 
@@ -487,6 +523,16 @@ export function KodPage({ openConversation }: ModulePageProps) {
         <>
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+              {/* Pasek zaczyna się nazwą projektu: bez niej z samych zakładek nie było widać,
+                nad czym się pracuje, a nazwa stała wyłącznie w kolumnie obok. */}
+              <div className="mr-1 flex min-w-0 items-baseline gap-2">
+                <span className="truncate text-sm font-semibold text-fg">{current}</span>
+                {biezacyProjekt?.branch && (
+                  <span className="shrink-0 rounded-md bg-hover px-1.5 py-0.5 text-[11px] text-muted">
+                    {biezacyProjekt.branch}
+                  </span>
+                )}
+              </div>
               <div className="flex gap-1" role="tablist">
                 {tabs.map((item) => (
                   <button
@@ -503,6 +549,9 @@ export function KodPage({ openConversation }: ModulePageProps) {
                   </button>
                 ))}
               </div>
+              {/* Odświeżenie zostaje twardym przyciskiem — sięga się po nie w trakcie pracy.
+                Pobranie paczki i usunięcie projektu schodzą pod „⋯”: pierwsze jest rzadkie,
+                drugie nieodwracalne, a stało dotąd jako naga ikona kosza tuż obok pobierania. */}
               <div className="ml-auto flex items-center gap-1">
                 <button
                   type="button"
@@ -513,23 +562,37 @@ export function KodPage({ openConversation }: ModulePageProps) {
                 >
                   <RefreshIcon size={16} />
                 </button>
-                <a
-                  href={zipUrl(current)}
-                  className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg"
-                  aria-label="Pobierz projekt (ZIP)"
-                  title="Pobierz projekt (ZIP)"
-                >
-                  <DownloadIcon size={16} />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => void remove()}
-                  className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-danger"
-                  aria-label="Usuń projekt"
-                  title="Usuń projekt"
-                >
-                  <TrashIcon size={16} />
-                </button>
+                <Menu
+                  align="end"
+                  label={`Projekt ${current}`}
+                  trigger={
+                    <button
+                      type="button"
+                      className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg"
+                      aria-label="Działania projektu"
+                    >
+                      <MoreIcon size={16} />
+                    </button>
+                  }
+                  items={[
+                    {
+                      id: "zip",
+                      label: "Pobierz projekt (ZIP)",
+                      icon: <DownloadIcon size={16} />,
+                      onSelect: () => {
+                        window.location.href = zipUrl(current);
+                      },
+                    },
+                    { type: "separator" },
+                    {
+                      id: "usun",
+                      label: "Usuń projekt",
+                      icon: <TrashIcon size={16} />,
+                      destructive: true,
+                      onSelect: () => void remove(),
+                    },
+                  ]}
+                />
               </div>
             </div>
             {error && (
@@ -545,10 +608,20 @@ export function KodPage({ openConversation }: ModulePageProps) {
                 {file ? (
                   <CodeView preview={file} project={current} />
                 ) : (
-                  <p className="p-4 text-sm text-muted">Wybierz plik, aby zobaczyć jego treść.</p>
+                  // Jedno szare zdanie w pustce na pół ekranu wyglądało na brak treści,
+                  // a nie na stan „nic jeszcze nie wybrano”. Tu jest powód i droga dalej.
+                  <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+                    <CodeIcon size={28} className="text-subtle" />
+                    <p className="text-sm font-medium text-fg">Podgląd pliku</p>
+                    <p className="max-w-xs text-sm text-muted">
+                      Wybierz plik z drzewa obok, żeby zobaczyć jego treść. Zmiany zrobione przez
+                      Nexusa znajdziesz w zakładce „Zmiany”.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
+            {activeTab === "terminal" && <Terminal key={current} project={current} />}
             {activeTab === "zmiany" && <Changes project={current} version={version} />}
             {activeTab === "historia" && <History project={current} version={version} />}
             {activeTab === "sesja" && (
@@ -558,16 +631,65 @@ export function KodPage({ openConversation }: ModulePageProps) {
             )}
           </main>
           {wide && (
-            <aside className="flex min-h-0 w-[26rem] shrink-0 flex-col border-l border-line" aria-label="Sesja kodu">
-              <SesjaKodu project={current} onRunFinished={refresh} openConversation={openConversation} />
+            <aside
+              className={`flex min-h-0 shrink-0 flex-col border-l border-line ${podzial ? "w-[44rem]" : "w-[26rem]"}`}
+              aria-label="Sesja kodu"
+            >
+              <div className="flex items-center gap-1 border-b border-line px-2 py-1">
+                <span className="text-xs font-medium text-muted">Sesja</span>
+                {/* Dwie sesje obok siebie: jedna pisze kod, druga sprawdza albo pracuje
+                    nad innym wątkiem. Bez tego trzeba było czekać na zakończenie jednej. */}
+                <button
+                  type="button"
+                  onClick={() => setPodzial((stan) => !stan)}
+                  className="ml-auto rounded-lg px-2 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-fg"
+                  aria-pressed={podzial}
+                >
+                  {podzial ? "Jedna sesja" : "Podziel okno"}
+                </button>
+              </div>
+              <div className="flex min-h-0 flex-1">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  <SesjaKodu project={current} onRunFinished={refresh} openConversation={openConversation} />
+                </div>
+                {podzial && (
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-line">
+                    <SesjaKodu
+                      key={`${current}-druga`}
+                      project={current}
+                      onRunFinished={refresh}
+                      openConversation={openConversation}
+                    />
+                  </div>
+                )}
+              </div>
             </aside>
           )}
         </>
       ) : (
-        <main className="grid flex-1 place-items-center p-6 text-center text-sm text-muted">
-          <div>
-            <CodeIcon size={32} className="mx-auto mb-2" />
-            Projekty programistyczne w Twojej przestrzeni: Nexus czyta i zmienia kod, uruchamia testy i git.
+        // Ekran bez wybranego projektu zajmuje trzy czwarte okna, więc musi coś robić.
+        // Wcześniej stała tu jedna linijka na środku pustki — moduł wyglądał na zepsuty
+        // albo niegotowy. Tutaj jest to, co człowiek ma zrobić dalej, i to, czego może
+        // się po module spodziewać.
+        <main className="grid flex-1 place-items-center p-6">
+          <div className="w-full max-w-lg text-center">
+            <CodeIcon size={36} className="mx-auto text-subtle" />
+            <h2 className="mt-4 font-heading text-xl font-semibold text-fg">Projekty programistyczne</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
+              Nexus pracuje w katalogu projektu: czyta i zmienia pliki, uruchamia testy i polecenia
+              git, a Ty widzisz każdą zmianę w zakładce „Zmiany”. Terminal obok wykonuje polecenia
+              w tym samym katalogu.
+            </p>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="ui-nacisk mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-accent-fill px-5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover"
+            >
+              <PlusIcon size={16} /> Nowy projekt
+            </button>
+            <p className="mt-3 text-xs text-subtle">
+              Możesz też sklonować publiczne repozytorium — adres podajesz w tym samym formularzu.
+            </p>
           </div>
         </main>
       )}

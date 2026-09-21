@@ -65,6 +65,62 @@
   translate: 42px 41px;
 }
 
+/* ── Spoczynek — oddech ──────────────────────────────────────────── */
+
+/* Znak stojący bez ruchu czyta się jak obrazek wklejony w tło. Oddech jest celowo
+   powolny i płytki: ma mówić „aplikacja czeka”, a nie przyciągać wzroku. Pełny cykl
+   trwa cztery razy dłużej niż pętla myślenia, więc dwa stany nie mylą się ze sobą. */
+.znak-ruch[data-moment="spoczynek"] .znak-ruch__calosc {
+  animation: znak-oddech calc(var(--duration-ambient) * 4) var(--easing-standard) infinite;
+}
+.znak-ruch[data-moment="spoczynek"] .znak-ruch__aura {
+  animation: znak-poswiata calc(var(--duration-ambient) * 4) var(--easing-standard) infinite;
+}
+/* Punkt dryfuje po tym samym łuku co przy myśleniu, tylko cztery razy wolniej i płycej:
+   sam oddech skali jest za cichy, żeby dało się go zauważyć na ekranie. */
+.znak-ruch[data-moment="spoczynek"] .znak-ruch__punkt {
+  animation: znak-dryf calc(var(--duration-ambient) * 4) var(--easing-standard) infinite;
+}
+
+@keyframes znak-dryf {
+  0%,
+  100% {
+    translate: 42px 41px;
+    scale: 1;
+  }
+  25% {
+    translate: 43.6px 41.6px;
+    scale: 1.04;
+  }
+  50% {
+    translate: 42px 42.2px;
+    scale: 1.08;
+  }
+  75% {
+    translate: 40.4px 41.6px;
+    scale: 1.04;
+  }
+}
+
+@keyframes znak-oddech {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.035;
+  }
+}
+@keyframes znak-poswiata {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
 /* ── Agent myśli — pętla ─────────────────────────────────────────── */
 
 .znak-ruch[data-moment="mysli"] .znak-ruch__punkt {
@@ -451,6 +507,11 @@
    poza polem widzenia musi być mocniejsze od nich, inaczej pętla biegnie niewidoczna. */
 .znak-ruch[data-widoczny="false"] * {
   animation-play-state: paused !important;
+}
+
+/* Ustawienie konta wycisza znak tak samo jak ustawienie systemu. */
+:root[data-ruch="ograniczony"] .znak-ruch * {
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

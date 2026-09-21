@@ -2,7 +2,7 @@
 // Treść i zachowanie: landing/LANDING_PAGE_SPEC.md, rozdz. 7.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CheckIcon, PlusIcon, SparkIcon, ToolIcon } from "../components/icons";
+import { CheckIcon, ChevronIcon, PauseIcon, PlayIcon, PlusIcon, SparkIcon, ToolIcon } from "../components/icons";
 import { ArrowRightIcon, DocumentIcon, LockIcon, PhoneIcon, ShieldIcon, WindowsIcon } from "../shell/icons";
 import {
   FILMY,
@@ -21,9 +21,16 @@ import {
   type FilmPromocyjny,
 } from "./tresc";
 import { LICZBA_NARZEDZI } from "../dane/narzedzia";
-import { kwota, platnosciApi, type CennikPubliczny } from "../platnosci/api";
+import {
+  kwota,
+  opisZakresuPracy,
+  platnosciApi,
+  PLAN_ZA_UZYTKOWNIKA,
+  type CennikPubliczny,
+} from "../platnosci/api";
 import { PASMO, tlo } from "./uzyj";
-import { kaskada, TloNaZywo, useWidocznosc, WarstwaZiarna } from "../ruch";
+import { kaskada, TloNaZywo, useOdtwarzajWWidoku, useWidocznosc, WarstwaZiarna } from "../ruch";
+import { useOknoModalne } from "../ui/useOknoModalne";
 
 export function Sekcja({
   id,
@@ -72,10 +79,14 @@ export function PasekZdan() {
   ];
   // Pętla przesuwu stoi poza polem widzenia — ruch ciągły nie może biec w tle (WCAG 2.2.2).
   const [sekcja, widoczna] = useWidocznosc<HTMLElement>({ margines: "100px", ciagla: true });
+  // …a na żądanie stoi zawsze. Zatrzymanie pod kursorem obsługuje mysz; kapsuły są zwykłymi
+  // `<span>`, więc fokus do toru nie wchodzi i klawiatura nie miała czym wstrzymać ruchu.
+  const [wstrzymany, setWstrzymany] = useState(false);
   return (
     <section
       ref={sekcja}
       data-widoczny={widoczna ? "true" : "false"}
+      data-pasek-wstrzymany={wstrzymany ? "true" : "false"}
       aria-label="Przykładowe polecenia"
       className="relative overflow-hidden border-y border-line py-10"
     >
@@ -98,6 +109,15 @@ export function PasekZdan() {
           </div>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={() => setWstrzymany((stan) => !stan)}
+        aria-label={wstrzymany ? "Wznów przesuwanie przykładów" : "Wstrzymaj przesuwanie przykładów"}
+        className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full border border-line bg-app/85 px-3 py-1.5 text-xs text-muted backdrop-blur transition-colors hover:text-fg"
+      >
+        {wstrzymany ? <PlayIcon size={13} /> : <PauseIcon size={13} />}
+        {wstrzymany ? "Wznów" : "Wstrzymaj"}
+      </button>
     </section>
   );
 }
@@ -243,7 +263,12 @@ export function SekcjaFunkcje() {
             data-widoczny={widoczne ? "true" : "false"}
             style={kaskada(indeks)}
           >
+            {/* Kropka niesie całą informację o rodzaju karty, więc musi mieć nazwę dla
+              czytnika ekranu. Samo `aria-label` na `span` bez roli jest jednak zakazane
+              (ARIA in HTML) i narzędzia zgłaszają to jako błąd — rolę `img` atrybut ma
+              dozwoloną i dokładnie o to tu chodzi: znak graficzny z podpisem. */}
             <span
+              role="img"
               className="size-2.5 rounded-full"
               style={{ background: karta.rodzaj === "zycie" ? BARWA_ZYCIE : BARWA_PRACA }}
               aria-label={karta.rodzaj === "zycie" ? "Życie" : "Praca"}
@@ -258,17 +283,41 @@ export function SekcjaFunkcje() {
   );
 }
 
-/** Kafel jednego filmu: plakat z zajawką w pętli, tytuł i zdanie opisu. */
+/** Kafel jednego filmu: plakat z zajawką w pętli, tytuł i zdanie opisu.
+ *
+ * Zajawka gra tylko wtedy, gdy kafel jest na ekranie. Sekcja z filmami leży kilkanaście
+ * tysięcy pikseli niżej niż początek strony, a dwie sześciosekundowe pętle chodziły od
+ * wejścia na stronę — dekodowanie obrazu, którego nikt nie widzi, kosztuje baterię.
+ */
+/** Podpis w rogu kafla filmu — ten sam tekst wchodzi do nazwy dostępnej przycisku. */
+const METRYKA_FILMU = "60 s · lektor PL · napisy PL i EN";
+
 function KafelFilmu({ film, onOtworz }: { film: FilmPromocyjny; onOtworz: () => void }) {
+  const zajawka = useRef<HTMLVideoElement>(null);
+  useOdtwarzajWWidoku(zajawka);
   return (
     <article className="overflow-hidden rounded-2xl border border-line bg-app shadow-[var(--shadow-floating)]">
       <button
         type="button"
         onClick={onOtworz}
         className="group relative block aspect-video w-full cursor-pointer"
-        aria-label={`Odtwórz film „${film.tytul}” (60 sekund, lektor i napisy)`}
+        /* Nazwa dostępna musi zawierać widoczny podpis przycisku co do znaku (WCAG 2.5.3
+          „Label in Name”) — inaczej czytnik ekranu czyta jedno, a sterowanie głosem szuka
+          drugiego. Samo ukrycie podpisu `aria-hidden` nie wystarcza: reguła patrzy na to,
+          co widać, a nie na to, co dociera do technologii wspomagających. */
+        aria-label={`Odtwórz film „${film.tytul}” — ${METRYKA_FILMU}`}
       >
-        <video className="size-full object-cover" src={film.zajawka} poster={film.plakat} autoPlay muted loop playsInline aria-hidden="true" />
+        <video
+          ref={zajawka}
+          className="size-full object-cover"
+          src={film.zajawka}
+          poster={film.plakat}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden="true"
+        />
         <span className="absolute inset-0 grid place-items-center bg-scrim">
           <span className="aurora-tlo grid size-20 place-items-center rounded-full text-white shadow-[var(--shadow-glow-ai)] transition-transform group-hover:scale-105">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -276,8 +325,13 @@ function KafelFilmu({ film, onOtworz }: { film: FilmPromocyjny; onOtworz: () => 
             </svg>
           </span>
         </span>
-        <span className="absolute right-4 bottom-4 rounded-full bg-app/80 px-3 py-1 text-xs text-fg backdrop-blur">
-          60 s · lektor PL · napisy PL i EN
+        {/* Podpis zostaje widoczny, a `aria-hidden` chroni przed przeczytaniem go dwa razy:
+          ten sam tekst jest już w nazwie dostępnej przycisku. */}
+        <span
+          aria-hidden="true"
+          className="absolute right-4 bottom-4 rounded-full bg-app/80 px-3 py-1 text-xs text-fg backdrop-blur"
+        >
+          {METRYKA_FILMU}
         </span>
       </button>
       <div className="p-6">
@@ -290,21 +344,21 @@ function KafelFilmu({ film, onOtworz }: { film: FilmPromocyjny; onOtworz: () => 
 
 /** Powiększenie wybranego filmu: odtwarzacz na przyciemnionym tle, zamykany Esc i tłem. */
 function PowiekszenieFilmu({ film, onZamknij }: { film: FilmPromocyjny; onZamknij: () => void }) {
+  const nakladka = useRef<HTMLDivElement>(null);
+  // Esc, uwięzienie tabulacji w nakładce i powrót fokusu na kafelek filmu.
+  useOknoModalne(nakladka, onZamknij);
   useEffect(() => {
-    const klawisz = (zdarzenie: KeyboardEvent) => {
-      if (zdarzenie.key === "Escape") onZamknij();
-    };
-    document.addEventListener("keydown", klawisz);
     const poprzedni = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", klawisz);
       document.body.style.overflow = poprzedni;
     };
-  }, [onZamknij]);
+  }, []);
 
   return (
     <div
+      ref={nakladka}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={`Film „${film.tytul}”`}
@@ -316,7 +370,6 @@ function PowiekszenieFilmu({ film, onZamknij }: { film: FilmPromocyjny; onZamkni
           <h3 className="font-heading text-lg font-bold tracking-tight text-fg md:text-2xl">{film.tytul}</h3>
           <button
             type="button"
-            autoFocus
             onClick={onZamknij}
             className="rounded-md border border-line-strong px-3 py-1.5 text-sm text-fg hover:bg-hover"
           >
@@ -383,7 +436,7 @@ export function SekcjaPrywatnosc() {
       <Naglowek
         nad="Prywatność"
         tytul="Pod dachem Danaco."
-        akapit="Każde konto dostaje własną przestrzeń w chmurze Nexusa — od 1 GB w planie Osobistym po 10 GB w Zespole. Leżą w niej Twoje pliki, historia rozmów, indeks wiedzy i wyniki pracy; widzisz je tylko Ty, bo każde konto jest oddzielone od pozostałych. Poza Twoją przestrzeń wychodzi wyłącznie to, czego wymaga bieżące zadanie."
+        akapit="Każde konto dostaje własną przestrzeń w chmurze Nexusa — od 1 GB w planie Osobistym po 10 GB w Grupie. Leżą w niej Twoje pliki, historia rozmów, indeks wiedzy i wyniki pracy; widzisz je tylko Ty, bo każde konto jest oddzielone od pozostałych. Poza Twoją przestrzeń wychodzi wyłącznie to, czego wymaga bieżące zadanie."
       />
       <div className="mt-14 grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
         <div className="landing-karta p-8">
@@ -501,8 +554,16 @@ export function SekcjaCennik() {
         {PLANY.map((plan, indeks) => {
           const zywy = zywe(plan.kod);
           const doKupienia = sprzedaz && Boolean(zywy?.do_kupienia.miesiac);
-          const cena = zywy && zywy.cena_miesiac_gr > 0 ? `${kwota(zywy.cena_miesiac_gr, zServera?.waluta)} / mies.` : plan.cena;
-          const znacznik = zywy?.znacznik || plan.znacznik;
+          // Plan grupowy rozlicza się za każdego użytkownika; sama kwota obok „/ mies.”
+          // czytałaby się jak rachunek całej grupy, czyli kilka razy mniej niż prawda.
+          const okres = plan.kod === PLAN_ZA_UZYTKOWNIKA ? " za osobę / mies." : " / mies.";
+          const cena =
+            zywy && zywy.cena_miesiac_gr > 0
+              ? `${kwota(zywy.cena_miesiac_gr, zServera?.waluta)}${okres}`
+              : plan.cena;
+          // Znacznik z treści strony jest wartością zastępczą na czas, gdy serwer milczy.
+          // Kiedy plan da się kupić, „Wkrótce” z pliku byłoby po prostu nieprawdą.
+          const znacznik = zywy?.znacznik || (doKupienia ? "Dostępny" : plan.znacznik);
           const etykieta = doKupienia ? "Wybierz plan" : plan.przycisk;
           const adres = doKupienia
             ? `/zaloguj?next=${encodeURIComponent("/m/platnosci")}`
@@ -528,7 +589,7 @@ export function SekcjaCennik() {
             </div>
             <p className="mt-3 text-sm text-muted">{plan.dlaKogo}</p>
             <p className="mt-6 font-heading text-3xl font-bold tracking-tighter">{cena}</p>
-            <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+            <ul className="mt-6 space-y-2.5 text-sm">
               {plan.zawartosc.map((pozycja) => (
                 <li key={pozycja} className="flex gap-2.5">
                   <CheckIcon size={16} className="mt-0.5 shrink-0 text-accent" />
@@ -536,6 +597,28 @@ export function SekcjaCennik() {
                 </li>
               ))}
             </ul>
+            {/* Szczegóły, których karta nie mieści: pełny zakres planu i limity prosto
+              z serwera. Wcześniej karta kończyła się na sześciu hasłach, a żeby dowiedzieć
+              się czegokolwiek więcej, trzeba było wejść do cennika w portalu. */}
+            {zywy && (
+              <details className="group mt-5 flex-1 border-t border-line pt-4">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-fg [&::-webkit-details-marker]:hidden">
+                  Co dokładnie obejmuje
+                  <ChevronIcon size={15} className="transition-transform group-open:rotate-180" />
+                </summary>
+                <ul className="mt-3 space-y-2 text-sm text-muted">
+                  {zywy.zawartosc.map((pozycja) => (
+                    <li key={pozycja} className="flex gap-2.5">
+                      <CheckIcon size={15} className="mt-0.5 shrink-0 text-accent/70" />
+                      <span>{pozycja}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-subtle">
+                  {opisZakresuPracy(zywy)} · plik do {zywy.limity.plik_mb} MB
+                </p>
+              </details>
+            )}
             <a
               href={adres}
               className={`ui-nacisk mt-8 inline-flex h-11 items-center justify-center rounded-full px-5 font-medium transition-colors ${
@@ -555,23 +638,45 @@ export function SekcjaCennik() {
 }
 
 /** Pytania — otwarte jest jedno naraz (`name` na elemencie `details`). */
+/** Ile pytań widać od razu; reszta czeka za przyciskiem.
+ *
+ * Dwadzieścia pozycji jedna pod drugą to sekcja dłuższa niż cała reszta strony razem —
+ * przewijało się przez nią jak przez spis treści, a większość pytań i tak nie dotyczy
+ * osoby, która właśnie weszła. Sześć pierwszych odpowiada na to, o co pytają wszyscy.
+ */
+const PYTAN_OD_RAZU = 6;
+
 export function SekcjaPytania() {
+  const [wszystkie, setWszystkie] = useState(false);
+  const widoczne = wszystkie ? PYTANIA : PYTANIA.slice(0, PYTAN_OD_RAZU);
+  const zostalo = PYTANIA.length - PYTAN_OD_RAZU;
   return (
     <Sekcja id="pytania">
       <div className="grid gap-10 lg:grid-cols-[1fr_1.6fr]">
         <div className="lg:sticky lg:top-28 lg:self-start">
           <Naglowek nad="Pytania" tytul="Najczęstsze pytania." />
         </div>
-        <div className="divide-y divide-line border-y border-line">
-          {PYTANIA.map(({ pytanie, odpowiedz }) => (
-            <details key={pytanie} name="pytania" className="group py-5">
-              <summary className="flex cursor-pointer list-none items-start gap-4 font-medium [&::-webkit-details-marker]:hidden">
-                <span className="flex-1">{pytanie}</span>
-                <PlusIcon size={18} className="mt-0.5 shrink-0 text-muted transition-transform group-open:rotate-45" />
-              </summary>
-              <p className="mt-3 pr-8 leading-relaxed text-muted">{odpowiedz}</p>
-            </details>
-          ))}
+        <div>
+          <div className="divide-y divide-line border-y border-line">
+            {widoczne.map(({ pytanie, odpowiedz }) => (
+              <details key={pytanie} name="pytania" className="group py-5">
+                <summary className="flex cursor-pointer list-none items-start gap-4 font-medium [&::-webkit-details-marker]:hidden">
+                  <span className="flex-1">{pytanie}</span>
+                  <PlusIcon size={18} className="mt-0.5 shrink-0 text-muted transition-transform group-open:rotate-45" />
+                </summary>
+                <p className="mt-3 pr-8 leading-relaxed text-muted">{odpowiedz}</p>
+              </details>
+            ))}
+          </div>
+          {!wszystkie && zostalo > 0 && (
+            <button
+              type="button"
+              onClick={() => setWszystkie(true)}
+              className="ui-nacisk mt-5 inline-flex h-11 items-center rounded-full border border-line px-5 text-sm font-medium text-fg transition-colors hover:bg-raised"
+            >
+              Pokaż pozostałe pytania ({zostalo})
+            </button>
+          )}
         </div>
       </div>
     </Sekcja>

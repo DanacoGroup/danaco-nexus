@@ -399,10 +399,17 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
       role="dialog"
       aria-modal="true"
       aria-label="Rozmowa głosowa"
+      // Dwa znaczniki diagnostyczne: stan rozmowy i chwilowa głośność. Nie rysują niczego
+      // i nie czyta ich żaden arkusz — są po to, żeby dało się zmierzyć zachowanie okna
+      // z przeglądarki bez zaglądania do wnętrza komponentu. Nie usuwać jako „martwe”.
       data-phase={phase}
       data-level={level.toFixed(3)}
     >
-      <div className="flex w-full max-w-md items-center justify-between py-3">
+      {/* Nazwa okna po lewej, wybór głosu po prawej — jak w każdym innym oknie produktu.
+        Odwrotna kolejność w pasmie szerokości `md` na szerokim ekranie stawiała listę
+        głosów na środku, a podpis obok niej, i nie było wiadomo, co jest czym. */}
+      <div className="flex w-full max-w-2xl items-center justify-between gap-3 py-3">
+        <span className="font-heading text-sm font-semibold text-fg">Rozmowa głosowa</span>
         <select
           value={voice}
           onChange={(event) => chooseVoice(event.target.value)}
@@ -415,7 +422,6 @@ export function VoiceMode({ config, replyText, replyDone, onSend, onClose }: Pro
             </option>
           ))}
         </select>
-        <span className="text-sm text-muted">Rozmowa głosowa</span>
       </div>
 
       <div className="flex w-full max-w-md flex-1 flex-col items-center justify-center gap-10">

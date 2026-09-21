@@ -93,7 +93,7 @@ Polityka nie obejmuje serwisów, do których przejdziesz z odsyłacza w wynikach
 | Chmura osobista | nazwy, ścieżki i treść plików oraz folderów | magazyn Nextcloud tej instalacji |
 | Klucze urządzeń | nazwa i rodzaj urządzenia, skrót klucza, data ostatniego użycia | włączenie połączenia z komputerem albo dodatku do przeglądarki |
 | Powiadomienia | adres punktu odbioru powiadomień w przeglądarce, klucze szyfrujące, nagłówek przeglądarki, nazwa urządzenia | zgoda na powiadomienia udzielona w przeglądarce |
-| Płatności | wybrany plan, okres i stan subskrypcji wraz z datą końca okresu próbnego, identyfikatory klienta i subskrypcji w Stripe, numer, kwota i stan faktury, odsyłacze do dokumentu, treść zdarzeń rozliczeniowych | zakup planu i dokupienie pakietu kredytów |
+| Płatności | wybrany plan, okres i stan subskrypcji wraz z datą końca okresu próbnego, identyfikatory klienta i subskrypcji w Stripe, numer, kwota i stan faktury, odsyłacze do dokumentu, treść zdarzeń rozliczeniowych | zakup planu i przedłużenie zakresu pracy |
 | Kredyty konta | saldo kredytów, suma przydzielonych i zużytych oraz księga zmian: data, liczba kredytów, powód, saldo po operacji i wskazanie zadania, którego dotyczy | przydział z planu, dokupiony pakiet i praca agenta |
 | Pokaz bez konta | sesja gościa, adres IP, pliki wgrane na pokaz i treść wiadomości do agenta | wejście na stronę pokazu |
 
@@ -273,7 +273,7 @@ W regulaminie używamy następujących pojęć:
 - **Konto** — konto klienta zakładane w portalu.
 - **Agent** — część Usługi wykonująca zadania na polecenie Użytkownika przy udziale modelu językowego dostawcy wskazanego w polityce prywatności.
 - **Plan** — zakres Usługi wybrany przez Użytkownika. Wszystkie plany są płatne.
-- **Kredyt** — jednostka pracy Agenta. Plan dopisuje kredyty na każdy okres rozliczeniowy, a każde zadanie Agenta pomniejsza ich saldo. Kredytów można dokupić poza planem.`,
+- **Zakres pracy** — ilość pracy Agenta przypadająca na okres rozliczeniowy planu. Rozlicza ją wewnętrzna jednostka Usługodawcy, której Użytkownik nie kupuje osobno i nie przelicza: w Usłudze widzi wykorzystanie zakresu, a nie liczbę jednostek. Po wyczerpaniu zakresu dostęp przedłuża się kwotą wskazaną przez Użytkownika.`,
     },
     {
       id: "uslugi",
@@ -314,9 +314,9 @@ Korzystanie z internetu wiąże się z ryzykiem typowym dla sieci publicznej. Us
     {
       id: "plany",
       tytul: "5. Plany i płatności",
-      tresc: `1. Usługa jest dostępna w planach **Osobisty**, **Pro** i **Zespół**. Zakres każdego planu podaje strona **Cennik**.
+      tresc: `1. Usługa jest dostępna w planach **Osobisty**, **Pro** i **Grupa**. Zakres każdego planu podaje strona **Cennik**.
 2. Wszystkie trzy plany są płatne. Plan Osobisty zaczyna się okresem próbnym: przez pierwsze 7 dni nie pobieramy opłaty, kartę podajesz od razu przy zakupie, a po upływie tych dni subskrypcja przechodzi w płatną bez dodatkowego kroku. Rezygnacja przed końcem okresu próbnego nie kosztuje nic.
-3. Do czasu uruchomienia sprzedaży plany Pro i Zespół są oznaczone jako „Wkrótce” i nie podają ceny.
+3. Plan **Grupa** rozlicza się za każdego użytkownika: liczbę miejsc wskazuje Użytkownik przy zakupie, a cena jest iloczynem ceny za miejsce i liczby miejsc. Zakres pracy w grupie jest wspólny i przedłuża go założyciel grupy; rolę założyciela można przekazać innemu członkowi grupy.
 4. Ceny i limity planów rozstrzyga serwer. Cena widoczna w kasie płatności jest ceną wiążącą.
 5. Płatności obsługuje **Stripe**. Dane karty podajesz bezpośrednio na stronie Stripe; Usługodawca ich nie przyjmuje ani nie przechowuje.
 6. Subskrypcję rozlicza się w okresie miesięcznym albo rocznym, z góry, w złotych, i odnawia automatycznie na kolejny okres.
@@ -324,8 +324,8 @@ Korzystanie z internetu wiąże się z ryzykiem typowym dla sieci publicznej. Us
 8. Rezygnację zgłasza się w panelu rozliczeniowym. Subskrypcja kończy się z upływem opłaconego okresu; do tego czasu Usługa działa bez zmian.
 9. Kod rabatowy jest sprawdzany przed zakupem. Kod nieważny, wykorzystany albo przeterminowany nie obniża ceny.
 10. Brak zapłaty w terminie skutkuje przejściem subskrypcji w stan zaległy, a po bezskutecznym upływie terminu — utratą uprawnień planu i zatrzymaniem pracy Agenta do czasu uregulowania płatności.
-11. Plan dopisuje kredyty na każdy okres rozliczeniowy. Kredyt jest jednostką pracy Agenta: każde zadanie pomniejsza saldo, a przy saldzie wyczerpanym Usługa nie przyjmuje kolejnego zlecenia i informuje o tym w interfejsie. Stan salda i historię naliczeń pokazuje panel klienta.
-12. Kredytów można dokupić poza subskrypcją, w pakiecie. Pakiet jest płatnością jednorazową, a kredyty dopisują się do salda po potwierdzeniu wpłaty przez Stripe.`,
+11. Plan obejmuje zakres pracy Agenta na każdy okres rozliczeniowy. Każde zadanie zmniejsza pozostały zakres, a po jego wyczerpaniu Usługa nie przyjmuje kolejnego zlecenia i informuje o tym w interfejsie. Wykorzystanie zakresu i historię zdarzeń pokazuje Aplikacja.
+12. Zakres można przedłużyć poza subskrypcją, wskazując kwotę (nie mniejszą niż kwota minimalna podana w Aplikacji). Jest to płatność jednorazowa; przeliczenie kwoty na zakres pracy prowadzi Usługodawca według przelicznika obowiązującego w chwili zapłaty, a zakres dopisuje się po potwierdzeniu wpłaty przez Stripe.`,
     },
     {
       id: "odstapienie",

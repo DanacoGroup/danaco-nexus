@@ -5,9 +5,9 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PASMO } from "../ui/pasmo";
-import { Logotype } from "../components/icons";
+import { Logotype, Mark } from "../components/icons";
 import { SCIEZKA } from "../shell/route";
-import { brakSesji, portalApi, type ProfilKlienta, type StanPortalu } from "./api";
+import { portalApi, type ProfilKlienta, type StanPortalu } from "./api";
 import { usePozycjonowanie } from "./seo";
 import { czyAktywna, czyPortal, parsujTrase, sciezka, rodzajTresci, type PortalTrasa } from "./trasy";
 import { DostawcaNawigacji, Ladowanie, Odsylacz, OdsylaczPrzycisk, Przycisk } from "./ui";
@@ -61,16 +61,16 @@ const MAPA_PORTALU: { tytul: string; pozycje: PozycjaMapy[] }[] = [
   {
     tytul: "Materiały",
     pozycje: [
-      { nazwa: "Dokumentacja", adres: sciezka("dokumentacja"), wNawigacji: true },
-      { nazwa: "Blog", adres: sciezka("blog"), wNawigacji: true },
-      { nazwa: "Centrum wiedzy", adres: sciezka("wiedza"), wNawigacji: true },
+      { nazwa: "Dokumentacja", adres: sciezka("dokumentacja") },
+      { nazwa: "Blog", adres: sciezka("blog") },
+      { nazwa: "Centrum wiedzy", adres: sciezka("wiedza") },
       { nazwa: "Szukaj", adres: sciezka("szukaj") },
     ],
   },
   {
     tytul: "Konto i pomoc",
     pozycje: [
-      { nazwa: "Kontakt", adres: sciezka("kontakt"), wNawigacji: true },
+      { nazwa: "Kontakt", adres: sciezka("kontakt") },
       { nazwa: "Konto klienta", adres: sciezka("konto") },
       { nazwa: "Panel klienta", adres: sciezka("panel") },
       { nazwa: "Aplikacja", adres: SCIEZKA.aplikacja },
@@ -87,6 +87,14 @@ const MAPA_PORTALU: { tytul: string; pozycje: PozycjaMapy[] }[] = [
 ];
 
 const POZYCJE = MAPA_PORTALU.flatMap((grupa) => grupa.pozycje);
+/**
+ * Pozycje paska nagłówka. Pasmo treści ma 1120 px na laptopie (1200 px pasma minus
+ * marginesy), z czego logotyp i akcje zabierają 470 px — na nazwy zostaje 650 px.
+ * Dziewięć pozycji zajmowało 874 px, więc akcje spadały do drugiego wiersza i pasek
+ * był dwa razy wyższy na każdej szerokości powyżej 1280 px. W pasku zostaje ścieżka
+ * produktu (482 px), reszta mapy portalu jest pod przyciskiem „Menu”, widocznym teraz
+ * także na dużym ekranie.
+ */
 const NAWIGACJA = POZYCJE.filter((pozycja) => pozycja.wNawigacji);
 
 /** Nazwa adresu z mapy portalu: pasek nagłówka i strona 404 nie nazywają tego samego inaczej. */
@@ -187,7 +195,10 @@ function Naglowek({
     <header className="safe-top sticky top-0 z-20 border-b border-line bg-glass backdrop-blur-xl">
       <div className={`${PASMO} flex min-h-16 flex-wrap items-center gap-4 py-2`}>
         <Odsylacz adres={sciezka("glowna")} className="flex items-center" aria-label={nazwa(sciezka("glowna"))}>
-          <Logotype height={24} />
+          {/* Na wąskim telefonie (360 px) logotyp z napisem zajmuje 151 px i spycha „Aplikację”
+              oraz „Menu” do drugiego wiersza; sam znak ma 23 px i pasek zostaje jednowierszowy. */}
+          <Mark size={24} className="max-[389px]:block hidden" />
+          <Logotype height={24} className="max-[389px]:hidden" />
         </Odsylacz>
         <nav aria-label="Nawigacja portalu" className="hidden grow xl:block">
           <ul className="flex flex-wrap items-center gap-1">
@@ -225,7 +236,6 @@ function Naglowek({
           <OdsylaczPrzycisk adres={SCIEZKA.aplikacja}>{nazwa(SCIEZKA.aplikacja)}</OdsylaczPrzycisk>
           <Przycisk
             wariant="drugorzedny"
-            className="xl:hidden"
             aria-expanded={otwarte}
             aria-controls="menu-portalu"
             onClick={przelacz}
@@ -234,12 +244,9 @@ function Naglowek({
           </Przycisk>
         </div>
       </div>
-      <nav
-        id="menu-portalu"
-        aria-label="Menu portalu"
-        hidden={!otwarte}
-        className="border-t border-line xl:hidden"
-      >
+      {/* Rozwinięcie wchodzi ruchem, jak reszta portalu: `ui-wejscie` startuje od nowa przy
+          każdym pokazaniu, bo element wraca z `display: none`. */}
+      <nav id="menu-portalu" aria-label="Menu portalu" hidden={!otwarte} className="ui-wejscie border-t border-line">
         <MapaPortalu tytul="Menu portalu" tytulUkryty className={`${PASMO} pt-4 pb-6`} />
       </nav>
     </header>
@@ -264,16 +271,20 @@ function Stopka() {
         </div>
         <MapaPortalu tytul="Mapa portalu" tytulUkryty obszarNawigacji className="mt-8" />
       </div>
-      <div className={`${PASMO} flex flex-wrap items-center justify-between gap-3 border-t border-line py-5 text-sm text-subtle`}>
-        <p>Danaco Group</p>
-        <p className="flex gap-4">
-          <a href="/portal/atom.xml" className="hover:text-fg">
-            Kanał Atom
-          </a>
-          <a href="/sitemap.xml" className="hover:text-fg">
-            Mapa witryny
-          </a>
-        </p>
+      {/* Kreska po krawędzi treści, nie po krawędzi pasma — `PASMO` ma własne odstępy
+        boczne, więc obramowanie na nim samym wychodziło poza tekst z obu stron. */}
+      <div className={PASMO}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-5 text-sm text-subtle">
+          <p>Danaco Group</p>
+          <p className="flex gap-4">
+            <a href="/portal/atom.xml" className="hover:text-fg">
+              Kanał Atom
+            </a>
+            <a href="/sitemap.xml" className="hover:text-fg">
+              Mapa witryny
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );
@@ -364,6 +375,18 @@ export function Portal() {
   const [menu, setMenu] = useState(false);
   const trasa = useMemo(() => parsujTrase(adres.pathname, adres.search), [adres.pathname, adres.search]);
 
+  // Escape zamyka rozwiniętą mapę portalu — tak samo jak menu na stronie produktu
+  // (`landing/Landing.tsx`). Od kiedy „Menu” jest widoczne także na dużym ekranie,
+  // rozwinięcie zasłania górę strony i musi dać się zamknąć klawiaturą.
+  useEffect(() => {
+    if (!menu) return;
+    const klawisz = (zdarzenie: KeyboardEvent) => {
+      if (zdarzenie.key === "Escape") setMenu(false);
+    };
+    window.addEventListener("keydown", klawisz);
+    return () => window.removeEventListener("keydown", klawisz);
+  }, [menu]);
+
   // Adres spoza portalu (aplikacja, strona produktu, piaskownica, kotwica, adres zewnętrzny)
   // wymaga zwykłego przejścia — trasowanie portalu nie obsłużyłoby go i pokazałoby stronę główną.
   const nawiguj = useCallback((docelowy: string) => {
@@ -384,13 +407,12 @@ export function Portal() {
   }, []);
 
   const wczytajKonto = useCallback(() => {
+    // Pytanie o stan sesji, a nie o zasób chroniony: gość dostaje `{konto: null}`, a nie
+    // 401. Poprzednio przeglądarka zapisywała błąd w konsoli na każdej stronie publicznej.
     portalApi.konto
-      .ja()
-      .then(setKonto)
-      .catch((error: unknown) => {
-        if (!brakSesji(error)) return;
-        setKonto(null);
-      });
+      .sesja()
+      .then((odpowiedz) => setKonto(odpowiedz.konto))
+      .catch(() => setKonto(null));
     portalApi.stan().then(setStan).catch(() => setStan(null));
   }, []);
 
@@ -406,6 +428,9 @@ export function Portal() {
     }
     window.scrollTo?.({ top: 0, behavior: "auto" });
     document.getElementById("portal-tytul")?.focus({ preventScroll: true });
+    // Wybranie pozycji zamyka menu w `nawiguj`, ale cofnięcie się w przeglądarce omija
+    // tę drogę — bez tego rozwinięta mapa portalu zostawała nad nową stroną.
+    setMenu(false);
   }, [trasa.strona, trasa.slug, trasa.parametr]);
 
   return (

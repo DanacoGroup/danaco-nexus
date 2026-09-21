@@ -6,13 +6,130 @@ import { errorText } from "../_tworczy/http";
 import { GlobeIcon } from "../_tworczy/icons";
 import { isValidAddress, slugify } from "../_tworczy/logic";
 import { buttonPrimary, buttonSecondary, ErrorBanner, inputClass, labelClass, ModuleHeader, Spinner } from "../_tworczy/ui";
-import { formatDate, sitesApi, type Site } from "./api";
+import { Stagger } from "../../ui";
+import { formatDate, sitesApi, type Preset, type Site, type SzablonKolekcji } from "./api";
 
 const IDEAS = [
   "Strona pensjonatu nad morzem: galeria pokoi, cennik sezonowy, dojazd z mapą, formularz zapytania.",
   "Wizytówka firmy remontowej: usługi, realizacje przed/po, opinie klientów, kontakt.",
   "Landing page nowej aplikacji mobilnej: korzyści, zrzuty ekranu, FAQ, zapis na listę oczekujących.",
 ];
+
+/** Ile presetów pokazujemy od razu — reszta po „Pokaż wszystkie”. */
+const PRESETY_NA_START = 8;
+
+/** Gotowe układy branżowe: druga droga na start, obok opisu własnymi słowami.
+ *
+ * Nie każdy wie, co napisać w polu „opisz stronę”. Preset daje gotową strukturę
+ * podstron i treści do podmiany — od tego łatwiej zacząć niż od pustej kartki.
+ */
+function PasekPresetow({
+  presety,
+  wszystkie,
+  onWszystkie,
+  onWybor,
+  zajety,
+}: {
+  presety: Preset[] | null;
+  wszystkie: boolean;
+  onWszystkie: () => void;
+  onWybor: (preset: Preset) => void;
+  zajety: boolean;
+}) {
+  if (!presety?.length) return null;
+  const widoczne = wszystkie ? presety : presety.slice(0, PRESETY_NA_START);
+  return (
+    <section className="rounded-2xl border border-line bg-raised/40 p-4 md:p-5">
+      <h2 className="font-heading text-base font-semibold text-fg">Albo zacznij od gotowego układu</h2>
+      <p className="mt-1 text-sm text-muted">
+        Zestaw branżowy: komplet podstron, sekcje i przykładowe treści do podmiany. Witryna staje
+        w kilka minut, a potem poprawiasz ją rozmową.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {widoczne.map((preset) => (
+          <button
+            key={preset.preset}
+            type="button"
+            disabled={zajety}
+            onClick={() => onWybor(preset)}
+            title={preset.opis || preset.preset}
+            className="ui-nacisk rounded-xl border border-line-control px-3.5 py-2 text-left text-sm transition-colors hover:bg-hover disabled:opacity-50"
+          >
+            <span className="block font-medium text-fg">{preset.nazwa}</span>
+            <span className="block font-mono text-[11px] text-subtle">{preset.preset}</span>
+          </button>
+        ))}
+        {!wszystkie && presety.length > PRESETY_NA_START && (
+          <button
+            type="button"
+            onClick={onWszystkie}
+            className="rounded-xl px-3.5 py-2 text-sm text-muted transition-colors hover:text-fg"
+          >
+            Pokaż wszystkie ({presety.length})
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Gotowe witryny z kolekcji szablonów otwartych — trzecia droga na start.
+ *
+ * Preset daje strukturę i treści po polsku, ale trzeba go zbudować (minuty). Szablon
+ * z kolekcji jest już zbudowany: wchodzi do szkicu w sekundy, za to z cudzymi treściami
+ * i własną licencją — dlatego licencja stoi przy każdej pozycji, a nie w drobnym druku.
+ */
+function PasekSzablonow({
+  szablony,
+  wszystkie,
+  onWszystkie,
+  onWybor,
+  zajety,
+}: {
+  szablony: SzablonKolekcji[];
+  wszystkie: boolean;
+  onWszystkie: () => void;
+  onWybor: (szablon: SzablonKolekcji) => void;
+  zajety: boolean;
+}) {
+  if (!szablony.length) return null;
+  const widoczne = wszystkie ? szablony : szablony.slice(0, PRESETY_NA_START);
+  return (
+    <section className="rounded-2xl border border-line bg-raised/40 p-4 md:p-5">
+      <h2 className="font-heading text-base font-semibold text-fg">Gotowe witryny z kolekcji</h2>
+      <p className="mt-1 text-sm text-muted">
+        Projekty otwarte, już zbudowane: wchodzą do szkicu od ręki. Treści są cudze i po
+        angielsku — Nexus podmieni je na Twoje. Przy każdej pozycji stoi jej licencja.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {widoczne.map((szablon) => (
+          <button
+            key={szablon.id}
+            type="button"
+            disabled={zajety}
+            onClick={() => onWybor(szablon)}
+            className="ui-nacisk rounded-xl border border-line-control px-3.5 py-2 text-left text-sm transition-colors hover:bg-hover disabled:opacity-50"
+          >
+            <span className="block font-medium text-fg">{szablon.nazwa}</span>
+            <span className="block text-[11px] text-subtle">
+              {szablon.podstrony > 0 ? `${szablon.podstrony} podstron · ` : ""}
+              {szablon.licencja || "licencja w opisie"}
+            </span>
+          </button>
+        ))}
+        {!wszystkie && szablony.length > PRESETY_NA_START && (
+          <button
+            type="button"
+            onClick={onWszystkie}
+            className="rounded-xl px-3.5 py-2 text-sm text-muted transition-colors hover:text-fg"
+          >
+            Pokaż wszystkie ({szablony.length})
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export function SiteList({ onOpen }: { onOpen: (address: string, firstPrompt?: string) => void }) {
   const [sites, setSites] = useState<Site[] | null>(null);
@@ -23,6 +140,10 @@ export function SiteList({ onOpen }: { onOpen: (address: string, firstPrompt?: s
   const [addressTouched, setAddressTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [presety, setPresety] = useState<Preset[] | null>(null);
+  const [wszystkiePresety, setWszystkiePresety] = useState(false);
+  const [szablony, setSzablony] = useState<SzablonKolekcji[]>([]);
+  const [wszystkieSzablony, setWszystkieSzablony] = useState(false);
 
   const load = () =>
     sitesApi
@@ -32,6 +153,16 @@ export function SiteList({ onOpen }: { onOpen: (address: string, firstPrompt?: s
 
   useEffect(() => {
     load();
+    // Presety branżowe Danaco Web Kit: witryna z gotową strukturą i treściami powstaje
+    // w minuty. Do tej pory moduł o nich nie wspominał — zestaw stał na serwerze, a
+    // użytkownik dostawał puste pole „opisz stronę”.
+    sitesApi
+      .kit()
+      .then((katalog) => {
+        setPresety(katalog.dostepny ? katalog.presety : []);
+        setSzablony(katalog.dostepny ? (katalog.szablony ?? []) : []);
+      })
+      .catch(() => setPresety([]));
   }, []);
 
   const effectiveAddress = addressTouched ? address : slugify(title);
@@ -47,6 +178,42 @@ export function SiteList({ onOpen }: { onOpen: (address: string, firstPrompt?: s
         ? `Zbuduj stronę „${site.title}”. Opis od użytkownika:\n${description.trim()}`
         : undefined;
       onOpen(site.address, prompt);
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const zPresetu = async (preset: Preset) => {
+    setBusy(true);
+    try {
+      const site = await sitesApi.create(preset.nazwa, `Witryna: ${preset.nazwa}.`);
+      onOpen(
+        site.address,
+        `Zbuduj witrynę z presetu „${preset.preset}” zestawu Danaco Web Kit ` +
+          `(narzędzie site_from_kit, strona „${site.address}”). Motyw dobierz sam do branży — ` +
+          `sprawdź listę w site_kit_catalog i powiedz, który wybrałeś i dlaczego. ` +
+          `Po zbudowaniu pokaż mi spis podstron i powiedz, co dopisać, żeby treści były moje, ` +
+          `a nie przykładowe.`,
+      );
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const zSzablonu = async (szablon: SzablonKolekcji) => {
+    setBusy(true);
+    try {
+      const site = await sitesApi.create(szablon.nazwa, `Witryna z szablonu ${szablon.nazwa}.`);
+      onOpen(
+        site.address,
+        `Wstaw do strony „${site.address}” gotowy szablon „${szablon.id}” z kolekcji ` +
+          `(narzędzie site_from_template), a potem podmień treści na moje: nazwę, opisy, ` +
+          `kontakt i teksty po polsku. Powiedz, czego potrzebujesz ode mnie.`,
+      );
     } catch (failure) {
       setError(errorText(failure));
     } finally {
@@ -141,18 +308,35 @@ export function SiteList({ onOpen }: { onOpen: (address: string, firstPrompt?: s
           {sites === null ? (
             <Spinner label="Wczytywanie stron…" />
           ) : sites.length === 0 && !creating ? (
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line px-6 py-14 text-center">
-              <GlobeIcon size={36} className="text-muted" />
-              <p className="max-w-md text-muted">
-                Nie masz jeszcze żadnej strony. Opisz, czego potrzebujesz – asystent zbuduje stronę, a Ty zobaczysz ją na żywo
-                i opublikujesz jednym kliknięciem.
-              </p>
-              <button type="button" className={buttonPrimary} onClick={() => setCreating(true)}>
-                <PlusIcon size={16} /> Utwórz pierwszą stronę
-              </button>
+            <div className="space-y-5">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line px-6 py-12 text-center">
+                <GlobeIcon size={36} className="text-muted" />
+                <p className="max-w-md text-muted">
+                  Nie masz jeszcze żadnej strony. Opisz, czego potrzebujesz – asystent zbuduje stronę, a Ty zobaczysz ją na żywo
+                  i opublikujesz jednym kliknięciem.
+                </p>
+                <button type="button" className={buttonPrimary} onClick={() => setCreating(true)}>
+                  <PlusIcon size={16} /> Utwórz pierwszą stronę
+                </button>
+              </div>
+              <PasekPresetow
+                presety={presety}
+                wszystkie={wszystkiePresety}
+                onWszystkie={() => setWszystkiePresety(true)}
+                onWybor={zPresetu}
+                zajety={busy}
+              />
+              <PasekSzablonow
+                szablony={szablony}
+                wszystkie={wszystkieSzablony}
+                onWszystkie={() => setWszystkieSzablony(true)}
+                onWybor={zSzablonu}
+                zajety={busy}
+              />
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            /* Karty dochodzą po odpowiedzi serwera — kaskada wejścia (motion, rozdz. 5). */
+            <Stagger className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {sites.map((site) => (
                 <article key={site.address} className="group flex flex-col rounded-2xl border border-line bg-app p-4 transition-colors hover:border-line-strong">
                   <div className="flex items-start gap-2">
@@ -181,7 +365,7 @@ export function SiteList({ onOpen }: { onOpen: (address: string, firstPrompt?: s
                   </div>
                 </article>
               ))}
-            </div>
+            </Stagger>
           )}
         </div>
       </div>

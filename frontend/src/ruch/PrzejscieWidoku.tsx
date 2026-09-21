@@ -11,9 +11,20 @@ export interface PrzejscieWidokuProps {
   klucz: string;
   children: ReactNode;
   className?: string;
+  /** Klasa wewnętrznej warstwy; potrzebna tam, gdzie łańcuch `flex` musi przejść dalej. */
+  klasaWnetrza?: string;
+  id?: string;
+  tabIndex?: number;
 }
 
-export function PrzejscieWidoku({ klucz, children, className = "" }: PrzejscieWidokuProps) {
+export function PrzejscieWidoku({
+  klucz,
+  children,
+  className = "",
+  klasaWnetrza = "",
+  id,
+  tabIndex,
+}: PrzejscieWidokuProps) {
   const ograniczony = useReducedMotion();
   const [widok, setWidok] = useState({ klucz, tresc: children });
   const obszar = useRef<HTMLDivElement>(null);
@@ -52,10 +63,10 @@ export function PrzejscieWidoku({ klucz, children, className = "" }: PrzejscieWi
   }, [children, klucz, ograniczony]);
 
   return (
-    <div ref={obszar} className={`ruch-widok ${className}`}>
+    <div ref={obszar} id={id} tabIndex={tabIndex} className={`ruch-widok ${className}`}>
       {/* Wejście zastępcze `.ui-widok` gra tylko wtedy, gdy przejścia widoków nie ma —
           inaczej ten sam ruch szedłby dwa razy. */}
-      <div key={widok.klucz} className="ui-widok">
+      <div key={widok.klucz} className={`ui-widok ${klasaWnetrza}`}>
         {widok.tresc}
       </div>
     </div>

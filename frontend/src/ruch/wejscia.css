@@ -27,6 +27,16 @@
   animation: none;
 }
 
+/* To samo dotyczy kaskady w środku widoku. Treść modułu bywa na miejscu od razu — lista
+   plików z pamięci podręcznej albo szybka odpowiedź serwera — i wtedy kaskada startuje
+   równocześnie z przejściem. Zmierzone na zbudowanym interfejsie 21.09.2026: przez
+   pierwsze 480 ms osiem pozycji animowało się w czasie `data-przejscie="true"`.
+   Zdjęcie animacji na czas przejścia odkłada kaskadę: po zdjęciu znacznika reguła wraca
+   i animacja rusza od początku — najpierw przejście, potem kaskada. */
+.ruch-widok[data-przejscie="true"] .ui-wejscie {
+  animation: none;
+}
+
 /* ── Mikrointerakcje ─────────────────────────────────────────────── */
 
 /* Pasek zdań i inne pętle ozdobne stoją poza polem widzenia (WCAG 2.2.2). */

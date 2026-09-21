@@ -41,7 +41,9 @@ describe("przestrzeń plików", () => {
     await waitFor(() => expect(screen.getByText("Faktury")).toBeTruthy());
     expect(screen.getByText("Zdjęcia z wakacji")).toBeTruthy();
     // Własny tytuł wygrywa z nazwą z dysku, ale nazwa nadal jest widoczna.
-    expect(screen.getByText("Umowa najmu")).toBeTruthy();
+    // Katalogi i zawartość katalogu to dwa osobne żądania — czekamy na oba, inaczej test
+    // bywał czerwony na obciążonej maszynie (bramka wydania), choć nic się nie zepsuło.
+    await waitFor(() => expect(screen.getByText("Umowa najmu")).toBeTruthy());
     expect(screen.getByText("scan_0012.pdf")).toBeTruthy();
     expect(screen.getByText("morze.jpg")).toBeTruthy();
     expect(screen.getByText("z 1 GB")).toBeTruthy();
@@ -69,6 +71,20 @@ describe("przestrzeń plików", () => {
     render(<PlikiPage />);
     await waitFor(() => expect(screen.getByText("Tu jeszcze nic nie ma")).toBeTruthy());
     expect(screen.getByText(/Dodaj pliki albo poproś Nexusa/)).toBeTruthy();
+  });
+
+  it("karty plików wchodzą kaskadą, a zaznaczanie działa dalej", async () => {
+    // `Stagger` klonuje dzieci, dopisując klasę i opóźnienie. Gdyby przy okazji zgubił
+    // `key` albo nadpisał `className` pozycji, lista straciłaby stan zaznaczenia i styl
+    // wybranej karty — dlatego test sprawdza kaskadę **i** zachowanie razem.
+    serwer();
+    const { container } = render(<PlikiPage />);
+    await waitFor(() => expect(screen.getByText("Umowa najmu")).toBeTruthy());
+    const karty = [...container.querySelectorAll("li")];
+    expect(karty.length).toBeGreaterThan(0);
+    expect(karty[0]?.className).toContain("ui-wejscie");
+    // Klasy własne pozycji zostają — kaskada dokłada, nie podmienia.
+    expect(karty[0]?.className).toContain("rounded-xl");
   });
 
   it("moduł ma krótką etykietę mieszczącą się w pasku", () => {

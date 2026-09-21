@@ -19,6 +19,7 @@ import {
   SearchIcon,
   UploadIcon,
 } from "../research/icons";
+import { opoznienieKaskady } from "../../ui";
 
 type Tab = "zrodla" | "notatki";
 type Opened = { type: "source"; id: string } | { type: "note"; id: string | null } | null;
@@ -27,6 +28,9 @@ const KIND_ICONS = { strona: GlobeIcon, plik: FileIcon, praca: ScholarIcon, teks
 const KIND_LABELS = { strona: "Strona", plik: "Plik", praca: "Praca naukowa", tekst: "Tekst" } as const;
 const BUTTON =
   "inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-raised disabled:opacity-50";
+/** Nazwy kolekcji na start — najczęstsze szuflady, nie wymyślne przykłady. */
+const POCZATKOWE_KOLEKCJE = ["Klienci", "Umowy i faktury", "Przepisy i normy", "Nauka", "Projekt"];
+
 const PRIMARY =
   "inline-flex items-center gap-1.5 rounded-lg bg-accent-fill px-3 py-1.5 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:opacity-50";
 
@@ -371,6 +375,18 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
       .catch((failure) => setError(errorText(failure)));
   };
 
+  /** Zakłada kolekcję pod gotową nazwą (wiersz szybkiego startu w pustym module). */
+  const zalozKolekcje = (nazwa: string) => {
+    researchApi
+      .createCollection(nazwa)
+      .then((created) => {
+        setNewCollection(null);
+        setCurrentId(created.id);
+        loadCollections();
+      })
+      .catch((failure) => setError(errorText(failure)));
+  };
+
   const renameCollection = () => {
     if (!current) return;
     const name = window.prompt("Nazwa kolekcji", current.name)?.trim();
@@ -531,6 +547,9 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
   const selectedCount = selected.size;
   return (
     <div className="flex h-full min-h-0 bg-app">
+      {/* Tytuł strony dla czytnika ekranu: na telefonie niesie go pasek kompaktowy powłoki,
+          a na komputerze moduł rysował tylko `h2` nad pustą bazą. */}
+      <h1 className="sr-only">Wiedza</h1>
       <aside className="hidden w-64 shrink-0 border-r border-line bg-side md:block">{collectionList}</aside>
       {listOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
@@ -565,6 +584,22 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
                 <button type="button" className={`${PRIMARY} mt-6`} onClick={() => setNewCollection("")}>
                   <PlusIcon size={16} /> Nowa kolekcja
                 </button>
+                {/* Pusty moduł kończył się jednym przyciskiem i pytaniem, jak nazwać kolekcję.
+                  Gotowe nazwy pokazują, do czego ta szuflada służy, i zakładają ją jednym
+                  kliknięciem — nazwę zawsze można potem zmienić. */}
+                <p className="mt-8 text-xs tracking-wide text-subtle uppercase">Albo zacznij od gotowej</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {POCZATKOWE_KOLEKCJE.map((nazwa) => (
+                    <button
+                      key={nazwa}
+                      type="button"
+                      onClick={() => zalozKolekcje(nazwa)}
+                      className="ui-nacisk rounded-full border border-line-control px-3.5 py-1.5 text-sm text-fg transition-colors hover:bg-hover"
+                    >
+                      {nazwa}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <>
@@ -609,6 +644,7 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
                     type="file"
                     multiple
                     hidden
+                    aria-label="Dodaj pliki do źródeł"
                     accept=".pdf,.txt,.md,.csv,.json,.html,.htm,.docx,.doc,.odt,.rtf,.pptx,.xlsx,.epub"
                     onChange={(event) => addFiles(event.target.files)}
                   />
@@ -668,12 +704,15 @@ function KnowledgePage({ openConversation }: ModulePageProps) {
                         Wyczyść
                       </button>
                     </div>
+                    {/* Wyniki dochodzą po zapytaniu, w środku pracy — wchodzą kaskadą,
+                      żeby było widać, że to nowa odpowiedź, a nie odświeżona ta sama. */}
                     {hits.map((hit, index) => (
                       <button
                         key={`${hit.id}-${index}`}
                         type="button"
+                        style={opoznienieKaskady(index)}
                         onClick={() => setOpened({ type: hit.type, id: hit.id })}
-                        className="block w-full rounded-xl border border-line px-3.5 py-2.5 text-left transition-colors hover:bg-raised"
+                        className="ui-wejscie block w-full rounded-xl border border-line px-3.5 py-2.5 text-left transition-colors hover:bg-raised"
                       >
                         <span className="flex items-center gap-2 text-sm font-medium">
                           {hit.type === "note" ? <NoteIcon size={15} className="text-muted" /> : <FileIcon size={15} className="text-muted" />}

@@ -1,16 +1,16 @@
-// Saldo kredytów konta, historia zmian i dokupienie pakietu.
+// Wykorzystanie dostępu: pasek zamiast liczb i przedłużenie dostępu kwotą.
 //
-// Kredyt jest jednostką pracy agenta. Użytkownik ma widzieć nie tylko liczbę, ale i to,
-// za co zeszła — „za co mi to zniknęło” jest pierwszym pytaniem płacącego użytkownika.
-// Świadomie nie pokazujemy tu niczego o silniku: ani modeli, ani limitów usług, z których
-// korzysta serwis. To rozliczenie użytkownika z nami, nie nasze z dostawcą.
+// Kredyt jest jednostką rozliczeniową między nami a dostawcą modelu, nie towarem dla
+// użytkownika. Pokazywanie salda w sztukach zmuszałoby go do liczenia, ile „kosztuje”
+// jedno zdanie, i robiłoby z rozmowy licznik taksówki. Dlatego widać wyłącznie pasek
+// wykorzystania — tyle, żeby dało się ocenić wzrokiem, ile zostało.
 //
-// Pakiety stoją obok salda, bo tu użytkownik orientuje się, że kredyty się kończą; odesłanie
-// go w tym miejscu do cennika planów kazałoby mu zmieniać plan zamiast dokupić jedną porcję.
+// Z tego samego powodu nie kupuje się tu „kredytów”, tylko przedłużenie dostępu: wpisujesz
+// kwotę, za jaką chcesz dalej pracować. Ile pracy z tego wyjdzie, przelicza serwer.
 
 import { useEffect, useState } from "react";
 import { ApiError } from "../api";
-import { platnosciApi, POWODY, type KredytyInfo, type PakietInfo, type PakietyInfo } from "./api";
+import { kwota, platnosciApi, POWODY, type KredytyInfo } from "./api";
 
 function data(iso: string): string {
   const kiedy = new Date(iso);
@@ -19,43 +19,124 @@ function data(iso: string): string {
     : kiedy.toLocaleString("pl-PL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-const PRZYCISK_PAKIETU =
-  "flex flex-col gap-0.5 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-colors";
+/** Barwa paska i komunikatu zależnie od tego, ile dostępu zostało. */
+const BARWY: Record<KredytyInfo["stan"], { pasek: string; tekst: string }> = {
+  w_porzadku: { pasek: "bg-accent-fill", tekst: "text-muted" },
+  konczy_sie: { pasek: "bg-warning", tekst: "text-warning" },
+  wyczerpany: { pasek: "bg-danger", tekst: "text-danger" },
+};
 
-function Pakiety({ pakiety, zajety, onKup }: { pakiety: PakietInfo[]; zajety: boolean; onKup: (kod: string) => void }) {
-  const dostepne = pakiety.filter((pozycja) => pozycja.do_kupienia);
+const OPISY: Record<KredytyInfo["stan"], string> = {
+  w_porzadku: "Dostęp w tym okresie rozliczeniowym.",
+  konczy_sie: "Dostęp w tym okresie dobiega końca — warto go przedłużyć, zanim zadania staną.",
+  wyczerpany: "Dostęp w tym okresie się wyczerpał. Nowe zadania ruszą po przedłużeniu.",
+};
+
+function Pasek({ stan }: { stan: KredytyInfo }) {
+  const procent = Math.round(Math.min(1, Math.max(0, stan.zuzycie)) * 100);
+  return (
+    <div className="mt-4">
+      <div
+        className="h-2.5 w-full overflow-hidden rounded-full bg-hover"
+        role="meter"
+        aria-valuenow={procent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Wykorzystanie dostępu"
+      >
+        <div
+          className={`h-full rounded-full transition-[width] duration-(--duration-slower) ${BARWY[stan.stan].pasek}`}
+          style={{ width: `${procent}%` }}
+        />
+      </div>
+      <p className={`mt-2 text-sm ${BARWY[stan.stan].tekst}`} role={stan.stan === "w_porzadku" ? undefined : "status"}>
+        {OPISY[stan.stan]}
+      </p>
+    </div>
+  );
+}
+
+/** Wybór kwoty przedłużenia: szybkie stawki i własna, nie niższa niż minimum. */
+function Przedluzenie({
+  stan,
+  zajety,
+  onKup,
+}: {
+  stan: KredytyInfo;
+  zajety: boolean;
+  onKup: (kwotaGr: number) => void;
+}) {
+  const { minimum_gr, maksimum_gr, kwoty_szybkie_gr, sprzedaz } = stan.doladowanie;
+  const [wlasna, setWlasna] = useState("");
+
+  if (!sprzedaz) {
+    return (
+      <p className="mt-6 text-sm text-muted">
+        Przedłużenie dostępu będzie możliwe, gdy ruszy sprzedaż. Do tego czasu dostęp przychodzi
+        wraz z planem.
+      </p>
+    );
+  }
+
+  const zWlasnej = Math.round(Number(wlasna.replace(",", ".")) * 100);
+  const wlasnaPoprawna = Number.isFinite(zWlasnej) && zWlasnej >= minimum_gr && zWlasnej <= maksimum_gr;
+
   return (
     <>
-      <h3 className="mt-6 text-xs font-semibold tracking-[0.08em] text-subtle uppercase">Dokup kredyty</h3>
-      {dostepne.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">
-          Dokupienie kredytów będzie możliwe, gdy ruszy sprzedaż. Do tego czasu kredyty przychodzą
-          wraz z planem.
+      <h3 className="mt-6 text-xs font-semibold tracking-[0.08em] text-subtle uppercase">
+        Przedłuż dostęp
+      </h3>
+      <p className="mt-2 text-sm text-muted">
+        Jedna płatność poza abonamentem. Wybierz kwotę albo wpisz własną — od{" "}
+        {kwota(minimum_gr)}.
+      </p>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {kwoty_szybkie_gr.map((gr) => (
+          <li key={gr}>
+            <button
+              type="button"
+              disabled={zajety}
+              onClick={() => onKup(gr)}
+              className="ui-nacisk rounded-xl border border-line-control px-4 py-2.5 text-sm font-medium transition-colors hover:bg-hover disabled:opacity-60"
+            >
+              {kwota(gr)}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form
+        className="mt-3 flex flex-wrap items-center gap-2"
+        onSubmit={(zdarzenie) => {
+          zdarzenie.preventDefault();
+          if (wlasnaPoprawna) onKup(zWlasnej);
+        }}
+      >
+        <label className="text-sm text-muted">
+          Własna kwota
+          <span className="mt-1 flex items-center gap-2">
+            <input
+              value={wlasna}
+              onChange={(zdarzenie) => setWlasna(zdarzenie.target.value)}
+              inputMode="decimal"
+              placeholder={String(minimum_gr / 100)}
+              aria-label="Kwota przedłużenia w złotych"
+              className="h-10 w-28 rounded-lg border border-line-control bg-app px-3 text-fg outline-none focus:border-accent"
+            />
+            <span aria-hidden="true">zł</span>
+          </span>
+        </label>
+        <button
+          type="submit"
+          disabled={zajety || !wlasnaPoprawna}
+          className="ui-nacisk mt-6 h-10 rounded-lg bg-accent-fill px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent-fill-hover disabled:opacity-60"
+        >
+          Przedłuż
+        </button>
+      </form>
+      {wlasna && !wlasnaPoprawna && (
+        <p role="alert" className="mt-2 text-sm text-danger">
+          Kwota musi mieścić się między {kwota(minimum_gr)} a {kwota(maksimum_gr)}.
         </p>
-      ) : (
-        <>
-          <p className="mt-2 text-sm text-muted">
-            Pakiet to jedna płatność poza abonamentem — kredyty zostają na koncie do wykorzystania.
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-3">
-            {dostepne.map((pozycja) => (
-              <li key={pozycja.kod}>
-                <button
-                  type="button"
-                  disabled={zajety}
-                  onClick={() => onKup(pozycja.kod)}
-                  className={`${PRZYCISK_PAKIETU} w-full border-line hover:border-accent hover:bg-hover disabled:cursor-default disabled:opacity-60`}
-                >
-                  <span className="font-medium text-fg">{pozycja.nazwa}</span>
-                  <span className="font-heading text-lg tabular-nums text-accent">
-                    +{pozycja.kredyty.toLocaleString("pl-PL")}
-                  </span>
-                  <span className="text-xs text-subtle">{pozycja.opis}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
       )}
     </>
   );
@@ -63,7 +144,6 @@ function Pakiety({ pakiety, zajety, onKup }: { pakiety: PakietInfo[]; zajety: bo
 
 export function Kredyty() {
   const [stan, setStan] = useState<KredytyInfo | null>(null);
-  const [pakiety, setPakiety] = useState<PakietyInfo | null>(null);
   const [zajety, setZajety] = useState(false);
   const [blad, setBlad] = useState("");
   const [bladZakupu, setBladZakupu] = useState("");
@@ -72,20 +152,20 @@ export function Kredyty() {
     platnosciApi
       .kredyty()
       .then(setStan)
-      .catch((awaria) => setBlad(awaria instanceof ApiError ? awaria.message : "Nie udało się pobrać salda."));
-    // Brak listy pakietów nie może przesłonić salda — ekran działa dalej, tylko bez dokupienia.
-    platnosciApi.pakiety().then(setPakiety).catch(() => setPakiety(null));
+      .catch((awaria) =>
+        setBlad(awaria instanceof ApiError ? awaria.message : "Nie udało się pobrać stanu dostępu."),
+      );
   }, []);
 
-  const kup = async (kod: string) => {
+  const kup = async (kwotaGr: number) => {
     setZajety(true);
     setBladZakupu("");
     try {
-      const { url } = await platnosciApi.zakupPakietu(kod);
+      const { url } = await platnosciApi.doladowanie(kwotaGr);
       window.location.assign(url);
     } catch (awaria) {
       setBladZakupu(
-        awaria instanceof ApiError ? awaria.message : "Nie udało się rozpocząć zakupu pakietu.",
+        awaria instanceof ApiError ? awaria.message : "Nie udało się rozpocząć płatności.",
       );
       setZajety(false);
     }
@@ -103,56 +183,24 @@ export function Kredyty() {
   if (!stan) {
     return (
       <section className="rounded-2xl border border-line bg-raised p-5">
-        <p className="text-sm text-muted">Wczytywanie salda…</p>
+        <p className="text-sm text-muted">Wczytywanie…</p>
       </section>
     );
   }
 
-  const niskie = stan.saldo > 0 && stan.saldo < 200;
-  const lista = Array.isArray(pakiety?.pakiety) ? pakiety.pakiety : [];
   return (
     <section aria-labelledby="kredyty-naglowek" className="rounded-2xl border border-line bg-raised p-5">
       <h2 id="kredyty-naglowek" className="font-heading text-base font-semibold text-fg">
-        Kredyty
+        Wykorzystanie
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Kredyt to jednostka pracy Nexusa. Zużywa się przy każdym zleconym zadaniu — więcej przy
-        dłuższej pracy i przy narzędziach, które liczą dłużej.
+        Pasek pokazuje, ile pracy Nexusa wykorzystałeś w tym okresie. Dłuższe zadania i narzędzia,
+        które liczą dłużej, zużywają go szybciej.
       </p>
 
-      <div className="mt-4 flex flex-wrap items-end gap-6">
-        <p>
-          <span className="block text-xs text-subtle">Dostępne</span>
-          <span
-            className={`font-heading text-3xl font-bold tabular-nums ${
-              stan.saldo === 0 ? "text-danger" : niskie ? "text-warning" : "text-fg"
-            }`}
-          >
-            {stan.saldo.toLocaleString("pl-PL")}
-          </span>
-        </p>
-        <p>
-          <span className="block text-xs text-subtle">Przydzielone łącznie</span>
-          <span className="text-sm tabular-nums text-muted">{stan.przydzielone.toLocaleString("pl-PL")}</span>
-        </p>
-        <p>
-          <span className="block text-xs text-subtle">Zużyte łącznie</span>
-          <span className="text-sm tabular-nums text-muted">{stan.zuzyte.toLocaleString("pl-PL")}</span>
-        </p>
-      </div>
+      <Pasek stan={stan} />
+      <Przedluzenie stan={stan} zajety={zajety} onKup={(gr) => void kup(gr)} />
 
-      {stan.saldo === 0 && (
-        <p role="status" className="mt-4 rounded-lg border border-danger/40 bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
-          Kredyty się skończyły — nowe zadania ruszą po doładowaniu konta.
-        </p>
-      )}
-      {niskie && (
-        <p role="status" className="mt-4 rounded-lg border border-warning/40 bg-warning-soft px-3.5 py-2.5 text-sm text-warning">
-          Zostało niewiele kredytów. Warto doładować, zanim zadania staną.
-        </p>
-      )}
-
-      {lista.length > 0 && <Pakiety pakiety={lista} zajety={zajety} onKup={(kod) => void kup(kod)} />}
       {bladZakupu && (
         <p role="alert" className="mt-3 rounded-lg border border-danger/40 bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
           {bladZakupu}
@@ -161,18 +209,14 @@ export function Kredyty() {
 
       {stan.historia.length > 0 && (
         <>
-          <h3 className="mt-6 text-xs font-semibold tracking-[0.08em] text-subtle uppercase">Ostatnie zmiany</h3>
+          <h3 className="mt-6 text-xs font-semibold tracking-[0.08em] text-subtle uppercase">
+            Ostatnie zdarzenia
+          </h3>
           <ul className="mt-2 divide-y divide-line/60">
-            {stan.historia.map((ruch) => (
-              <li key={ruch.id} className="flex items-center justify-between gap-4 py-2 text-sm">
-                <span className="min-w-0">
-                  <span className="block truncate text-fg">{POWODY[ruch.powod] ?? (ruch.opis || ruch.powod)}</span>
-                  <span className="text-xs text-subtle">{data(ruch.kiedy)}</span>
-                </span>
-                <span className={`shrink-0 tabular-nums ${ruch.zmiana >= 0 ? "text-success" : "text-muted"}`}>
-                  {ruch.zmiana >= 0 ? "+" : ""}
-                  {ruch.zmiana.toLocaleString("pl-PL")}
-                </span>
+            {stan.historia.map((ruch, indeks) => (
+              <li key={`${ruch.kiedy}-${indeks}`} className="py-2 text-sm">
+                <span className="block truncate text-fg">{POWODY[ruch.powod] ?? (ruch.opis || ruch.powod)}</span>
+                <span className="text-xs text-subtle">{data(ruch.kiedy)}</span>
               </li>
             ))}
           </ul>

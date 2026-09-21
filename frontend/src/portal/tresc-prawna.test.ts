@@ -117,11 +117,17 @@ describe("regulamin — zakres usługi i plany", () => {
     expect(sekcja(REGULAMIN, "plany")).toContain("Wszystkie trzy plany są płatne");
   });
 
-  it("opisuje okres próbny, kredyty i pakiety", () => {
+  it("opisuje okres próbny i zakres pracy tak, jak działa produkt", () => {
+    // Produkt nie pokazuje liczby kredytów — pokazuje wykorzystanie zakresu i pozwala
+    // przedłużyć dostęp dowolną kwotą. Regulamin ma opisywać to, co użytkownik widzi,
+    // a nie mechanikę rozliczeń z dostawcą modelu.
     const plany = sekcja(REGULAMIN, "plany");
     expect(plany).toContain("7 dni");
-    expect(plany).toMatch(/saldo wyczerpane|saldzie wyczerpanym/);
-    expect(plany).toContain("pakiecie");
-    expect(sekcja(REGULAMIN, "postanowienia")).toContain("**Kredyt**");
+    expect(plany).toContain("zakres pracy");
+    expect(plany).toMatch(/wskazując kwotę|kwotę wskazaną/);
+    expect(plany).not.toContain("pakiecie");
+    const postanowienia = sekcja(REGULAMIN, "postanowienia");
+    expect(postanowienia).toContain("**Zakres pracy**");
+    expect(postanowienia).not.toContain("**Kredyt**");
   });
 });

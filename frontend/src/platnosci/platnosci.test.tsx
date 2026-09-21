@@ -17,7 +17,6 @@ import {
   type FakturaInfo,
   type KredytyInfo,
   type KuponInfo,
-  type PakietyInfo,
   type PlanInfo,
   type StanSprzedazy,
   type SubskrypcjaInfo,
@@ -170,8 +169,10 @@ describe("pomocnicze funkcje sprzedaży", () => {
     // Karta planu obiecuje 1 GB, pocztę i synchronizację, a serwer przez te 7 dni daje
     // 100 MB i nic poza tym. Zdanie o okresie próbnym musi powiedzieć to wprost —
     // inaczej użytkownik pozna różnicę dopiero odmową przyjęcia pliku.
+    // Ile pracy — słowami: liczby kredytów nie pokazujemy nigdzie w produkcie.
     const zdanie = opisOkresuProbnego(PLAN_OSOBISTY);
-    expect(zdanie).toMatch(/300 kredytów/);
+    expect(zdanie).toMatch(/kilkadziesiąt zadań/);
+    expect(zdanie).not.toMatch(/kredyt/i);
     expect(zdanie).toMatch(/100 MB/);
     expect(zdanie).not.toMatch(/1 GB/);
     expect(zdanie).toMatch(/bez poczty, synchronizacji i wersji plików/);
@@ -345,28 +346,29 @@ describe("moja subskrypcja", () => {
   });
 });
 
-const SALDO: KredytyInfo = {
-  saldo: 120,
-  przydzielone: 2000,
-  zuzyte: 1880,
-  historia: [
-    { id: "1", zmiana: -80, saldo_po: 120, powod: "przebieg", opis: "", run_id: "r1", kiedy: "2026-09-20T10:00:00Z" },
-  ],
+const DOLADOWANIE = {
+  minimum_gr: 1000,
+  maksimum_gr: 500_000,
+  kwoty_szybkie_gr: [2000, 5000, 7000, 15_000],
+  sprzedaz: true,
 };
 
-const PAKIETY: PakietyInfo = {
-  sprzedaz: true,
-  pakiety: [
-    { kod: "maly", nazwa: "Mały pakiet", opis: "Na dokończenie zadania.", kredyty: 5000, do_kupienia: true },
-    { kod: "duzy", nazwa: "Duży pakiet", opis: "Duże zadanie jednorazowe.", kredyty: 60000, do_kupienia: false },
-  ],
+const DOSTEP: KredytyInfo = {
+  zuzycie: 0.94,
+  stan: "konczy_sie",
+  wyczerpane: false,
+  historia: [{ powod: "przebieg", opis: "", kiedy: "2026-09-20T10:00:00Z" }],
+  doladowanie: DOLADOWANIE,
 };
 
 describe("ekran planów: kredyty i okres próbny", () => {
-  it("podaje liczbę kredytów planu — jedyny egzekwowany limit", () => {
-    render(<Plany cennik={cennik({ plany: [PLAN_PRO] })} />);
-    expect(screen.getByText(/20[\s\u00a0\u202f]?000 kredytów/)).toBeTruthy();
-    expect(screen.getByText("na okres rozliczeniowy")).toBeTruthy();
+  it("opisuje zakres pracy słowami, bez liczby kredytów", () => {
+    // Kredyt jest jednostką rozliczeniową między nami a dostawcą modelu. Kupujący
+    // porównuje plany po tym, ile nimi zrobi, a nie po liczbie, której nigdzie indziej
+    // w produkcie nie zobaczy.
+    const { container } = render(<Plany cennik={cennik({ plany: [PLAN_PRO] })} />);
+    expect(container.textContent).not.toMatch(/kredyt/i);
+    expect(screen.getByText(/zadania naraz|zadanie naraz/)).toBeTruthy();
   });
 
   it("przy planie z okresem próbnym mówi o nim obok przycisku zakupu", () => {
@@ -377,58 +379,80 @@ describe("ekran planów: kredyty i okres próbny", () => {
   });
 });
 
-describe("saldo kredytów i pakiety", () => {
-  it("pozwala dokupić pakiet i przechodzi do płatności", async () => {
+describe("wykorzystanie dostępu", () => {
+  it("nie pokazuje żadnych liczb kredytów — tylko pasek", async () => {
+    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue(DOSTEP);
+    const { container } = render(<Kredyty />);
+    await screen.findByText("Wykorzystanie");
+    // Pasek niesie stan dla czytnika ekranu, ale na ekranie nie ma sald ani sztuk.
+    expect(screen.getByRole("meter", { name: "Wykorzystanie dostępu" })).toBeTruthy();
+    expect(container.textContent).not.toMatch(/kredyt/i);
+    // Saldo kredytów byłoby liczbą czterocyfrową; kwoty w złotych (10, 20, 150) zostają.
+    expect(container.textContent).not.toMatch(/\d{4,}/);
+  });
+
+  it("pozwala przedłużyć dostęp kwotą z szybkiego wyboru", async () => {
     const przejscie = vi.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
       value: { ...window.location, assign: przejscie },
     });
-    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue(SALDO);
-    vi.spyOn(platnosciApi, "pakiety").mockResolvedValue(PAKIETY);
+    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue(DOSTEP);
     const zakup = vi
-      .spyOn(platnosciApi, "zakupPakietu")
-      .mockResolvedValue({ url: "https://checkout.stripe.test/cs_2", tryb: "checkout", pakiet: "maly" });
+      .spyOn(platnosciApi, "doladowanie")
+      .mockResolvedValue({ url: "https://checkout.stripe.test/cs_2", tryb: "checkout" });
     render(<Kredyty />);
-    const przycisk = await screen.findByRole("button", { name: /Mały pakiet/ });
-    // Pakiet bez ceny w Stripe nie może się pojawić jako do kupienia.
-    expect(screen.queryByRole("button", { name: /Duży pakiet/ })).toBeNull();
-    przycisk.click();
-    await waitFor(() => expect(zakup).toHaveBeenCalledWith("maly"));
+    // Formatowanie waluty wstawia spację nierozdzielającą, stąd wzorzec zamiast tekstu.
+    (await screen.findByRole("button", { name: /^50[\s\u00a0\u202f]zł$/ })).click();
+    await waitFor(() => expect(zakup).toHaveBeenCalledWith(5000));
     expect(przejscie).toHaveBeenCalledWith("https://checkout.stripe.test/cs_2");
   });
 
-  it("bez uruchomionej sprzedaży mówi wprost, że dokupienie będzie możliwe później", async () => {
-    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue(SALDO);
-    vi.spyOn(platnosciApi, "pakiety").mockResolvedValue({
-      sprzedaz: false,
-      pakiety: PAKIETY.pakiety.map((pozycja) => ({ ...pozycja, do_kupienia: false })),
-    });
+  it("własna kwota poniżej minimum nie przechodzi", async () => {
+    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue(DOSTEP);
+    const zakup = vi.spyOn(platnosciApi, "doladowanie");
     render(<Kredyty />);
-    expect(await screen.findByText(/Dokupienie kredytów będzie możliwe/)).toBeTruthy();
+    const pole = (await screen.findByLabelText("Kwota przedłużenia w złotych")) as HTMLInputElement;
+    fireEvent.change(pole, { target: { value: "5" } });
+    expect(screen.getByText(/Kwota musi mieścić się/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Przedłuż" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(zakup).not.toHaveBeenCalled();
   });
 
-  it("brak listy pakietów nie przesłania salda", async () => {
-    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue(SALDO);
-    vi.spyOn(platnosciApi, "pakiety").mockRejectedValue(new Error("brak połączenia"));
+  it("bez uruchomionej sprzedaży mówi wprost, że przedłużenie będzie możliwe później", async () => {
+    vi.spyOn(platnosciApi, "kredyty").mockResolvedValue({
+      ...DOSTEP,
+      doladowanie: { ...DOLADOWANIE, sprzedaz: false },
+    });
     render(<Kredyty />);
-    expect(await screen.findByText("Kredyty")).toBeTruthy();
-    expect(screen.queryByText(/Dokup kredyty/)).toBeNull();
+    expect(await screen.findByText(/Przedłużenie dostępu będzie możliwe/)).toBeTruthy();
   });
 });
 
-describe("stan braku kredytów w rozmowie", () => {
-  it("podaje powód odmowy i prowadzi do dokupienia", () => {
+describe("stan wyczerpanego dostępu w rozmowie", () => {
+  it("podaje powód odmowy i prowadzi do przedłużenia", () => {
     const dokup = vi.fn();
     render(
       <BrakKredytow
-        komunikat="Skończyły się kredyty na tym koncie."
+        komunikat="Dostęp na tym koncie się wyczerpał."
         onDokup={dokup}
         onZamknij={vi.fn()}
       />,
     );
-    expect(screen.getByRole("alert").textContent).toMatch(/Skończyły się kredyty/);
-    screen.getByRole("button", { name: "Dokup kredyty" }).click();
+    expect(screen.getByRole("alert").textContent).toMatch(/się wyczerpał/);
+    screen.getByRole("button", { name: "Przedłuż dostęp" }).click();
     expect(dokup).toHaveBeenCalled();
+  });
+});
+
+describe("nagłówki strony płatności", () => {
+  // Pomiar na wydaniu 21.09.2026: `/m/platnosci` miał **zero** widocznych `h1` — tytuł
+  // strony stał tylko w gałęzi wczytywania i błędu, a gotowa strona zaczynała się od `h2`.
+  // Cennik z kolei miał własny `h1`, więc po przejściu na zakładkę „Plany i ceny” byłyby
+  // dwa. Test pilnuje, żeby cennik pozostał sekcją, a nie drugą stroną.
+  it("cennik jest sekcją drugiego stopnia, a nie osobną stroną", () => {
+    const { container } = render(<Plany cennik={cennik({ plany: [PLAN_PRO] })} />);
+    expect(container.querySelectorAll("h1").length).toBe(0);
+    expect(screen.getByRole("heading", { level: 2, name: "Wybierz plan" })).toBeTruthy();
   });
 });

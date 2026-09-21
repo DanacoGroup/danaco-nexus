@@ -72,8 +72,34 @@ export interface TasksOverview {
   config: { concurrency: number; queued: number; subagents: boolean; max_subagents: number; web_tools: boolean };
 }
 
+/** Agent zapisany przez użytkownika: własna specjalizacja, nie osobny silnik. */
+export interface WlasnyAgent {
+  id: string;
+  nazwa: string;
+  opis: string;
+  instrukcja: string;
+  tryb: Mode;
+  projekt: string;
+  ikona: string;
+  uruchomienia: number;
+}
+
+/** Dane formularza agenta — to samo, co przyjmuje serwer przy tworzeniu i zmianie. */
+export type SzkicAgenta = Omit<WlasnyAgent, "id" | "uruchomienia">;
+
 export const agenciApi = {
   tasks: () => request<TasksOverview>("GET", "/api/agenci/zadania"),
+  wlasni: () => request<WlasnyAgent[]>("GET", "/api/agenci/wlasni"),
+  utworzAgenta: (dane: SzkicAgenta) => request<WlasnyAgent>("POST", "/api/agenci/wlasni", dane),
+  zmienAgenta: (id: string, dane: SzkicAgenta) =>
+    request<WlasnyAgent>("PATCH", `/api/agenci/wlasni/${id}`, dane),
+  usunAgenta: (id: string) => request<void>("DELETE", `/api/agenci/wlasni/${id}`),
+  uruchomAgenta: (id: string, tekst: string) =>
+    request<{ conversation_id: string; run_id: string; title: string }>(
+      "POST",
+      `/api/agenci/wlasni/${id}/uruchom`,
+      { tekst },
+    ),
   createTask: (text: string, mode: Mode, workspace = "") =>
     request<{ conversation_id: string; run_id: string; title: string }>("POST", "/api/agenci/zadania", {
       text,

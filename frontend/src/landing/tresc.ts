@@ -86,7 +86,7 @@ export const KARTY: Karta[] = [
     rodzaj: "zycie",
     naglowek: "Bajka na dobranoc, czytana na głos.",
     opis: "Mów zamiast pisać. Nexus słucha i odpowiada po polsku — także wtedy, gdy trzeba przeczytać bajkę o smoku, który bał się ciemności.",
-    narzedzia: "Tryb rozmowy głosowej · Whisper · Piper",
+    narzedzia: "Tryb rozmowy głosowej · Google Chirp3-HD · Whisper w zapasie",
     szeroka: true,
   },
   {
@@ -123,7 +123,7 @@ export const KARTY: Karta[] = [
     rodzaj: "zycie",
     naglowek: "Kolacja z tego, co w lodówce.",
     opis: "Pytaj, zlecaj, zmieniaj zdanie. Nexus pamięta całą rozmowę i Twoje pliki.",
-    narzedzia: "Rozumowanie modelu · view_pages",
+    narzedzia: "view_pages · search_documents",
   },
   {
     rodzaj: "praca",
@@ -224,7 +224,7 @@ export const FILMY: FilmPromocyjny[] = [
     id: "dzien",
     tytul: "Jeden dzień z Nexusem",
     opis: "Życie codzienne: lista zakupów z jednego zdania, odnowione zdjęcie babci, bajka czytana na dobranoc.",
-    plakat: "/film/okladka.png",
+    plakat: "/film/okladka.webp",
     zajawka: "/film/zajawka.webm",
     zrodla: [
       { plik: "/film/nexus-60s.webm", typ: "video/webm" },
@@ -239,7 +239,7 @@ export const FILMY: FilmPromocyjny[] = [
     id: "praca",
     tytul: "Nexus w pracy",
     opis: "Praca zawodowa: poczta i terminy, badanie tematu z przypisami, projekt graficzny, strona i kod.",
-    plakat: "/film/okladka-praca.png",
+    plakat: "/film/okladka-praca.webp",
     zajawka: "/film/zajawka-praca.webm",
     zrodla: [
       { plik: "/film/nexus-praca-60s.webm", typ: "video/webm" },
@@ -285,7 +285,7 @@ export const NAGRANIA: Nagranie[] = [
 export const GWARANCJE = [
   {
     tytul: "Twoja przestrzeń, tylko Twoja",
-    opis: "Własna przestrzeń w chmurze Nexusa: 1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Zespole. Pliki, wyniki i historia rozmów są widoczne wyłącznie dla Ciebie; usuwasz je, kiedy chcesz.",
+    opis: "Własna przestrzeń w chmurze Nexusa: 1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Grupie. Pliki, wyniki i historia rozmów są widoczne wyłącznie dla Ciebie; usuwasz je, kiedy chcesz.",
   },
   {
     tytul: "Narzędzia pracują na miejscu",
@@ -339,8 +339,8 @@ export const ZASADY = [
 
 export const TECHNOLOGIE = [
   "Silnik Nexusa",
+  "Google Chirp3-HD",
   "Whisper",
-  "Piper",
   "Real-ESRGAN",
   "Tesseract",
   "LibreOffice",
@@ -376,38 +376,47 @@ export const PLANY: Plan[] = [
       "Zdjęcia, dokumenty i nagrania",
       "OCR z językiem polskim",
       "Wyszukiwanie w Twoich plikach",
-      "Chmura osobista",
+      // Przestrzeń konta jest jedna i wspólna (`plany.py`: „wspólna dla plików rozmów,
+      // chmury osobistej i skrzynek”). „Chmura — 1 GB” czytało się tak, jakby pliki
+      // rozmów miały osobny zapas.
+      "1 GB na pliki, pocztę i chmurę",
       "Aplikacja na komputer i telefon",
     ],
   },
   {
     kod: "pro",
     nazwa: "Pro",
-    znacznik: "Wkrótce",
-    dostepny: false,
+    znacznik: "Dostępny",
+    dostepny: true,
     dlaKogo: "Dla tych, którzy używają Nexusa codziennie i dużo.",
-    cena: "Cena przy starcie",
-    przycisk: "Powiadom mnie",
+    cena: "Cena z serwera",
+    przycisk: "Wybierz plan",
     zawartosc: [
       "Wszystko z planu Osobistego",
-      "Więcej zadań jednocześnie",
-      "Automatyzacje według harmonogramu",
-      "Pierwszeństwo w pomocy technicznej",
+      "Cztery zadania naraz zamiast jednego",
+      "2 GB na pliki, pocztę i chmurę",
+      // Zamiast „automatyzacji według harmonogramu”: katalog planów takiej pozycji nie zna
+      // (`platnosci/uprawnienia.py` — „automatyzacje nie mają jeszcze modułu”), a karta
+      // planu na stronie sprzedażowej nie może obiecywać czegoś, czego produkt nie robi.
+      "Do 10 adresów e-mail w domenie Nexusa",
+      "Wersje plików i synchronizacja z urządzeniami",
     ],
   },
   {
     kod: "zespol",
     nazwa: "Grupa",
-    znacznik: "Wkrótce",
-    dostepny: false,
+    znacznik: "Dostępny",
+    dostepny: true,
     dlaKogo: "Dla rodziny albo małego zespołu na wspólnych plikach.",
-    cena: "Cena przy starcie",
-    przycisk: "Powiadom mnie",
+    cena: "Cena z serwera",
+    przycisk: "Wybierz plan",
     zawartosc: [
       "Wszystko z planu Pro",
-      "Osobne konta dla każdej osoby",
-      "Wspólne katalogi i baza wiedzy",
-      "Role, uprawnienia i dziennik działań",
+      "10 GB na pliki, pocztę i chmurę",
+      "Cena za każdego użytkownika w grupie",
+      "Wspólny zakres pracy — przedłuża go założyciel",
+      "Zaproszenia adresem e-mail",
+      "Rolę założyciela można przekazać",
     ],
   },
 ];
@@ -416,7 +425,7 @@ export const PYTANIA = [
   {
     pytanie: "Gdzie są przechowywane moje pliki?",
     odpowiedz:
-      "W Twojej przestrzeni w chmurze Nexusa. Ile miejsca, rozstrzyga plan: 100 MB przez pierwsze 7 dni, 1 GB w planie Osobistym, 2 GB w Pro i 10 GB w Zespole. Trafiają tam przesłane pliki, wyniki pracy, historia rozmów i indeks wiedzy. Przestrzeń jest przypisana do Twojego konta: nikt inny, kto korzysta z Nexusa, nie zobaczy jej zawartości.",
+      "W Twojej przestrzeni w chmurze Nexusa. Ile miejsca, rozstrzyga plan: 100 MB przez pierwsze 7 dni, 1 GB w planie Osobistym, 2 GB w Pro i 10 GB w Grupie. Trafiają tam przesłane pliki, wyniki pracy, historia rozmów i indeks wiedzy. Przestrzeń jest przypisana do Twojego konta: nikt inny, kto korzysta z Nexusa, nie zobaczy jej zawartości.",
   },
   {
     pytanie: "Czy muszę coś instalować?",
@@ -451,7 +460,7 @@ export const PYTANIA = [
   {
     pytanie: "Jakie są limity plików i zadań?",
     odpowiedz:
-      "Jeden plik może mieć do 2 GB — niezależnie od planu. Przestrzeń całego konta zależy już od planu: 1 GB w Osobistym, 2 GB w Pro, 10 GB w Zespole. Zwykłe zadanie trwa najwyżej 2 godziny, a raport badawczy — do 6 godzin.",
+      "Jeden plik może mieć do 2 GB — niezależnie od planu. Przestrzeń całego konta zależy już od planu: 1 GB w Osobistym, 2 GB w Pro, 10 GB w Grupie. Zwykłe zadanie trwa najwyżej 2 godziny, a raport badawczy — do 6 godzin.",
   },
   {
     pytanie: "Czym jest chmura osobista?",
@@ -511,6 +520,6 @@ export const PYTANIA = [
   {
     pytanie: "Czy mogę mówić do Nexusa po polsku?",
     odpowiedz:
-      "Tak, i to w obie strony. Mowę rozpoznaje Whisper, a odpowiedź czyta Piper jednym z trzech polskich głosów. Rozmowę głosową prowadzisz w aplikacji na komputerze i w telefonie — przydaje się w kuchni, w samochodzie i przy czytaniu dziecku bajki.",
+      "Tak, i to w obie strony. Mowę rozpoznaje Google Cloud Speech, a odpowiedź czyta jeden z trzydziestu polskich głosów Chirp3-HD. Gdy usługa nie odpowiada, pracę przejmują modele na serwerze — Whisper i Piper — więc rozmowa działa także bez sieci. Rozmowę głosową prowadzisz w aplikacji na komputerze i w telefonie: przydaje się w kuchni, w samochodzie i przy czytaniu dziecku bajki.",
   },
 ];

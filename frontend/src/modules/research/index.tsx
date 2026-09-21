@@ -65,7 +65,9 @@ function setReportInUrl(id: string | null): void {
 }
 
 function StatusDot({ status }: { status: string }) {
-  if (ACTIVE.has(status)) return <span className="spinner size-3 text-accent" aria-label="W toku" />;
+  // `role="status"`: samo `aria-label` na `span` bez roli jest zakazane (ARIA in HTML),
+  // więc nazwa mogła w ogóle nie dotrzeć do czytnika ekranu. Wskaźnik pracy to właśnie stan.
+  if (ACTIVE.has(status)) return <span role="status" className="spinner size-3 text-accent" aria-label="W toku" />;
   const color = status === "done" ? "bg-success" : status === "failed" ? "bg-danger" : "bg-muted";
   return <span className={`size-2 shrink-0 rounded-full ${color}`} aria-hidden="true" />;
 }
@@ -110,6 +112,9 @@ function NewResearch({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col px-4 py-8 md:py-14">
+      {/* Tytuł strony dla czytnika ekranu: na telefonie niesie go pasek kompaktowy
+          powłoki, a na komputerze moduł rysował tylko `h2`. */}
+      <h1 className="sr-only">Badania</h1>
       <div className="flex items-center gap-3">
         <span className="grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent">
           <ResearchIcon size={24} />
@@ -170,7 +175,10 @@ function NewResearch({
                 }`}
               >
                 <span className="block text-sm font-medium">{option.label}</span>
-                <span className={`block text-[11px] ${depth === option.id ? "text-on-accent/80" : "text-muted"}`}>
+                {/* Podpis wybranej głębokości był bielą przy 80% krycia na wypełnieniu Iris:
+                  kontrast 3,6 przy 11 px, czyli poniżej progu 4,5 (WCAG 1.4.3). Pełna biel
+                  daje 5,5 i nadal czyta się jako podpis, bo jest mniejsza i lżejsza. */}
+                <span className={`block text-[11px] ${depth === option.id ? "text-on-accent" : "text-muted"}`}>
                   {option.hint}
                 </span>
               </button>
@@ -184,7 +192,10 @@ function NewResearch({
             onChange={(event) => setCollection(event.target.value)}
             className="w-full rounded-xl border border-line bg-app px-3 py-2 text-sm"
           >
-            <option value="">Kolekcja „Research” (domyślna)</option>
+            {/* Nazwa „Research” zostaje w bazie — to identyfikator kolekcji założonej
+              przy pierwszym badaniu, a nie etykieta. Zmiana nazwy rozjechałaby istniejące
+              kolekcje; w interfejsie pokazujemy więc polski opis. */}
+            <option value="">Kolekcja domyślna</option>
             {collections
               .filter((item) => item.name !== "Research")
               .map((item) => (
@@ -357,6 +368,8 @@ function ResearchPage({ openConversation }: ModulePageProps) {
 
 export const module: NexusModule = {
   id: "research",
+  // Polska nazwa z paska nawigacji też otwiera moduł.
+  aliasy: ["badania"],
   label: "Badania",
   description: "Przegląd sieci i prac naukowych: badanie tematu w wielu źródłach, raport z przypisami.",
   icon: ResearchIcon,

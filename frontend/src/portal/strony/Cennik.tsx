@@ -4,9 +4,11 @@
 import { useEffect, useState } from "react";
 import { ApiError } from "../../api";
 import {
+  PLAN_ZA_UZYTKOWNIKA,
   cenaPlanu,
   kwota,
   opisOkresuProbnego,
+  opisZakresuPracy,
   oszczednoscRoczna,
   platnosciApi,
   type CennikPubliczny,
@@ -45,11 +47,14 @@ function Cena({ plan, waluta }: { plan: PlanInfo; waluta: string }) {
   }
   const rok = cenaPlanu(plan, "rok");
   const oszczednosc = oszczednoscRoczna(plan);
+  // Plan grupowy rozlicza się za każdego użytkownika; sama kwota obok „miesięcznie”
+  // czytałaby się jak cena całej grupy, a to kilka razy mniej niż rachunek.
+  const zaOsobe = plan.kod === PLAN_ZA_UZYTKOWNIKA;
   return (
     <div>
       <p>
         <span className="font-heading text-2xl font-semibold text-fg">{kwota(miesiac, waluta)}</span>{" "}
-        <span className="text-sm text-subtle">miesięcznie</span>
+        <span className="text-sm text-subtle">{zaOsobe ? "za osobę, miesięcznie" : "miesięcznie"}</span>
       </p>
       {rok > 0 && (
         <p className="mt-1 text-sm text-muted">
@@ -101,7 +106,13 @@ export function Cennik() {
         const dane = await platnosciApi.cennikPubliczny();
         if (aktualne) setCennik(dane);
       } catch (awaria) {
-        if (aktualne) setBlad(awaria instanceof ApiError ? awaria.message : BLAD);
+        // Komunikat serwera **nie** trafia na stronę publiczną. Cennik czyta każdy, kto
+        // wejdzie z wyszukiwarki, a treść błędu jest pisana do zalogowanego klienta albo
+        // do administratora: przy 401 odwiedzający zobaczyłby „Wymagane logowanie.” na
+        // stronie, na której nie ma czego logować. Zdanie jest więc jedno i nasze,
+        // a szczegół idzie do konsoli — dla nas, nie dla niego.
+        if (awaria instanceof ApiError) console.warn("Cennik publiczny:", awaria.message);
+        if (aktualne) setBlad(BLAD);
       }
     };
     void wczytaj();
@@ -163,14 +174,13 @@ export function Cennik() {
                       </li>
                     ))}
                   </ul>
-                  <p className="text-sm text-fg">
-                    <strong className="font-semibold tabular-nums">
-                      {plan.kredyty_okresowo.toLocaleString("pl-PL")} kredytów
-                    </strong>{" "}
-                    na okres rozliczeniowy
-                  </p>
+                  {/* Bez liczby kredytów — patrz `opisZakresuPracy` w module płatności. */}
+                  <p className="text-sm text-muted">{opisZakresuPracy(plan)}</p>
+                  {/* Bez słowa „kredyt”: jednostka rozliczeniowa jest nasza, nie
+                    użytkownika. Klient ma wiedzieć, ile pracy mieści się w planie i jak
+                    duży plik wgra, a nie przeliczać zdania na sztuki. */}
                   <p className="text-xs text-subtle">
-                    Kredyt to jednostka pracy Nexusa — zużywa się przy każdym zleconym zadaniu.
+                    Gdy zakres planu się wyczerpie, dostęp przedłużasz w aplikacji dowolną kwotą.
                     Plik do {plan.limity.plik_mb} MB.
                   </p>
                   <div className="mt-auto space-y-2 pt-2">

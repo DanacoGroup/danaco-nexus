@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { CloseIcon, StopIcon } from "../components/icons";
 import { toolLabel } from "../runState";
+import { useOknoModalne } from "../ui/useOknoModalne";
 import { LayersIcon } from "./icons";
 import { startApi, type ActiveTask } from "./startApi";
 
@@ -125,17 +126,13 @@ interface PanelProps {
 export function TasksPanel({ tasks, currentConversation, onOpen, onClose, onChanged }: PanelProps) {
   const [cancelling, setCancelling] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(Date.now());
+  const panel = useRef<HTMLElement>(null);
+  // Esc, uwięzienie tabulacji w panelu i powrót fokusu do przycisku „Zadania w toku”.
+  useOknoModalne(panel, onClose);
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const cancel = (task: ActiveTask) => {
     setCancelling((current) => new Set(current).add(task.run_id));
@@ -148,7 +145,10 @@ export function TasksPanel({ tasks, currentConversation, onOpen, onClose, onChan
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[2px] md:items-start md:justify-end md:p-4" onClick={onClose}>
       <section
+        ref={panel}
+        tabIndex={-1}
         role="dialog"
+        aria-modal="true"
         aria-label="Zadania w toku"
         className="safe-bottom flex max-h-[80dvh] w-full animate-rise flex-col rounded-t-3xl border border-line bg-side shadow-2xl md:mt-12 md:max-w-md md:rounded-2xl md:pb-2"
         onClick={(event) => event.stopPropagation()}
@@ -194,7 +194,10 @@ export function TasksPanel({ tasks, currentConversation, onOpen, onClose, onChan
                     <span className="block truncate text-sm font-medium">{task.title}</span>
                     <span className="block truncate text-xs text-muted">
                       {task.status === "queued"
-                        ? "W kolejce"
+                        ? // Sam napis „W kolejce” niczego nie mówi o czasie: zadanie czekające
+                          // kwadrans wygląda jak dopiero co wysłane. Czas czekania jest tu
+                          // jedynym śladem, że coś nie odbiera zadań.
+                          `W kolejce · ${elapsedLabel(task.created_at, now)}`
                         : `${task.tool ? toolLabel(task.tool) : "Pracuję"} · ${elapsedLabel(task.started_at ?? task.created_at, now)}`}
                       {task.mode !== "chat" ? ` · tryb ${task.mode}` : ""}
                     </span>

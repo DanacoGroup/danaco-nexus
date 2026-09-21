@@ -4,7 +4,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { Logo, Logotype } from "../components/icons";
 import { ArrowRightIcon } from "../shell/icons";
-import { Otwarcie } from "./Otwarcie";
 import { ScenaHero } from "./ScenaHero";
 import { InstallSection, PrzyciskInstalacji } from "./InstallSection";
 import {
@@ -26,7 +25,7 @@ import { SekcjaNarzedzi } from "./SekcjaNarzedzi";
 import { sciezka } from "../portal/trasy";
 import { HERO_FAKTY, PYTANIA } from "./tresc";
 import { PASMO } from "./uzyj";
-import { PasSwitu, TloNaZywo, useWidocznosc } from "../ruch";
+import { PasSwitu, TloNaZywo, useOtwarcie, useWidocznosc } from "../ruch";
 
 const STOPKA = [
   {
@@ -86,7 +85,11 @@ function Kaskada({ tekst, krok, className = "" }: { tekst: string; krok: number;
           <span className="maska-slowa">
             <span
               className={`wejscie-slowo ${className}`}
-              style={{ "--opoznienie": opoznienieKroku(krok + indeks) } as React.CSSProperties}
+              style={
+                {
+                  "--opoznienie": opoznienieKroku(krok + indeks),
+                } as React.CSSProperties
+              }
             >
               {slowo}
             </span>
@@ -101,40 +104,50 @@ function Kaskada({ tekst, krok, className = "" }: { tekst: string; krok: number;
 /** Łuk znaku w skali hero: rysuje się przy wejściu, punkt opada i oddycha. */
 function LukHero() {
   return (
-    <svg
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto w-full max-w-5xl opacity-70"
-      viewBox="0 0 400 260"
-      fill="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="hero-aurora" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="var(--color-brand-apricot)" />
-          <stop offset="0.38" stopColor="var(--color-brand-rose)" />
-          <stop offset="0.72" stopColor="var(--color-brand-iris)" />
-          <stop offset="1" stopColor="var(--color-brand-sky)" />
-        </linearGradient>
-        <mask id="hero-wygaszenie">
-          <rect width="400" height="260" fill="url(#hero-zanik)" />
-        </mask>
-        <linearGradient id="hero-zanik" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="white" />
-          <stop offset="1" stopColor="black" />
-        </linearGradient>
-      </defs>
-      <g mask="url(#hero-wygaszenie)">
-        <path
-          className="luk-rysuje"
-          d="M40 260V150a160 110 0 0 1 320 0v110"
-          stroke="url(#hero-aurora)"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          pathLength={1}
-          style={{ strokeDasharray: 1 }}
-        />
-      </g>
-      <circle className="punkt-opada" cx="200" cy="40" r="5" fill="url(#hero-aurora)" />
-    </svg>
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto w-full max-w-5xl">
+      {/* Cel przelotu ekranu ładowania: łuk znaku dolatuje dokładnie w ten łuk i przestaje
+        być znakiem, a staje się łukiem nagłówka. Znacznik jest osobnym, pustym prostokątem,
+        bo skrypt planszy mierzy sam prostokąt — a prostokąt samego <svg> jest szerszy niż
+        łuk w środku (łuk zajmuje 40…360 z 400 jednostek kadru) i przelot kończyłby się
+        łukiem o kilkanaście procent za szerokim. Skrypt planszy rysuje łuk kołowy, więc
+        prostokąt opisuje koło tego łuku w kadrze 400 × 260: środek 200, promień 160
+        (wierzchołek na 40, podstawy na 40 i 360), podstawa 260. */}
+      <div
+        data-dn-brama
+        aria-hidden="true"
+        className="pointer-events-none absolute"
+        style={{ left: "10%", width: "80%", top: "15.385%", height: "84.615%" }}
+      />
+      <svg className="pointer-events-none block w-full opacity-70" viewBox="0 0 400 260" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="hero-aurora" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stopColor="var(--color-brand-apricot)" />
+            <stop offset="0.38" stopColor="var(--color-brand-rose)" />
+            <stop offset="0.72" stopColor="var(--color-brand-iris)" />
+            <stop offset="1" stopColor="var(--color-brand-sky)" />
+          </linearGradient>
+          <mask id="hero-wygaszenie">
+            <rect width="400" height="260" fill="url(#hero-zanik)" />
+          </mask>
+          <linearGradient id="hero-zanik" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="white" />
+            <stop offset="1" stopColor="black" />
+          </linearGradient>
+        </defs>
+        <g mask="url(#hero-wygaszenie)">
+          <path
+            className="luk-rysuje"
+            d="M40 260V150a160 110 0 0 1 320 0v110"
+            stroke="url(#hero-aurora)"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            pathLength={1}
+            style={{ strokeDasharray: 1 }}
+          />
+        </g>
+        <circle className="punkt-opada" cx="200" cy="40" r="5" fill="url(#hero-aurora)" />
+      </svg>
+    </div>
   );
 }
 
@@ -150,6 +163,88 @@ function DanePytan() {
     })),
   };
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(dane) }} />;
+}
+
+/** Menu na telefon: cała nawigacja paska w rozwijanym panelu.
+ *
+ * Pasek chował wszystkie odsyłacze poniżej `lg`, a „Zaloguj się” poniżej `sm` — na telefonie
+ * zostawał sam przycisk instalacji. Do cennika, pytań czy logowania trzeba było przewinąć
+ * dwadzieścia parę tysięcy pikseli do stopki. Tu te same pozycje są jedno stuknięcie dalej.
+ */
+export function MenuMobilne({ aktywna }: { aktywna: string }) {
+  const [otwarte, setOtwarte] = useState(false);
+
+  useEffect(() => {
+    if (!otwarte) return;
+    const klawisz = (zdarzenie: KeyboardEvent) => {
+      if (zdarzenie.key === "Escape") setOtwarte(false);
+    };
+    window.addEventListener("keydown", klawisz);
+    return () => window.removeEventListener("keydown", klawisz);
+  }, [otwarte]);
+
+  const pozycja =
+    "flex h-11 items-center rounded-xl px-3 text-base text-muted transition-colors hover:bg-raised hover:text-fg aria-[current]:bg-raised aria-[current]:text-fg";
+
+  return (
+    <div className="lg:hidden">
+      <button
+        type="button"
+        onClick={() => setOtwarte((stan) => !stan)}
+        aria-expanded={otwarte}
+        aria-controls="menu-strony"
+        aria-label={otwarte ? "Zamknij menu" : "Otwórz menu"}
+        className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-raised hover:text-fg"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          {otwarte ? <path d="m6 6 12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+        </svg>
+      </button>
+      {otwarte && (
+        <div
+          id="menu-strony"
+          className="safe-top fixed inset-x-0 top-16 z-(--z-sticky) max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-line bg-glass px-4 pb-6 backdrop-blur-xl"
+        >
+          <nav className="flex flex-col gap-0.5 pt-2" aria-label="Sekcje strony">
+            {SEKCJE_NAWIGACJI.map(({ id, etykieta }) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                onClick={() => setOtwarte(false)}
+                aria-current={aktywna === id ? "true" : undefined}
+                className={pozycja}
+              >
+                {etykieta}
+              </a>
+            ))}
+          </nav>
+          <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4">
+            <a
+              href="/wyprobuj"
+              className="flex h-11 items-center justify-center rounded-full border border-line text-sm font-medium text-fg transition-colors hover:bg-raised"
+            >
+              Wypróbuj bez rejestracji
+            </a>
+            <a
+              href="/zaloguj"
+              className="flex h-11 items-center justify-center rounded-full text-sm font-medium text-muted transition-colors hover:text-fg"
+            >
+              Zaloguj się
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Pasek nawigacji: przezroczysty nad hero, szklany po przewinięciu. */
@@ -191,10 +286,14 @@ function Nawigacja() {
           >
             Wypróbuj
           </a>
-          <a href="/zaloguj" className="hidden h-9 items-center rounded-full px-4 text-sm font-medium text-muted transition-colors hover:text-fg sm:inline-flex">
+          <a
+            href="/zaloguj"
+            className="hidden h-9 items-center rounded-full px-4 text-sm font-medium text-muted transition-colors hover:text-fg sm:inline-flex"
+          >
             Zaloguj się
           </a>
           <PrzyciskInstalacji rozmiar="maly" />
+          <MenuMobilne aktywna={aktywna} />
         </div>
       </div>
     </header>
@@ -203,7 +302,10 @@ function Nawigacja() {
 
 function Hero() {
   // Ruch ozdobny hero (oddech punktu, płótno Aurory) stoi, gdy sekcja zejdzie z ekranu.
-  const [sekcja, widoczna] = useWidocznosc<HTMLElement>({ margines: "200px", ciagla: true });
+  const [sekcja, widoczna] = useWidocznosc<HTMLElement>({
+    margines: "200px",
+    ciagla: true,
+  });
   return (
     <section
       id="top"
@@ -226,17 +328,21 @@ function Hero() {
           <ArrowRightIcon size={14} />
         </a>
         <h1 className="mt-8 font-heading text-[clamp(2.5rem,7vw,5.5rem)] leading-[1.02] font-bold tracking-tighter text-balance">
-          <Kaskada tekst="Powiedz, co zrobić." krok={1} />{" "}
-          <Kaskada tekst="Odbierz gotowe." krok={4} className="aurora-tekst" />
+          <Kaskada tekst="Powiedz, co zrobić." krok={1} /> <Kaskada tekst="Odbierz gotowe." krok={4} className="aurora-tekst" />
         </h1>
         <p
           className="wejscie mx-auto mt-7 max-w-(--container-prose) text-lg leading-relaxed text-muted text-pretty"
           style={{ "--opoznienie": opoznienieKroku(6) } as React.CSSProperties}
         >
-          Zaprojektuj logo i plakat do druku. Zbadaj temat i dostań raport z przypisami. Odpisz na zaległą pocztę
-          i umów spotkanie. Opublikuj stronę pod swoim adresem. Znajdź plik na własnym komputerze. Piszesz albo
-          mówisz jednym zdaniem, co ma powstać — Nexus sam dobiera narzędzia, wykonuje pracę i oddaje gotowy plik
-          do Twojej przestrzeni w chmurze.
+          {/* Na telefonie pełne wyliczenie zajmowało dziewięć wierszy i spychało przyciski
+            poniżej ekranu — zostaje zdanie, które mówi to samo. Pełną listę zastosowań
+            widać w sekcji „Funkcje” i na wąskim ekranie nie musi stać w nagłówku. */}
+          <span className="hidden sm:inline">
+            Zaprojektuj logo i plakat do druku. Zbadaj temat i dostań raport z przypisami. Odpisz na zaległą pocztę i umów spotkanie.
+            Opublikuj stronę pod swoim adresem. Znajdź plik na własnym komputerze.{" "}
+          </span>
+          Piszesz albo mówisz jednym zdaniem, co ma powstać — Nexus sam dobiera narzędzia, wykonuje pracę i oddaje gotowy plik do Twojej
+          przestrzeni w chmurze.
         </p>
         <div
           className="wejscie mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
@@ -305,30 +411,41 @@ function Stopka() {
           </nav>
         ))}
       </div>
-      <div className={`${PASMO} mt-12 flex flex-col items-center gap-3 border-t border-line pt-6 text-sm text-subtle sm:flex-row`}>
-        <Logo size={20} />
-        <span>© {new Date().getFullYear()} Danaco Holding Group Sp. z o.o.</span>
-        <nav aria-label="Dokumenty" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:ml-auto">
-          {ODSYLACZE_PRAWNE.map(({ etykieta, adres }) => (
-            <a key={adres} href={adres} className="transition-colors hover:text-fg">
-              {etykieta}
-            </a>
-          ))}
-        </nav>
-        <span>Kontakt: support@danaco-group.pl</span>
+      {/* Kreska idzie po krawędzi treści, nie po krawędzi pasma.
+        `PASMO` ma własne odstępy boczne, więc obramowanie postawione na nim samym
+        wychodziło o te odstępy poza tekst z obu stron — linia była szersza niż to,
+        co rozdziela, i nie trzymała się kolumn wyżej. */}
+      <div className={PASMO}>
+        <div className="mt-12 flex flex-col items-center gap-3 border-t border-line pt-6 text-sm text-subtle sm:flex-row">
+          <Logo size={20} />
+          <span>© {new Date().getFullYear()} Danaco Holding Group Sp. z o.o.</span>
+          <nav aria-label="Dokumenty" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:ml-auto">
+            {ODSYLACZE_PRAWNE.map(({ etykieta, adres }) => (
+              <a key={adres} href={adres} className="transition-colors hover:text-fg">
+                {etykieta}
+              </a>
+            ))}
+          </nav>
+          <span>Kontakt: support@danaco-group.pl</span>
+        </div>
       </div>
     </footer>
   );
 }
 
 export function Landing() {
+  // Wejście strony czeka na planszę otwarcia (ekran ładowania marki). Stan ustalamy przy
+  // pierwszym rysowaniu, bo później byłoby za późno — kaskada nagłówka ruszyłaby pod zasłoną.
+  const otwarcieTrwa = useOtwarcie();
   return (
-    <div className="landing min-h-full overflow-x-hidden bg-app text-fg">
-      <a href="#tresc" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-(--z-toast) focus:rounded-md focus:bg-accent-fill focus:px-4 focus:py-2 focus:text-on-accent">
+    <div className="landing min-h-full overflow-x-hidden bg-app text-fg" data-otwarcie={otwarcieTrwa ? "gra" : "po"}>
+      <a
+        href="#tresc"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-(--z-toast) focus:rounded-md focus:bg-accent-fill focus:px-4 focus:py-2 focus:text-on-accent"
+      >
         Przejdź do treści
       </a>
       <DanePytan />
-      <Otwarcie />
       <Nawigacja />
       <main id="tresc">
         <Hero />

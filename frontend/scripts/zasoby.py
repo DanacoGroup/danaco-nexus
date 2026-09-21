@@ -110,6 +110,15 @@ WIDEO = (".mp4", ".webm")
 PLAKATY = (".png", ".jpg", ".webp", ".avif")
 NAPISY_ROZSZ = (".vtt",)
 
+# Nagrania, których do `public` nie kopiujemy, choć leżą w pakiecie ruchu.
+#
+# `logowanie-*` to makieta produktu nagrana na pokaz: widać na niej formularz logowania
+# z wpisanym prawdziwym adresem właściciela i powitanie „Dzień dobry, Dariuszu”. Jako
+# domknięcie logowania pokazywała każdemu cudze imię i adres, więc aplikacja jej nie
+# odtwarza (`components/Login.tsx`, `demo/WejscieGoscia.tsx` rysują znak w ruchu).
+# Nieużywany plik nie ma po co leżeć pod publicznym adresem razem z tym adresem w kadrze.
+POMIJANE_NAGRANIA = ("logowanie-ciemny", "logowanie-jasny", "logowanie-ograniczone-ciemny")
+
 # (źródło, cel w public, dopuszczone rozszerzenia)
 KATALOGI: list[tuple[str, str, tuple[str, ...]]] = [
     ("promocja/film/wideo", "film/katalog", WIDEO),
@@ -383,6 +392,18 @@ def plakaty_nagran() -> int:
     return zrobione
 
 
+def zapisz_gdy_inny(sciezka: Path, tresc: str) -> None:
+    """Zapisuje plik tylko wtedy, gdy jego treść się zmienia.
+
+    Spisy w `frontend/src/media` są wersjonowane. Bezwarunkowy zapis przy każdym `prebuild`
+    kazałby oglądać je w `git status` także wtedy, gdy nic nowego nie przybyło.
+    """
+    sciezka.parent.mkdir(parents=True, exist_ok=True)
+    if sciezka.is_file() and sciezka.read_text(encoding="utf-8") == tresc:
+        return
+    sciezka.write_text(tresc, encoding="utf-8")
+
+
 def katalog_ruchu() -> int:
     """Przenosi katalog nagrań i wypisuje spis do `frontend/src/media`. Zwraca liczbę braków."""
     braki = 0
@@ -396,6 +417,9 @@ def katalog_ruchu() -> int:
             braki += 1
             continue
         for plik in sorted(katalog.iterdir()):
+            if plik.stem in POMIJANE_NAGRANIA:
+                (PUBLIC / cel_kat / plik.name).unlink(missing_ok=True)
+                continue
             if plik.suffix.lower() in rozszerzenia and plik.is_file():
                 if not zwiaz(plik, PUBLIC / cel_kat / plik.name):
                     braki += 1
@@ -492,7 +516,8 @@ def katalog_ruchu() -> int:
     )
     media = REPO / "frontend" / "src" / "media"
     media.mkdir(parents=True, exist_ok=True)
-    (media / "katalog-typy.ts").write_text(
+    zapisz_gdy_inny(
+        media / "katalog-typy.ts",
         naglowek
         + "export type Zrodla = { mp4?: string; webm?: string };\n"
         "export type Film = { id: string; tytul: string; opis: string; kadr: string;"
@@ -500,24 +525,23 @@ def katalog_ruchu() -> int:
         "export type Kampania = Film & { temat: string };\n"
         "export type Nagranie = { id: string; zrodla: Zrodla };\n"
         "export type Stan = Nagranie & { rodzina: string };\n",
-        encoding="utf-8",
     )
     for nazwa in ("filmy", "kampania", "stany", "start"):
-        (media / f"katalog-{nazwa}.ts").write_text(
+        zapisz_gdy_inny(
+            media / f"katalog-{nazwa}.ts",
             naglowek + f"export const {nazwa.upper()} = "
             f"{json.dumps(spis[nazwa], ensure_ascii=False, indent=2)} as const;\n",
-            encoding="utf-8",
         )
     # Działy w osobnych plikach: paczka wejściowa bierze sam spis ujęć startowych, a spis
     # kampanii jedzie z podstroną „Zastosowania”. Ten plik je zbiera pod jednym importem.
-    (media / "katalog.ts").write_text(
+    zapisz_gdy_inny(
+        media / "katalog.ts",
         naglowek
         + 'export type { Film, Kampania, Nagranie, Stan, Zrodla } from "./katalog-typy";\n'
         'export { FILMY } from "./katalog-filmy";\n'
         'export { KAMPANIA } from "./katalog-kampania";\n'
         'export { STANY } from "./katalog-stany";\n'
         'export { START } from "./katalog-start";\n',
-        encoding="utf-8",
     )
     print(
         "katalog ruchu: "
@@ -565,8 +589,13 @@ def main() -> int:
             with Image.open(plik) as obraz:
                 obraz.convert("RGB").resize(rozmiar, Image.LANCZOS).save(docelowy, "PNG", optimize=True)
 
-    # Plakat filmu także w WebP.
+    # Plakaty obu filmów także w WebP: to one idą na stronę produktu. PNG zostaje jako
+    # zapas na wypadek maszyny bez przelicznika (brak Pillow i ffmpeg).
     na_webp(REPO / "promocja/film/okladki/okladka-1280x720.png", PUBLIC / "film/okladka.webp")
+    na_webp(
+        REPO / "promocja/film-praca/okladki/okladka-praca-1280x720.png",
+        PUBLIC / "film/okladka-praca.webp",
+    )
 
     braki += zajawka_lekka()
     braki += plakaty_katalogu()
@@ -576,7 +605,7 @@ def main() -> int:
     tokeny = REPO / "design-tokens" / "dist" / "tokens.css"
     if tokeny.is_file():
         naglowek = "/* Kopia design-tokens/dist/tokens.css. Wynik frontend/scripts/zasoby.py — nie edytować. */\n"
-        (REPO / "frontend" / "src" / "tokens.css").write_text(naglowek + tokeny.read_text(encoding="utf-8"), encoding="utf-8")
+        zapisz_gdy_inny(REPO / "frontend" / "src" / "tokens.css", naglowek + tokeny.read_text(encoding="utf-8"))
     else:
         print("brak design-tokens/dist/tokens.css", file=sys.stderr)
         braki += 1

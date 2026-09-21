@@ -3,8 +3,11 @@
 import { useState } from "react";
 import type { ConversationSummary } from "../api";
 import { usePwa } from "../pwa";
+import { CardIcon, MoreIcon, PanelIcon, SearchIcon, SettingsIcon } from "../shell/icons";
+import { PasekDostepu } from "../platnosci/PasekDostepu";
 import { nextTheme, saveTheme, type ThemeChoice } from "../theme";
 import {
+  ChevronIcon,
   CloseIcon,
   EditIcon,
   InstallIcon,
@@ -32,6 +35,14 @@ interface Props {
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
   onLogout: () => void;
+  /** Zwija panel rozmów na komputerze — zostaje sam pasek modułów i okno rozmowy. */
+  onZwin: () => void;
+  /** Czy panel jest zwinięty (dotyczy wyłącznie układu na komputerze). */
+  zwiniety: boolean;
+  /** Otwiera moduł Ustawienia; brak = pozycja nie pojawia się w menu. */
+  onUstawienia?: () => void;
+  /** Otwiera plan i stan dostępu; brak = pozycja nie pojawia się w menu. */
+  onDostep?: () => void;
   onClose: () => void;
 }
 
@@ -47,6 +58,10 @@ function groupLabel(date: Date): string {
   return date.toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
 }
 
+/** Pozycja menu konta: ikona, nazwa, całe pole klikalne. */
+const pozycjaMenu =
+  "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-fg transition-colors hover:bg-hover";
+
 const navItem =
   "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-hover";
 
@@ -54,9 +69,17 @@ export function Sidebar(props: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [iosHelp, setIosHelp] = useState(false);
+  const [kontoOtwarte, setKontoOtwarte] = useState(false);
   const pwa = usePwa();
+  const [szukane, setSzukane] = useState("");
+  const [menuOtwarte, setMenuOtwarte] = useState(false);
+  // Szukamy bez znaków diakrytycznych i wielkości liter: „umowa” ma znaleźć „Umowę”.
+  const igla = szukane.trim().toLocaleLowerCase("pl-PL");
+  const widoczne = igla
+    ? props.conversations.filter((rozmowa) => rozmowa.title.toLocaleLowerCase("pl-PL").includes(igla))
+    : props.conversations;
   const groups: [string, ConversationSummary[]][] = [];
-  for (const conversation of props.conversations) {
+  for (const conversation of widoczne) {
     const label = groupLabel(new Date(conversation.updated_at));
     const group = groups.find(([name]) => name === label);
     if (group) group[1].push(conversation);
@@ -84,9 +107,20 @@ export function Sidebar(props: Props) {
         onClick={props.onClose}
       />
       <aside
-        className={`safe-top fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[85vw] flex-col bg-side transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
-          props.open ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        }`}
+        // Zwinięty panel znika z układu na komputerze (`md:hidden`), a na telefonie
+        // zachowuje się jak dotąd — tam wysuwa się przyciskiem i nie ma czego zwijać.
+        //
+        // Schowany na telefonie panel dostaje `invisible`, a nie samo przesunięcie za
+        // krawędź: przesunięty panel dalej stoi w kolejności tabulacji i w drzewie
+        // dostępności. Pomiar na ekranie 390 px pokazał pięć takich kontrolek — „Zamknij
+        // panel”, pole szukania, „Nowa rozmowa”, „Więcej działań” i przycisk konta —
+        // czyli klawiatura i czytnik ekranu trafiały w coś, czego nie widać.
+        // `visibility` zmienia się skokowo dopiero na koniec przejścia, więc wysuwanie
+        // i chowanie wygląda tak samo jak dotąd; na komputerze (`md:visible`) panel jest
+        // widoczny zawsze, bo tam nie ma go czym wysuwać.
+        className={`safe-top fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[85vw] flex-col bg-side transition-[transform,visibility] duration-200 md:visible md:static md:z-auto md:translate-x-0 ${
+          props.open ? "translate-x-0 shadow-2xl" : "invisible -translate-x-full"
+        } ${props.zwiniety ? "md:hidden" : "md:flex"}`}
         aria-label="Panel boczny"
       >
         <div className="titlebar-drag flex items-center gap-2.5 px-4 pt-3 pb-2">
@@ -99,16 +133,81 @@ export function Sidebar(props: Props) {
           <button type="button" className="icon-btn md:hidden" onClick={props.onClose} aria-label="Zamknij panel">
             <CloseIcon size={18} />
           </button>
+          {/* Na komputerze panel się zwija, a nie zamyka: rozmowy zostają pod ręką
+              w pasku, a okno rozmowy dostaje całą szerokość. */}
+          <button
+            type="button"
+            className="icon-btn z-etykieta hidden md:inline-grid"
+            data-etykieta="Zwiń panel rozmów"
+            data-strona="lewo"
+            onClick={props.onZwin}
+            aria-label="Zwiń panel rozmów"
+          >
+            <PanelIcon size={18} />
+          </button>
         </div>
 
-        <div className="px-3 pb-2">
+        {/* Pasek narzędzi panelu: szukanie zajmuje miejsce, bo przy kilkudziesięciu
+            rozmowach to ono jest codzienną czynnością; nowa rozmowa i menu są ikonami.
+            Wcześniej „Nowa rozmowa” było szerokim polem i myliło się z wyszukiwarką. */}
+        <div className="flex items-center gap-1.5 px-3 pb-2">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Szukaj w rozmowach</span>
+            <SearchIcon size={15} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-subtle" />
+            <input
+              value={szukane}
+              onChange={(zdarzenie) => setSzukane(zdarzenie.target.value)}
+              // Krótsza podpowiedź i margines z prawej: pełne „Szukaj w rozmowach” zajmowało
+              // pole co do piksela i przy wąskim panelu wyglądało na ucięte.
+              placeholder="Szukaj rozmowy"
+              className="h-9 w-full rounded-lg border border-line bg-app pr-2.5 pl-8 text-sm text-fg outline-none transition-colors focus:border-accent"
+            />
+          </label>
           <button
             type="button"
             onClick={props.onNew}
-            className="flex w-full items-center gap-2.5 rounded-xl border border-line px-3 py-2.5 text-sm font-medium transition-colors hover:bg-hover"
+            className="icon-btn z-etykieta size-9 shrink-0 rounded-lg border border-line"
+            data-etykieta="Nowa rozmowa"
+            data-strona="lewo"
+            aria-label="Nowa rozmowa"
           >
-            <PlusIcon size={18} /> Nowa rozmowa
+            <PlusIcon size={18} />
           </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setMenuOtwarte((otwarte) => !otwarte)}
+              className="icon-btn z-etykieta size-9 rounded-lg"
+              data-etykieta="Więcej"
+              data-strona="lewo"
+              aria-haspopup="menu"
+              aria-expanded={menuOtwarte}
+              aria-label="Więcej działań"
+            >
+              <MoreIcon size={18} />
+            </button>
+            {menuOtwarte && (
+              <div
+                role="menu"
+                className="absolute top-full right-0 z-20 mt-1 w-56 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-floating)]"
+              >
+                {/* To menu dotyczy panelu rozmów, nie konta. Ustawienia i wylogowanie
+                  stoją w menu konta na dole — powtarzanie ich tutaj kazało zgadywać,
+                  czym te dwa menu się różnią. */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOtwarte(false);
+                    props.onZwin();
+                  }}
+                  className={`${navItem} hidden md:flex`}
+                >
+                  <PanelIcon size={16} /> Zwiń panel rozmów
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2" aria-label="Historia rozmów">
@@ -181,7 +280,13 @@ export function Sidebar(props: Props) {
               })}
             </div>
           ))}
-          {props.conversations.length === 0 && <div className="px-3 py-6 text-center text-sm text-muted">Brak rozmów</div>}
+          {widoczne.length === 0 && (
+            // Bez nagrania stanu: ujęcia z pakietu są pełnoklatkowe (1920 × 1080) i w pasku
+            // szerokim na 112 px czytają się jak ciemny prostokąt — gorzej niż sam napis.
+            <div className="px-3 py-6 text-center text-sm text-muted">
+              {igla ? `Nic nie pasuje do „${szukane.trim()}”.` : "Brak rozmów"}
+            </div>
+          )}
         </nav>
 
         <div className="safe-bottom space-y-0.5 border-t border-line px-2 pt-2">
@@ -206,24 +311,85 @@ export function Sidebar(props: Props) {
               <b>Do ekranu początkowego</b>. Nexus otworzy się jak zwykła aplikacja, na pełnym ekranie.
             </p>
           )}
-          <div className="flex items-center gap-2 rounded-lg px-3 py-2">
-            <span className="grid size-8 place-items-center rounded-full bg-accent-fill text-sm font-semibold text-on-accent">
-              {props.username.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="flex-1 truncate text-sm font-medium">{props.username}</span>
-            {/* Motyw to przełącznik, nie pozycja menu — ikona obok konta, jak zwijanie panelu. */}
+          {/* Konto jest wejściem do wszystkiego, co dotyczy „mnie”: ustawień, wyglądu,
+            stanu dostępu, rozliczeń i wyjścia. Wcześniej stały tu dwie ikony bez nazwy
+            i nic poza nimi — reszta była rozsypana po modułach albo nie było jej wcale. */}
+          <div className="relative">
             <button
               type="button"
-              className="icon-btn"
-              onClick={changeTheme}
-              aria-label={`${THEME_LABELS[props.theme]} — zmień`}
-              title={THEME_LABELS[props.theme]}
+              onClick={() => setKontoOtwarte((stan) => !stan)}
+              aria-expanded={kontoOtwarte}
+              aria-haspopup="menu"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-hover"
             >
-              <ThemeIcon size={18} />
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-fill text-sm font-semibold text-on-accent">
+                {props.username.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{props.username}</span>
+                <span className="block truncate text-xs text-muted">Konto i ustawienia</span>
+              </span>
+              <ChevronIcon size={16} className={`shrink-0 text-muted transition-transform ${kontoOtwarte ? "rotate-180" : ""}`} />
             </button>
-            <button type="button" className="icon-btn" onClick={props.onLogout} aria-label="Wyloguj">
-              <LogoutIcon size={18} />
-            </button>
+            {kontoOtwarte && (
+              <div
+                role="menu"
+                className="absolute bottom-full left-2 z-20 mb-1 w-[calc(100%-1rem)] overflow-hidden rounded-xl border border-line bg-raised shadow-lg"
+              >
+                {props.onUstawienia && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setKontoOtwarte(false);
+                      props.onUstawienia?.();
+                    }}
+                    className={pozycjaMenu}
+                  >
+                    <SettingsIcon size={16} /> Ustawienia
+                  </button>
+                )}
+                {props.onDostep && (
+                  <>
+                    {/* Stan dostępu wprost w menu: żeby go sprawdzić, nie trzeba wychodzić
+                      z rozmowy do modułu Płatności. Pasek bez liczb, jak wszędzie indziej. */}
+                    <div className="border-b border-line/60">
+                      <PasekDostepu onOtworz={() => {
+                        setKontoOtwarte(false);
+                        props.onDostep?.();
+                      }} />
+                    </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setKontoOtwarte(false);
+                        props.onDostep?.();
+                      }}
+                      className={pozycjaMenu}
+                    >
+                      <CardIcon size={16} /> Plan i dostęp
+                    </button>
+                  </>
+                )}
+                {/* Motyw zostaje przełącznikiem: jedno kliknięcie zmienia wygląd i mówi,
+                  co jest ustawione teraz — bez schodzenia do osobnego ekranu. */}
+                <button type="button" role="menuitem" onClick={changeTheme} className={pozycjaMenu}>
+                  <ThemeIcon size={16} /> {THEME_LABELS[props.theme]}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setKontoOtwarte(false);
+                    props.onLogout();
+                  }}
+                  className={`${pozycjaMenu} border-t border-line/60 text-danger`}
+                >
+                  <LogoutIcon size={16} /> Wyloguj
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </aside>

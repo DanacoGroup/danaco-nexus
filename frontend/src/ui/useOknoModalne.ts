@@ -1,9 +1,5 @@
-// Obsługa klawiatury dla nakładek modalnych rysowanych bez elementu <dialog>.
-//
-// Okna z ui-kitu stoją na natywnym <dialog>, więc uwięzienie fokusu, Esc i zasłonę daje
-// przeglądarka. Nakładki zbudowane z <div role="dialog" aria-modal="true"> nie mają nic
-// z tego: fokus zostaje pod zasłoną, tabulacja wychodzi na stronę w tle, a po zamknięciu
-// nie wraca tam, skąd przyszła. Ten hook domyka te trzy braki (WCAG 2.2: 2.1.2, 2.4.3).
+// Klawiatura dla nakładek modalnych rysowanych bez elementu <dialog>: uwięzienie fokusu,
+// Esc i powrót fokusu do wyzwalacza (WCAG 2.2: 2.1.2, 2.4.3).
 
 import { useEffect, useRef, type RefObject } from "react";
 
@@ -18,7 +14,6 @@ const OGNISKOWALNE = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
-/** Czy kontrolka nadaje się na cel fokusu — bez miar pikselowych, więc też poza przeglądarką. */
 function dostepna(element: HTMLElement): boolean {
   if (element.hidden || element.closest("[aria-hidden='true'], [inert]")) return false;
   const styl = getComputedStyle(element);
@@ -29,16 +24,9 @@ function ogniskowalne(panel: HTMLElement): HTMLElement[] {
   return [...panel.querySelectorAll<HTMLElement>(OGNISKOWALNE)].filter(dostepna);
 }
 
-/**
- * Trzyma fokus w nakładce, zamyka ją klawiszem Esc i oddaje fokus elementowi,
- * z którego nakładkę otwarto.
- *
- * @param panel Węzeł nakładki; musi przyjmować fokus (atrybut `tabIndex={-1}`).
- * @param onZamknij Zamknięcie nakładki — wywoływane po Esc.
- */
+/** Trzyma fokus w nakładce, zamyka ją Esc i oddaje fokus wyzwalaczowi. Panel wymaga `tabIndex={-1}`. */
 export function useOknoModalne(panel: RefObject<HTMLElement | null>, onZamknij: () => void): void {
-  // Uchwyt w referencji: gdyby zamknięcie weszło do zależności efektu, każde przerysowanie
-  // nakładki (np. miernik głośności w rozmowie głosowej) zabierałoby fokus na jej początek.
+  // Zamknięcie w referencji: w zależnościach efektu każde przerysowanie zabierałoby fokus.
   const zamknij = useRef(onZamknij);
   zamknij.current = onZamknij;
 
