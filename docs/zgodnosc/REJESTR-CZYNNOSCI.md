@@ -270,7 +270,7 @@ po stronie dostawcy modelu nie trafiają ani do interfejsu, ani do komunikatów 
 | Pozycja | Treść |
 |---|---|
 | Cel | Porządkowanie zbioru zdjęć według osób na prośbę użytkownika (narzędzie `find_faces`) |
-| Podstawa prawna | **do rozstrzygnięcia przed wejściem na rynek** — wizerunek twarzy przetwarzany w celu jednoznacznej identyfikacji to dane biometryczne (art. 9 ust. 1 RODO); potrzebna wyraźna zgoda (art. 9 ust. 2 lit. a) albo rezygnacja z funkcji |
+| Podstawa prawna | **Rozstrzygnięte 21.09.2026**: wobec **użytkownika** — art. 6 ust. 1 lit. b RODO (wykonanie umowy). Wobec **osób widocznych na zdjęciach** administratorem jest **użytkownik**, a Danaco jest podmiotem przetwarzającym (art. 28 RODO) — to on kieruje narzędzie na konkretne zdjęcie i on odpowiada za podstawę, w tym za art. 9, gdy wizerunek służy jednoznacznej identyfikacji. Dla klienta biznesowego potrzebna umowa powierzenia; dla konsumenta w sprawach osobistych wchodzi wyłączenie z art. 2 ust. 2 lit. c |
 | Kategorie osób | użytkownik oraz każda osoba widoczna na wgranych przez niego zdjęciach |
 | Kategorie danych | położenie twarzy w kadrze, 512-wymiarowe wektory cech, przypisanie zdjęć do grup |
 | Miejsce w kodzie | `backend/nexus/tools/studio.py` (`find_faces`), program `danaco-twarze-indeks` (InsightFace) |
@@ -301,7 +301,7 @@ w rejestrze**, choć funkcja jest w kodzie i w ustawieniach aplikacji.
 | Pozycja | Treść |
 |---|---|
 | Cel | Napisanie przez model szkicu odpowiedzi na wybrany wątek SMS, na żądanie użytkownika |
-| Podstawa prawna | wobec **użytkownika** — art. 6 ust. 1 lit. b RODO (wykonanie umowy). Wobec **nadawców wiadomości** — **do rozstrzygnięcia**: to osoby trzecie, które nie zawarły z Danaco żadnej umowy i nie wyraziły zgody; treść SMS-a bywa też szczególnej kategorii (art. 9), np. wiadomość z przychodni |
+| Podstawa prawna | wobec **użytkownika** — art. 6 ust. 1 lit. b RODO. Wobec **nadawców wiadomości** — **rozstrzygnięte 21.09.2026**: administratorem jest użytkownik (to on wybiera wątek i wysyła go do asystenta), Danaco jest podmiotem przetwarzającym. Treść SMS-a bywa szczególnej kategorii (art. 9), np. wiadomość z przychodni — odpowiedzialność za podstawę spoczywa wtedy na użytkowniku, dlatego warto mu to powiedzieć przy włączaniu funkcji |
 | Kategorie osób | użytkownik oraz **każda osoba, która wysłała mu SMS** w odczytanym zakresie |
 | Kategorie danych | numer nadawcy, treść wiadomości, data, kierunek (przychodząca/wychodząca); odczyt obejmuje do 300 ostatnich wiadomości, na ekran trafia 50 wątków |
 | Miejsce w kodzie | `android/.../sms/SmsReader.kt` (odczyt przez `Telephony.Sms`), `android/.../sms/SmsActivity.kt:142-143` (założenie rozmowy i przekazanie wątku do serwera), przełącznik „Szkice odpowiedzi na SMS” w `settings/SettingsActivity.kt` |
@@ -319,7 +319,7 @@ Dopisane 21.09.2026, razem z CZ-16, po przeglądzie uprawnień klienta Android.
 | Pozycja | Treść |
 |---|---|
 | Cel | Odpowiedź asystenta na to, co użytkownik ma właśnie na ekranie — panel Nexusa otwierany języczkiem nad dowolną aplikacją |
-| Podstawa prawna | wobec **użytkownika** — art. 6 ust. 1 lit. b RODO. Wobec **osób, których dane widać na ekranie** — **do rozstrzygnięcia**, tak samo jak przy CZ-14 (twarze), CZ-16 (SMS-y) i treści stron z dodatku |
+| Podstawa prawna | wobec **użytkownika** — art. 6 ust. 1 lit. b RODO. Wobec **osób, których dane widać na ekranie** — **rozstrzygnięte 21.09.2026**: administratorem jest użytkownik, Danaco jest podmiotem przetwarzającym. Zrzut powstaje wyłącznie na jego kliknięcie i to on decyduje, co w tej chwili widać |
 | Kategorie osób | użytkownik oraz każda osoba, której dane są widoczne na ekranie w chwili zrzutu (czyjaś wiadomość, czyjś e-mail, czyjś profil) |
 | Kategorie danych | zrzut ekranu jako obraz (`ScreenContent.dataUrl`) oraz/albo tekst odczytany z widoku przez usługę dostępności; tytuł okna |
 | Miejsce w kodzie | `android/.../overlay/EdgeTabService.kt` (`sendScreen`, `MediaProjection`), `android/.../access/NexusAccessibilityService.kt` (odczyt tekstu), `android/.../assist/ScreenContent.kt` |

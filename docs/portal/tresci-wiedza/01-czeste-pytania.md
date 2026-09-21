@@ -1,5 +1,8 @@
 # Częste pytania
 
+Dziesięć pytań, które wracają najczęściej — o instalację, pliki, głos, prywatność
+i o to, co się dzieje, gdy zamkniesz okno w trakcie pracy.
+
 ## Czy muszę coś instalować?
 
 Nie. Nexus działa w przeglądarce. Instalacja przydaje się dopiero wtedy, gdy chcesz mieć go

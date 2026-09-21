@@ -137,7 +137,7 @@ czytelnik miałby odróżnić obecną.
 | **Licencja modeli rozpoznawania twarzy** | modele InsightFace (`find_faces`, CZ-14) mają licencję wyłącznie niekomercyjną. Warunek „dopóki produkt nie jest sprzedawany” przestał obowiązywać 21.09.2026 — sprzedaż jest włączona. Do decyzji: model komercyjny, zgoda autorów albo wyłączenie funkcji |
 | **Polityka i rejestr milczały o SMS-ach z telefonu** | aplikacja Android ma funkcję „Szkice odpowiedzi na SMS”: po włączeniu i nadaniu `READ_SMS` odczytuje ostatnie wiadomości i **wysyła wybrany wątek na serwer** jako nową rozmowę (`sms/SmsActivity.kt:142-143`). Treść SMS-a to dane osobowe nadawcy, który z Danaco umowy nie zawierał. Dopisane 21.09.2026: **CZ-16** w rejestrze, gotowy tekst w rozdz. 6.3a |
 | **Polityka i rejestr milczały o zawartości ekranu telefonu** | języczek przy krawędzi otwiera panel Nexusa nad dowolną aplikacją; przycisk „ekran” wysyła zrzut (`MediaProjection`) i/lub tekst odczytany przez usługę dostępności (`overlay/EdgeTabService.kt`). To najszersza kategoria danych w produkcie — na ekranie może być wszystko. Dopisane 21.09.2026: **CZ-17**, gotowy tekst w rozdz. 6.3b |
-| **Jedno pytanie zamiast czterech: rola administratora wobec danych osób trzecich** | twarze ze zdjęć, treść cudzych stron z dodatku, SMS-y i zawartość ekranu to cztery funkcje i **jedno** rozstrzygnięcie: albo administratorem tych danych jest użytkownik (a Danaco jest podmiotem przetwarzającym — wtedy potrzebna umowa powierzenia dla klientów biznesowych), albo Danaco (wtedy każda czynność potrzebuje własnej podstawy z art. 6, a przy danych szczególnej kategorii z art. 9). Od tego zależy brzmienie czterech akapitów polityki. Opis obu dróg: rozdz. 6.3c |
+| ~~Rola administratora wobec danych osób trzecich~~ **— rozstrzygnięte 21.09.2026** | administratorem jest **użytkownik**, Danaco jest podmiotem przetwarzającym. Zostaje do zrobienia: wzór umowy powierzenia dla klientów biznesowych, akapity polityki (teksty gotowe w rozdz. 6.1–6.3b) i decyzja produktowa, czy przy włączaniu każdej z czterech funkcji ma stanąć jedno zdanie o tym, że to użytkownik odpowiada za podstawę wobec osoby trzeciej. Szczegóły i skutki: rozdz. 6.3c |
 | Przegląd prawniczy całości | przytoczone przepisy i terminy wymagają potwierdzenia przez radcę prawnego przed publikacją |
 
 ## 6. Gotowe brzmienie brakujących akapitów polityki (do zatwierdzenia)
@@ -284,10 +284,10 @@ To jest najszersza kategoria danych w całym produkcie: na ekranie może być do
 wszystko. Warto rozważyć własne ostrzeżenie w aplikacji przy pierwszym użyciu — zgoda
 systemowa mówi tylko o „przechwytywaniu zawartości ekranu” i nie wspomina, dokąd ona trafia.
 
-### 6.3c Jedno pytanie zamiast czterech
+### 6.3c Jedno pytanie zamiast czterech — **rozstrzygnięte 21.09.2026**
 
-Luki 6.3, 6.3a i 6.3b oraz zastrzeżenie przy CZ-14 wyglądają na cztery osobne sprawy, ale
-sprowadzają się do jednej:
+Luki 6.3, 6.3a i 6.3b oraz zastrzeżenie przy CZ-14 wyglądały na cztery osobne sprawy, ale
+sprowadzały się do jednej:
 
 | Funkcja | Czyje dane użytkownik wnosi |
 |---|---|
@@ -296,20 +296,39 @@ sprowadzają się do jednej:
 | szkice odpowiedzi na SMS (CZ-16, 6.3a) | wiadomości od nadawców, którzy o Nexusie nie wiedzą |
 | zawartość ekranu telefonu (CZ-17, 6.3b) | cokolwiek akurat widać, łącznie z cudzą korespondencją |
 
-W każdym z tych przypadków dane trafiają do Nexusa **z woli użytkownika**, ale dotyczą osób,
-które nie zawarły z Danaco umowy i nie wyraziły zgody. Rozstrzygnięcie jest jedno i dotyczy
-wszystkich czterech naraz:
+**Decyzja właściciela: administratorem tych danych jest użytkownik, a Danaco Nexus jest
+podmiotem przetwarzającym.**
 
-* albo **administratorem tych danych jest użytkownik**, a Danaco jest podmiotem
-  przetwarzającym (wtedy potrzebna jest umowa powierzenia — dla klienta biznesowego
-  to warunek zgodnego korzystania z produktu, a dla konsumenta wyjątek „na użytek własny”
-  z art. 2 ust. 2 lit. c RODO),
-* albo **administratorem jest Danaco**, a wtedy dla każdej z tych czynności trzeba wskazać
-  podstawę z art. 6 (i art. 9 tam, gdzie dane są szczególnej kategorii).
+#### Co z tego wynika
 
-Wybór wpływa na treść polityki, na wzór umowy i na to, czy przed pierwszym użyciem którejś
-z tych funkcji ma stanąć osobne pytanie. Dlatego proponuję podjąć tę decyzję **raz, dla
-wszystkich czterech**, zamiast czterech razy osobno.
+1. **Podstawa wobec użytkownika** pozostaje art. 6 ust. 1 lit. b RODO (wykonanie umowy) —
+   to się nie zmienia.
+2. **Wobec osób trzecich** Danaco nie decyduje o celach ani sposobach przetwarzania:
+   decyduje użytkownik, kierując narzędzie na konkretne zdjęcie, stronę, wątek SMS albo
+   ekran. Danaco wykonuje to polecenie technicznie.
+3. **Dla klienta biznesowego** oznacza to konieczność **umowy powierzenia** (art. 28 RODO)
+   jako części umowy o korzystanie z usługi. Bez niej klient-przedsiębiorca powierza dane
+   bez podstawy — i to jest jego naruszenie, nie nasze, ale nie wolno go na nie wystawiać.
+4. **Dla konsumenta** wchodzi w grę wyłączenie „na użytek własny” z art. 2 ust. 2 lit. c
+   RODO, o ile korzysta z tych funkcji w sprawach osobistych, a nie zawodowych.
+5. **Obowiązki Danaco jako podmiotu przetwarzającego**: przetwarzać wyłącznie na
+   udokumentowane polecenie, zapewnić poufność i bezpieczeństwo, pomagać w realizacji praw
+   osób, usunąć albo zwrócić dane po zakończeniu usługi, prowadzić rejestr kategorii
+   czynności wykonywanych w imieniu administratora (art. 30 ust. 2).
+
+#### Co trzeba jeszcze zrobić
+
+| Zadanie | Gdzie |
+|---|---|
+| dopisać do polityki akapity z 6.1, 6.2, 6.3, 6.3a i 6.3b (teksty gotowe) | `frontend/src/portal/tresc-prawna.ts` |
+| dopisać zdanie o roli: przy tych czterech funkcjach administratorem jest użytkownik | jw., rozdz. o rolach |
+| przygotować wzór umowy powierzenia dla klientów biznesowych | nowy dokument w `docs/zgodnosc/` |
+| uzupełnić CZ-14, CZ-16, CZ-17 i wpis o dodatku o rozstrzygniętą podstawę | `REJESTR-CZYNNOSCI.md` |
+| rozstrzygnąć, czy przed pierwszym użyciem każdej z tych funkcji ma stanąć osobne pytanie | decyzja produktowa |
+
+Ostatni wiersz jest wart uwagi: skoro administratorem jest użytkownik, to **on** odpowiada
+za podstawę wobec osoby trzeciej. Uczciwie jest mu to powiedzieć w chwili, w której włącza
+funkcję — jednym zdaniem, raz, a nie w regulaminie.
 
 ### 6.4 Czego to nie rozstrzyga
 

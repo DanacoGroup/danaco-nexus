@@ -201,6 +201,37 @@ def test_zajawka_i_tekst_wyszukiwania() -> None:
     assert "ogrzewanie" in indeks
 
 
+def test_zajawka_bierze_wstep_a_nie_calosc_sklejona_w_jedna_linie() -> None:
+    """Śródtytuł nie może się sklejać z akapitem pod nim.
+
+    Zajawka powstawała z całej treści sprowadzonej do jednej linii, więc na kartach spisu
+    w portalu czytało się „…co widać gołym okiem. Ruch w oknie aplikacji Treść, która
+    dociera po odpowiedzi serwera…” — śródtytuł wbity w środek zdania. Wstęp materiału
+    jest z definicji tym, co autor napisał na zachętę.
+    """
+    markdown = (
+        "Krótko i bez drobnego druku. Pełne brzmienie jest w polityce prywatności.\n\n"
+        "## Wszystko stoi na serwerze\n\n"
+        "Nexus nie jest programem, który instalujesz u siebie."
+    )
+    wynik = tresc.zajawka("", markdown)
+    assert wynik == "Krótko i bez drobnego druku. Pełne brzmienie jest w polityce prywatności."
+    assert "Wszystko stoi na serwerze" not in wynik
+
+    # Materiał bez wstępu (od razu śródtytuł) nie może zostać bez zajawki.
+    bez_wstepu = "## Od razu śródtytuł\n\nI treść pod nim."
+    assert "treść pod nim" in tresc.zajawka("", bez_wstepu).lower()
+
+    # Zajawka podana ręcznie przez redaktora wygrywa z jedną i drugą.
+    assert tresc.zajawka("Moja zajawka", markdown) == "Moja zajawka"
+
+    # Znacznik zdjęty sprzed interpunkcji nie zostawia po sobie spacji: `**plik**,` dawało
+    # „plik ,” — w zajawce, która jest zwykłym tekstem, wygląda to jak błąd składu.
+    assert tresc.czysty_tekst("Oddaje **gotowy plik**, nie instrukcję.") == (
+        "Oddaje gotowy plik, nie instrukcję."
+    )
+
+
 def test_slowa_zapytania_pomijaja_powtorzenia() -> None:
     assert tresc.slowa_zapytania("Pompy, pompy CIEPŁA!") == ["pompy", "ciepla"]
     assert tresc.slowa_zapytania("   ") == []

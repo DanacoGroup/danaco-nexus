@@ -23,6 +23,10 @@ OBRAZEK = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 ODSYLACZ = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 ZNACZNIK = re.compile(r"[#>*_`~|-]+")
 SPACJE = re.compile(r"\s+")
+#: Spacja, która została po zdjęciu znacznika Markdown tuż przed interpunkcją.
+#: `**gotowy plik**,` po zdjęciu gwiazdek daje `gotowy plik ,` — w zajawce widać to jak
+#: błąd składu, bo zajawka jest zwykłym tekstem, a nie Markdownem.
+SPACJA_PRZED_INTERPUNKCJA = re.compile(r"\s+([,.;:!?…)\]])")
 # Adres pocztowy: kontrola formatu przy rejestracji i odzyskiwaniu hasła (bez zapytań DNS).
 ADRES_POCZTY = re.compile(r"^[^@\s,;<>]{1,64}@[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9-]+)+$", re.IGNORECASE)
 
@@ -73,14 +77,32 @@ def czysty_tekst(markdown: str) -> str:
     bez_kodu = BLOK_KODU.sub(" ", markdown)
     bez_obrazkow = OBRAZEK.sub(" ", bez_kodu)
     bez_odsylaczy = ODSYLACZ.sub(r"\1", bez_obrazkow)
-    return SPACJE.sub(" ", ZNACZNIK.sub(" ", bez_odsylaczy)).strip()
+    plaski = SPACJE.sub(" ", ZNACZNIK.sub(" ", bez_odsylaczy))
+    return SPACJA_PRZED_INTERPUNKCJA.sub(r"\1", plaski).strip()
+
+
+def _wstep(markdown: str) -> str:
+    """Treść **przed pierwszym śródtytułem** — czyli wstęp, którym zaczyna się materiał.
+
+    Bez tego zajawka powstawała z całej treści sprowadzonej do jednej linii, a wtedy
+    śródtytuł sklejał się z akapitem pod nim: „Tu zbieramy to, co widać gołym okiem. Ruch
+    w oknie aplikacji Treść, która dociera po odpowiedzi serwera…”. Widać to było na
+    kartach spisu w portalu i czytało się jak błąd składu. Wstęp jest zresztą z definicji
+    tym, co autor napisał na zachętę — lepszej zajawki i tak nie ma.
+    """
+    wiersze = markdown.splitlines()
+    koniec = next((i for i, wiersz in enumerate(wiersze) if wiersz.lstrip().startswith("#")), None)
+    wstep = "\n".join(wiersze if koniec is None else wiersze[:koniec]).strip()
+    return wstep
 
 
 def zajawka(podana: str, markdown: str) -> str:
-    """Zajawka podana przez redaktora albo pierwsze zdania treści (do ``MAX_ZAJAWKA`` znaków)."""
+    """Zajawka podana przez redaktora albo wstęp materiału (do ``MAX_ZAJAWKA`` znaków)."""
     if podana.strip():
         return podana.strip()[:MAX_ZAJAWKA]
-    tekst = czysty_tekst(markdown)
+    # Materiał bez wstępu (zaczyna się od razu śródtytułem) wraca do dawnego zachowania:
+    # lepsza sklejona zajawka niż żadna.
+    tekst = czysty_tekst(_wstep(markdown)) or czysty_tekst(markdown)
     if len(tekst) <= MAX_ZAJAWKA:
         return tekst
     uciety = tekst[:MAX_ZAJAWKA]

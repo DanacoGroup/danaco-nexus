@@ -1404,6 +1404,14 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 
 ### Naprawiono
 
+- **Rola administratora wobec danych osób trzecich — rozstrzygnięta.** Cztery funkcje
+  wnoszą do Nexusa dane osób, które nie zawarły z Danaco umowy: rozpoznawanie twarzy,
+  czytanie stron przez dodatek, szkice odpowiedzi na SMS i zawartość ekranu telefonu.
+  Decyzja właściciela: **administratorem jest użytkownik**, Danaco jest podmiotem
+  przetwarzającym. Zapisane w rejestrze (CZ-14, CZ-16, CZ-17) i w dokumencie zgodności
+  (§6.3c) razem ze skutkami: umowa powierzenia dla klientów biznesowych, wyłączenie
+  „na użytek własny” dla konsumentów i obowiązki z art. 28 oraz art. 30 ust. 2.
+
 - **Ograniczenie ruchu wycisza też opóźnienia, nie tylko czasy trwania.** Obie gałęzie
   — systemowa (`prefers-reduced-motion`) i z ustawień konta (`data-ruch="ograniczony"`) —
   zerowały czas trwania animacji i przejść, ale zostawiały opóźnienie kaskady nietknięte.
@@ -1412,6 +1420,36 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   czyli dokładnie to, czego ktoś z włączonym ograniczeniem ruchu chce uniknąć. Teraz obie
   gałęzie zerują również `animation-delay` i `transition-delay`. Dotyczy całej strony
   produktu i portalu, gdzie kaskada była używana od dawna.
+
+- **Portal dostał dziesięć napisanych materiałów.** Baza produkcyjna nie miała ani jednej
+  pozycji: Dokumentacja, Blog i Centrum wiedzy były puste, a pięć adresów dokumentacji
+  z mapy witryny zwracało 404. Napisane od zera pięć wpisów bloga (czym jest praca
+  z agentem, dzień z Nexusem poza księgowością, po co ruch w interfejsie, gdzie mieszkają
+  dane, co się ostatnio zmieniło) i pięć opracowań centrum wiedzy (częste pytania, jak
+  opisać zadanie, własna witryna, formaty plików, klienci na urządzeniach). Tabela formatów
+  sprawdzona z `ACCEPTED_FILES` w kodzie, nie z pamięci. Mapa witryny urosła z 15 do
+  30 adresów. Podział działów zapisany w `README.md` obu katalogów, żeby się nie dublowały:
+  dokumentacja opisuje ekrany, wiedza uczy jak, blog mówi co nowego.
+
+- **Zajawki na kartach spisu sklejały śródtytuł z akapitem.** Zajawka powstawała z całej
+  treści sprowadzonej do jednej linii, więc w portalu czytało się „…co widać gołym okiem.
+  Ruch w oknie aplikacji Treść, która dociera po odpowiedzi serwera…”. Teraz bierze
+  **wstęp** materiału — czyli to, co autor napisał na zachętę. Materiał zaczynający się
+  od razu śródtytułem zachowuje się jak dotąd, a zajawka wpisana ręcznie wygrywa z obiema.
+
+- **Poczta portalu przestała obiecywać wiadomości, których nie wysyła.** Bez podłączonej
+  skrzynki wiadomości trafiają do dziennika aplikacji, a ekran mówił „wysłaliśmy odsyłacz,
+  sprawdź skrzynkę”. Przy odzyskiwaniu hasła znaczyło to, że ktoś czeka na coś, co nie
+  przyjdzie, i nie ma jak się dowiedzieć dlaczego. Serwer podaje teraz `poczta_dziala`
+  w `/api/portal/stan`, ekran „Nie pamiętam hasła” uprzedza **przed** wpisaniem adresu
+  i kieruje na Kontakt, a pasek potwierdzenia adresu w profilu dodaje, że potwierdzenie
+  niczego nie blokuje. Po podłączeniu skrzynki komunikaty wracają same.
+
+- **Kontrola licencji narzędzi rozróżnia zakupy próbne od sprzedaży.** Sprzedaż jest
+  włączona po to, żeby testerzy robili zakupy kartami próbnymi — a kontrola zapalała
+  czerwone światło przy każdym wdrożeniu, przez co ostrzeżenie zaczynało być tłem. Klucz
+  testowy Stripe (`sk_test_…`) daje teraz opis stanu, a nie błąd; przy kluczu produkcyjnym
+  ostrzeżenie wraca samo, bez niczyjej zmiany w kodzie.
 
 - **Piąta luka zgodności: zawartość ekranu telefonu.** Aplikacja Android ma języczek
   otwierający panel Nexusa nad dowolną inną aplikacją; przycisk „ekran” wysyła do asystenta

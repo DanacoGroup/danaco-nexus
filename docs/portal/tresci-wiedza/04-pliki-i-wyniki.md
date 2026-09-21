@@ -1,5 +1,9 @@
 # Pliki: co wchodzi, co wychodzi
 
+Nexus przyjmuje dokumenty, zdjęcia, nagrania i archiwa, a oddaje **gotowy plik**,
+nie instrukcję. Poniżej pełna lista formatów, limity i kilka rzeczy, o które
+najczęściej pytacie.
+
 ## Co Nexus przyjmuje
 
 | Rodzaj | Formaty | Co z tym robi |
