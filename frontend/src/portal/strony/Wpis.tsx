@@ -15,6 +15,18 @@ const TYPY_SCHEMA: Record<RodzajTresci, "BlogPosting" | "TechArticle" | "Article
   strona: "Article",
 };
 
+/** Czy treść zaczyna się dokładnie tym, co stoi w zajawce (z dokładnością do spacji).
+ *
+ * Porównujemy po spłaszczeniu białych znaków, bo plik źródłowy zawija wiersze, a zajawka
+ * jest jedną linią — bez tego „ten sam akapit” nigdy nie byłby równy sam sobie.
+ */
+function zaczynaSieOd(tresc: string, zajawka: string): boolean {
+  const plasko = (tekst: string) => tekst.replace(/\s+/g, " ").trim();
+  const wstep = plasko(tresc).replace(/^[#>*_`~-]+\s*/, "");
+  const poczatek = plasko(zajawka).replace(/…$/, "");
+  return poczatek.length > 40 && wstep.startsWith(poczatek);
+}
+
 export function Wpis({
   strona,
   rodzaj,
@@ -101,7 +113,14 @@ export function Wpis({
           )}
           {pozycja.author && <span>· {pozycja.author}</span>}
         </p>
-        {pozycja.excerpt && <p className="mt-4 max-w-2xl text-lg text-muted">{pozycja.excerpt}</p>}
+        {/* Zajawka jako wstęp nad treścią — ale **tylko wtedy, gdy nie jest** pierwszym
+          akapitem artykułu. Zajawka powstaje domyślnie ze wstępu materiału, więc inaczej
+          czytelnik dostawał ten sam akapit dwa razy pod rząd: raz większą czcionką,
+          raz mniejszą. Zajawka wpisana ręcznie przez redaktora zwykle się różni i wtedy
+          zostaje na swoim miejscu. */}
+        {pozycja.excerpt && !zaczynaSieOd(pozycja.body, pozycja.excerpt) && (
+          <p className="mt-4 max-w-2xl text-lg text-muted">{pozycja.excerpt}</p>
+        )}
         {pozycja.tags.length > 0 && (
           <ul className="mt-4 flex flex-wrap gap-2">
             {pozycja.tags.map((znacznik) => (
@@ -113,7 +132,7 @@ export function Wpis({
         )}
       </header>
       <div className="mt-8 max-w-prose">
-        {pozycja.body ? <Markdown text={pozycja.body} /> : <Komunikat tekst="Treść tej pozycji jest w opracowaniu. Wróć do listy — reszta materiałów czeka gotowa." />}
+        {pozycja.body ? <Markdown text={pozycja.body} proza /> : <Komunikat tekst="Treść tej pozycji jest w opracowaniu. Wróć do listy — reszta materiałów czeka gotowa." />}
       </div>
       {(pozycja.related?.length ?? 0) > 0 && (
         <section aria-labelledby="powiazane" className="mt-12">
