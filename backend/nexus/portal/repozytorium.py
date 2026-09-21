@@ -79,8 +79,16 @@ def _opublikowane(zapytanie: Select[Any]) -> Select[Any]:
     return zapytanie.where(PortalContent.status == "opublikowany")
 
 
+#: Rodzaje, które czyta się w ustalonej kolejności, a nie od najnowszego.
+#:
+#: Dokumentacja i centrum wiedzy są zbiorem opracowań, w którym kolejność ustala redakcja
+#: (numer w nazwie pliku): od podstaw do spraw szczegółowych. Blog jest kanałem — tam data
+#: publikacji jest jedynym sensownym porządkiem.
+UPORZADKOWANE = frozenset({"dokumentacja", "wiedza"})
+
+
 def _kolejnosc(zapytanie: Select[Any], kind: str | None) -> Select[Any]:
-    if kind == "dokumentacja":
+    if kind in UPORZADKOWANE:
         return zapytanie.order_by(PortalContent.position, PortalContent.title)
     return zapytanie.order_by(PortalContent.published_at.desc().nullslast(), PortalContent.created_at.desc())
 

@@ -13,8 +13,11 @@ jest osobną decyzją (``--opublikuj`` albo panel administratora).
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus.db import Database
 from nexus.portal import repozytorium, tresc
@@ -104,9 +107,20 @@ def wczytaj_katalog(katalog: Path, rodzaj: str) -> list[Material]:
 
 
 async def zapisz(
-    database: Database, materialy: list[Material], *, opublikuj: bool = False, autor: str = ""
+    database: Database,
+    materialy: list[Material],
+    *,
+    opublikuj: bool = False,
+    autor: str = "",
+    synchronizuj: bool = False,
 ) -> list[tuple[str, str]]:
-    """Zapisuje materiały; zwraca pary ``(adres, „nowa” albo „zmieniona”)`` w kolejności wejścia."""
+    """Zapisuje materiały; zwraca pary ``(adres, „nowa”, „zmieniona” albo „usunięta”)``.
+
+    Przy ``synchronizuj`` katalog jest jedynym źródłem prawdy dla swojego rodzaju: pozycje
+    tego rodzaju, których nie ma wśród plików, zostają usunięte z bazy. Bez tej opcji
+    wczytanie tylko dokłada i nadpisuje, a materiał wycofany z repozytorium zostaje
+    w portalu — co przy poprawianiu treści łatwo przeoczyć.
+    """
     status = "opublikowany" if opublikuj else "szkic"
     wynik: list[tuple[str, str]] = []
     async with database.session() as session:
@@ -133,4 +147,41 @@ async def zapisz(
             else:
                 await repozytorium.zmien(session, istniejaca, dane)
                 wynik.append((f"{material.rodzaj}/{material.slug}", "zmieniona"))
+        if synchronizuj:
+            wynik.extend(await _usun_spoza_katalogu(session, materialy))
     return wynik
+
+
+async def _usun_spoza_katalogu(
+    session: AsyncSession, materialy: list[Material]
+) -> list[tuple[str, str]]:
+    """Usuwa pozycje rodzaju, których nie ma wśród wczytanych plików."""
+    rodzaje = {material.rodzaj for material in materialy}
+    zachowane = {(material.rodzaj, material.slug) for material in materialy}
+    usuniete: list[tuple[str, str]] = []
+    for rodzaj in sorted(rodzaje):
+        # Spis jest stronicowany, a rodzaj może mieć więcej pozycji niż jedna strona.
+        # Zbieramy wszystkie przed usuwaniem: kasowanie w trakcie przewijania przesuwałoby
+        # kolejne strony i część pozycji przepadłaby z pola widzenia.
+        obce: list[tuple[str, str]] = []
+        strona_nr = 1
+        while True:
+            strona = await repozytorium.lista(
+                session,
+                kind=rodzaj,
+                tylko_opublikowane=False,
+                strona=strona_nr,
+                na_stronie=repozytorium.MAX_NA_STRONIE,
+            )
+            obce.extend(
+                (str(pozycja["id"]), str(pozycja["slug"]))
+                for pozycja in strona["items"]
+                if (rodzaj, pozycja["slug"]) not in zachowane
+            )
+            if strona_nr >= int(strona["pages"]):
+                break
+            strona_nr += 1
+        for identyfikator, slug in obce:
+            await repozytorium.usun(session, uuid.UUID(identyfikator))
+            usuniete.append((f"{rodzaj}/{slug}", "usunięta"))
+    return usuniete

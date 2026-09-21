@@ -400,10 +400,11 @@ oba przechodzą. Warunek wdrożeniowy bez zmian: usługa startuje z
 
 ## Pierwsze materiały
 
-Blog, centrum wiedzy i dokumentacja są puste — sekcje zachowują się poprawnie, ale spis nie
-ma ani jednej pozycji. W `docs/portal/tresci-startowe/` leży pięć gotowych materiałów
-dokumentacji wraz z opisem publikacji. Treść mieszka w bazie (adres, zajawkę i indeks
-wyszukiwania tworzy dopiero zapis), a pliki są jej wersją źródłową — wczytuje je polecenie:
+Materiały mieszkają w trzech katalogach repozytorium: `docs/portal/tresci-startowe`
+(dokumentacja), `docs/portal/tresci-wiedza` (centrum wiedzy) i `docs/portal/tresci-blog`
+(blog). Treść docelowo mieszka w bazie — adres, zajawkę i indeks wyszukiwania tworzy
+dopiero zapis — a pliki są jej wersją źródłową, którą widać w historii zmian. Wczytuje
+je polecenie:
 
 ```
 deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-startowe
@@ -412,3 +413,20 @@ deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-startowe
 Domyślnie powstają szkice; publikacja zostaje osobną decyzją (`--opublikuj` albo panel
 administratora). Powtórne wczytanie nadpisuje pozycję o tym samym adresie, więc poprawiony
 plik wystarczy podać ponownie.
+
+Z `--synchronizuj` katalog jest jedynym źródłem prawdy dla swojego rodzaju: pozycje,
+których nie ma wśród plików, znikają z portalu. Bez tej opcji wycofany materiał zostaje
+w bazie, choć w repozytorium już go nie ma.
+
+## Szerokość na telefonie
+
+`frontend/scripts/szerokosci.mjs` przechodzi publiczne trasy w oknie 390 px i wskazuje
+strony, które da się przewinąć w bok, wraz z elementem, który je rozpycha:
+
+```
+node frontend/scripts/szerokosci.mjs http://127.0.0.1:8992
+```
+
+Kod wyjścia 1 oznacza, że któraś trasa się przelewa. Pomiar wymaga wystawionego
+`frontend/dist` (dowolny serwer plików) i przeglądarki z `playwright` — dlatego nie
+wchodzi do bramki wydania, a uruchamia się po zmianach w układzie stron.

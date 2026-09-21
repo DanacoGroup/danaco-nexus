@@ -1107,6 +1107,101 @@ def test_powtorne_wczytanie_nadpisuje_pozycje_zamiast_ja_powielac(
     assert body.startswith("Poprawiony akapit")
 
 
+def test_centrum_wiedzy_czyta_sie_w_kolejnosci_redakcji(settings: Settings, tmp_path: Path) -> None:
+    """Wiedza jest opracowaniem, nie kanałem: spis idzie numerami plików, nie datą."""
+    katalog = tmp_path / "wiedza"
+    katalog.mkdir()
+    for numer, nazwa in ((1, "podstawy"), (2, "srodek"), (3, "szczegoly")):
+        (katalog / f"0{numer}-{nazwa}.md").write_text(
+            MATERIAL.replace("Pierwsze uruchomienie", nazwa.capitalize()), encoding="utf-8"
+        )
+
+    async def adresy() -> list[str]:
+        database = Database(settings.database_url)
+        await database.create_schema()
+        try:
+            await zapisz(database, wczytaj_katalog(katalog, "wiedza"), opublikuj=True)
+            async with database.session() as session:
+                strona = await repozytorium.lista(session, kind="wiedza")
+                return [pozycja["slug"] for pozycja in strona["items"]]
+        finally:
+            await database.close()
+
+    assert asyncio.run(adresy()) == ["podstawy", "srodek", "szczegoly"]
+
+
+def test_synchronizacja_usuwa_pozycje_spoza_katalogu(settings: Settings, tmp_path: Path) -> None:
+    """Z `--synchronizuj` katalog jest jedynym źródłem prawdy: wycofany plik znika z portalu."""
+    katalog = tmp_path / "materialy"
+    katalog.mkdir()
+    (katalog / "01-pierwsze-uruchomienie.md").write_text(MATERIAL, encoding="utf-8")
+    wycofany = katalog / "02-do-wycofania.md"
+    wycofany.write_text(MATERIAL.replace("Pierwsze uruchomienie", "Do wycofania"), encoding="utf-8")
+
+    async def wczytaj(*, synchronizuj: bool) -> list[tuple[str, str]]:
+        database = Database(settings.database_url)
+        await database.create_schema()
+        try:
+            return await zapisz(
+                database,
+                wczytaj_katalog(katalog, "dokumentacja"),
+                opublikuj=True,
+                synchronizuj=synchronizuj,
+            )
+        finally:
+            await database.close()
+
+    assert len(asyncio.run(wczytaj(synchronizuj=False))) == 2
+
+    wycofany.unlink()
+    wynik = asyncio.run(wczytaj(synchronizuj=True))
+    assert ("dokumentacja/do-wycofania", "usunięta") in wynik
+    assert ("dokumentacja/pierwsze-uruchomienie", "zmieniona") in wynik
+
+    async def adresy() -> list[str]:
+        database = Database(settings.database_url)
+        try:
+            async with database.session() as session:
+                strona = await repozytorium.lista(
+                    session, kind="dokumentacja", tylko_opublikowane=False
+                )
+                return [pozycja["slug"] for pozycja in strona["items"]]
+        finally:
+            await database.close()
+
+    assert asyncio.run(adresy()) == ["pierwsze-uruchomienie"]
+
+
+def test_synchronizacja_nie_rusza_pozycji_innego_rodzaju(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """Wczytanie bloga nie może wyczyścić dokumentacji — synchronizacja działa w obrębie rodzaju."""
+    blog = tmp_path / "blog"
+    blog.mkdir()
+    (blog / "01-wpis.md").write_text(MATERIAL.replace("Pierwsze uruchomienie", "Wpis"), encoding="utf-8")
+    dokumentacja = tmp_path / "dokumentacja"
+    dokumentacja.mkdir()
+    (dokumentacja / "01-pierwsze-uruchomienie.md").write_text(MATERIAL, encoding="utf-8")
+
+    async def przebieg() -> list[str]:
+        database = Database(settings.database_url)
+        await database.create_schema()
+        try:
+            await zapisz(database, wczytaj_katalog(dokumentacja, "dokumentacja"), opublikuj=True)
+            await zapisz(
+                database, wczytaj_katalog(blog, "blog"), opublikuj=True, synchronizuj=True
+            )
+            async with database.session() as session:
+                strona = await repozytorium.lista(
+                    session, kind="dokumentacja", tylko_opublikowane=False
+                )
+                return [pozycja["slug"] for pozycja in strona["items"]]
+        finally:
+            await database.close()
+
+    assert asyncio.run(przebieg()) == ["pierwsze-uruchomienie"]
+
+
 def test_szkice_z_repozytorium_wczytuja_sie_bez_poprawek() -> None:
     """Materiały w `docs/portal/tresci-startowe` mają nadawać się do wczytania takie, jakie są."""
     materialy = wczytaj_katalog(KORZEN / "docs" / "portal" / "tresci-startowe", "dokumentacja")

@@ -71,7 +71,17 @@ export function ListaWpisow({
   const pozycje = lista.dane?.items ?? [];
   return (
     <>
-      <NaglowekStrony tytul={tytul} opis={opis} />
+      {/* Okruszki nad nagłówkiem — tak jak na pozostałych stronach portalu. Na dole listy
+          wskazywały miejsce, w którym czytelnik już jest, i zostawiały pustkę nad stopką. */}
+      <Okruszki
+        pozycje={[
+          { nazwa: "Portal", sciezka: sciezka("glowna") },
+          { nazwa: tytul, sciezka: adresListy },
+        ]}
+      />
+      <div className="mt-4">
+        <NaglowekStrony tytul={tytul} opis={opis} />
+      </div>
       {(znaczniki.dane?.length ?? 0) > 0 && (
         <nav aria-label="Filtr znaczników" className="mt-6 flex flex-wrap gap-2">
           <Przycisk
@@ -99,7 +109,7 @@ export function ListaWpisow({
           ))}
         </nav>
       )}
-      <div className="mt-8 min-h-[24rem]">
+      <div className={`mt-8 ${lista.ladowanie ? "min-h-[24rem]" : ""}`}>
         {lista.ladowanie && <Ladowanie wierszy={3} etykieta="Wczytywanie listy" />}
         {!lista.ladowanie && lista.blad && <Komunikat tekst={lista.blad} rodzaj="blad" />}
         {!lista.ladowanie && !lista.blad && pozycje.length === 0 && (
@@ -150,14 +160,6 @@ export function ListaWpisow({
           </Przycisk>
         </nav>
       )}
-      <div className="mt-10">
-        <Okruszki
-          pozycje={[
-            { nazwa: "Portal", sciezka: sciezka("glowna") },
-            { nazwa: tytul, sciezka: adresListy },
-          ]}
-        />
-      </div>
     </>
   );
 }

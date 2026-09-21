@@ -59,7 +59,9 @@ async def _konto_testowe(email: str, haslo: str, plan: str, kredyty_dodatkowe: i
     return f"Konto {email} ({stan_konta}). Plan {plan}, saldo kredytów: {saldo}."
 
 
-async def _materialy_portalu(katalog: Path, rodzaj: str, opublikuj: bool, autor: str) -> str:
+async def _materialy_portalu(
+    katalog: Path, rodzaj: str, opublikuj: bool, autor: str, synchronizuj: bool
+) -> str:
     """Wczytuje materiały z katalogu plików Markdown do treści portalu."""
     from nexus.portal.materialy import BladMaterialu, wczytaj_katalog, zapisz
 
@@ -70,12 +72,21 @@ async def _materialy_portalu(katalog: Path, rodzaj: str, opublikuj: bool, autor:
     database = Database(get_settings().database_url)
     try:
         await database.create_schema()
-        wynik = await zapisz(database, materialy, opublikuj=opublikuj, autor=autor)
+        wynik = await zapisz(
+            database, materialy, opublikuj=opublikuj, autor=autor, synchronizuj=synchronizuj
+        )
     finally:
         await database.close()
     stan = "opublikowane" if opublikuj else "zapisane jako szkice"
     wiersze = [f"  {adres} — {co}" for adres, co in wynik]
-    return f"Materiały {stan} ({len(wynik)}):\n" + "\n".join(wiersze)
+    # Usunięcia liczą się osobno: zdanie „materiały opublikowane (7)” byłoby nieprawdziwe,
+    # gdyby dwie z tych siedmiu pozycji zniknęły z portalu.
+    zapisane = sum(1 for _, co in wynik if co != "usunięta")
+    usuniete = len(wynik) - zapisane
+    naglowek = f"Materiały {stan} ({zapisane})"
+    if usuniete:
+        naglowek += f", usunięte spoza katalogu ({usuniete})"
+    return f"{naglowek}:\n" + "\n".join(wiersze)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -112,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         "--opublikuj",
         action="store_true",
         help="Zapisz od razu jako opublikowane (domyślnie: szkice do przejrzenia)",
+    )
+    materialy.add_argument(
+        "--synchronizuj",
+        action="store_true",
+        help="Usuń z portalu pozycje tego rodzaju, których nie ma w katalogu",
     )
     arguments = parser.parse_args(argv)
 
@@ -160,6 +176,7 @@ def main(argv: list[str] | None = None) -> int:
                         arguments.rodzaj,
                         arguments.opublikuj,
                         arguments.autor.strip(),
+                        arguments.synchronizuj,
                     )
                 )
             )

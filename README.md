@@ -258,8 +258,13 @@ claude setup-token                                   # na koncie Claude właści
 sudo -u danaco-serwis deploy/zapisz-token.sh         # wklejenie tokenu (bez echa)
 deploy/nexus-cli.sh set-password                     # login: admin
 deploy/nexus-cli.sh doctor --online
-deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-startowe
+deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-startowe --rodzaj dokumentacja
+deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-wiedza   --rodzaj wiedza
+deploy/nexus-cli.sh materialy-portalu --katalog docs/portal/tresci-blog     --rodzaj blog
 ```
+
+Trzy ostatnie polecenia zapisują materiały jako szkice; `--opublikuj` wystawia je od razu,
+a `--synchronizuj` dokłada usuwanie pozycji, których nie ma już w katalogu.
 
 Timer kopii zapasowej włącza sam `deploy/instalacja.sh`.
 
