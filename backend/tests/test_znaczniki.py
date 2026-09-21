@@ -92,3 +92,58 @@ def test_wykaz_stalych_adresow_ma_komplet_pol() -> None:
         assert pozycja.sciezka == adres, adres
         assert len(pozycja.tytul) > 10, adres
         assert len(pozycja.opis) > 40, adres
+
+
+#: Liczebniki, którymi znaczniki opisują wielkość wykazu — do dwunastu, bo dalej nikt
+#: nie pisze liczby słownie w tytule strony.
+LICZEBNIKI = {
+    "jeden": 1, "dwa": 2, "trzy": 3, "cztery": 4, "pięć": 5, "sześć": 6,
+    "siedem": 7, "osiem": 8, "dziewięć": 9, "dziesięć": 10, "jedenaście": 11, "dwanaście": 12,
+}
+
+
+def _ile_pozycji(sciezka: Path, stala: str) -> int:
+    """Liczy pozycje listy w pliku TypeScriptu po nawiasach klamrowych pierwszego poziomu."""
+    tekst = sciezka.read_text(encoding="utf-8")
+    # Szukamy nawiasu otwierającego listę, a nie pierwszego „[” po nazwie — to drugie
+    # trafiało w adnotację typu (`const OFERTA: PozycjaOferty[] = [`) i liczyło zero pozycji.
+    poczatek = tekst.index("= [", tekst.index(stala)) + 2
+    poziom, ile, wewnatrz = 0, 0, False
+    for znak in tekst[poczatek:]:
+        if znak == "[" and not wewnatrz:
+            wewnatrz = True
+            continue
+        if znak == "{":
+            if poziom == 0:
+                ile += 1
+            poziom += 1
+        elif znak == "}":
+            poziom -= 1
+        elif znak == "]" and poziom == 0:
+            break
+    return ile
+
+
+def test_znaczniki_nie_obiecuja_innej_liczby_niz_jest_na_stronie() -> None:
+    """Tytuł z serwera mówi „osiem rodzajów pracy” — na stronie ma ich być osiem.
+
+    Znaczniki serwerowe są osobną kopią opisu strony: komponent może urosnąć o pozycję,
+    a tytuł zostanie z poprzednią liczbą. Nic się wtedy nie psuje — po prostu wynik
+    wyszukiwarki i podgląd odsyłacza obiecują co innego, niż klient zobaczy po kliknięciu.
+    Ta pomyłka zdarzyła się już raz: oferta urosła z pięciu pozycji do ośmiu, a tytuł został.
+    """
+    strony = {
+        "/portal/oferta": (KORZEN / "frontend" / "src" / "portal" / "tresc.ts", "OFERTA"),
+        "/portal/zastosowania": (KORZEN / "frontend" / "src" / "dane" / "zastosowania.ts", "ZASTOSOWANIA"),
+    }
+    for adres, (sciezka, stala) in strony.items():
+        ile = _ile_pozycji(sciezka, f"const {stala}")
+        assert ile > 0, f"{stala}: nie odczytano pozycji — zmienił się kształt pliku"
+        znacznik = znaczniki.STALE[adres]
+        for tekst in (znacznik.tytul, znacznik.opis):
+            for slowo, liczba in LICZEBNIKI.items():
+                if re.search(rf"\b{slowo}\b", tekst, re.I):
+                    assert liczba == ile, (
+                        f"{adres}: znacznik mówi „{slowo}”, a {stala} ma {ile} pozycji — "
+                        f"popraw backend/nexus/api/znaczniki.py"
+                    )

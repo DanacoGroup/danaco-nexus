@@ -76,8 +76,8 @@ STALE: dict[str, Znaczniki] = {
     # witryny zamiast opisu strony — te serwisy nie uruchamiają skryptów. Treść idzie za
     # komponentami z `frontend/src/portal/strony/`.
     "/portal/oferta": Znaczniki(
-        "Oferta Danaco Nexus — pięć rodzajów pracy",
-        "Pięć rodzajów pracy, które Nexus przejmuje w całości: od skanu faktury, przez skrzynkę "
+        "Oferta Danaco Nexus — osiem rodzajów pracy",
+        "Osiem rodzajów pracy, które Nexus przejmuje w całości: od skanu faktury, przez skrzynkę "
         "i kalendarz, po raport z przypisami i stronę opublikowaną pod adresem Nexusa.",
         "/portal/oferta",
     ),
