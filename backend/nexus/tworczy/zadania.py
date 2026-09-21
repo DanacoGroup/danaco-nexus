@@ -85,9 +85,15 @@ class JobRegistry:
                 job.status, job.error = "cancelled", "Zadanie anulowane."
             except (ToolError, ValueError) as error:
                 job.status, job.error = "failed", str(error)
-            except Exception as error:  # noqa: BLE001 - błąd zadania pokazywany w interfejsie
+            except Exception:  # noqa: BLE001 - błąd zadania pokazywany w interfejsie
+                # Treść wyjątku zostaje w dzienniku: bywa w niej ścieżka na serwerze albo
+                # nazwa pliku producenta, a użytkownikowi i tak nic nie mówi.
                 logger.exception("Błąd zadania %s (%s)", job.id, kind)
-                job.status, job.error = "failed", f"Błąd wewnętrzny: {error}"
+                job.status = "failed"
+                job.error = (
+                    "Coś poszło nie tak po naszej stronie — zadanie nie zostało wykonane. "
+                    f"Spróbuj jeszcze raz; przy zgłoszeniu podaj numer {str(job.id)[:8]}."
+                )
             finally:
                 job.finished = time.time()
 

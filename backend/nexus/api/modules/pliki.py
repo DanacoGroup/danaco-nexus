@@ -244,9 +244,14 @@ async def lista_plikow(
         zapytanie = zapytanie.where(or_(*(StoredFile.mime.startswith(p) for p in przedrostki)))
     szukane = q.strip()
     if szukane:
-        wzorzec = f"%{szukane}%"
+        # `%` i `_` są w LIKE znakami wieloznacznymi. Bez zasłonięcia ich szukanie
+        # „50%” oddawało wszystkie pliki, a „raport_2026” trafiał też w „raport-2026”.
+        wzorzec = "%" + szukane.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         zapytanie = zapytanie.where(
-            or_(StoredFile.name.ilike(wzorzec), StoredFile.tytul.ilike(wzorzec))
+            or_(
+                StoredFile.name.ilike(wzorzec, escape="\\"),
+                StoredFile.tytul.ilike(wzorzec, escape="\\"),
+            )
         )
     async with database.session() as session:
         rekordy = (

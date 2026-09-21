@@ -550,3 +550,71 @@ def test_translation_api(client: TestClient, monkeypatch: pytest.MonkeyPatch) ->
     produced = state["result"]["files"][0]
     assert produced["name"] == "notatka_de.txt"
     assert client.get(f"/api/files/{produced['id']}/download").text == "SPOTKANIE O DZIESIĄTEJ."
+
+
+def test_podstrona_bez_kreski_przekierowuje_na_adres_z_kreska(harness: ToolHarness) -> None:
+    """Bez kreski przeglądarka liczy ścieżki względne od katalogu wyżej i gubi style.
+
+    Witryny w układzie katalogowym (Astro, Hugo, Eleventy) mają odsyłacze bez kreski
+    („/cennik”), więc bez tego przekierowania każda podstrona otwarta z menu traciła
+    arkusze i nawigację.
+    """
+    from starlette.responses import RedirectResponse
+
+    from nexus.api.modules.strony import _serve
+    from nexus.tworczy.strony import site_store
+
+    store = site_store(harness.settings)
+    store.create("firma", "Firma")
+    store.write_text("firma", "index.html", "<h1>Start</h1>")
+    store.write_text("firma", "cennik/index.html", "<h1>Cennik</h1>")
+    store.write_text("firma", "assets/styl.css", "h1{color:red}")
+    store.publish("firma")
+
+    przekierowanie = _serve(store, "firma", "cennik", published=True)
+    assert isinstance(przekierowanie, RedirectResponse)
+    assert przekierowanie.status_code == 308
+    assert przekierowanie.headers["location"] == "/s/firma/cennik/"
+
+    # Adres z kreską, plik i katalog bez index.html idą zwykłą drogą.
+    assert _serve(store, "firma", "cennik/", published=True).status_code == 200
+    assert _serve(store, "firma", "assets/styl.css", published=True).status_code == 200
+    assert _serve(store, "firma", "assets", published=True).status_code == 404
+    # Szkic (podgląd) ma własny adres z tokenem — tam przekierowanie nie ma sensu.
+    assert not isinstance(_serve(store, "firma", "cennik", published=False), RedirectResponse)
+
+
+def test_publikacja_mowi_co_jeszcze_wychodzi_do_cudzych_serwerow(harness: ToolHarness) -> None:
+    """Publikacja to chwila, w której odwołania do obcych serwerów zaczynają dotyczyć gości."""
+    from nexus.tworczy.strony import site_store
+
+    store = site_store(harness.settings)
+    store.create("firma", "Firma")
+    store.write_text(
+        "firma",
+        "index.html",
+        '<link rel="stylesheet" href="https://cdn.example/styl.css">'
+        '<link rel="canonical" href="https://autor.dev/">'
+        "<h1>Firma</h1>",
+    )
+
+    wynik = call(harness, "site_publish", site="firma", note="pierwsza")
+
+    assert wynik.data["status"] == "czeka_na_potwierdzenie"
+    uwagi = wynik.data["do_sprzatniecia"]
+    assert any("cdn.example" in u for u in uwagi)
+    assert any("canonical" in u for u in uwagi)
+    assert "do_sprzatniecia" in wynik.summary
+
+
+def test_publikacja_czystej_strony_bez_dodatkowych_uwag(harness: ToolHarness) -> None:
+    from nexus.tworczy.strony import site_store
+
+    store = site_store(harness.settings)
+    store.create("czysta", "Czysta")
+    store.write_text("czysta", "index.html", '<link rel="stylesheet" href="styl.css"><h1>Cześć</h1>')
+
+    wynik = call(harness, "site_publish", site="czysta")
+
+    assert "do_sprzatniecia" not in wynik.data
+    assert wynik.summary == "Prośba o publikację czeka na potwierdzenie użytkownika"

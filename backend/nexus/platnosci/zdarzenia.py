@@ -92,6 +92,20 @@ async def _dopisz_pakiet(
     if konto is None:
         logger.warning("Nie rozpoznano konta %r przy zakupie pakietu — kredyty nie dopisane.", uzytkownik)
         return
+    # Doładowanie kwotą: liczbę kredytów wylicza serwer z wpłaconej sumy, a nie z katalogu
+    # pakietów. Metadane niosą już wynik przeliczenia, ale liczymy go tu ponownie z kwoty —
+    # metadane sesji Checkout pochodzą z naszego żądania, jednak to wpłata jest faktem.
+    if str(metadane.get("doladowanie") or "") == "1":
+        kwota_gr = int(str(obiekt.get("amount_total") or metadane.get("kwota_gr") or "0") or 0)
+        ile = kredyty.kredyty_za_kwote(kwota_gr)
+        nazwa = "Przedłużenie dostępu"
+        if ile <= 0:
+            logger.warning("Doładowanie na %s gr nie daje kredytów — nic nie dopisuję.", kwota_gr)
+            return
+        saldo = await kredyty.przydziel(database, konto, ile, "zakup", nazwa)
+        logger.info("Doładowanie %s gr → %s kredytów na koncie %s; saldo: %s", kwota_gr, ile, konto, saldo)
+        return
+
     pozycja = pakiet(str(metadane.get("pakiet") or ""))
     ile = pozycja.kredyty if pozycja else int(str(metadane.get("kredyty") or "0") or 0)
     if ile <= 0:
@@ -122,9 +136,9 @@ async def _checkout_zakonczony(
     """
     uzytkownik = await _uzytkownik(database, obiekt)
     metadane = obiekt.get("metadata") or {}
-    # Jednorazowy zakup pakietu kredytów nie zakłada ani nie zmienia subskrypcji —
-    # dopisuje kredyty i na tym kończy.
-    if metadane.get("pakiet"):
+    # Jednorazowy zakup — pakiet albo doładowanie kwotą — nie zakłada ani nie zmienia
+    # subskrypcji: dopisuje kredyty i na tym kończy.
+    if metadane.get("pakiet") or metadane.get("doladowanie"):
         await _dopisz_pakiet(database, uzytkownik, obiekt, metadane)
         return
     klient = obiekt.get("customer")

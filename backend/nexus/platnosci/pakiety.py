@@ -43,7 +43,7 @@ KATALOG_PAKIETOW: tuple[PakietKredytow, ...] = (
         kod="maly",
         nazwa="Mały pakiet",
         kredyty=5_000,
-        opis="Na dokończenie zadania, gdy zabrakło kilku tysięcy kredytów.",
+        opis="Na dokończenie zadania, gdy zakres z planu skończył się o włos za wcześnie.",
     ),
     PakietKredytow(
         kod="sredni",

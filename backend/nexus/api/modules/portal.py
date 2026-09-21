@@ -592,6 +592,19 @@ async def moje_konto(user: PortalUser = Depends(konta.wymagaj_konta)) -> dict[st
     return konta.profil(user)
 
 
+@konto.get("/sesja")
+async def stan_sesji(request: Request) -> dict[str, Any]:
+    """Czy ktoś jest zalogowany — i kto, jeśli tak.
+
+    Osobny punkt, bo to pytanie o stan, a nie sięgnięcie po zasób chroniony. Portal
+    pytał o to przez ``/konto/ja``, które gościowi odpowiada 401 — przeglądarka
+    zapisywała wtedy błąd w konsoli na każdej stronie publicznej, choć nic złego się nie
+    działo. Tutaj brak sesji to zwykła odpowiedź: ``{"konto": null}``.
+    """
+    user = await konta.konto_sesji(request)
+    return {"konto": konta.profil(user) if user is not None else None}
+
+
 @konto.patch("/profil")
 async def zmien_profil(
     payload: ZmianaProfilu, request: Request, user: PortalUser = Depends(konta.wymagaj_konta)

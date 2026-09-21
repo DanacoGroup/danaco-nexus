@@ -26,6 +26,8 @@ from nexus.research.web import USER_AGENT
 
 OPENALEX = "https://api.openalex.org"
 SEMANTIC_SCHOLAR = "https://api.semanticscholar.org/graph/v1"
+#: Górny pułap odpowiedzi arXiv czytanej biblioteką standardową (httpx ma własne limity).
+MAKS_ODPOWIEDZI = 8 * 1024 * 1024
 ARXIV = "https://export.arxiv.org/api/query"
 CROSSREF = "https://api.crossref.org/works"
 ATOM = "{http://www.w3.org/2005/Atom}"
@@ -400,9 +402,16 @@ def _arxiv_text(client: httpx.Client, params: dict[str, Any]) -> str:
     )
     try:
         with urllib.request.urlopen(request, timeout=25) as response:
-            return response.read().decode("utf-8", errors="replace")
+            # Czytamy z zapasem jednego bajta ponad limit: gdy odpowiedź jest dłuższa,
+            # wiadomo to od razu i nie wciągamy jej dalej do pamięci. Bez limitu obca
+            # brama mogła oddać dowolnie duży dokument (odpowiedź arXiv dla setki prac
+            # to ułamek megabajta).
+            tresc = response.read(MAKS_ODPOWIEDZI + 1)
     except OSError as error:
         raise ScholarError(f"błąd połączenia z arXiv ({error})") from error
+    if len(tresc) > MAKS_ODPOWIEDZI:
+        raise ScholarError("odpowiedź arXiv przekroczyła dopuszczalny rozmiar")
+    return tresc.decode("utf-8", errors="replace")
 
 
 def search_semantic_scholar(client: httpx.Client, query: Query) -> list[Paper]:

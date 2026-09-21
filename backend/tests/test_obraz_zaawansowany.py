@@ -10,6 +10,7 @@ liczony jest naprawdę — na podstawionej odpowiedzi programu.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -19,6 +20,7 @@ import pytest
 from conftest import ToolHarness
 from PIL import Image, ImageDraw
 
+from nexus.tools import obraz_zaawansowany
 from nexus.tools.base import ToolError, registry
 
 NARZEDZIA = (
@@ -28,6 +30,7 @@ NARZEDZIA = (
     "blur_background_by_depth",
     "video_to_gif",
     "render_lottie",
+    "lottie_library",
 )
 
 
@@ -340,3 +343,81 @@ def test_lottie_sklada_polecenie_renderu(harness: ToolHarness, tmp_path: Path, m
     assert polecenie[polecenie.index("--tlo") + 1] == "#FFFFFF"
     assert wynik.data["format"] == "gif"
     assert len(wynik.images) == 1
+
+
+# --- biblioteka animacji Lottie -------------------------------------------------------------
+
+
+def biblioteka_lottie(tmp_path: Path, monkeypatch) -> Path:  # type: ignore[no-untyped-def]
+    """Podstawiona biblioteka serwera: dwie animacje i wykaz."""
+    korzen = tmp_path / "lottie"
+    (korzen / "animacje" / "airbnb").mkdir(parents=True)
+    for nazwa in ("check-pop", "rakieta"):
+        (korzen / "animacje" / "airbnb" / f"{nazwa}.json").write_text(
+            '{"v":"5.7.4","fr":25,"w":100,"h":100,"op":50,"ip":0,"layers":[]}', encoding="utf-8"
+        )
+    (korzen / "indeks.json").write_text(
+        json.dumps(
+            {
+                "pozycji": 2,
+                "animacje": [
+                    {
+                        "id": "airbnb/check-pop",
+                        "nazwa": "check pop",
+                        "zbior": "airbnb",
+                        "licencja": "Apache-2.0",
+                    },
+                    {"id": "airbnb/rakieta", "nazwa": "rakieta", "zbior": "airbnb", "licencja": "Apache-2.0"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(obraz_zaawansowany, "LOTTIE_BIBLIOTEKA", korzen)
+    monkeypatch.setattr(obraz_zaawansowany, "LOTTIE_WYKAZ", korzen / "indeks.json")
+    return korzen
+
+
+def test_wykaz_animacji_zaweza_po_nazwie(harness: ToolHarness, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    biblioteka_lottie(tmp_path, monkeypatch)
+    wynik = wywolaj(harness, "lottie_library", szukaj="rakieta")
+    assert wynik.data["pasujacych"] == 1
+    assert wynik.data["animacje"][0]["id"] == "airbnb/rakieta"
+
+    puste = wywolaj(harness, "lottie_library", szukaj="czegotaniema")
+    assert puste.data["pasujacych"] == 0
+    assert "nie ma animacji" in puste.summary
+
+
+def test_render_bierze_animacje_z_biblioteki(harness: ToolHarness, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Agent nie potrzebuje pliku od użytkownika — sięga po pozycję z biblioteki serwera."""
+    korzen = biblioteka_lottie(tmp_path, monkeypatch)
+    podstaw_programy(monkeypatch)
+    zapis: list[list[str]] = []
+
+    def efekt(polecenie: list[str]) -> str:
+        Image.new("RGB", (16, 16), (10, 20, 30)).save(polecenie[3], format="GIF")
+        return ""
+
+    podstaw_przebieg(monkeypatch, zapis, efekt)
+    wynik = wywolaj(harness, "render_lottie", animacja="airbnb/check-pop", format_wyniku="gif")
+
+    assert zapis[0][2] == str(korzen / "animacje" / "airbnb" / "check-pop.json")
+    assert "check-pop" in wynik.summary
+
+
+def test_render_odrzuca_wyjscie_poza_biblioteke(harness: ToolHarness, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Nazwa animacji idzie do ścieżki na dysku — „..” nie może z niej wyprowadzić."""
+    biblioteka_lottie(tmp_path, monkeypatch)
+    podstaw_programy(monkeypatch)
+    with pytest.raises(ToolError, match="Nieprawidłowa nazwa animacji"):
+        wywolaj(harness, "render_lottie", animacja="../../etc/passwd")
+    with pytest.raises(ToolError, match="Biblioteka nie ma animacji"):
+        wywolaj(harness, "render_lottie", animacja="airbnb/czegotaniema")
+
+
+def test_render_wymaga_pliku_albo_animacji(harness: ToolHarness, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    biblioteka_lottie(tmp_path, monkeypatch)
+    podstaw_programy(monkeypatch)
+    with pytest.raises(ToolError, match="Podaj plik animacji"):
+        wywolaj(harness, "render_lottie")

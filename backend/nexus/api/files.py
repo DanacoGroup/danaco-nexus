@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import io
+import shutil
+import subprocess
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
@@ -149,9 +152,41 @@ async def download(
     )
 
 
-def _thumbnail(path: Path, mime: str, target: Path) -> bytes | None:
+#: Ile sekund od początku bierzemy na miniaturę filmu. Pierwsza klatka bywa czarna
+#: (zaciemnienie, plansza), więc sięgamy głębiej — a przy krótszym pliku ffmpeg i tak
+#: odda ostatnią klatkę.
+MINIATURA_FILMU_S = "00:00:01"
+
+
+def _klatka_filmu(path: Path) -> Path | None:
+    """Klatka wyjęta z filmu do pliku tymczasowego — albo ``None``, gdy się nie udało."""
+    klatka = Path(tempfile.mkdtemp()) / "klatka.jpg"
     try:
-        if mime == "application/pdf" or path.suffix.lower() == ".pdf":
+        wynik = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", MINIATURA_FILMU_S,
+             "-i", str(path), "-frames:v", "1", "-q:v", "3", str(klatka)],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if wynik.returncode != 0 or not klatka.is_file() or klatka.stat().st_size == 0:
+        return None
+    return klatka
+
+
+def _thumbnail(path: Path, mime: str, target: Path) -> bytes | None:
+    tymczasowa: Path | None = None
+    try:
+        if mime.startswith("video/"):
+            # Film bez miniatury to w wykazie plików szary prostokąt; w storyboardzie
+            # montażu (Studio → Montaż) po takim ujęciu nie widać, co w nim jest.
+            tymczasowa = _klatka_filmu(path)
+            if tymczasowa is None:
+                return None
+            image = open_image(tymczasowa)
+        elif mime == "application/pdf" or path.suffix.lower() == ".pdf":
             with pymupdf.open(path) as document:
                 page = document[0]
                 scale = THUMBNAIL_SIDE * 2 / max(page.rect.width, page.rect.height)
@@ -173,13 +208,16 @@ def _thumbnail(path: Path, mime: str, target: Path) -> bytes | None:
         return data
     except Exception:  # noqa: BLE001 - brak miniatury nie jest błędem
         return None
+    finally:
+        if tymczasowa is not None:
+            shutil.rmtree(tymczasowa.parent, ignore_errors=True)
 
 
 @router.get("/{file_id}/thumbnail")
 async def thumbnail(
     file_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)
 ) -> Response:
-    """Miniatura obrazu lub pierwszej strony PDF (JPEG, z pamięci podręcznej)."""
+    """Miniatura obrazu, klatki filmu albo pierwszej strony PDF (JPEG, z pamięci podręcznej)."""
     record = await _record(request, file_id, owner)
     settings = request.app.state.settings
     storage: FileStorage = request.app.state.storage

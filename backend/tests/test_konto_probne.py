@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 from test_api import HEADERS, client, set_password, settings  # noqa: F401
 from test_izolacja_kont import KLIENT_HASLO, zaloguj, zaloz_konto  # noqa: F401
 
-from nexus.api.auth import GOSC_NA_ADRES
 from nexus.config import Settings
 
 
@@ -59,7 +58,7 @@ def test_kazde_wejscie_to_osobne_konto(client: TestClient, settings: Settings) -
 
 def test_limit_kont_z_jednego_adresu(client: TestClient, settings: Settings) -> None:  # noqa: F811
     set_password(settings)
-    for _ in range(GOSC_NA_ADRES):
+    for _ in range(settings.goscie_na_adres):
         assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
     odmowa = client.post("/api/auth/gosc", headers=HEADERS)
     assert odmowa.status_code == 429

@@ -38,6 +38,8 @@ from typing import Any
 
 from sqlalchemy import select, update
 
+import nexus as nexus_pakiet
+from nexus.agent import most_mcp, piaskownica
 from nexus.agent.prompt import SUBAGENT_PROMPT, system_prompt
 from nexus.agent.przestrzenie import existing_project
 from nexus.config import Settings
@@ -54,6 +56,7 @@ from nexus.db import (
 )
 from nexus.events import EventBus
 from nexus.platnosci import kredyty
+from nexus.platnosci.grupy import konto_rozliczeniowe
 
 logger = logging.getLogger(__name__)
 
@@ -274,12 +277,26 @@ def cli_environment(settings: Settings, run_dir: Path, code: bool = False) -> di
     return env
 
 
+def _korzen_kodu() -> str:
+    """Katalog, z którego importuje się pakiet ``nexus`` w tym procesie.
+
+    Serwer MCP uruchamia CLI w przestrzeni użytkownika, więc ``python -m nexus.mcp_server``
+    nie znajdzie tam pakietu przy bieżącym katalogu i sięgnąłby po instalację edytowalną
+    z venv — czyli po stan roboczy repozytorium, a nie po kod wydania, na którym pracuje
+    proces roboczy. Ta ścieżka trafia do ``PYTHONPATH`` serwera, żeby narzędzia i agent
+    pochodziły z jednego kodu.
+    """
+    return str(Path(nexus_pakiet.__file__).resolve().parents[1])
+
+
 def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID, owner_id: uuid.UUID) -> dict[str, Any]:
     """Konfiguracja serwera MCP narzędzi dla jednego zadania.
 
     ``NEXUS_OWNER_ID`` wskazuje konto, w którego przestrzeni pracują narzędzia: skrzynka
     pocztowa, chmura i baza wiedzy należą do konta, a nie do serwera.
     """
+    korzen = _korzen_kodu()
+    biezaca_sciezka = os.environ.get("PYTHONPATH", "")
     return {
         "mcpServers": {
             MCP_SERVER_NAME: {
@@ -287,6 +304,7 @@ def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID, owner_id: uuid.UUI
                 "command": sys.executable,
                 "args": ["-m", "nexus.mcp_server"],
                 "env": {
+                    "PYTHONPATH": f"{korzen}{os.pathsep}{biezaca_sciezka}".rstrip(os.pathsep),
                     "NEXUS_RUN_ID": str(run_id),
                     "NEXUS_CONVERSATION_ID": str(conversation_id),
                     "NEXUS_OWNER_ID": str(owner_id),
@@ -294,6 +312,65 @@ def mcp_config(run_id: uuid.UUID, conversation_id: uuid.UUID, owner_id: uuid.UUI
             }
         }
     }
+
+
+def srodowisko_mcp(run_id: uuid.UUID, conversation_id: uuid.UUID, owner_id: uuid.UUID) -> dict[str, str]:
+    """Środowisko serwera MCP uruchamianego przez most (poza piaskownicą).
+
+    To środowisko serwera, a nie procesu CLI: narzędzia potrzebują bazy danych i magazynu
+    plików. ``NEXUS_OWNER_ID`` wskazuje konto, w którego przestrzeni pracują.
+    """
+    return {
+        **os.environ,
+        "NEXUS_RUN_ID": str(run_id),
+        "NEXUS_CONVERSATION_ID": str(conversation_id),
+        "NEXUS_OWNER_ID": str(owner_id),
+    }
+
+
+#: Zmienne, których proces CLI naprawdę potrzebuje w piaskownicy.
+#:
+#: Wszystko poza tym wykazem zostaje po stronie serwera. Nie ma tu żadnej zmiennej
+#: ``NEXUS_*``: konfiguracja instalacji (adres bazy, ścieżki do plików z kluczem Stripe
+#: i hasłem chmury) nie jest agentowi do niczego potrzebna, a wypisuje się jednym
+#: poleceniem. Serwer narzędzi MCP stoi poza piaskownicą i ma swoje własne środowisko.
+PRZEDROSTKI_CLI = ("CLAUDE_", "ANTHROPIC_", "MCP_", "GIT_", "DISABLE_", "MAX_MCP_")
+
+
+def srodowisko_cli(env: dict[str, str]) -> dict[str, str]:
+    """Środowisko procesu CLI wewnątrz piaskownicy: wykaz podstawowy plus ustawienia CLI."""
+    wybrane = {
+        nazwa: wartosc
+        for nazwa, wartosc in env.items()
+        if nazwa.startswith(PRZEDROSTKI_CLI) or nazwa in piaskownica.ZMIENNE_DOZWOLONE
+    }
+    return piaskownica.srodowisko(wybrane)
+
+
+def katalog_cli(settings: Settings) -> Path:
+    """Katalog z binarką Claude Code CLI (wpuszczany do piaskownicy do odczytu)."""
+    return Path(shutil.which(settings.claude_bin) or settings.claude_bin).resolve().parent
+
+
+def node_bin(settings: Settings) -> str:
+    """Node uruchamiający przelotkę MCP w piaskownicy (obok binarki CLI albo z PATH)."""
+    obok = Path(shutil.which(settings.claude_bin) or settings.claude_bin).resolve().parent / "node"
+    if obok.exists():
+        return str(obok)
+    return shutil.which("node") or "node"
+
+
+def piaskownica_wlaczona(settings: Settings) -> bool:
+    """Czy proces CLI ma wystartować w piaskownicy (ustawienie + sprawność ``bwrap``)."""
+    if not settings.agent_piaskownica:
+        return False
+    if not piaskownica.dostepna():
+        logger.warning(
+            "Piaskownica agenta wyłączona: bwrap niedostępny. Agent widzi pliki serwera — "
+            "zainstaluj bubblewrap albo ustaw agent_piaskownica=false świadomie."
+        )
+        return False
+    return True
 
 
 def session_tools(settings: Settings, options: RunOptions) -> list[str]:
@@ -697,8 +774,17 @@ class AgentRunner:
                 str(error) if isinstance(error, BladZlecenia) else friendly_error(str(error))
             )
             logger.error("Błąd CLI w przebiegu %s: %s", run_id, str(error)[-2000:])
-        except Exception as error:  # noqa: BLE001 - błąd przebiegu raportowany w interfejsie
-            status, error_text = "failed", f"Błąd wewnętrzny: {error}"
+        except Exception:  # noqa: BLE001 - błąd przebiegu raportowany w interfejsie
+            # Treść wyjątku zostaje w dzienniku, nie na ekranie: bywa w niej ścieżka na
+            # serwerze, fragment zapytania do bazy albo nazwa pliku producenta — rzeczy,
+            # których użytkownik nie powinien widzieć i tak czy tak nic mu nie mówią.
+            # Na ekran idzie zdanie, które da się przeczytać, i skrót identyfikatora
+            # przebiegu, po którym da się znaleźć wpis w dzienniku.
+            status = "failed"
+            error_text = (
+                "Coś poszło nie tak po naszej stronie — zadanie nie zostało wykonane. "
+                f"Spróbuj jeszcze raz; jeśli wróci, podaj przy zgłoszeniu numer {str(run_id)[:8]}."
+            )
             logger.exception("Błąd przebiegu %s", run_id)
         await self._close_open_calls(state, status)
         async with self._db.session() as session:
@@ -717,7 +803,9 @@ class AgentRunner:
                     (await session.scalars(select(ToolCall.name).where(ToolCall.run_id == run_id))).all()
                 )
             koszt = kredyty.koszt_przebiegu(usage, uzyte_narzedzia)
-            saldo_po = await kredyty.obciaz(self._db, state.owner_id, koszt, run_id, usage)
+            # Praca członka grupy schodzi z puli założyciela; poza grupą — z własnej.
+            konto = await konto_rozliczeniowe(self._db, state.owner_id)
+            saldo_po = await kredyty.obciaz(self._db, konto, koszt, run_id, usage)
         except Exception:  # noqa: BLE001 - brak naliczenia nie może przerwać zamknięcia przebiegu
             logger.exception("Nie udało się naliczyć kredytów za przebieg %s", run_id)
         final_type = {"done": "run.completed", "cancelled": "run.cancelled"}.get(status, "run.failed")
@@ -832,14 +920,41 @@ class AgentRunner:
         cwd = options.workspace or settings.data_dir / "agent"
         cwd.mkdir(parents=True, exist_ok=True)
         config_path = run_dir / "mcp.json"
-        config_path.write_text(
-            json.dumps(mcp_config(state.run_id, state.conversation_id, state.owner_id)), encoding="utf-8"
-        )
         command = build_command(settings, config_path, session_id, resume, options=options)
+        env = cli_environment(settings, run_dir, code=options.mode == "code")
+        most: most_mcp.MostMcp | None = None
+        if piaskownica_wlaczona(settings):
+            # Serwer MCP zostaje poza piaskownicą (potrzebuje kodu Nexusa i bazy), a CLI
+            # dostaje do niego przelotkę przez gniazdo w katalogu zadania.
+            most = most_mcp.MostMcp(
+                run_dir, srodowisko_mcp(state.run_id, state.conversation_id, state.owner_id)
+            )
+            await most.start()
+            config_path.write_text(
+                json.dumps(most_mcp.konfiguracja_przez_most(most, node_bin(settings), MCP_SERVER_NAME)),
+                encoding="utf-8",
+            )
+            command = piaskownica.polecenie(
+                piaskownica.znajdz_bwrap(),
+                command,
+                cwd=cwd,
+                # Do środka wchodzą wyłącznie zmienne, bez których CLI nie ruszy —
+                # konfiguracja Nexusa (adres bazy, ścieżki do plików z kluczami) zostaje
+                # po tej stronie progu.
+                srodowisko_procesu=srodowisko_cli(env),
+                zapis=(cwd, settings.claude_profile_dir, run_dir, most.katalog_gniazda),
+                # Binarka CLI leży zwykle w łańcuchu narzędzi serwera, ale nie musi —
+                # bez jej katalogu piaskownica nie miałaby czego uruchomić.
+                odczyt=(katalog_cli(settings),),
+            )
+        else:
+            config_path.write_text(
+                json.dumps(mcp_config(state.run_id, state.conversation_id, state.owner_id)), encoding="utf-8"
+            )
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=cwd,
-            env=cli_environment(settings, run_dir, code=options.mode == "code"),
+            env=env,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -887,6 +1002,17 @@ class AgentRunner:
                 await _terminate(process)
             if not stderr_task.done():
                 stderr_task.cancel()
+            # `cancel()` samo niczego nie kończy — zaznacza tylko prośbę. Bez zebrania
+            # zadań wychodzimy z biegu, zanim `_watch_cancel` domknie swoją sesję bazy,
+            # i zostawiamy zadanie w trakcie wycofywania transakcji. W usłudze pętla
+            # działa dalej i zdąży je posprzątać; w testach pętla zamyka się zaraz po
+            # biegu i `asyncio.runners._cancel_all_tasks` potrafił na takim zadaniu
+            # stanąć na zawsze — cała bramka wydania wisiała wtedy do limitu czasu.
+            await asyncio.gather(
+                watcher, cancel_wait, shutdown_wait, stderr_task, return_exceptions=True
+            )
+            if most is not None:
+                await most.zamknij()
             _remove_tree(run_dir)
 
     async def _watch_cancel(self, run_id: uuid.UUID, cancel: asyncio.Event) -> None:

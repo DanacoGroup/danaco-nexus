@@ -13,6 +13,7 @@ from sqlalchemy import delete, func, select, update
 from nexus.api.auth import require_session, wlasciciel
 from nexus.db import Conversation, Database, Message, Run, StoredFile, ToolCall, utcnow
 from nexus.platnosci import kredyty
+from nexus.platnosci.grupy import konto_rozliczeniowe
 from nexus.platnosci.uprawnienia import limity_uzytkownika
 from nexus.storage import FileStorage
 
@@ -327,7 +328,9 @@ async def send_message(
     # Brak kredytów zatrzymuje zlecenie, zanim ruszy praca. Dowiedzenie się o pustym
     # saldzie w połowie zadania byłoby gorsze niż odmowa na wejściu.
     try:
-        await kredyty.sprawdz_przed_zleceniem(database, owner)
+        # Członek grupy pracuje na puli założyciela — to jego konto kupiło dostęp dla
+        # wszystkich. Poza grupą konto rozliczeniowe to po prostu konto użytkownika.
+        await kredyty.sprawdz_przed_zleceniem(database, await konto_rozliczeniowe(database, owner))
     except kredyty.BrakKredytow as blad:
         raise HTTPException(blad.status, str(blad)) from blad
     async with database.session() as session:

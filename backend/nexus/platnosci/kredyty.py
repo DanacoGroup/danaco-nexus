@@ -108,11 +108,16 @@ class RuchKredytow(Base):
 
 
 class BrakKredytow(Exception):
-    """Konto nie ma kredytów na kolejne zlecenie."""
+    """Konto wyczerpało dostęp na kolejne zlecenie.
+
+    Komunikat nie mówi o kredytach: jednostka rozliczeniowa jest nasza, nie użytkownika.
+    Ma on wiedzieć, że praca stanęła i jak ją wznowić — liczba, której nigdzie nie widział,
+    niczego by tu nie wyjaśniła.
+    """
 
     def __init__(self, saldo: int) -> None:
         super().__init__(
-            "Skończyły się kredyty na tym koncie. Odnów plan albo dokup pakiet, "
+            "Dostęp na tym koncie się wyczerpał. Przedłuż go albo odnów plan, "
             "a zadania ruszą od razu."
         )
         self.saldo = saldo
@@ -298,3 +303,53 @@ async def suma_zuzycia(database: Database, owner: uuid.UUID) -> int:
             )
             or 0
         )
+
+
+# --- Doładowanie dostępu kwotą, a nie pakietem ---------------------------------------
+#
+# Użytkownik nie kupuje „kredytów” i nie widzi ich liczby: wpisuje kwotę, za jaką chce
+# przedłużyć pracę z Nexusem. Kredyt zostaje jednostką wewnętrzną — tak samo jak koszt
+# maszyny nie jest pozycją na paragonie w kawiarni. Przelicznik trzymamy po naszej
+# stronie, żeby dało się go zmienić bez tłumaczenia się użytkownikowi z liczb, których
+# nigdy nie widział.
+
+#: Najniższa kwota doładowania w groszach. Poniżej opłata Stripe zjada znaczną część
+#: wpłaty, a praca i tak nie starcza na nic sensownego.
+MINIMUM_DOLADOWANIA_GR = 1_000
+
+#: Największa kwota jednego doładowania — próg zdrowego rozsądku, nie ograniczenie
+#: handlowe: chroni przed pomyłką o dwa zera przy ręcznym wpisywaniu.
+MAKSIMUM_DOLADOWANIA_GR = 500_000
+
+#: Kwoty szybkiego wyboru w groszach (użytkownik może też wpisać własną).
+KWOTY_SZYBKIE_GR: tuple[int, ...] = (2_000, 5_000, 7_000, 15_000)
+
+#: Progi przelicznika: (od ilu groszy, ile kredytów za złotówkę). Im większa wpłata,
+#: tym korzystniejszy przelicznik — najwyższy próg zrównuje się ze stawką planu Pro,
+#: więc nikt nie traci na tym, że dokupuje zamiast przechodzić wyżej.
+PROGI_PRZELICZNIKA: tuple[tuple[int, int], ...] = (
+    (50_000, 100),
+    (20_000, 80),
+    (0, 63),
+)
+
+
+def kredyty_za_kwote(kwota_gr: int) -> int:
+    """Ile kredytów dopisujemy za wpłatę w groszach (przelicznik progowy)."""
+    if kwota_gr < MINIMUM_DOLADOWANIA_GR:
+        return 0
+    for prog, za_zlotowke in PROGI_PRZELICZNIKA:
+        if kwota_gr >= prog:
+            return (kwota_gr * za_zlotowke) // 100
+    return 0
+
+
+def udzial_zuzycia(stan_konta: StanKredytow) -> float:
+    """Jaka część przydziału została zużyta — liczba od 0 do 1, bez wartości bezwzględnych.
+
+    Interfejs pokazuje z tego pasek. Gdy konto nie dostało jeszcze żadnego przydziału,
+    nie ma czego dzielić i pasek stoi na zerze zamiast na „pełnym zużyciu”.
+    """
+    if stan_konta.przydzielone <= 0:
+        return 0.0
+    return min(1.0, stan_konta.zuzyte / stan_konta.przydzielone)

@@ -12,12 +12,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 
-from nexus.agent.przestrzenie import existing_project
+from nexus.agent.przestrzenie import projekt_konta
 from nexus.agent.runner import conversation_mode, rate_limit_warning
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.api.conversations import SendMessage, send_message
 from nexus.config import Settings
 from nexus.db import Conversation, Database, Run, RunEvent, utcnow
+from nexus.models.agenci import LIMIT_AGENTOW, AgentUzytkownika
 
 router = APIRouter(prefix="/api/agenci", tags=["agenci"], dependencies=[Depends(require_session)])
 
@@ -116,21 +117,31 @@ def _limits(raw: str | None) -> dict[str, Any] | None:
 
 @router.get("/zadania")
 async def list_tasks(
-    request: Request, zakonczone: int = Query(20, ge=0, le=100, description="Liczba ostatnio zakończonych.")
+    request: Request,
+    zakonczone: int = Query(20, ge=0, le=100, description="Liczba ostatnio zakończonych."),
+    owner: uuid.UUID = Depends(wlasciciel),
 ) -> dict[str, Any]:
-    """Zadania w toku (z postępem i podagentami) i ostatnio zakończone."""
+    """Zadania konta w toku (z postępem i podagentami) i ostatnio zakończone.
+
+    Odpowiedź niesie tytuły rozmów, opisy podagentów i treść błędów, więc przebiegi
+    wybieramy po właścicielu rozmowy — tak samo jak ``api/runs.py``.
+    """
     database: Database = request.app.state.database
     settings: Settings = request.app.state.settings
     since = utcnow() - timedelta(hours=RECENT_HOURS)
+    moje = (
+        select(Run)
+        .join(Conversation, Conversation.id == Run.conversation_id)
+        .where(Conversation.owner_id == owner)
+    )
     async with database.session() as session:
         active = (
-            await session.scalars(select(Run).where(Run.status.in_(ACTIVE_STATUSES)).order_by(Run.created_at))
+            await session.scalars(moje.where(Run.status.in_(ACTIVE_STATUSES)).order_by(Run.created_at))
         ).all()
         finished = (
             (
                 await session.scalars(
-                    select(Run)
-                    .where(
+                    moje.where(
                         Run.status.not_in(ACTIVE_STATUSES),
                         or_(Run.finished_at.is_(None), Run.finished_at >= since),
                     )
@@ -165,7 +176,12 @@ async def list_tasks(
             if runs
             else []
         )
-        queued = await session.scalar(select(func.count()).select_from(Run).where(Run.status == "queued"))
+        queued = await session.scalar(
+            select(func.count())
+            .select_from(Run)
+            .join(Conversation, Conversation.id == Run.conversation_id)
+            .where(Run.status == "queued", Conversation.owner_id == owner)
+        )
     events: dict[uuid.UUID, list[tuple[str, dict[str, Any]]]] = {}
     for run_id, event_type, data in rows:
         events.setdefault(run_id, []).append((event_type, data or {}))
@@ -204,9 +220,13 @@ async def list_tasks(
 @router.post("/zadania", status_code=status.HTTP_202_ACCEPTED)
 async def create_task(payload: NewTask, request: Request) -> dict[str, Any]:
     """Nowe zadanie w tle: osobna rozmowa w wybranym trybie i wiadomość w kolejce."""
+    # Zadanie w tle należy do konta, które je zleciło — jak każda inna rozmowa.
+    wlasciciel_konta = (await require_session(request)).owner_id
     meta: dict[str, Any] = {"mode": payload.mode}
     if payload.mode == "code":
-        if existing_project(request.app.state.settings, payload.workspace) is None:
+        # Tryb Kod uruchamia programy w katalogu projektu, więc projekt musi należeć
+        # do tego konta — inaczej zadanie pracowałoby w cudzej przestrzeni.
+        if projekt_konta(request.app.state.settings, payload.workspace, wlasciciel_konta) is None:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY, "Wybierz istniejący projekt modułu Kod."
             )
@@ -218,11 +238,174 @@ async def create_task(payload: NewTask, request: Request) -> dict[str, Any]:
     title = (payload.title or "").strip() or (
         source if len(source) <= TITLE_CHARS else source[: TITLE_CHARS - 3].rstrip() + "…"
     )
-    # Zadanie w tle należy do konta, które je zleciło — jak każda inna rozmowa.
-    wlasciciel_konta = (await require_session(request)).owner_id
     conversation = Conversation(id=uuid.uuid4(), owner_id=wlasciciel_konta, title=title, meta=meta)
     database: Database = request.app.state.database
     async with database.session() as session:
         session.add(conversation)
     queued = await send_message(conversation.id, SendMessage(text=text), request, wlasciciel_konta)
     return {"conversation_id": str(conversation.id), "run_id": queued["run_id"], "title": title}
+
+
+# --- Agenci zdefiniowani przez użytkownika -------------------------------------------
+
+
+class NowyAgent(BaseModel):
+    """Własny agent: nazwa, opis, instrukcja i tryb, w którym ma pracować."""
+
+    nazwa: str = Field(min_length=1, max_length=80)
+    opis: str = Field(default="", max_length=300)
+    instrukcja: str = Field(min_length=1, max_length=8_000)
+    tryb: Literal["chat", "research", "code", "strona"] = "chat"
+    projekt: str = Field(default="", max_length=120)
+    ikona: str = Field(default="iskra", max_length=40)
+
+
+class ZlecenieAgenta(BaseModel):
+    """Zadanie dla zapisanego agenta — to, co użytkownik chce dziś od niego."""
+
+    tekst: str = Field(min_length=1, max_length=20_000)
+
+
+def _agent_json(agent: AgentUzytkownika) -> dict[str, Any]:
+    return {
+        "id": str(agent.id),
+        "nazwa": agent.nazwa,
+        "opis": agent.opis,
+        "instrukcja": agent.instrukcja,
+        "tryb": agent.tryb,
+        "projekt": agent.projekt,
+        "ikona": agent.ikona,
+        "uruchomienia": agent.uruchomienia,
+    }
+
+
+async def _mojego_agenta(request: Request, agent_id: uuid.UUID, owner: uuid.UUID) -> AgentUzytkownika:
+    """Agent należący do tego konta albo 404 — cudzy nie różni się od nieistniejącego."""
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        agent = await session.get(AgentUzytkownika, agent_id)
+        if agent is None or agent.owner_id != owner:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie ma takiego agenta.")
+        session.expunge(agent)
+    return agent
+
+
+@router.get("/wlasni")
+async def wlasni_agenci(request: Request, owner: uuid.UUID = Depends(wlasciciel)) -> list[dict[str, Any]]:
+    """Agenci zapisani przez to konto; najczęściej używani na początku listy."""
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        agenci = (
+            await session.scalars(
+                select(AgentUzytkownika)
+                .where(AgentUzytkownika.owner_id == owner)
+                .order_by(AgentUzytkownika.uruchomienia.desc(), AgentUzytkownika.nazwa)
+            )
+        ).all()
+    return [_agent_json(agent) for agent in agenci]
+
+
+@router.post("/wlasni", status_code=status.HTTP_201_CREATED)
+async def utworz_agenta(
+    payload: NowyAgent, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
+    """Zapisuje nowego agenta konta."""
+    if payload.tryb == "code" and projekt_konta(request.app.state.settings, payload.projekt, owner) is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Wybierz istniejący projekt modułu Kod.")
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        ile = await session.scalar(
+            select(func.count()).select_from(AgentUzytkownika).where(AgentUzytkownika.owner_id == owner)
+        )
+        if int(ile or 0) >= LIMIT_AGENTOW:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Masz już {LIMIT_AGENTOW} agentów — usuń któregoś, zanim dodasz nowego.",
+            )
+        agent = AgentUzytkownika(
+            owner_id=owner,
+            nazwa=payload.nazwa.strip(),
+            opis=payload.opis.strip(),
+            instrukcja=payload.instrukcja.strip(),
+            tryb=payload.tryb,
+            projekt=payload.projekt.strip() if payload.tryb == "code" else "",
+            ikona=payload.ikona.strip() or "iskra",
+        )
+        session.add(agent)
+        await session.flush()
+        dane = _agent_json(agent)
+    return dane
+
+
+@router.patch("/wlasni/{agent_id}")
+async def zmien_agenta(
+    agent_id: uuid.UUID,
+    payload: NowyAgent,
+    request: Request,
+    owner: uuid.UUID = Depends(wlasciciel),
+) -> dict[str, Any]:
+    """Zmienia zapisanego agenta."""
+    await _mojego_agenta(request, agent_id, owner)
+    if payload.tryb == "code" and projekt_konta(request.app.state.settings, payload.projekt, owner) is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Wybierz istniejący projekt modułu Kod.")
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        agent = await session.get(AgentUzytkownika, agent_id)
+        assert agent is not None  # sprawdzone wyżej
+        agent.nazwa = payload.nazwa.strip()
+        agent.opis = payload.opis.strip()
+        agent.instrukcja = payload.instrukcja.strip()
+        agent.tryb = payload.tryb
+        agent.projekt = payload.projekt.strip() if payload.tryb == "code" else ""
+        agent.ikona = payload.ikona.strip() or "iskra"
+        agent.updated_at = utcnow()
+        await session.flush()
+        dane = _agent_json(agent)
+    return dane
+
+
+@router.delete("/wlasni/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def usun_agenta(agent_id: uuid.UUID, request: Request, owner: uuid.UUID = Depends(wlasciciel)) -> None:
+    """Usuwa agenta; zadania, które już zlecił, zostają nienaruszone."""
+    await _mojego_agenta(request, agent_id, owner)
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        agent = await session.get(AgentUzytkownika, agent_id)
+        if agent is not None:
+            await session.delete(agent)
+
+
+@router.post("/wlasni/{agent_id}/uruchom", status_code=status.HTTP_202_ACCEPTED)
+async def uruchom_agenta(
+    agent_id: uuid.UUID,
+    payload: ZlecenieAgenta,
+    request: Request,
+    owner: uuid.UUID = Depends(wlasciciel),
+) -> dict[str, Any]:
+    """Uruchamia zapisanego agenta na podanym zadaniu.
+
+    Instrukcja agenta idzie przed zadaniem i jest opisana jako sposób pracy, a treść
+    użytkownika jako zadanie do wykonania. Dzięki temu agent zachowuje swoją rolę także
+    wtedy, gdy samo zadanie brzmi zupełnie inaczej niż jego specjalizacja.
+    """
+    agent = await _mojego_agenta(request, agent_id, owner)
+    zadanie = payload.tekst.strip()
+    tresc = (
+        f"Pracujesz jako „{agent.nazwa}”. Tak masz pracować:\n"
+        f"{agent.instrukcja}\n\n"
+        f"Zadanie na teraz:\n{zadanie}"
+    )
+    skrot = " ".join(zadanie.split())
+    miejsce = TITLE_CHARS - len(agent.nazwa) - 2
+    if len(skrot) > miejsce:
+        skrot = skrot[: max(1, miejsce - 1)].rstrip() + "…"
+    tytul = f"{agent.nazwa}: {skrot}"
+    wynik = await create_task(
+        NewTask(text=tresc, mode=agent.tryb, workspace=agent.projekt, title=tytul), request
+    )
+    database: Database = request.app.state.database
+    async with database.session() as session:
+        zapisany = await session.get(AgentUzytkownika, agent_id)
+        if zapisany is not None:
+            zapisany.uruchomienia += 1
+    return wynik

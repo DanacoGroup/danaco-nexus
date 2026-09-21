@@ -14,9 +14,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 import httpx
@@ -28,6 +30,41 @@ from nexus.ocr.pdf_processor import PdfProcessingError, find_text_layer_font
 REQUIRED_TESSERACT_LANGUAGES = ("pol", "eng", "osd")
 TOKEN_PATTERN = re.compile(r"sk-ant-oat01-[A-Za-z0-9_-]{60,}")
 PROGRAMS = ("soffice", "ffmpeg", "ffprobe", "magick", "unpaper", "inkscape")
+#: Programy wywoływane przez narzędzia agenta przez ``_program()``. Narzędzie widnieje
+#: w rejestrze niezależnie od tego, czy jego program jest na ścieżce — brak wychodzi
+#: dopiero przy wywołaniu, komunikatem „… jest niedostępne na tym serwerze”, czyli już
+#: przy użytkowniku. Dlatego pyta o nie diagnostyka. Zgodności tej listy ze źródłami
+#: pilnuje ``backend/tests/test_tools.py``.
+PROGRAMY_NARZEDZI = (
+    "danaco-dokument-na-tekst",
+    "danaco-glebia",
+    "danaco-koloryzacja",
+    "danaco-lottie",
+    "danaco-odszum",
+    "danaco-ozyw-zdjecie",
+    "danaco-retusz-twarzy",
+    "danaco-rozdziel-audio",
+    "danaco-transkrypcja",
+    "danaco-twarze-indeks",
+    "danaco-usun-obiekt",
+    "ffmpeg",
+    "gifski",
+    "gitleaks",
+    "jscpd",
+    "lighthouse",
+    "osv-scanner",
+    "oxipng",
+    "pa11y",
+    "pandoc",
+    "playwright",
+    "ruff",
+    "semgrep",
+    "shellcheck",
+    "srt",
+    "svgo",
+    "typos",
+    "typst",
+)
 
 
 @dataclass(slots=True)
@@ -208,6 +245,11 @@ def check_google_speech(settings: Settings) -> Check:
             text, _ = google.transcribe(Path(sample.name))
     except (GoogleSpeechError, ValueError) as error:
         return Check("mowa google", False, str(error)[:300])
+    except OSError as error:
+        # Rozpoznanie mowy przepuszcza nagranie przez ffmpeg; brak programu to brak
+        # programu, a nie powód do przerwania diagnostyki.
+        brakujacy = error.filename or ""
+        return Check("mowa google", False, f"{error.strerror or error} {brakujacy}".strip())
     finally:
         google.close()
     return Check(
@@ -234,6 +276,242 @@ async def check_database(settings: Settings) -> Check:
         return Check("baza danych", False, f"{error.__class__.__name__}: {error}"[:300])
     finally:
         await database.close()
+
+
+# Po tylu minutach w kolejce zadanie nie czeka już na wolne miejsce, tylko na proces,
+# którego nie ma. Najdłuższy przebieg ma limit dwóch godzin, ale *podjęcie* zadania to
+# ułamek sekundy — proces roboczy odpytuje bazę co sekundę.
+KOLEJKA_ALARM_MIN = 5
+
+
+async def check_poczta_portalu(settings: Settings) -> Check:
+    """Czy wiadomości portalu mają jak dotrzeć do klienta.
+
+    Portal wysyła dwie wiadomości, bez których konta nie da się używać: potwierdzenie
+    adresu przy rejestracji i odsyłacz do nowego hasła. Domyślny nadawca zapisuje je
+    **do dziennika** — ekran i tak mówi „wysłaliśmy odsyłacz”, więc brak wysyłki wychodzi
+    dopiero wtedy, gdy klient czeka na wiadomość, która nigdy nie przyjdzie.
+
+    Zamknięcie rejestracji nie zdejmuje sprawy: odzyskanie hasła dotyczy kont, które już
+    są. Dlatego kontrola pyta też bazę, ile ich jest.
+    """
+    from sqlalchemy import func, select
+
+    from nexus import mail
+    from nexus.models.portal import PortalUser
+    from nexus.portal.ustawienia import NADAWCA_SMTP, portal_settings
+
+    portal = portal_settings(settings)
+    if portal.mail_sender == NADAWCA_SMTP and mail.is_configured(settings):
+        return Check("poczta portalu", True, "wysyłka kontem aplikacji (SMTP)")
+    powod = (
+        "nadawca „dziennik”"
+        if portal.mail_sender != NADAWCA_SMTP
+        else "wybrano SMTP, ale konto pocztowe nie jest podłączone"
+    )
+    database = Database(settings.database_url)
+    try:
+        async with database.session() as session:
+            konta = int(await session.scalar(select(func.count()).select_from(PortalUser)) or 0)
+    except Exception:  # noqa: BLE001 - brak bazy rozstrzyga inna kontrola
+        konta = 0
+    finally:
+        await database.close()
+    if not portal.registration_open and not konta:
+        return Check("poczta portalu", True, f"{powod}; rejestracja zamknięta i nie ma kont klientów")
+    kto_czeka = (
+        "potwierdzenie adresu i odzyskanie hasła nie dotrą do klienta"
+        if portal.registration_open
+        else f"odzyskanie hasła nie dotrze do {konta} założonych kont"
+    )
+    return Check("poczta portalu", False, f"{powod} — {kto_czeka}")
+
+
+#: Narzędzia agenta oparte na modelach o licencji **niekomercyjnej**.
+#:
+#: Wpis to nazwa narzędzia i to, co blokuje jego sprzedaż. Wykaz jest krótki celowo:
+#: nie prowadzimy tu spisu wszystkich zależności, tylko tych, których licencja zabrania
+#: pobierania opłat. Zależność licencyjną sprawdza się przy dokładaniu modelu, nie przy
+#: każdym uruchomieniu — dlatego wykaz jest ręczny, a nie czytany z dysku.
+NARZEDZIA_NIEKOMERCYJNE: dict[str, str] = {
+    "find_faces": "modele InsightFace — licencja wyłącznie niekomercyjna",
+}
+
+
+#: Poniżej tylu procent wolnego miejsca kontrola dysku zgłasza błąd.
+WOLNE_MIEJSCE_PROG = 10
+
+#: Powyżej tylu wydań na dysku warto posprzątać (`deploy/wydania/sprzataj.sh`).
+WYDAN_PROG = 20
+
+
+def check_miejsce(settings: Settings) -> Check:
+    """Czy na dysku zostaje miejsce — i czy nie zjadają go stare wydania.
+
+    Każde wydanie to ok. 0,65 GB, a powstaje ich po kilkanaście dziennie. Nic ich nie
+    kasuje samoczynnie: `sprzataj.sh` uruchamia człowiek. Brak miejsca odbija się na
+    wszystkim naraz — baza przestaje zapisywać, kopia zapasowa się nie kończy, agent nie
+    ma gdzie odłożyć wyniku — a widać to dopiero po awarii. Dlatego pyta o to diagnostyka.
+    """
+    try:
+        uzycie = shutil.disk_usage(settings.data_dir if settings.data_dir.exists() else Path("/"))
+    except OSError as error:
+        return Check("miejsce na dysku", False, f"nie udało się odczytać: {error}")
+    wolne_gb = uzycie.free / 1024**3
+    wolne_proc = uzycie.free * 100 / uzycie.total if uzycie.total else 0
+
+    # Katalog wydań leży w korzeniu repozytorium, a nie obok danych: przedsionek trzyma
+    # swoje dane **wewnątrz** `wydania/`, więc wyprowadzanie ścieżki z `data_dir` dawało
+    # dla niego `wydania/wydania/wersje`. Korzeń liczymy od położenia tego modułu.
+    wersje = Path(__file__).resolve().parents[2] / "wydania" / "wersje"
+    ile_wydan = len(list(wersje.iterdir())) if wersje.is_dir() else 0
+    ogon = f"; wydań na dysku: {ile_wydan}" if ile_wydan else ""
+
+    if wolne_proc < WOLNE_MIEJSCE_PROG:
+        rada = " — uruchom deploy/wydania/sprzataj.sh --wykonaj" if ile_wydan > WYDAN_PROG else ""
+        return Check(
+            "miejsce na dysku",
+            False,
+            f"wolne {wolne_gb:.0f} GB ({wolne_proc:.0f}%){ogon}{rada}",
+        )
+    if ile_wydan > WYDAN_PROG:
+        return Check(
+            "miejsce na dysku",
+            True,
+            f"wolne {wolne_gb:.0f} GB ({wolne_proc:.0f}%); {ile_wydan} wydań — "
+            "warto posprzątać (deploy/wydania/sprzataj.sh)",
+        )
+    return Check("miejsce na dysku", True, f"wolne {wolne_gb:.0f} GB ({wolne_proc:.0f}%){ogon}")
+
+
+#: Po ilu godzinach brak nowej kopii zapasowej jest błędem.
+#:
+#: Timer chodzi raz na dobę (`danaco-nexus-kopia.timer`), więc czterdzieści osiem godzin
+#: to dwie przepuszczone doby — czyli nie „opóźnienie”, tylko coś nie działa.
+KOPIA_ALARM_H = 48
+
+
+#: Składniki, bez których kopia nie jest kopią. Nazwy z `deploy/kopia-zapasowa.sh`.
+SKLADNIKI_KOPII = ("zrodla.tar.zst", "sekrety.tar.zst", "SUMY.sha256")
+#: Poniżej tego rozmiaru plik jest urwany, a nie mały (najmniejszy z trójki to SUMY.sha256).
+KOPIA_MIN_BAJTOW = 128
+
+
+def check_kopia_zapasowa(settings: Settings) -> Check:
+    """Czy kopia zapasowa w ogóle powstaje — i czy nie jest sprzed tygodnia.
+
+    Kopia robi się z timera i nie mówi o sobie nic, dopóki jej nie potrzeba. Zepsuty
+    timer, pełny dysk albo zmieniona ścieżka wychodzą wtedy dopiero w dniu, w którym
+    trzeba coś odtworzyć — czyli najgorszym możliwym. Dlatego pyta o to diagnostyka.
+    """
+    katalog = settings.data_dir.parent / "kopie" if settings.data_dir.name == "app" else Path("")
+    if not katalog.is_dir():
+        return Check("kopia zapasowa", False, f"nie ma katalogu kopii ({katalog or 'nieznany'})")
+    kopie = sorted((p for p in katalog.iterdir() if p.is_dir()), key=lambda p: p.name)
+    if not kopie:
+        return Check("kopia zapasowa", False, f"katalog {katalog} jest pusty — kopia nigdy nie powstała")
+    najnowsza = kopie[-1]
+    wiek_h = (time.time() - najnowsza.stat().st_mtime) / 3600
+    opis = f"{najnowsza.name}, sprzed {wiek_h:.0f} h, kopii na dysku: {len(kopie)}"
+    if wiek_h > KOPIA_ALARM_H:
+        return Check("kopia zapasowa", False, f"{opis} — sprawdź danaco-nexus-kopia.timer")
+
+    # Sama obecność katalogu nie wystarcza. Skrypt kopii kończy każdy krok `|| true`, żeby
+    # jeden nieudany element nie przewrócił całego biegu — skutek uboczny jest taki, że
+    # brakujący składnik nie zgłasza się sam. Najdotkliwszy byłby brak kodu: od 21 września
+    # 2026 kopia obejmuje `zrodla.tar.zst`, bo drzewo robocze bywa jedynym miejscem, gdzie
+    # kod istnieje (praca poza commitami).
+    braki = [nazwa for nazwa in SKLADNIKI_KOPII if not (najnowsza / nazwa).is_file()]
+    if braki:
+        return Check("kopia zapasowa", False, f"{opis} — brakuje: {', '.join(braki)}")
+    pusty = [
+        nazwa
+        for nazwa in SKLADNIKI_KOPII
+        if (najnowsza / nazwa).stat().st_size < KOPIA_MIN_BAJTOW
+    ]
+    if pusty:
+        return Check("kopia zapasowa", False, f"{opis} — plik pusty albo urwany: {', '.join(pusty)}")
+    return Check("kopia zapasowa", True, opis)
+
+
+def check_licencje_narzedzi(settings: Settings) -> Check:
+    """Czy sprzedajemy dostęp do narzędzia, którego licencja zabrania sprzedaży.
+
+    Sprzeczność powstaje sama, bez niczyjej zmiany w kodzie: wystarczy wpisać klucz Stripe.
+    Narzędzie stoi w rejestrze od dawna i działa, a warunek „dopóki produkt nie jest
+    sprzedawany” przestaje obowiązywać w chwili, gdy ktoś włączy sprzedaż — i nikt tego
+    nie zauważa, bo nic się nie psuje. Dlatego pyta o to diagnostyka, a nie tylko dokument
+    zgodności: sprzeczność ma być widoczna przy każdym wdrożeniu.
+    """
+    from nexus.platnosci.konfiguracja import UstawieniaPlatnosci
+    from nexus.tools import registry
+
+    obecne = [nazwa for nazwa in NARZEDZIA_NIEKOMERCYJNE if nazwa in set(registry.names())]
+    if not obecne:
+        return Check("licencje narzędzi", True, "żadne narzędzie niekomercyjne nie jest w rejestrze")
+    if not UstawieniaPlatnosci().skonfigurowane:
+        return Check(
+            "licencje narzędzi",
+            True,
+            f"sprzedaż wyłączona; niekomercyjne: {', '.join(obecne)}",
+        )
+    powody = "; ".join(f"{nazwa} ({NARZEDZIA_NIEKOMERCYJNE[nazwa]})" for nazwa in obecne)
+    return Check(
+        "licencje narzędzi",
+        False,
+        f"sprzedaż włączona, a w rejestrze stoi {powody} — potrzebny model komercyjny, "
+        "zgoda autorów albo wyłączenie funkcji",
+    )
+
+
+def check_programy_narzedzi() -> Check:
+    """Czy każdy program wywoływany przez narzędzia agenta jest na ścieżce usługi."""
+    brakujace = [program for program in PROGRAMY_NARZEDZI if shutil.which(program) is None]
+    if not brakujace:
+        return Check("programy narzędzi", True, f"{len(PROGRAMY_NARZEDZI)} programów na ścieżce")
+    return Check(
+        "programy narzędzi",
+        False,
+        f"poza ścieżką: {', '.join(brakujace)} — sprawdź PATH w .env",
+    )
+
+
+async def check_kolejka(settings: Settings) -> Check:
+    """Czy ktokolwiek odbiera zadania z kolejki.
+
+    Kolejką jest tabela ``runs``; zadanie czeka w stanie ``queued``, dopóki nie weźmie go
+    proces roboczy. Instalacja bez procesu roboczego dla tej właśnie bazy przyjmuje zadania
+    i nigdy ich nie wykonuje — API odpowiada 202, a w oknie w nieskończoność migają kropki.
+    Widać to wyłącznie po zaległości w kolejce, więc kontrola pyta o nią wprost.
+    """
+    from sqlalchemy import func, select
+
+    from nexus.db import Run, utcnow
+
+    database = Database(settings.database_url)
+    prog = utcnow() - timedelta(minutes=KOLEJKA_ALARM_MIN)
+    try:
+        async with database.session() as session:
+            zalegle = await session.scalar(
+                select(func.count()).select_from(Run).where(Run.status == "queued", Run.created_at < prog)
+            )
+            najstarsze = await session.scalar(
+                select(func.min(Run.created_at)).where(Run.status == "queued", Run.created_at < prog)
+            )
+    except Exception as error:  # noqa: BLE001 - wynik diagnostyki
+        return Check("kolejka zadań", False, f"{error.__class__.__name__}: {error}"[:300])
+    finally:
+        await database.close()
+    if not zalegle:
+        return Check("kolejka zadań", True, "brak zaległości")
+    wiek = utcnow() - najstarsze if najstarsze else timedelta()
+    minuty = int(wiek.total_seconds() // 60)
+    return Check(
+        "kolejka zadań",
+        False,
+        f"{zalegle} zadań czeka ponad {KOLEJKA_ALARM_MIN} min (najstarsze: {minuty} min)"
+        " — sprawdź proces roboczy tej bazy",
+    )
 
 
 def check_claude_cli(settings: Settings) -> list[Check]:
@@ -328,9 +606,15 @@ def run_checks(settings: Settings, online: bool = False) -> list[Check]:
     """Wykonuje wszystkie kontrole."""
     steps: list[Callable[[], Check | list[Check]]] = [
         lambda: asyncio.run(check_database(settings)),
+        lambda: asyncio.run(check_kolejka(settings)),
         lambda: check_data_dir(settings),
         check_font,
         check_programs,
+        check_programy_narzedzi,
+        lambda: check_licencje_narzedzi(settings),
+        lambda: check_miejsce(settings),
+        lambda: check_kopia_zapasowa(settings),
+        lambda: asyncio.run(check_poczta_portalu(settings)),
         lambda: check_realesrgan(settings),
         lambda: check_http("qdrant", f"{settings.qdrant_url}/readyz"),
         lambda: (
@@ -350,6 +634,12 @@ def run_checks(settings: Settings, online: bool = False) -> list[Check]:
         steps.append(lambda: check_claude_online(settings))
     results: list[Check] = []
     for step in steps:
-        outcome = step()
+        try:
+            outcome = step()
+        except Exception as error:  # noqa: BLE001 - diagnostyka ma dojść do końca
+            # Kontrola, która się wysypie, nie może zabrać ze sobą pozostałych: po to się
+            # uruchamia diagnostykę, żeby zobaczyć **wszystko**, co nie działa, a nie
+            # pierwszą rzecz, która nie działa. Wyjątek jest tu wynikiem, nie awarią.
+            outcome = Check("kontrola przerwana", False, f"{error.__class__.__name__}: {error}"[:300])
         results.extend(outcome if isinstance(outcome, list) else [outcome])
     return results

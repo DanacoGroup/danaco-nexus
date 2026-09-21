@@ -8,6 +8,7 @@ i rozmowy z wybranymi dokumentami bazy wiedzy.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from typing import Any, Literal
 
@@ -22,6 +23,8 @@ from nexus.models.research import KnowledgeCollection, KnowledgeNote, KnowledgeS
 from nexus.research import store
 from nexus.research.web import FetchError, fetch_page
 from nexus.storage import FileStorage
+
+_dziennik = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/research", tags=["research"], dependencies=[Depends(require_session)])
 
@@ -261,8 +264,13 @@ async def add_source(
                 store.extract_file_text, request.app.state.settings, path, record.name, record.mime
             )
         except Exception as error:  # noqa: BLE001 - komunikat dla użytkownika
+            # Wyjątek biblioteki potrafi nieść ścieżkę pliku na dysku serwera; do rozmowy
+            # wraca sama informacja, że z tego pliku nie da się wyciągnąć tekstu.
+            _dziennik.warning("nie udało się odczytać tekstu pliku %s: %s", record.name, error)
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, f"Nie udało się odczytać tekstu pliku: {error}"
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "Nie udało się odczytać tekstu z tego pliku. Sprawdź, czy nie jest uszkodzony "
+                "albo zabezpieczony hasłem.",
             ) from error
         if not content.strip():
             raise HTTPException(
@@ -500,8 +508,13 @@ async def search(
             request.app.state.knowledge.search, query, max(1, min(limit, 30)), list(entries), owner
         )
     except Exception as error:  # noqa: BLE001 - usługa wektorowa niedostępna
+        # Treść wyjątku zostaje w dzienniku serwera. Wcześniej szła wprost do odpowiedzi,
+        # więc użytkownik dostawał komunikat biblioteki razem z adresem i portem usługi
+        # wektorowej — a i tak nie było to nic, co mógłby z tym zrobić.
+        _dziennik.warning("wyszukiwanie w bazie wektorowej nie powiodło się: %s", error)
         raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, f"Baza wektorowa jest niedostępna: {error}"
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Wyszukiwanie po znaczeniu jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
         ) from error
     results = []
     for hit in hits:
@@ -560,7 +573,9 @@ def research_prompt(payload: ResearchInput, collection: KnowledgeCollection | No
 
 
 def _report_title(kind: str, question: str) -> str:
-    prefix = "Research" if kind == "deep" else "Scholar"
+    # Tytuł widzi użytkownik, a produkt jest po polsku. Dotyczy nowych raportów;
+    # wcześniejsze zachowują swój tytuł, bo to dane, nie etykieta interfejsu.
+    prefix = "Badanie sieci" if kind == "deep" else "Prace naukowe"
     flat = " ".join(question.split())
     title = f"{prefix}: {flat}"
     return title if len(title) <= 120 else title[:117].rstrip() + "…"

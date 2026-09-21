@@ -32,9 +32,11 @@ DZIALANIE_ZAPLAC = "zaplac_fakture"
 STATUSY_FAKTURY_DO_ZAPLATY = frozenset({"open", "uncollectible"})
 
 # Komunikat serwera, gdy sprzedaż nie jest włączona (brak klucza Stripe).
+# Słowo „kredyty” nie pada w komunikatach dla użytkownika: jednostka rozliczeniowa jest
+# nasza, nie jego. Na zewnątrz mówimy o zakresie pracy i dostępie w okresie rozliczeniowym.
 KOMUNIKAT_SPRZEDAZ_WYLACZONA = (
-    "Sprzedaż nie jest jeszcze włączona na tym serwerze. Konto pracuje na przydzielonych "
-    "kredytach i nie wymaga od Ciebie niczego."
+    "Sprzedaż nie jest jeszcze włączona na tym serwerze. Konto ma przydzielony zakres "
+    "pracy i nie wymaga od Ciebie niczego."
 )
 
 # Powody odrzucenia kodu rabatowego wraz z podpowiedzią, co zrobić dalej.
@@ -225,12 +227,12 @@ def stan_sprzedazy(
         )
 
     # Kod stanu pozostaje historyczny (``plan_bezplatny``), bo rozpoznaje go interfejs;
-    # dziś oznacza konto bez wykupionego planu, pracujące na przydzielonych kredytach.
+    # dziś oznacza konto bez wykupionego planu, pracujące na przydzielonym zakresie.
     return StanSprzedazy(
         kod="plan_bezplatny",
         tytul="Konto bez wykupionego planu",
         komunikat=(
-            "Pracujesz na kredytach przydzielonych do konta. Plany, przydziały kredytów "
+            "Pracujesz na zakresie przydzielonym do konta. Plany, ich zakres pracy "
             "i kwoty znajdziesz w cenniku; najniższy zaczyna się okresem próbnym."
         ),
         dzialanie=DZIALANIE_WYBIERZ_PLAN,

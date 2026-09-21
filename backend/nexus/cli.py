@@ -1,4 +1,5 @@
-"""Polecenia administracyjne: ``python -m nexus.cli set-password`` oraz ``doctor``."""
+"""Polecenia administracyjne: ``python -m nexus.cli set-password``, ``doctor``,
+``konto-testowe`` oraz ``materialy-portalu``."""
 
 from __future__ import annotations
 
@@ -6,6 +7,7 @@ import argparse
 import asyncio
 import getpass
 import sys
+from pathlib import Path
 
 from nexus.api.auth import DEFAULT_USERNAME, set_admin_credentials
 from nexus.config import get_settings
@@ -57,6 +59,25 @@ async def _konto_testowe(email: str, haslo: str, plan: str, kredyty_dodatkowe: i
     return f"Konto {email} ({stan_konta}). Plan {plan}, saldo kredytów: {saldo}."
 
 
+async def _materialy_portalu(katalog: Path, rodzaj: str, opublikuj: bool, autor: str) -> str:
+    """Wczytuje materiały z katalogu plików Markdown do treści portalu."""
+    from nexus.portal.materialy import BladMaterialu, wczytaj_katalog, zapisz
+
+    try:
+        materialy = wczytaj_katalog(katalog, rodzaj)
+    except BladMaterialu as error:
+        raise ValueError(str(error)) from error
+    database = Database(get_settings().database_url)
+    try:
+        await database.create_schema()
+        wynik = await zapisz(database, materialy, opublikuj=opublikuj, autor=autor)
+    finally:
+        await database.close()
+    stan = "opublikowane" if opublikuj else "zapisane jako szkice"
+    wiersze = [f"  {adres} — {co}" for adres, co in wynik]
+    return f"Materiały {stan} ({len(wynik)}):\n" + "\n".join(wiersze)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Punkt wejścia poleceń administracyjnych."""
     parser = argparse.ArgumentParser(prog="nexus.cli", description="Administracja Danaco Nexus")
@@ -76,6 +97,21 @@ def main(argv: list[str] | None = None) -> int:
     konto.add_argument("--plan", default="pro", help="Kod planu z katalogu (domyślnie pro)")
     konto.add_argument(
         "--kredyty", type=int, default=0, help="Kredyty ponad przydział planu (domyślnie 0)"
+    )
+    materialy = commands.add_parser(
+        "materialy-portalu", help="Wczytaj materiały portalu z plików Markdown do bazy treści"
+    )
+    materialy.add_argument(
+        "--katalog",
+        default="docs/portal/tresci-startowe",
+        help="Katalog z plikami „NN-adres.md” (domyślnie docs/portal/tresci-startowe)",
+    )
+    materialy.add_argument("--rodzaj", default="dokumentacja", help="blog | wiedza | dokumentacja | strona")
+    materialy.add_argument("--autor", default="", help="Podpis pod pozycją (domyślnie bez podpisu)")
+    materialy.add_argument(
+        "--opublikuj",
+        action="store_true",
+        help="Zapisz od razu jako opublikowane (domyślnie: szkice do przejrzenia)",
     )
     arguments = parser.parse_args(argv)
 
@@ -109,6 +145,22 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 asyncio.run(
                     _konto_testowe(arguments.email, haslo, arguments.plan, max(arguments.kredyty, 0))
+                )
+            )
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 1
+
+    if arguments.command == "materialy-portalu":
+        try:
+            print(
+                asyncio.run(
+                    _materialy_portalu(
+                        Path(arguments.katalog),
+                        arguments.rodzaj,
+                        arguments.opublikuj,
+                        arguments.autor.strip(),
+                    )
                 )
             )
         except ValueError as error:

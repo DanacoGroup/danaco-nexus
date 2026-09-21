@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.db import Conversation, Database
 from nexus.storage import guess_mime
 from nexus.tworczy.strony import SiteError, SiteStore, check_address, site_store
@@ -85,8 +85,9 @@ def slugify(text: str) -> str:
     return value or "strona"
 
 
-def _store(request: Request) -> SiteStore:
-    return site_store(request.app.state.settings)
+def _store(request: Request, owner: uuid.UUID | None = None) -> SiteStore:
+    """Magazyn stron zawężony do konta żądania; bez konta — wyłącznie serwowanie publikacji."""
+    return site_store(request.app.state.settings, owner)
 
 
 def _error(error: SiteError) -> HTTPException:
@@ -159,17 +160,76 @@ async def _new_conversation(request: Request, address: str, title: str) -> str:
     return str(conversation.id)
 
 
+# Opisy branż po polsku: katalog presetów podaje nazwy techniczne („law-firm”), a w module
+# Strony ma stać nazwa, którą człowiek rozpozna. Presety spoza wykazu pokazujemy pod ich
+# własną nazwą — nowy preset na serwerze pojawia się na liście bez zmiany w kodzie.
+NAZWY_PRESETOW: dict[str, str] = {
+    "agency": "Agencja i studio",
+    "ecommerce-showcase": "Sklep i katalog produktów",
+    "education": "Szkoła, kursy i szkolenia",
+    "institution": "Instytucja publiczna",
+    "law-firm": "Kancelaria prawna",
+    "legal-portal": "Portal prawny",
+    "local-services": "Usługi lokalne",
+    "medical": "Gabinet i przychodnia",
+    "personal-brand": "Marka osobista i portfolio",
+    "real-estate": "Nieruchomości",
+    "restaurant": "Restauracja i gastronomia",
+    "saas": "Produkt cyfrowy i SaaS",
+}
+
+
+@api.get("/kit")
+async def kit_catalog(_: None = Depends(require_session)) -> dict[str, Any]:
+    """Presety i motywy zestawu Danaco Web Kit — do wyboru przy zakładaniu strony.
+
+    Moduł Strony pokazywał wyłącznie pusty formularz „tytuł i opis”, choć na serwerze stoi
+    zestaw z presetami branżowymi i motywami. Lista jest tylko do odczytu: samą witrynę
+    z presetu buduje agent narzędziem ``site_from_kit`` w rozmowie strony.
+    """
+    from nexus.tools import kit_www
+
+    if not kit_www.KIT.is_dir():
+        return {"dostepny": False, "presety": [], "motywy": [], "szablony": []}
+    presety = [
+        {
+            "preset": pozycja["preset"],
+            "nazwa": NAZWY_PRESETOW.get(pozycja["preset"], pozycja["preset"].replace("-", " ")),
+            "opis": pozycja["opis"],
+        }
+        for pozycja in await asyncio.to_thread(kit_www._presety)
+    ]
+    motywy = await asyncio.to_thread(kit_www._lista_katalogow, kit_www.KIT / "themes")
+    # Kolekcja szablonów otwartych: pokazujemy wyłącznie te z gotową, zbudowaną witryną —
+    # tylko takie agent wstawia do szkicu od ręki (``site_from_template``).
+    kolekcja = await asyncio.to_thread(kit_www._kolekcja)
+    szablony = [
+        {
+            "id": pozycja["id"],
+            "nazwa": pozycja["nazwa"],
+            "charakter": pozycja.get("charakter") or [],
+            "podstrony": pozycja.get("liczba_stron") or 0,
+            "licencja": pozycja.get("licencja") or "",
+        }
+        for pozycja in kolekcja["szablony"]
+        if pozycja.get("gotowa_witryna") and pozycja.get("id")
+    ]
+    return {"dostepny": True, "presety": presety, "motywy": motywy, "szablony": szablony}
+
+
 @api.get("")
-async def list_sites(request: Request) -> list[dict[str, Any]]:
+async def list_sites(request: Request, owner: uuid.UUID = Depends(wlasciciel)) -> list[dict[str, Any]]:
     """Strony użytkownika (od ostatnio zmienianej)."""
-    store = _store(request)
+    store = _store(request, owner)
     return [_site_payload(store, meta) for meta in await asyncio.to_thread(store.list_sites)]
 
 
 @api.post("", status_code=status.HTTP_201_CREATED)
-async def create_site(payload: NewSite, request: Request) -> dict[str, Any]:
+async def create_site(
+    payload: NewSite, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Zakłada stronę (z rozmową w trybie ``strona``); adres powstaje z tytułu, gdy go nie podano."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         if payload.address:
             address = check_address(payload.address)
@@ -189,9 +249,9 @@ async def create_site(payload: NewSite, request: Request) -> dict[str, Any]:
 
 
 @api.get("/{address}")
-async def get_site(address: str, request: Request) -> dict[str, Any]:
+async def get_site(address: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)) -> dict[str, Any]:
     """Strona z listą plików szkicu i adresem podglądu."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         meta = store.meta(address)
         files = await asyncio.to_thread(store.list_files, address)
@@ -206,9 +266,11 @@ async def get_site(address: str, request: Request) -> dict[str, Any]:
 
 
 @api.patch("/{address}")
-async def update_site(address: str, payload: SiteUpdate, request: Request) -> dict[str, Any]:
+async def update_site(
+    address: str, payload: SiteUpdate, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Zmienia tytuł lub opis strony."""
-    store = _store(request)
+    store = _store(request, owner)
     values = {key: value.strip() for key, value in payload.model_dump(exclude_none=True).items()}
     try:
         meta = store.update_meta(address, **values)
@@ -218,9 +280,11 @@ async def update_site(address: str, payload: SiteUpdate, request: Request) -> di
 
 
 @api.delete("/{address}")
-async def delete_site(address: str, request: Request) -> dict[str, bool]:
+async def delete_site(
+    address: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, bool]:
     """Usuwa stronę (szkic, wersje i publikację). Rozmowa zostaje w historii."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         await asyncio.to_thread(store.delete_site, address)
     except SiteError as error:
@@ -229,9 +293,11 @@ async def delete_site(address: str, request: Request) -> dict[str, bool]:
 
 
 @api.post("/{address}/rozmowa")
-async def site_conversation(address: str, request: Request) -> dict[str, str]:
+async def site_conversation(
+    address: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, str]:
     """Rozmowa edycji strony – istniejąca albo nowa, gdy poprzednią usunięto."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         meta = store.meta(address)
     except SiteError as error:
@@ -248,28 +314,34 @@ async def site_conversation(address: str, request: Request) -> dict[str, str]:
 
 
 @api.get("/{address}/pliki/{path:path}")
-async def read_site_file(address: str, path: str, request: Request) -> dict[str, str]:
+async def read_site_file(
+    address: str, path: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, str]:
     """Treść pliku tekstowego szkicu (podgląd kodu)."""
     try:
-        content = await asyncio.to_thread(_store(request).read_text, address, path)
+        content = await asyncio.to_thread(_store(request, owner).read_text, address, path)
     except SiteError as error:
         raise _error(error) from error
     return {"path": path, "content": content}
 
 
 @api.post("/{address}/wersje", status_code=status.HTTP_201_CREATED)
-async def save_version(address: str, payload: VersionNote, request: Request) -> dict[str, Any]:
+async def save_version(
+    address: str, payload: VersionNote, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Zapisuje bieżący szkic jako wersję."""
     try:
-        return await asyncio.to_thread(_store(request).snapshot, address, payload.note)
+        return await asyncio.to_thread(_store(request, owner).snapshot, address, payload.note)
     except SiteError as error:
         raise _error(error) from error
 
 
 @api.post("/{address}/wersje/{version_id}/przywroc")
-async def restore_version(address: str, version_id: str, request: Request) -> dict[str, Any]:
+async def restore_version(
+    address: str, version_id: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Przywraca szkic z wersji (bieżący stan zostaje zapisany jako wersja)."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         meta = await asyncio.to_thread(store.restore, address, version_id)
     except SiteError as error:
@@ -278,9 +350,11 @@ async def restore_version(address: str, version_id: str, request: Request) -> di
 
 
 @api.post("/{address}/publikuj")
-async def publish_site(address: str, request: Request) -> dict[str, Any]:
+async def publish_site(
+    address: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Publikuje bieżący szkic pod ``/s/<adres>/`` (akcja użytkownika potwierdzona w interfejsie)."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         meta = await asyncio.to_thread(store.publish, address)
     except SiteError as error:
@@ -289,9 +363,11 @@ async def publish_site(address: str, request: Request) -> dict[str, Any]:
 
 
 @api.post("/{address}/wycofaj")
-async def unpublish_site(address: str, request: Request) -> dict[str, Any]:
+async def unpublish_site(
+    address: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Wycofuje publikację strony."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         meta = await asyncio.to_thread(store.unpublish, address)
     except SiteError as error:
@@ -300,9 +376,11 @@ async def unpublish_site(address: str, request: Request) -> dict[str, Any]:
 
 
 @api.post("/{address}/odrzuc-publikacje")
-async def reject_publish_request(address: str, request: Request) -> dict[str, Any]:
+async def reject_publish_request(
+    address: str, request: Request, owner: uuid.UUID = Depends(wlasciciel)
+) -> dict[str, Any]:
     """Odrzuca prośbę asystenta o publikację."""
-    store = _store(request)
+    store = _store(request, owner)
     try:
         meta = store.update_meta(address, publish_request=None)
     except SiteError as error:
@@ -342,6 +420,28 @@ def _not_found() -> Response:
     )
 
 
+def _katalog_bez_kreski(store: SiteStore, address: str, path: str, published: bool) -> bool:
+    """Czy adres wskazuje katalog podstrony, a w adresie brakuje kreski na końcu.
+
+    Witryny w układzie katalogowym mają odsyłacze bez kreski („/cennik”). Pod takim
+    adresem przeglądarka bierze ostatni człon za plik i liczy ścieżki względne od katalogu
+    wyżej — podstrona otwiera się bez stylów i bez menu. Przekierowanie na adres z kreską
+    ustawia właściwy punkt odniesienia raz dla wszystkich takich witryn.
+    """
+    if not path or path.endswith("/") or "." in path.rsplit("/", 1)[-1]:
+        return False
+    try:
+        base = store.published_dir(address) if published else store.draft_dir(address)
+        katalog = (base / path).resolve()
+    except (SiteError, OSError):
+        return False
+    return (
+        katalog.is_dir()
+        and katalog.is_relative_to(base.resolve())
+        and (katalog / "index.html").is_file()
+    )
+
+
 def _serve(store: SiteStore, address: str, path: str, published: bool) -> Response:
     try:
         address = check_address(address)
@@ -350,6 +450,10 @@ def _serve(store: SiteStore, address: str, path: str, published: bool) -> Respon
     if published and not store.published_dir(address).is_dir():
         return _not_found()
     cache = "public, max-age=300" if published else "no-store"
+    if published and _katalog_bez_kreski(store, address, path, published):
+        return RedirectResponse(
+            f"/s/{address}/{path}/", status_code=status.HTTP_308_PERMANENT_REDIRECT
+        )
     found = store.resolve(address, path, published=published)
     if found is not None:
         return _site_response(found, cache=cache)

@@ -8,6 +8,7 @@ są interpretowane w strefie ``kalendarz_timezone``.
 
 from __future__ import annotations
 
+import logging
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, replace
@@ -21,6 +22,8 @@ from icalendar import Alarm, Calendar, Event, vRecur
 from pydantic import BeforeValidator
 
 from nexus.config import Settings
+
+logger = logging.getLogger(__name__)
 
 DAV = "{DAV:}"
 CALDAV = "{urn:ietf:params:xml:ns:caldav}"
@@ -178,8 +181,17 @@ class CalendarClient:
             ),
         )
         # 405 znaczy, że kalendarz już istnieje — to nie błąd.
-        if response.status_code >= 400 and response.status_code != 405:
-            self._check(response, "utworzenie kalendarza konta")
+        if response.status_code < 400 or response.status_code == 405:
+            return
+        # Moduł i agent pytają o kalendarz równolegle przy pierwszym wejściu na konto.
+        # Wtedy obie próby zakładają tę samą kolekcję i przegrywająca dostaje z Nextcloud
+        # nie 405, tylko 500 z naruszenia warunku jednoznaczności w bazie. Kalendarz w tym
+        # momencie już jest, więc zanim ogłosimy awarię, sprawdzamy stan faktyczny —
+        # użytkownik nie ma oglądać czerwonego paska nad działającym kalendarzem.
+        if any(kalendarz["id"] == self.default_calendar for kalendarz in self.calendars()):
+            logger.info("Kalendarz konta powstał równolegle (HTTP %s) — nic nie robię.", response.status_code)
+            return
+        self._check(response, "utworzenie kalendarza konta")
 
     def _check(self, response: httpx.Response, action: str) -> None:
         if response.status_code == 401:

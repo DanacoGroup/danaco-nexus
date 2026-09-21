@@ -35,6 +35,10 @@ ODTWORZENIE_MAX_S = 1.4
 FINALNE = frozenset({"gotowe", "blad", "anulowane"})
 # Jedyny komunikat o błędzie, jaki widzi gość pokazu: treść wyjątku zostaje w dzienniku.
 BLAD_DLA_GOSCIA = "Błąd wewnętrzny pokazu. Spróbuj ponownie."
+# Konto, w którego przestrzeni pracują narzędzia pokazu. Bez niego ``ToolContext`` przyjmuje
+# właściciela instalacji, więc dopisanie do scenariusza narzędzia czułego na konto (poczta,
+# kalendarz, komputer) otwierałoby gościowi przestrzeń właściciela.
+WLASCICIEL_POKAZU = uuid.UUID("00000000-0000-0000-0000-0000000000de")
 
 
 @dataclass(slots=True)
@@ -151,6 +155,7 @@ def _kontekst(settings: Settings, sesja: DemoSesja, anuluj: threading.Event) -> 
         resolve_file=znajdz,
         cancel=anuluj,
         progress=lambda _: None,
+        owner_id=WLASCICIEL_POKAZU,
     )
 
 

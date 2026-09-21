@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import os
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from nexus.api.app import create_app
 from nexus.api.auth import set_admin_credentials
@@ -223,8 +226,31 @@ def test_pwa_files_served_with_cache_rules(settings: Settings) -> None:
         spa = client.get("/c/00000000-0000-0000-0000-000000000000")
         assert spa.status_code == 200 and "Nexus" in spa.text
         assert "worker-src 'self'" in spa.headers["content-security-policy"]
+        # Brakujący plik to 404, a nie strona aplikacji z kodem 200.
+        brak = client.get("/ruch/stany/nie-ma-takiego.webm")
+        assert brak.status_code == 404 and brak.json()["detail"] == "Nie znaleziono pliku."
+        # Adresy aplikacji (bez kropki w ostatnim członie) nadal dostają stronę.
+        assert client.get("/m/pliki").status_code == 200
+        assert client.get("/jakis-nieznany-ekran").status_code == 200
+        # Plik, który istnieje, wraca plikiem — reguła nie może zjeść prawdziwych zasobów.
+        assert client.get("/assets/index-abc123.js").status_code == 200
+
+        # Bez treści: wracamy na stronę główną, tak jak dotąd.
         shared = client.post("/share-target", follow_redirects=False)
         assert shared.status_code == 303 and shared.headers["location"] == "/"
+        # Z treścią: tekst jedzie adresem, zamiast zniknąć. Service worker stoi dopiero od
+        # drugiego uruchomienia, a pierwsza próba udostępnienia zdarza się zwykle wcześniej.
+        z_tekstem = client.post(
+            "/share-target",
+            data={"title": "Notatka", "text": "Zrób z tego kartkę", "url": "https://przyklad.pl/a"},
+            follow_redirects=False,
+        )
+        assert z_tekstem.status_code == 303
+        cel = z_tekstem.headers["location"]
+        assert cel.startswith("/?tekst=")
+        from urllib.parse import unquote
+
+        assert unquote(cel.removeprefix("/?tekst=")) == "Notatka\nZrób z tego kartkę\nhttps://przyklad.pl/a"
 
 
 def test_voice_endpoints_without_models(client: TestClient, settings: Settings) -> None:
@@ -264,3 +290,184 @@ def test_device_tokens(client: TestClient, settings: Settings) -> None:
     client.delete(f"/api/urzadzenia/{created.json()['id']}", headers=HEADERS)
     client.cookies.clear()
     assert client.get("/api/conversations", headers=bearer).status_code == 401
+
+
+def test_nieistniejacy_wpis_portalu_daje_404(settings: Settings) -> None:
+    """Adres wpisu, którego nie ma, ma zwrócić 404, a nie 200 z powłoką aplikacji.
+
+    Kod 200 na nieistniejącym wpisie to „miękkie 404”: wyszukiwarka trzyma taki adres
+    w indeksie i pokazuje go zamiast działającej strony. Adresy aplikacji (`/m/…`,
+    `/c/…`) i stałe strony portalu zostają przy 200 — one istnieją po stronie klienta.
+    """
+    static = settings.static_dir
+    static.mkdir(parents=True, exist_ok=True)
+    (static / "index.html").write_text("<!doctype html><title>Nexus</title>", encoding="utf-8")
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/portal/blog/nie-ma-takiego-wpisu").status_code == 404
+        assert client.get("/portal/dokumentacja/nie-ma-takiej-strony").status_code == 404
+        # Nieistniejąca strona portalu — tak samo 404, a nie powłoka z kodem 200.
+        assert client.get("/portal/nie-ma-takiej-strony").status_code == 404
+        assert client.get("/portal/cennik").status_code == 200
+        # Strony zamknięte przed robotami istnieją, więc zostają przy 200.
+        for adres in ("/portal/szukaj", "/portal/konto", "/portal/panel", "/portal/admin"):
+            assert client.get(adres).status_code == 200, adres
+        assert client.get("/m/kod").status_code == 200
+        assert client.get("/").status_code == 200
+
+
+def test_head_odpowiada_jak_get_bez_tresci(settings: Settings) -> None:
+    """HEAD na pliku i na stronie: ten sam status i nagłówki, puste ciało.
+
+    Trasa zbiorcza przyjmowała wyłącznie GET, więc sprawdzarki odsyłaczy i monitoring
+    dostępności dostawały 405 na zasób, który normalnie się pobiera (RFC 9110 §9.3.2).
+    """
+    static = settings.static_dir
+    static.mkdir(parents=True, exist_ok=True)
+    (static / "index.html").write_text("<!doctype html><title>Nexus</title>", encoding="utf-8")
+    (static / "zasob.css").write_text("body{}", encoding="utf-8")
+    with TestClient(create_app(settings)) as client:
+        pobranie = client.get("/zasob.css")
+        naglowek = client.head("/zasob.css")
+        assert naglowek.status_code == pobranie.status_code == 200
+        assert naglowek.content == b""
+        assert naglowek.headers["content-length"] == pobranie.headers["content-length"]
+        assert naglowek.headers["etag"] == pobranie.headers["etag"]
+        assert naglowek.headers["cache-control"] == pobranie.headers["cache-control"]
+        strona = client.head("/portal/cennik")
+        assert strona.status_code == 200 and strona.content == b""
+
+
+def test_if_none_match_gwiazdka_daje_304(tmp_path: Path) -> None:  # noqa: F811
+    """„*” znaczy „dowolna wersja” (RFC 9110 §13.1.2) — plik istnieje, więc 304.
+
+    Wcześniej gwiazdka wpadała w porównanie znaczników, nie pasowała do żadnego
+    i serwer odsyłał pełną treść przy każdym odświeżeniu.
+    """
+    from fastapi import Request
+
+    from nexus.api.app import plik_z_warunkiem
+
+    plik = tmp_path / "zasob.css"
+    plik.write_text("body{}", encoding="utf-8")
+
+    def zadanie(naglowki: dict[str, str]) -> Request:
+        zakodowane = [(k.lower().encode(), v.encode()) for k, v in naglowki.items()]
+        return Request({"type": "http", "method": "GET", "headers": zakodowane, "path": "/"})
+
+    assert plik_z_warunkiem(plik, "public", zadanie({})).status_code == 200
+    warunkowa = plik_z_warunkiem(plik, "public", zadanie({"if-none-match": "*"}))
+    assert warunkowa.status_code == 304
+    assert warunkowa.headers.get("etag")
+
+
+def test_adres_publiczny_dostaje_wlasne_znaczniki(settings: Settings) -> None:
+    """Robot bez JavaScriptu ma zobaczyć tytuł tego ekranu, a nie tytuł z index.html."""
+    settings.static_dir.mkdir(parents=True, exist_ok=True)
+    (settings.static_dir / "index.html").write_text(
+        "<!doctype html><html><head><title>Danaco Nexus</title>"
+        '<meta name="description" content="stary"></head><body></body></html>',
+        encoding="utf-8",
+    )
+
+    # Trasa zastępcza powstaje tylko wtedy, gdy katalog interfejsu istnieje przy budowie
+    # aplikacji — dlatego własny klient, a nie wspólna oprawa testowa.
+    with TestClient(create_app(settings)) as klient:
+        cennik = klient.get("/portal/cennik")
+        aplikacja = klient.get("/m/pliki")
+
+    assert cennik.status_code == 200
+    assert "Cennik Danaco Nexus" in cennik.text
+    assert 'property="og:title"' in cennik.text
+    assert "stary" not in cennik.text
+    # Adres aplikacji idzie bez podmiany — zostaje dokument wyjściowy.
+    assert aplikacja.status_code == 200
+    assert "<title>Danaco Nexus</title>" in aplikacja.text
+    assert "Cennik Danaco Nexus" not in aplikacja.text
+
+
+def test_miniatura_filmu_powstaje_z_klatki(client: TestClient, settings: Settings, tmp_path: Path) -> None:
+    """Film bez miniatury to w wykazie plików i w storyboardzie montażu szary prostokąt."""
+    set_password(settings)
+    login(client)
+    film = tmp_path / "ujecie.mp4"
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc=size=320x240:rate=25:duration=3", "-pix_fmt", "yuv420p", str(film)],
+        check=True,
+        timeout=60,
+    )
+
+    wyslany = client.post(
+        "/api/files",
+        files={"file": ("ujecie.mp4", film.read_bytes(), "video/mp4")},
+        headers=HEADERS,
+    )
+    assert wyslany.status_code == 201, wyslany.text
+
+    miniatura = client.get(f"/api/files/{wyslany.json()['id']}/thumbnail")
+
+    assert miniatura.status_code == 200
+    assert miniatura.headers["content-type"] == "image/jpeg"
+    with Image.open(io.BytesIO(miniatura.content)) as obraz:
+        assert max(obraz.size) <= 640
+        # Klatka z „testsrc” jest kolorowa; czarny kadr znaczyłby, że nic nie wyszło.
+        assert obraz.convert("L").getextrema()[1] > 40
+
+
+def test_miniatura_pliku_bez_obrazu_zwraca_404(client: TestClient, settings: Settings) -> None:
+    set_password(settings)
+    login(client)
+    wyslany = client.post(
+        "/api/files",
+        files={"file": ("notatka.txt", io.BytesIO(b"sam tekst"), "text/plain")},
+        headers=HEADERS,
+    )
+
+    assert client.get(f"/api/files/{wyslany.json()['id']}/thumbnail").status_code == 404
+
+
+def test_bledne_dane_odpowiadaja_po_polsku(client: TestClient) -> None:  # noqa: F811
+    """Odpowiedź 422 ma mówić po polsku i wskazywać pole, a nie „Input should be…”.
+
+    Domyślna odpowiedź FastAPI to lista obiektów z angielskim opisem. Interfejs bierze
+    `detail` tylko wtedy, gdy jest napisem, więc użytkownik widział z tego „Błąd serwera
+    (422)” — komunikat nieprawdziwy (to nie serwer się pomylił) i nic nie mówiący.
+    """
+    odpowiedz = client.get("/api/portal/tresci", params={"strona": "abc"})
+    assert odpowiedz.status_code == 422
+    tresc = odpowiedz.json()
+    assert isinstance(tresc["detail"], str)
+    assert "strona" in tresc["detail"]
+    assert "Input should" not in tresc["detail"]
+    # Wykaz pól zostaje osobno — przydaje się przy diagnozie, ale nie jest komunikatem.
+    assert tresc["pola"] == ["strona"]
+    # Powód też jest po polsku i mówi, co poprawić.
+    assert tresc["detail"] == "Pole „strona” musi być liczbą."
+
+
+def test_health_odpowiada_takze_na_head(client: TestClient) -> None:  # noqa: F811
+    """Sondy dostępności pytają metodą ``HEAD`` — i dostawały 404.
+
+    Starlette dokłada ``HEAD`` do tras ``GET`` samoczynnie, ale trasy FastAPI już nie.
+    Żądanie nie pasowało więc do żadnej trasy API, spadało do zapasu SPA (też tylko
+    ``GET``) i kończyło jako 404 — choć ``GET`` na tym samym adresie zwracał 200.
+    Monitor skonfigurowany na ``HEAD`` zgłaszałby usługę jako niedziałającą.
+    """
+    assert client.get("/api/health").status_code == 200
+    odpowiedz = client.head("/api/health")
+    assert odpowiedz.status_code == 200
+    # `HEAD` nie niesie ciała — sprawdzamy sam kod i to, że nagłówki są te same co przy `GET`.
+    assert odpowiedz.headers["content-type"].startswith("application/json")
+
+
+def test_dwa_brakujace_pola_to_brak_a_nie_bledna_wartosc(client: TestClient) -> None:  # noqa: F811
+    """Przy jednym polu mówiliśmy „Brakuje pola”, przy dwóch nagle „Nieprawidłowe wartości”.
+
+    Pole, którego nie przysłano, nie ma wartości — więc nie może mieć nieprawidłowej.
+    Użytkownik czyta z takiego zdania, że wpisał coś źle, i szuka błędu tam, gdzie go nie ma.
+    """
+    odpowiedz = client.post("/api/auth/login", json={}, headers=HEADERS)
+    assert odpowiedz.status_code == 422
+    tresc = odpowiedz.json()
+    assert tresc["detail"] == "Brakuje pól: „username”, „password”."
+    assert tresc["pola"] == ["username", "password"]

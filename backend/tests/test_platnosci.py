@@ -847,15 +847,21 @@ def test_zmiana_limitu_pliku_widac_we_wszystkich_planach(monkeypatch: pytest.Mon
         get_settings.cache_clear()
 
 
-def test_zaden_plan_nie_jest_bezplatny_a_konto_bez_planu_pracuje_na_kredytach() -> None:
-    """Wszystkie trzy plany są płatne, więc żaden komunikat nie obiecuje planu bez opłat."""
+def test_zaden_plan_nie_jest_bezplatny_a_komunikaty_nie_mowia_o_kredytach() -> None:
+    """Wszystkie trzy plany są płatne, a komunikaty nie obiecują planu bez opłat.
+
+    Słowo „kredyty” nie pada w komunikatach dla użytkownika: jednostka rozliczeniowa jest
+    nasza, nie jego. Na zewnątrz mówimy o zakresie pracy i dostępie w okresie rozliczeniowym
+    (ta sama zasada co w cenniku i w module płatności).
+    """
     assert not any(pozycja.bezplatny for pozycja in KATALOG)
     bez_planu = stan_sprzedazy(
         Subskrypcja(uzytkownik=KONTO_ADMINA, plan_kod="osobisty", status="brak"), True
     )
-    assert "kredytach" in bez_planu.komunikat
-    assert "bez opłat" not in f"{bez_planu.tytul} {bez_planu.komunikat}"
-    assert "bez opłat" not in KOMUNIKAT_SPRZEDAZ_WYLACZONA
+    assert "zakresie przydzielonym do konta" in bez_planu.komunikat
+    teksty = f"{bez_planu.tytul} {bez_planu.komunikat} {KOMUNIKAT_SPRZEDAZ_WYLACZONA}"
+    assert "bez opłat" not in teksty
+    assert "kredyt" not in teksty.lower()
 
 
 def test_adres_powrotu_z_portalu_wraca_na_ekran_platnosci() -> None:
@@ -959,3 +965,44 @@ def test_zakup_pakietu_bez_ceny_konczy_sie_zrozumialym_bledem(
     assert "nie ma jeszcze ceny" in odpowiedz.json()["detail"]
     # Komunikat wskazuje klucz do uzupełnienia, więc brak ceny da się naprawić bez czytania kodu.
     assert "pakiet:duzy" in odpowiedz.json()["detail"]
+
+
+def test_pusta_zmienna_pliku_wylacza_sprzedaz(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Środowisko próbne wyłącza sprzedaż, przykrywając wpisy z `.env` pustą wartością.
+
+    Przedsionek próbował tego nazwami `NEXUS_STRIPE_SECRET_KEY`, których nikt nie czyta —
+    i pracował na produkcyjnym kluczu Stripe z włączoną sprzedażą. Po poprawieniu nazw
+    pusta wartość musi znaczyć „nie ma pliku”, a nie „plik o pustej nazwie”.
+    """
+    from nexus.platnosci.konfiguracja import UstawieniaPlatnosci
+
+    klucz = tmp_path / "stripe-klucz"
+    klucz.write_text("sk_test_abc", encoding="utf-8")
+
+    monkeypatch.setenv("NEXUS_PLATNOSCI_STRIPE_KLUCZ_PLIK", str(klucz))
+    assert UstawieniaPlatnosci().klucz == "sk_test_abc"
+
+    monkeypatch.setenv("NEXUS_PLATNOSCI_STRIPE_KLUCZ_PLIK", "")
+    monkeypatch.setenv("NEXUS_PLATNOSCI_STRIPE_KLUCZ", "")
+    assert UstawieniaPlatnosci().klucz == ""
+
+
+def test_strona_obiecuje_tyle_przestrzeni_ile_daje_katalog() -> None:
+    """Zdania sprzedażowe o przestrzeni mają się zgadzać z katalogiem planów.
+
+    Cennik na stronie idzie z serwera, ale zdanie „Własna przestrzeń w chmurze Nexusa:
+    1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Grupie” jest wpisane w tekst na stałe.
+    Zmiana pojemności w katalogu nie ruszy tego zdania — a to obietnica sprzedażowa,
+    nie ozdoba, i klient rozliczy nas z tego, co przeczytał przed zakupem.
+    """
+    tresc = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "landing" / "tresc.ts").read_text(
+        encoding="utf-8"
+    )
+    for plan in KATALOG:
+        gb = plan.przestrzen_gb
+        napis = f"{gb:.0f} GB" if float(gb).is_integer() else f"{gb} GB"
+        assert napis in tresc, (
+            f"plan {plan.nazwa} daje {napis} przestrzeni, a tekst strony o tym nie mówi — "
+            "sprawdź GWARANCJE w frontend/src/landing/tresc.ts"
+        )
+        assert plan.nazwa in tresc, f"plan {plan.nazwa} nie występuje w tekście strony"

@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     cookie_domain: str = ""
     public_url: str = ""
     login_attempts_per_15_min: int = 8
+    #: Ile kont próbnych wolno założyć z jednego adresu IP na dobę. Piątka blokowała całe
+    #: biuro i użytkowników jednego operatora komórkowego (wspólny adres za NAT-em), a
+    #: „Wejdź bez rejestracji” jest główną drogą wejścia ze strony produktu.
+    goscie_na_adres: int = 20
 
     # --- moduł research ---
     # Pobieranie stron (web_fetch_page, zapis strony w bazie wiedzy): limity i czas oczekiwania.
@@ -85,7 +89,7 @@ class Settings(BaseSettings):
     poczta_config_file: Path = Path("poczta.json")
     # Zapasowa przestrzeń konta, gdy plan nie podaje własnej (katalog planów w
     # nexus/platnosci/plany.py rozstrzyga pierwszy: 100 MB w okresie próbnym, 1 GB
-    # w planie Osobistym, 2 GB w Pro, 10 GB w Zespole).
+    # w planie Osobistym, 2 GB w Pro, 10 GB w Grupie).
     konto_limit_mb: int = 1024
     poczta_timeout_s: int = 30
     poczta_attachments_limit_mb: int = 25
@@ -115,6 +119,9 @@ class Settings(BaseSettings):
 
     # --- moduł agenci ---
     claude_subagents: bool = True
+    # Piaskownica procesu CLI (bwrap): agent widzi wyłącznie przestrzeń użytkownika,
+    # nie kod Nexusa ani cudze projekty na serwerze. Wyłączać tylko do diagnostyki.
+    agent_piaskownica: bool = True
     claude_web_tools: bool = True
     claude_subagent_model: str = ""
     agenci_max_podagentow: int = 15

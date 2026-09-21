@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func, select
 
-from nexus.api.auth import require_session
+from nexus.api.auth import require_session, wlasciciel
 from nexus.db import Conversation, Database, Run, RunEvent
 
 router = APIRouter(prefix="/api/w-toku", tags=["w-toku"], dependencies=[Depends(require_session)])
@@ -17,15 +18,19 @@ TOOL_EVENTS = ("tool.started", "tool.pending")
 
 
 @router.get("")
-async def active_runs(request: Request) -> list[dict[str, Any]]:
-    """Trwające zadania od najstarszego, z tytułem rozmowy i ostatnio użytym narzędziem."""
+async def active_runs(request: Request, owner: uuid.UUID = Depends(wlasciciel)) -> list[dict[str, Any]]:
+    """Trwające zadania konta, od najstarszego, z tytułem rozmowy i ostatnio użytym narzędziem.
+
+    Tytuł rozmowy jest treścią użytkownika, więc lista niesie wyłącznie przebiegi z rozmów
+    tego konta — sama ważna sesja pokazywała zadania całej instalacji.
+    """
     database: Database = request.app.state.database
     async with database.session() as session:
         rows = (
             await session.execute(
                 select(Run, Conversation)
                 .join(Conversation, Conversation.id == Run.conversation_id)
-                .where(Run.status.in_(ACTIVE_STATUSES))
+                .where(Run.status.in_(ACTIVE_STATUSES), Conversation.owner_id == owner)
                 .order_by(Run.created_at)
                 .limit(100)
             )

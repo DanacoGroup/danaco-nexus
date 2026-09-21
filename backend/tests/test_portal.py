@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Iterator
 from datetime import timedelta
 from pathlib import Path
@@ -16,8 +17,9 @@ from nexus.api.app import create_app
 from nexus.api.auth import set_admin_credentials
 from nexus.config import Settings
 from nexus.db import Database, utcnow
-from nexus.models.portal import PortalEmailConfirmation, PortalSession
-from nexus.portal import kanaly, konta, poczta_portalu, tresc
+from nexus.models.portal import PortalContent, PortalEmailConfirmation, PortalSession
+from nexus.portal import kanaly, konta, poczta_portalu, repozytorium, tresc
+from nexus.portal.materialy import POMIJANE, BladMaterialu, wczytaj_katalog, zapisz
 from nexus.portal.ustawienia import portal_settings
 
 HASLO_ADMINISTRATORA = "bardzo-tajne-haslo-2026"
@@ -324,6 +326,24 @@ def test_wyszukiwanie_pelnotekstowe(client: TestClient, settings: Settings) -> N
     assert client.get("/api/portal/szukaj", params={"q": "pompy cieplA"}).json()["total"] == 1
     assert client.get("/api/portal/szukaj", params={"q": "dom", "typ": "wiedza"}).json()["total"] == 1
     assert client.get("/api/portal/szukaj", params={"q": ""}).json()["total"] == 0
+
+
+def test_wyszukiwanie_nie_trafia_w_srodek_wyrazu(client: TestClient, settings: Settings) -> None:
+    """„or” nie jest trafieniem w „który”.
+
+    Dopasowanie ``LIKE '%slowo%'`` wchodziło w środek wyrazów, więc dwuliterowe zapytanie
+    wyciągało z bazy wszystko — a wynik wyglądał, jakby wyszukiwarka zgadywała.
+    """
+    zaloguj_administratora(client, settings)
+    wpis = utworz_tresc(
+        client, title="Który moduł wybrać", body="Opis modułu, który podpowiada wybór."
+    )
+    opublikuj(client, wpis["id"])
+
+    assert client.get("/api/portal/szukaj", params={"q": "or"}).json()["total"] == 0
+    # Początek wyrazu nadal jest trafieniem — na tym stoi wyszukiwanie po rdzeniu słowa.
+    assert client.get("/api/portal/szukaj", params={"q": "modul"}).json()["total"] == 1
+    assert client.get("/api/portal/szukaj", params={"q": "ktory"}).json()["total"] == 1
 
 
 def test_lista_z_filtrem_znacznika(client: TestClient, settings: Settings) -> None:
@@ -952,3 +972,281 @@ def test_siec_prywatna_nie_jest_zaufanym_proxy(
             for numer in range(3)
         ]
     assert kody == [401, 401, 429]
+
+
+def test_stan_sesji_nie_jest_bledem_dla_goscia(client: TestClient) -> None:
+    """Pytanie „czy ktoś jest zalogowany” to stan, nie zasób chroniony.
+
+    Portal pytał o to przez `/konto/ja`, które gościowi odpowiada 401 — przeglądarka
+    zapisywała wtedy błąd w konsoli na każdej stronie publicznej, choć nic złego się nie
+    działo. Ten punkt odpowiada gościowi zwyczajnie.
+    """
+    odpowiedz = client.get("/api/portal/konto/sesja", headers=HEADERS)
+    assert odpowiedz.status_code == 200, odpowiedz.text
+    assert odpowiedz.json() == {"konto": None}
+    # Zasób chroniony nadal odmawia — to nie jest obejście uwierzytelnienia.
+    assert client.get("/api/portal/konto/ja", headers=HEADERS).status_code == 401
+
+
+KORZEN = Path(__file__).resolve().parents[2]
+MATERIAL = """# Pierwsze uruchomienie
+
+Pierwszy akapit materiału.
+
+## Sekcja
+
+Treść sekcji.
+"""
+
+
+def test_material_bierze_tytul_z_naglowka_i_nie_powiela_go_w_tresci(tmp_path: Path) -> None:
+    """Stronę pozycji rysuje tytuł osobno, więc treść zaczyna się pod nagłówkiem."""
+    katalog = tmp_path / "materialy"
+    katalog.mkdir()
+    (katalog / "03-pierwsze-uruchomienie.md").write_text(MATERIAL, encoding="utf-8")
+    (katalog / "README.md").write_text("# Opis katalogu\n\nNie jest materiałem.\n", encoding="utf-8")
+
+    materialy = wczytaj_katalog(katalog, "dokumentacja")
+
+    assert len(materialy) == 1, "README nie jest materiałem"
+    pozycja = materialy[0]
+    assert (pozycja.slug, pozycja.tytul, pozycja.pozycja) == (
+        "pierwsze-uruchomienie",
+        "Pierwsze uruchomienie",
+        3,
+    )
+    assert not pozycja.tresc_md.startswith("# ")
+    assert pozycja.tresc_md.startswith("Pierwszy akapit")
+
+
+@pytest.mark.parametrize(
+    ("nazwa", "tresc_pliku"),
+    [
+        ("bez-numeru.md", MATERIAL),
+        ("04-bez-naglowka.md", "Sam akapit, bez nagłówka.\n"),
+        ("05-sam-naglowek.md", "# Tytuł\n"),
+    ],
+)
+def test_wadliwy_plik_jest_odrzucany_z_nazwa_pliku(tmp_path: Path, nazwa: str, tresc_pliku: str) -> None:
+    """Błąd wskazuje plik — przy wczytywaniu katalogu to jedyna wskazówka dla człowieka."""
+    katalog = tmp_path / "materialy"
+    katalog.mkdir()
+    (katalog / nazwa).write_text(tresc_pliku, encoding="utf-8")
+
+    with pytest.raises(BladMaterialu, match=nazwa):
+        wczytaj_katalog(katalog, "dokumentacja")
+
+
+def test_powtorne_wczytanie_nadpisuje_pozycje_zamiast_ja_powielac(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """Poprawiony plik wczytuje się ponownie; adres pozycji zostaje ten sam."""
+    katalog = tmp_path / "materialy"
+    katalog.mkdir()
+    plik = katalog / "01-pierwsze-uruchomienie.md"
+    plik.write_text(MATERIAL, encoding="utf-8")
+
+    async def wczytaj(opublikuj: bool) -> list[tuple[str, str]]:
+        database = Database(settings.database_url)
+        await database.create_schema()
+        try:
+            return await zapisz(
+                database, wczytaj_katalog(katalog, "dokumentacja"), opublikuj=opublikuj
+            )
+        finally:
+            await database.close()
+
+    assert asyncio.run(wczytaj(False)) == [("dokumentacja/pierwsze-uruchomienie", "nowa")]
+    plik.write_text(MATERIAL.replace("Pierwszy akapit", "Poprawiony akapit"), encoding="utf-8")
+    assert asyncio.run(wczytaj(True)) == [("dokumentacja/pierwsze-uruchomienie", "zmieniona")]
+
+    async def stan() -> tuple[int, str, str]:
+        database = Database(settings.database_url)
+        try:
+            async with database.session() as session:
+                ile = await session.scalar(select(func.count()).select_from(PortalContent))
+                rekord = await repozytorium.pobierz(session, "dokumentacja", "pierwsze-uruchomienie")
+                return int(ile or 0), rekord.status, rekord.body
+        finally:
+            await database.close()
+
+    ile, status, body = asyncio.run(stan())
+    assert ile == 1
+    assert status == "opublikowany"
+    assert body.startswith("Poprawiony akapit")
+
+
+def test_szkice_z_repozytorium_wczytuja_sie_bez_poprawek() -> None:
+    """Materiały w `docs/portal/tresci-startowe` mają nadawać się do wczytania takie, jakie są."""
+    materialy = wczytaj_katalog(KORZEN / "docs" / "portal" / "tresci-startowe", "dokumentacja")
+
+    assert len(materialy) >= 5
+    assert [pozycja.pozycja for pozycja in materialy] == sorted(
+        pozycja.pozycja for pozycja in materialy
+    )
+    assert all(pozycja.tytul and pozycja.tresc_md for pozycja in materialy)
+
+
+def test_szkice_nie_maja_zawinietych_akapitow() -> None:
+    """Portal renderuje treść przez `marked` z `breaks: true` — złamany wiersz staje się `<br>`.
+
+    Akapit rozbity na dwa wiersze wygląda w przeglądarce jak zdanie przecięte w połowie,
+    a w pliku nie widać niczego podejrzanego. Stąd ten test: akapit ma być jednym wierszem.
+    """
+    # Wiersze zaczynające się od tych znaków to nagłówki, wypunktowania, tabele, cytaty
+    # i bloki kodu — tam złamanie wiersza jest częścią składni, nie przypadkiem.
+    skladnia = ("#", "-", "|", ">", "`", "*", "1.", "2.", "3.")
+    zawiniete: list[str] = []
+    katalog = KORZEN / "docs" / "portal" / "tresci-startowe"
+    # README opisuje katalog człowiekowi i nie trafia do portalu, więc zawijanie mu wolno.
+    for plik in sorted(p for p in katalog.glob("*.md") if p.name not in POMIJANE):
+        poprzedni = ""
+        for numer, wiersz in enumerate(plik.read_text(encoding="utf-8").splitlines(), start=1):
+            proza = bool(wiersz.strip()) and not wiersz.startswith(skladnia)
+            if proza and poprzedni.strip() and not poprzedni.startswith(skladnia):
+                zawiniete.append(f"{plik.name}:{numer}")
+            poprzedni = wiersz
+
+    assert zawiniete == [], f"akapity złamane na dwa wiersze: {zawiniete}"
+
+
+def test_katalog_materialow_dziala_takze_z_katalogu_uslugi(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Usługa pracuje w `backend/`, a materiały leżą w `docs/` — ścieżka z dokumentacji ma trafiać.
+
+    Bez tego polecenie z README („--katalog docs/portal/tresci-startowe”) kończyło się
+    „nie ma takiego katalogu”, zależnie od tego, skąd je uruchomiono.
+    """
+    monkeypatch.chdir(KORZEN / "backend")
+
+    materialy = wczytaj_katalog(Path("docs/portal/tresci-startowe"), "dokumentacja")
+
+    assert len(materialy) >= 5
+
+
+def test_dwa_pliki_o_tym_samym_adresie_sa_bledem(tmp_path: Path) -> None:
+    """Portal nadałby drugiemu adres „start-2” — cichy rozjazd nazwy pliku z adresem pozycji."""
+    katalog = tmp_path / "materialy"
+    katalog.mkdir()
+    (katalog / "01-start.md").write_text(MATERIAL, encoding="utf-8")
+    (katalog / "02-start.md").write_text(MATERIAL, encoding="utf-8")
+
+    with pytest.raises(BladMaterialu, match="start"):
+        wczytaj_katalog(katalog, "dokumentacja")
+
+
+def test_diagnostyka_ostrzega_gdy_poczta_portalu_nie_dochodzi(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rejestracja otwarta plus nadawca „dziennik” = klient czeka na wiadomość, która nie przyjdzie.
+
+    Ekran i tak mówi „wysłaliśmy odsyłacz”, więc po stronie użytkownika nic tego nie zdradza.
+    """
+    from nexus.doctor import check_poczta_portalu
+
+    monkeypatch.setenv("NEXUS_PORTAL_REJESTRACJA", "true")
+    monkeypatch.delenv("NEXUS_PORTAL_MAIL_NADAWCA", raising=False)
+
+    wynik = asyncio.run(check_poczta_portalu(settings))
+
+    assert wynik.ok is False
+    assert "nie dotrą" in wynik.detail
+
+    # Zamknięta rejestracja i pusta baza kont: nikt nie czeka na wiadomość.
+    monkeypatch.setenv("NEXUS_PORTAL_REJESTRACJA", "false")
+    assert asyncio.run(check_poczta_portalu(settings)).ok is True
+
+    # Ale gdy konta już są, odzyskanie hasła dotyczy ich niezależnie od rejestracji.
+    async def zaloz_konto() -> None:
+        database = Database(settings.database_url)
+        await database.create_schema()
+        async with database.session() as session:
+            await konta.utworz_konto(session, email="klient@example.com", haslo=HASLO_KLIENTA, name="Klient")
+        await database.close()
+
+    asyncio.run(zaloz_konto())
+    z_kontami = asyncio.run(check_poczta_portalu(settings))
+    assert z_kontami.ok is False
+    assert "odzyskanie hasła" in z_kontami.detail
+
+
+def test_mapa_modulow_wymienia_wszystkie_moduly_okna() -> None:
+    """Artykuł „Co gdzie znajdziesz” ma nadążać za paskiem modułów.
+
+    Artykuł jest pierwszym miejscem, do którego klient zagląda, kiedy czegoś nie może
+    znaleźć. Pasek modułów rośnie w kodzie i nikt nie pamięta, żeby dopisać nową pozycję
+    do tekstu na portalu — tak wypadły z niego „Płatności”, czyli akurat ten moduł,
+    w którym klient załatwia subskrypcję i faktury. Ten test pilnuje, żeby każdy moduł
+    z rejestru interfejsu miał swój wiersz w artykule.
+    """
+    artykul = (KORZEN / "docs" / "portal" / "tresci-startowe" / "05-mapa-modulow.md").read_text(
+        encoding="utf-8"
+    )
+    wymienione = set(re.findall(r"^- \*\*(.+?)\*\*", artykul, re.MULTILINE))
+
+    # Opis modułu leży przy jego stronie: `export const module: NexusModule = { … }`.
+    opis = re.compile(r"export const module: NexusModule = \{(.*?)\n\};", re.DOTALL)
+    etykieta = re.compile(r'\blabel:\s*"([^"]+)"')
+    nazwy: set[str] = set()
+    for plik in (KORZEN / "frontend" / "src").rglob("index.tsx"):
+        for blok in opis.findall(plik.read_text(encoding="utf-8")):
+            znaleziona = etykieta.search(blok)
+            if znaleziona:
+                nazwy.add(znaleziona.group(1))
+
+    assert nazwy, "nie znaleziono żadnego opisu modułu — zmienił się kształt rejestru"
+    brakujace = sorted(nazwy - wymienione)
+    assert brakujace == [], f"moduły bez wiersza w mapie modułów portalu: {brakujace}"
+
+
+def test_rdzenie_slowa_obejmuja_polska_odmiane() -> None:
+    """Wyszukiwarka dopasowuje początek wyrazu, a polszczyzna odmienia końcówki.
+
+    Klient piszący „faktury” nie znajdował artykułu, w którym stoi „fakturach”: żadne
+    z tych słów nie jest początkiem drugiego. Rdzenie zasypują tę dziurę, ale nie wolno
+    im skracać w nieskończoność — inaczej wyszukiwanie zamienia się w zgadywanie.
+    """
+    from nexus.portal.repozytorium import MIN_RDZEN, _rdzenie
+
+    # Warunek wyszukiwania brzmi „w tekście jest wyraz zaczynający się od wariantu”,
+    # więc sprawdzamy to, co naprawdę rozstrzyga: czy któryś wariant zapytania jest
+    # początkiem słowa zapisanego w treści.
+    def trafia(zapytanie: str, w_tekscie: str) -> bool:
+        return any(w_tekscie.startswith(wariant) for wariant in _rdzenie(zapytanie))
+
+    assert trafia("faktury", "fakturach")
+    assert trafia("faktura", "fakturami")
+    assert trafia("umowa", "umowy")
+    assert trafia("umowy", "umowie")
+    # Bez rdzeni żadne z tych zapytań nie trafiało: „faktury” nie jest początkiem
+    # „fakturach”, a „umowa” nie jest początkiem „umowy”.
+    assert not "fakturach".startswith("faktury")
+    assert not "umowy".startswith("umowa")
+
+    # Całe słowo zawsze zostaje jako pierwszy wariant.
+    assert _rdzenie("faktury")[0] == "faktury"
+
+    # Krótkich słów nie skracamy wcale: „ai”, „ocr”, „kody”.
+    for krotkie in ("ai", "ocr", "kody", "plik"):
+        assert _rdzenie(krotkie) == [krotkie]
+
+    # Żaden wariant nie schodzi poniżej progu.
+    for slowo in ("dokumentach", "ustawienia", "faktury", "strona"):
+        assert all(len(rdzen) >= MIN_RDZEN for rdzen in _rdzenie(slowo))
+
+
+def test_znacznik_z_procentem_nie_pasuje_do_wszystkiego() -> None:
+    """Znacznik idzie do wzorca `LIKE` prosto z adresu — wieloznaczniki muszą być zasłonięte.
+
+    Słowa zapytania przechodzą przez `slowa_zapytania`, które przepuszcza wyłącznie litery
+    i cyfry. Znacznik nie: `?tag=%` trafiał tą samą drogą do wzorca i pasował do każdej
+    pozycji w bazie.
+    """
+    from nexus.portal.repozytorium import _zaslon
+
+    assert _zaslon("%") == "\\%"
+    assert _zaslon("a_b") == "a\\_b"
+    assert _zaslon("100%") == "100\\%"
+    # Sam znak zasłaniający też trzeba zasłonić, inaczej „\\%” przeszłoby jako wieloznacznik.
+    assert _zaslon("\\") == "\\\\"
+    # Zwykły znacznik zostaje bez zmian.
+    assert _zaslon("cennik") == "cennik"

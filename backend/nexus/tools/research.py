@@ -328,9 +328,15 @@ def knowledge_notes(ctx: ToolContext, args: KnowledgeNotesInput) -> ToolResult:
                 raise ToolError(f"Nie znaleziono kolekcji: {args.collection}")
             statement = statement.where(KnowledgeNote.collection_id == collection.id)
         if args.query.strip():
-            pattern = f"%{args.query.strip()}%"
+            # `%` i `_` są w LIKE znakami wieloznacznymi — zasłaniamy je, żeby zapytanie
+            # „50%” nie oddawało wszystkich notatek.
+            szukane = args.query.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{szukane}%"
             statement = statement.where(
-                or_(KnowledgeNote.title.ilike(pattern), KnowledgeNote.content.ilike(pattern))
+                or_(
+                    KnowledgeNote.title.ilike(pattern, escape="\\"),
+                    KnowledgeNote.content.ilike(pattern, escape="\\"),
+                )
             )
         async with database.session() as session:
             notes = (await session.scalars(statement)).all()

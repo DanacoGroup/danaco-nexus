@@ -31,6 +31,7 @@ from nexus.logging_setup import configure_logging
 from nexus.storage import FileStorage
 from nexus.tools import registry
 from nexus.tools.base import ToolCancelled, ToolContext, ToolError
+from nexus.tworczy.przegladarka import przegladarka
 
 logger = logging.getLogger("nexus.mcp")
 
@@ -163,6 +164,9 @@ class ToolServer:
         finally:
             self._cancel.set()
             self._executor.shutdown(wait=False, cancel_futures=True)
+            # Okno przeglądarki agenta żyje przez całe zadanie (narzędzia browser_*);
+            # bez tego zostałby po nim wiszący proces Chromium.
+            przegladarka().zamknij()
             await self._events.close()
             await self._database.close()
 

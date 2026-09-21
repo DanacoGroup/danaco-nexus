@@ -85,7 +85,7 @@ def test_sklad_daje_pdf_z_trescia_i_podgladem(harness: ToolHarness) -> None:
 
 
 @requires_program("typst")
-@pytest.mark.parametrize("szablon", ["raport", "oferta", "cv", "broszura", "plakat"])
+@pytest.mark.parametrize("szablon", ["raport", "oferta", "cv", "broszura", "plakat", "umowa"])
 def test_kazdy_szablon_sie_sklada(harness: ToolHarness, szablon: str) -> None:
     dane = {
         **RAPORT,
@@ -95,6 +95,34 @@ def test_kazdy_szablon_sie_sklada(harness: ToolHarness, szablon: str) -> None:
     }
     wynik = wywolaj(harness, "typeset_document", **dane)
     assert wynik.data["szablon"] == szablon
+    assert wynik.data["stron"] >= 1
+
+
+@requires_program("typst")
+def test_umowa_ma_paragrafy_i_miejsce_na_podpisy(harness: ToolHarness) -> None:
+    """Umowa bez miejsca na podpis jest projektem umowy — a o podpis nikt nie prosi osobno."""
+    from nexus.tools.dokumenty_zaawansowane import SkladInput, _zrodlo
+
+    args = SkladInput(
+        szablon="umowa",
+        tytul="Umowa o świadczenie usług",
+        autor="Danaco Holding Group Sp. z o.o.",
+        adresat="Jan Kowalski",
+        data="Warszawa, 21 września 2026",
+        sekcje=[{"naglowek": "Przedmiot umowy", "bloki": [{"rodzaj": "akapit", "tekst": "Zakres prac."}]}],
+    )
+    zrodlo = _zrodlo(args)
+
+    assert "§ " in zrodlo, "rozdziały umowy numerują się paragrafami"
+    # Sam `#set heading(numbering: …)` nie wystarczy: reguła wyglądu przerysowuje nagłówek,
+    # więc musi też wypisać licznik — inaczej numer paragrafu nie trafia na stronę.
+    assert "counter(heading).display(it.numbering)" in zrodlo
+    assert "grid(columns: (1fr, 1fr)" in zrodlo, "dwa pola podpisu obok siebie"
+    assert "Jan Kowalski" in zrodlo and "Danaco Holding Group" in zrodlo
+    # Umowa nie zaczyna się kolorowym pasem jak oferta.
+    assert "fill: akcent, inset:" not in zrodlo
+
+    wynik = wywolaj(harness, "typeset_document", **args.model_dump(mode="json"))
     assert wynik.data["stron"] >= 1
 
 

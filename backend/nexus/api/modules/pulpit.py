@@ -42,6 +42,12 @@ from nexus.pulpit import (
 
 logger = logging.getLogger(__name__)
 
+#: Ile czekamy na dokończenie zadania przekazującego po rozłączeniu komputera.
+#:
+#: Sprzątanie nie może stać dłużej niż chwilę: za nim jest skreślenie komputera z listy
+#: podłączonych, a wpis wygasa dopiero po ``ONLINE_STALE_SECONDS`` (90 s).
+SPRZATANIE_SEKUND = 2.0
+
 router = APIRouter(prefix="/api/pulpit", tags=["pulpit"])
 
 AUTH_TIMEOUT_SECONDS = 10.0
@@ -151,15 +157,37 @@ async def computer_socket(websocket: WebSocket) -> None:
                 await _receive_loop(websocket, broker, database, device_id, info)
             finally:
                 forward.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await forward
+                # Z limitem, nie „na zawsze”. Zadanie przekazujące wisi na odczycie
+                # z kanału Redisa; anulowanie dochodzi do niego dopiero, gdy odczyt wróci.
+                # Bez limitu całe sprzątanie rozłączenia stało tutaj, a komputer zostawał
+                # na liście podłączonych do wygaśnięcia wpisu (90 s) — w oknie Urządzeń
+                # widniał jako obecny, a narzędzia `pc_*` wybierały go i kończyły się
+                # przeterminowaniem.
+                with contextlib.suppress(asyncio.CancelledError, TimeoutError, Exception):
+                    await asyncio.wait_for(forward, SPRZATANIE_SEKUND)
     except WebSocketDisconnect:
         pass
     finally:
         if _connections.get(device_id) is websocket:
             _connections.pop(device_id, None)
-            with contextlib.suppress(Exception):
-                await broker.set_offline(device_id)
+            try:
+                # `shield`, bo to sprzątanie biegnie zwykle w **anulowanym** zadaniu:
+                # serwer kończy obsługę gniazda przez `cancel()`, a wtedy pierwsze `await`
+                # w tym bloku natychmiast podnosi `CancelledError`. Wcześniej stało tu
+                # `suppress(Exception)`, które `CancelledError` nie łapie (to `BaseException`),
+                # więc skreślenie obecności **nigdy nie dochodziło do skutku**: komputer
+                # zostawał na liście podłączonych aż do wygaśnięcia wpisu (90 s). W oknie
+                # Urządzeń widniał jako obecny, a narzędzia `pc_*` wybierały go i kończyły
+                # się przeterminowaniem. `shield` pozwala samemu skreśleniu dobiec do końca.
+                await asyncio.shield(broker.set_offline(device_id))
+            except asyncio.CancelledError:
+                pass
+            except Exception:  # noqa: BLE001 - rozłączenie nie może się wywrócić na sprzątaniu
+                logger.warning(
+                    "Nie udało się skreślić komputera %s z listy podłączonych.",
+                    device_id,
+                    exc_info=True,
+                )
         logger.info("Komputer %s (%s) rozłączony.", device["name"], device_id)
 
 

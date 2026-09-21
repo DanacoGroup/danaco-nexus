@@ -10,13 +10,15 @@ from __future__ import annotations
 from pydantic import Field
 
 from nexus.tools.base import ToolContext, ToolError, ToolInput, ToolResult, registry
+from nexus.tools.kit_www import _uwagi_witryny
 from nexus.tworczy.strony import SiteError, SiteStore, check_file_path, site_store
 
 SITE_FIELD = Field(description="Adres strony (np. 'kawiarnia-pod-lipami') z nagłówka [Strona: …] rozmowy.")
 
 
 def _store(ctx: ToolContext) -> SiteStore:
-    return site_store(ctx.settings)
+    """Strony konta prowadzącego przebieg; cudza strona jest dla narzędzia nieosiągalna."""
+    return site_store(ctx.settings, ctx.owner_id)
 
 
 def _format_size(size: int) -> str:
@@ -164,7 +166,10 @@ def site_save_version(ctx: ToolContext, args: SiteVersionInput) -> ToolResult:
     "site_publish",
     """Zgłasza prośbę o publikację strony pod publicznym adresem /s/<adres>/. Publikacja NIE następuje
 od razu: użytkownik musi ją zatwierdzić przyciskiem w module Strony. Wywołuj tylko, gdy użytkownik
-prosi o publikację; w odpowiedzi poinformuj go, że czeka ona na potwierdzenie.""",
+prosi o publikację; w odpowiedzi poinformuj go, że czeka ona na potwierdzenie. Wynik może zawierać
+pole `do_sprzatniecia` — odwołania do cudzych serwerów i cudze adresy kanoniczne, które po
+publikacji dotyczą już odwiedzających. Wymień je użytkownikowi i zaproponuj site_vendor_assets
+oraz site_fonts_local, zanim potwierdzi.""",
     SiteVersionInput,
 )
 def site_publish(ctx: ToolContext, args: SiteVersionInput) -> ToolResult:
@@ -172,13 +177,22 @@ def site_publish(ctx: ToolContext, args: SiteVersionInput) -> ToolResult:
     try:
         if not (store.draft_dir(args.site) / "index.html").is_file():
             raise ToolError("Strona nie ma pliku index.html – najpierw go utwórz.")
+        # Publikacja jest chwilą, w której odwołania do cudzych serwerów zaczynają dotyczyć
+        # odwiedzających, a nie tylko szkicu. Użytkownik ma to usłyszeć przed kliknięciem.
+        uwagi = _uwagi_witryny(store.draft_dir(args.site))
         store.request_publish(args.site, args.note)
     except SiteError as error:
         raise ToolError(str(error)) from error
-    return ToolResult(
-        {"status": "czeka_na_potwierdzenie", "public_url": f"/s/{args.site.strip().lower()}/"},
-        "Prośba o publikację czeka na potwierdzenie użytkownika",
-    )
+    dane = {"status": "czeka_na_potwierdzenie", "public_url": f"/s/{args.site.strip().lower()}/"}
+    if uwagi:
+        dane["do_sprzatniecia"] = uwagi
+    komunikat = "Prośba o publikację czeka na potwierdzenie użytkownika"
+    if uwagi:
+        komunikat += (
+            f". Zanim potwierdzi, powiedz mu o {len(uwagi)} rzeczach z pola „do_sprzatniecia” "
+            "— po publikacji dotyczą już odwiedzających"
+        )
+    return ToolResult(dane, komunikat)
 
 
 class SiteUnpublishInput(ToolInput):

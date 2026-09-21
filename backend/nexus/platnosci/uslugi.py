@@ -29,7 +29,7 @@ from nexus.platnosci.model import (
     Subskrypcja,
 )
 from nexus.platnosci.pakiety import pakiet
-from nexus.platnosci.plany import PLAN_DOMYSLNY, do_kupienia, pozycja_katalogu
+from nexus.platnosci.plany import PLAN_DOMYSLNY, PlanKatalogu, do_kupienia, pozycja_katalogu
 from nexus.platnosci.stany import (
     KOMUNIKATY_KUPONU,
     STATUSY_FAKTURY_DO_ZAPLATY,
@@ -206,6 +206,28 @@ def ma_platna_subskrypcje(rekord: Subskrypcja) -> bool:
     return bool(rekord.stripe_subscription_id) and rekord.status in STATUSY_UPRAWNIAJACE
 
 
+#: Plan rozliczany za każdego użytkownika — kupujący sam ustala liczbę miejsc w kasie.
+PLAN_ZA_UZYTKOWNIKA = "zespol"
+MIEJSC_MIN = 2
+MIEJSC_MAX = 20
+
+
+def _pozycja_zakupu(pozycja: PlanKatalogu, cena: str) -> dict[str, Any]:
+    """Pozycja kasy Stripe. Plan „Grupa” kosztuje za użytkownika, więc ilość wybiera kupujący.
+
+    Bez tego cena 49 zł była ceną całej grupy, a nie ceną za osobę — czyli czymś innym,
+    niż obiecuje cennik. ``adjustable_quantity`` pozwala ustalić liczbę miejsc w kasie
+    i zmienić ją później w portalu rozliczeniowym; liczbę zapisuje webhook.
+    """
+    if pozycja.kod != PLAN_ZA_UZYTKOWNIKA:
+        return {"price": cena, "quantity": 1}
+    return {
+        "price": cena,
+        "quantity": MIEJSC_MIN,
+        "adjustable_quantity": {"enabled": True, "minimum": MIEJSC_MIN, "maximum": MIEJSC_MAX},
+    }
+
+
 async def rozpocznij_zakup(
     database: Database,
     klient: KlientStripe,
@@ -260,7 +282,7 @@ async def rozpocznij_zakup(
         "customer": rekord.stripe_customer_id,
         "client_reference_id": uzytkownik,
         "locale": "pl",
-        "line_items": [{"price": cena, "quantity": 1}],
+        "line_items": [_pozycja_zakupu(pozycja, cena)],
         "success_url": adresy.sukces,
         "cancel_url": adresy.anulowanie,
         "metadata": {"uzytkownik": uzytkownik, "plan": pozycja.kod, "okres": okres},
@@ -332,6 +354,69 @@ async def rozpocznij_zakup_pakietu(
     return Zakup(adres, TRYB_CHECKOUT, pozycja.kod, "jednorazowo")
 
 
+async def rozpocznij_doladowanie(
+    database: Database,
+    klient: KlientStripe,
+    ustawienia: UstawieniaPlatnosci,
+    adresy: AdresyPowrotu,
+    uzytkownik: str,
+    kwota_gr: int,
+) -> Zakup:
+    """Jednorazowe doładowanie dostępu kwotą wpisaną przez użytkownika.
+
+    W odróżnieniu od pakietu nie ma tu gotowej ceny w Stripe: kwotę podaje użytkownik,
+    więc pozycję składamy w locie (``price_data``). Kredyty dopisuje webhook po
+    potwierdzeniu wpłaty, a nie powrót z przeglądarki — adres powrotu da się otworzyć
+    ponownie. Ile kredytów przypada na tę kwotę, liczy serwer; nie trafia to ani na
+    ekran, ani na fakturę, bo użytkownik kupuje dostęp, nie sztuki jednostek.
+    """
+    from nexus.platnosci import kredyty as ksiega
+
+    if kwota_gr < ksiega.MINIMUM_DOLADOWANIA_GR:
+        raise BladStripe(
+            f"Najmniejsze doładowanie to {ksiega.MINIMUM_DOLADOWANIA_GR / 100:.0f} zł."
+        )
+    if kwota_gr > ksiega.MAKSIMUM_DOLADOWANIA_GR:
+        raise BladStripe(
+            f"Jednorazowo można doładować najwyżej {ksiega.MAKSIMUM_DOLADOWANIA_GR / 100:.0f} zł."
+        )
+    ile_kredytow = ksiega.kredyty_za_kwote(kwota_gr)
+    if ile_kredytow <= 0:
+        raise BladStripe("Ta kwota jest za niska, żeby przedłużyć dostęp.")
+
+    rekord = await zapewnij_klienta(database, klient, uzytkownik)
+    dane: dict[str, Any] = {
+        "mode": "payment",
+        "customer": rekord.stripe_customer_id,
+        "client_reference_id": uzytkownik,
+        "locale": "pl",
+        "line_items": [
+            {
+                "quantity": 1,
+                "price_data": {
+                    "currency": ustawienia.waluta,
+                    "unit_amount": kwota_gr,
+                    "product_data": {"name": "Danaco Nexus — przedłużenie dostępu"},
+                },
+            }
+        ],
+        "success_url": adresy.sukces,
+        "cancel_url": adresy.anulowanie,
+        "invoice_creation": {"enabled": True},
+        "metadata": {
+            "uzytkownik": uzytkownik,
+            "doladowanie": "1",
+            "kwota_gr": str(kwota_gr),
+            "kredyty": str(ile_kredytow),
+        },
+    }
+    sesja = await klient.utworz_sesje_checkout(dane)
+    adres = str(sesja.get("url") or "")
+    if not adres:
+        raise BladStripe("Stripe nie zwrócił adresu płatności. Spróbuj ponownie za chwilę.")
+    return Zakup(adres, TRYB_CHECKOUT, "doladowanie", "jednorazowo")
+
+
 async def otworz_portal(
     database: Database,
     klient: KlientStripe,
@@ -395,6 +480,23 @@ def _cena_subskrypcji(dane: dict[str, Any]) -> str:
     return _identyfikator((pozycje[0] or {}).get("price"))
 
 
+def _miejsca_subskrypcji(dane: dict[str, Any]) -> int:
+    """Liczba opłaconych miejsc z pozycji subskrypcji (plan „Grupa” liczy za użytkownika).
+
+    Plany jednoosobowe mają ilość 1 i nic się dla nich nie zmienia. Brak pozycji albo
+    ilość mniejsza od 1 oznacza subskrypcję jednoosobową — nie zgadujemy w górę, bo to
+    byłoby rozdanie miejsc, za które nikt nie zapłacił.
+    """
+    pozycje = ((dane.get("items") or {}).get("data")) or []
+    if not pozycje:
+        return 1
+    try:
+        ilosc = int((pozycje[0] or {}).get("quantity") or 1)
+    except (TypeError, ValueError):
+        return 1
+    return max(1, ilosc)
+
+
 async def zapisz_subskrypcje(
     database: Database, ustawienia: UstawieniaPlatnosci, uzytkownik: str, dane: dict[str, Any]
 ) -> Subskrypcja:
@@ -414,6 +516,7 @@ async def zapisz_subskrypcje(
         rekord.okres = str(metadane.get("okres") or rekord.okres)
     rekord.okres_od, rekord.okres_do = _okres_subskrypcji(dane)
     rekord.anuluj_na_koniec = bool(dane.get("cancel_at_period_end"))
+    rekord.miejsca = _miejsca_subskrypcji(dane)
     if rekord.status == STATUS_ANULOWANA:
         rekord.plan_kod = PLAN_DOMYSLNY
         rekord.okres = ""

@@ -299,3 +299,48 @@ def test_real_nextcloud_calendar(tmp_path: Path) -> None:
             except CalendarError:
                 pass
         client.close()
+
+
+def test_rownolegle_zalozenie_kalendarza_nie_jest_awaria(biuro_settings: Settings) -> None:  # noqa: F811
+    """Przegrana z wyścigu o ten sam kalendarz nie ma straszyć użytkownika czerwonym paskiem.
+
+    Moduł i agent pytają o kalendarz równolegle przy pierwszym wejściu na konto. Obie próby
+    zakładają tę samą kolekcję; przegrywająca dostaje z Nextcloud 500 z naruszenia warunku
+    jednoznaczności, choć kalendarz w tej chwili już istnieje.
+    """
+    import uuid
+
+    import httpx
+
+    from nexus.calendar import CalendarClient
+
+    konto = uuid.uuid4()
+    domyslny = None
+
+    def obsluga(request: httpx.Request) -> httpx.Response:
+        nonlocal domyslny
+        if request.method == "PROPFIND":
+            if domyslny is None:
+                return httpx.Response(207, content=b'<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"/>')
+            sciezka = f"/remote.php/dav/calendars/admin/{domyslny}/"
+            tresc = (
+                '<?xml version="1.0"?>'
+                '<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+                f"<d:response><d:href>{sciezka}</d:href><d:propstat><d:prop>"
+                "<d:displayname>Kalendarz</d:displayname>"
+                '<d:resourcetype><d:collection/><c:calendar/></d:resourcetype>'
+                '<c:supported-calendar-component-set><c:comp name="VEVENT"/>'
+                "</c:supported-calendar-component-set>"
+                "</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
+                "</d:multistatus>"
+            )
+            return httpx.Response(207, content=tresc.encode("utf-8"))
+        if request.method == "MKCALENDAR":
+            # Ktoś inny zdążył pierwszy: kolekcja jest, a my dostajemy 500.
+            domyslny = request.url.path.rstrip("/").rsplit("/", 1)[-1]
+            return httpx.Response(500, content=b"<d:error/>")
+        return httpx.Response(404)
+
+    klient = CalendarClient(biuro_settings, transport=httpx.MockTransport(obsluga), owner=konto)
+    klient.zapewnij_kalendarz()  # nie rzuca — kalendarz istnieje
+    assert klient.calendars()[0]["id"] == klient.default_calendar

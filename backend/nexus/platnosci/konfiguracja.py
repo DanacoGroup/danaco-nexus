@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nexus.platnosci.pakiety import PAKIETY_WG_KODU, PRZEDROSTEK_PAKIETU
@@ -87,6 +88,17 @@ class UstawieniaPlatnosci(BaseSettings):
     wersja_api: str = ""
     timeout_s: int = 20
     adres_powrotu: str = ""
+
+    @field_validator("stripe_klucz_plik", "webhook_sekret_plik", mode="before")
+    @classmethod
+    def _pusta_sciezka_to_brak(cls, wartosc: object) -> object:
+        """Pusta zmienna znaczy „nie ma pliku”, a nie „plik o pustej nazwie”.
+
+        Tak wyłącza się sprzedaż w środowisku próbnym: `NEXUS_PLATNOSCI_STRIPE_KLUCZ_PLIK=`
+        w pliku etapu ma przykryć wartość z `.env`. Bez tego powstawała ścieżka `Path("")`,
+        odczyt kończył się błędem i ostrzeżeniem w dzienniku przy każdym pytaniu o cennik.
+        """
+        return None if wartosc in ("", None) else wartosc
 
     @property
     def klucz(self) -> str:

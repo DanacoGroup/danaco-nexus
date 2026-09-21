@@ -11,11 +11,13 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from biuro_pomoc import HEADERS as HEADERS_BIURO
 from biuro_pomoc import api, biuro_settings  # noqa: F401
@@ -26,11 +28,19 @@ from test_biuro_cloud import FakeNextcloud
 from test_izolacja_kont import KLIENT_HASLO, zaloguj, zaloz_konto, zapelnij_przestrzen  # noqa: F401
 
 from nexus import model_krotki as model_pokazu
-from nexus.api.auth import GOSC_NA_ADRES, SSO_USER_HEADER
+from nexus.api.auth import SSO_USER_HEADER
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER, Conversation, Database, StoredFile
 from nexus.demo.gotowosc import NA_ZYWO
-from nexus.demo.przebieg import BLAD_DLA_GOSCIA, Przebieg, Wykonanie, uruchom
+from nexus.demo.przebieg import (
+    BLAD_DLA_GOSCIA,
+    WLASCICIEL_POKAZU,
+    Przebieg,
+    Wykonanie,
+    _kontekst,
+    uruchom,
+    ustawienia_demo,
+)
 from nexus.demo.scenariusze import Krok, Scenariusz
 from nexus.demo.sesje import BladPiaskownicy, Piaskownica
 from nexus.platnosci.klient import BladStripe
@@ -38,7 +48,8 @@ from nexus.platnosci.plany import PLAN_DOMYSLNY
 from nexus.platnosci.uprawnienia import limity_planu, opis_przestrzeni
 from nexus.platnosci.uslugi import zsynchronizuj_po_powrocie
 from nexus.pulpit import MEMORY_BROKER, online_computers
-from nexus.tools.base import ToolError
+from nexus.tools import pc as narzedzia_pc
+from nexus.tools.base import ToolContext, ToolError
 
 # Adres, który przed poprawką wystarczyło podać w nagłówku, aby licznik prób liczył
 # każde żądanie osobno.
@@ -99,7 +110,7 @@ def test_naglowek_przekazania_nie_omija_limitu_kont_probnych(
 ) -> None:
     """Zmienny ``X-Forwarded-For`` nie rozdziela limitu kont próbnych na wiele adresów."""
     set_password(settings)
-    for numer in range(GOSC_NA_ADRES):
+    for numer in range(settings.goscie_na_adres):
         naglowki = {**HEADERS, "X-Forwarded-For": PODSZYCIE % numer}
         assert client.post("/api/auth/gosc", headers=naglowki).status_code == 200
     odmowa = client.post("/api/auth/gosc", headers={**HEADERS, "X-Forwarded-For": PODSZYCIE % 99})
@@ -156,9 +167,7 @@ def _pliki_konta(ustawienia: Settings, owner: uuid.UUID) -> list[str]:
     async def run() -> list[str]:
         database = Database(ustawienia.database_url)
         async with database.session() as session:
-            rekordy = (
-                await session.scalars(select(StoredFile).where(StoredFile.owner_id == owner))
-            ).all()
+            rekordy = (await session.scalars(select(StoredFile).where(StoredFile.owner_id == owner))).all()
             nazwy = [rekord.name for rekord in rekordy]
         await database.close()
         return nazwy
@@ -374,8 +383,8 @@ def test_konto_probne_nie_widzi_komputera_wlasciciela(
         assert widziane.json() == [], "konto próbne sięgało do komputera właściciela instalacji"
 
 
-def test_narzedzie_pc_nie_siega_do_cudzego_komputera() -> None:
-    """Zawężenie po koncie obowiązuje też w przekaźniku narzędzi, nie tylko w wykazie HTTP."""
+def test_wykaz_komputerow_rozdziela_konta() -> None:
+    """Funkcja wykazu oddaje maszyny wskazanego konta, nie wszystkie podłączone."""
     wpis = {"name": "Laptop", "host": "BIURO-PC", "seen": time.time(), "connected_at": 1.0}
 
     class Rejestr:
@@ -385,6 +394,37 @@ def test_narzedzie_pc_nie_siega_do_cudzego_komputera() -> None:
     rejestr = Rejestr()
     assert [c["host"] for c in online_computers(rejestr, owner=str(ADMIN_OWNER))] == ["BIURO-PC"]  # type: ignore[arg-type]
     assert online_computers(rejestr, owner=str(uuid.uuid4())) == []  # type: ignore[arg-type]
+
+
+def test_narzedzie_pc_pyta_o_komputery_swojego_konta(
+    settings: Settings,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dowód dla samego narzędzia: ``pc_info`` podaje przekaźnikowi konto przebiegu.
+
+    Poprzedni test sprawdzał funkcję wykazu, więc podmiana konta w ``tools/pc.py`` na stałą
+    przechodziła niezauważona. Tutaj liczy się wartość, którą narzędzie naprawdę przekazuje.
+    """
+    konto = uuid.uuid4()
+    przekazane: dict[str, Any] = {}
+
+    def falszywe_wywolanie(_broker: Any, _tool: str, _payload: Any, **nazwane: Any) -> Any:
+        przekazane.update(nazwane)
+        return {"data": {}}, {"name": "Laptop", "host": "BIURO-PC"}
+
+    monkeypatch.setattr(narzedzia_pc, "sync_broker", lambda _settings: MEMORY_BROKER)
+    monkeypatch.setattr(narzedzia_pc, "call_computer", falszywe_wywolanie)
+    kontekst = ToolContext(
+        settings,
+        uuid.uuid4(),
+        resolve_file=lambda _id: None,  # type: ignore[arg-type,return-value]
+        cancel=threading.Event(),
+        progress=lambda _tekst: None,
+        owner_id=konto,
+    )
+    narzedzia_pc.pc_info(kontekst, narzedzia_pc.PcInfoInput())
+    assert przekazane["owner"] == str(konto), "narzędzie pytało o cudze komputery"
+    assert przekazane["owner"] != str(ADMIN_OWNER)
 
 
 # --- pokaz: błąd narzędzia i modelu bez treści z serwera ---
@@ -485,8 +525,13 @@ def test_svg_z_parametrem_nie_wyswietla_sie_w_przegladarce(
     zaloguj(client, "admin", PASSWORD)
     wgrany = client.post(
         "/api/files",
-        files={"file": ("rysunek.svg", io.BytesIO(b"<svg xmlns='http://www.w3.org/2000/svg'/>"),
-                        "image/svg+xml; charset=utf-8")},
+        files={
+            "file": (
+                "rysunek.svg",
+                io.BytesIO(b"<svg xmlns='http://www.w3.org/2000/svg'/>"),
+                "image/svg+xml; charset=utf-8",
+            )
+        },
         headers=HEADERS,
     )
     assert wgrany.status_code == 201, wgrany.text
@@ -495,3 +540,197 @@ def test_svg_z_parametrem_nie_wyswietla_sie_w_przegladarce(
     assert pobrany.status_code == 200, pobrany.text
     assert pobrany.headers["content-type"] == "application/octet-stream"
     assert pobrany.headers["content-disposition"].startswith("attachment"), "SVG szedł do wyświetlenia"
+
+
+# --- moduł Kod: projekt to cudza przestrzeń wykonywania programów ---
+
+
+def _projekt_wlasciciela(
+    klient: TestClient, ustawienia: Settings, nazwa: str = "projekt-wlasciciela"
+) -> None:
+    """Właściciel instalacji zakłada projekt modułu Kod."""
+    set_password(ustawienia)
+    zaloguj(klient, "admin", PASSWORD)
+    utworzony = klient.post("/api/kod/projekty", json={"name": nazwa}, headers=HEADERS)
+    assert utworzony.status_code == 201, utworzony.text
+
+
+def test_konto_probne_nie_siega_do_projektu_wlasciciela(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Gość zakładał projekt, widział cudze i uruchamiał w nich programy prawami serwera."""
+    _projekt_wlasciciela(client, settings)
+    assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
+    assert client.get("/api/kod/projekty").json() == [], "konto próbne widziało cudzy projekt"
+    assert client.get("/api/kod/projekty/projekt-wlasciciela/drzewo").status_code == 404
+    polecenie = client.post(
+        "/api/kod/projekty/projekt-wlasciciela/polecenie",
+        json={"polecenie": "cat README.md"},
+        headers=HEADERS,
+    )
+    assert polecenie.status_code == 404, polecenie.text
+    assert client.delete("/api/kod/projekty/projekt-wlasciciela", headers=HEADERS).status_code == 404
+
+
+def test_zadanie_w_tle_nie_wchodzi_do_cudzego_projektu(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Tryb Kod uruchamia agenta w katalogu projektu — nazwa cudzego projektu jest odrzucana."""
+    _projekt_wlasciciela(client, settings)
+    assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
+    zlecone = client.post(
+        "/api/agenci/zadania",
+        json={"text": "Zbuduj projekt", "mode": "code", "workspace": "projekt-wlasciciela"},
+        headers=HEADERS,
+    )
+    assert zlecone.status_code == 422, zlecone.text
+
+
+@pytest.mark.parametrize(
+    "polecenie", ["cat /etc/hostname", "python ../../ucieczka.py", "ruff check --config=/etc/ruff.toml ."]
+)
+def test_terminal_projektu_nie_czyta_plikow_serwera(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+    polecenie: str,
+) -> None:
+    """Wykaz programów pilnował, co wolno uruchomić; argumenty wskazywały dowolny plik serwera."""
+    _projekt_wlasciciela(client, settings, "projekt-terminal")
+    odmowa = client.post(
+        "/api/kod/projekty/projekt-terminal/polecenie", json={"polecenie": polecenie}, headers=HEADERS
+    )
+    assert odmowa.status_code == 422, f"{polecenie} → {odmowa.status_code}"
+    assert "poza projekt" in odmowa.json()["detail"]
+
+
+# --- Twórca stron: strona należy do konta, które ją założyło ---
+
+
+def test_konto_probne_nie_kasuje_strony_wlasciciela(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Gość widział wszystkie strony instalacji i mógł skasować witrynę właściciela."""
+    set_password(settings)
+    zaloguj(client, "admin", PASSWORD)
+    strona = client.post("/api/strony", json={"title": "Strona właściciela"}, headers=HEADERS)
+    assert strona.status_code == 201, strona.text
+    adres = strona.json()["address"]
+
+    assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
+    assert client.get("/api/strony").json() == [], "konto próbne widziało cudzą stronę"
+    assert client.get(f"/api/strony/{adres}").status_code == 404
+    zmiana = client.patch(f"/api/strony/{adres}", json={"title": "Przejęta"}, headers=HEADERS)
+    assert zmiana.status_code == 404
+    assert client.post(f"/api/strony/{adres}/publikuj", headers=HEADERS).status_code == 404
+    skasowana = client.delete(f"/api/strony/{adres}", headers=HEADERS)
+    assert skasowana.status_code == 404, skasowana.text
+
+    zaloguj(client, "admin", PASSWORD)
+    assert [item["address"] for item in client.get("/api/strony").json()] == [adres], "strona zniknęła"
+
+
+# --- wykazy zadań: tytuły rozmów i postęp to treść konta ---
+
+
+def test_wykazy_zadan_nie_pokazuja_cudzych_rozmow(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Gość czytał tytuły rozmów, opisy podagentów i błędy zadań całej instalacji."""
+    set_password(settings)
+    zaloguj(client, "admin", PASSWORD)
+    rozmowa = client.post("/api/conversations", json={}, headers=HEADERS).json()
+    wyslane = client.post(
+        f"/api/conversations/{rozmowa['id']}/messages",
+        json={"text": "Tajne rozliczenie kwartału"},
+        headers=HEADERS,
+    )
+    assert wyslane.status_code == 202, wyslane.text
+    zadania = client.get("/api/agenci/zadania").json()
+    assert [item["title"] for item in zadania["active"]] == ["Tajne rozliczenie kwartału"]
+    assert zadania["config"]["queued"] == 1
+
+    assert client.post("/api/auth/gosc", headers=HEADERS).status_code == 200
+    goscia = client.get("/api/agenci/zadania").json()
+    assert goscia["active"] == [] and goscia["finished"] == []
+    assert goscia["config"]["queued"] == 0
+    assert client.get("/api/w-toku").json() == [], "konto próbne widziało cudze zadania w toku"
+
+
+# --- pokaz: narzędzia piaskownicy nie pracują jako właściciel instalacji ---
+
+
+def test_narzedzia_pokazu_pracuja_na_koncie_pokazu(settings: Settings) -> None:  # noqa: F811
+    """Kontekst narzędzia bez konta przyjmuje właściciela instalacji — pokaz ma własne."""
+    piaskownica = Piaskownica(settings)
+    sesja = piaskownica.utworz("198.51.100.11")
+    kontekst = _kontekst(ustawienia_demo(settings), sesja, threading.Event())
+    assert kontekst.owner_id == WLASCICIEL_POKAZU
+    assert kontekst.owner_id != ADMIN_OWNER, "narzędzia pokazu pracowały jako właściciel instalacji"
+
+
+# --- chmura osobista: podgląd pliku z tą samą normalizacją typu, co pliki rozmowy ---
+
+
+class ChmuraZeSvg(FakeNextcloud):
+    """Atrapa chmury oddająca typ nośnika z wielkimi literami — tak zapisał go serwer plików."""
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        odpowiedz = super().handle(request)
+        if request.method == "GET" and request.url.path.endswith(".svg"):
+            return httpx.Response(
+                200, content=odpowiedz.content, headers={"content-type": "image/SVG+xml"}
+            )
+        return odpowiedz
+
+
+def test_podglad_z_chmury_nie_wyswietla_svg_z_wielkich_liter(
+    api: TestClient,  # noqa: F811
+    biuro_settings: Settings,  # noqa: F811
+) -> None:
+    """Podgląd pliku z chmury porównywał typ bez zmiany wielkości liter, więc ``image/SVG+xml``
+    omijało wykaz dokumentów zakazanych i szło do wyświetlenia w domenie aplikacji."""
+    api.app.state.cloud_transport = ChmuraZeSvg().transport()
+    wgrany = api.put(
+        "/api/cloud/plik",
+        params={"path": "/rysunek.svg"},
+        content=b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        headers=HEADERS_BIURO,
+    )
+    assert wgrany.status_code == 200, wgrany.text
+    podglad = api.get("/api/cloud/pobierz", params={"path": "/rysunek.svg", "inline": 1})
+    assert podglad.status_code == 200, podglad.text
+    assert podglad.headers["content-type"] == "application/octet-stream"
+    assert podglad.headers["content-disposition"].startswith("attachment"), "SVG szedł do wyświetlenia"
+
+
+def test_uszkodzony_wykaz_wlascicieli_nie_przepisuje_projektow(tmp_path: Path) -> None:
+    """Uszkodzony plik nie może po cichu oddać cudzych projektów właścicielowi instalacji.
+
+    `_wykaz` zwracał pusty słownik przy każdym błędzie odczytu, a pusty wykaz znaczy
+    „wszystko należy do administratora”. Jedna nieudana operacja na pliku przepisywała
+    więc projekty wszystkich kont. Brak pliku nadal znaczy pusty wykaz — to stan normalny
+    na świeżej instalacji.
+    """
+    from nexus.agent.przestrzenie import (
+        WLASCICIELE,
+        WykazNieczytelny,
+        przypisz_projekt,
+        wlasciciel_projektu,
+    )
+    from nexus.config import Settings
+
+    ustawienia = Settings(data_dir=tmp_path, database_url="sqlite+aiosqlite:///:memory:")
+    konto = uuid.uuid4()
+    przypisz_projekt(ustawienia, "projekt", konto)
+    assert wlasciciel_projektu(ustawienia, "projekt") == konto
+
+    (ustawienia.kod_dir / WLASCICIELE).write_text("{to nie jest json", encoding="utf-8")
+    with pytest.raises(WykazNieczytelny):
+        wlasciciel_projektu(ustawienia, "projekt")
+
+    (ustawienia.kod_dir / WLASCICIELE).unlink()
+    assert wlasciciel_projektu(ustawienia, "projekt") == ADMIN_OWNER

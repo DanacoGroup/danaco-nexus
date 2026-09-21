@@ -12,7 +12,10 @@ import uuid
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+from test_api import HEADERS, PASSWORD, client, set_password, settings  # noqa: F401
 
+from nexus.config import Settings
 from nexus.db import Base, Database
 from nexus.platnosci import kredyty
 
@@ -104,7 +107,11 @@ def test_zuzyte_konto_nie_przyjmuje_zlecenia(baza: Database) -> None:
         with pytest.raises(kredyty.BrakKredytow) as blad:
             await kredyty.sprawdz_przed_zleceniem(baza, konto)
         assert blad.value.status == 402
-        assert "kredyt" in str(blad.value).lower()
+        # Komunikat mówi o dostępie, nie o kredytach: jednostka rozliczeniowa jest nasza,
+        # a użytkownik nigdy nie widzi jej liczby, więc nie ma jej po czym rozpoznać.
+        tresc = str(blad.value).lower()
+        assert "kredyt" not in tresc
+        assert "dostęp" in tresc and "przedłuż" in tresc
 
     asyncio.run(przebieg())
 
@@ -238,3 +245,57 @@ def test_poczta_dopiero_od_planu_platnego() -> None:
     assert limity_planu("osobisty", "brak").skrzynki == 0
     for kod in ("osobisty", "pro", "zespol"):
         assert limity_planu(kod, "aktywna").skrzynki >= 1
+
+
+# --- Dostęp bez liczb i doładowanie kwotą ------------------------------------------
+
+
+def test_przelicznik_nagradza_wieksza_wplate() -> None:
+    """Im większa wpłata, tym korzystniejszy przelicznik — inaczej nikt by nie dopłacał."""
+    from nexus.platnosci import kredyty as ksiega
+
+    za_dyche = ksiega.kredyty_za_kwote(1_000)
+    za_dwie_stowy = ksiega.kredyty_za_kwote(20_000)
+    za_piec_stowek = ksiega.kredyty_za_kwote(50_000)
+    assert za_dyche > 0
+    # Stawka za złotówkę rośnie wraz z progiem.
+    assert za_dwie_stowy / 200 > za_dyche / 10
+    assert za_piec_stowek / 500 > za_dwie_stowy / 200
+
+
+def test_ponizej_minimum_nie_daje_dostepu() -> None:
+    from nexus.platnosci import kredyty as ksiega
+
+    assert ksiega.kredyty_za_kwote(ksiega.MINIMUM_DOLADOWANIA_GR - 1) == 0
+    assert ksiega.kredyty_za_kwote(0) == 0
+
+
+def test_udzial_zuzycia_bez_przydzialu_to_zero() -> None:
+    """Konto bez przydziału nie może pokazywać pełnego zużycia — nie ma czego dzielić."""
+    from nexus.platnosci.kredyty import StanKredytow, udzial_zuzycia
+
+    assert udzial_zuzycia(StanKredytow(saldo=0, przydzielone=0, zuzyte=0)) == 0.0
+    assert udzial_zuzycia(StanKredytow(saldo=500, przydzielone=2_000, zuzyte=1_500)) == 0.75
+    # Zużycie ponad przydział (korekty, doliczenia) nie wychodzi poza pełny pasek.
+    assert udzial_zuzycia(StanKredytow(saldo=0, przydzielone=100, zuzyte=250)) == 1.0
+
+
+def test_api_kredytow_nie_wystawia_zadnych_liczb(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Saldo, przydział i koszt pojedynczej pracy zostają po stronie serwera."""
+    set_password(settings)
+    assert client.post(
+        "/api/auth/login", json={"username": "admin", "password": PASSWORD}, headers=HEADERS
+    ).status_code == 200
+
+    dane = client.get("/api/platnosci/kredyty").json()
+    # Pola zgodności (`saldo`, `przydzielone`, `zuzyte`) zostają dla okien sprzed
+    # aktualizacji; interfejs ich nie czyta i nie pokazuje.
+    assert {"zuzycie", "stan", "wyczerpane", "historia", "doladowanie"} <= set(dane)
+    assert 0.0 <= dane["zuzycie"] <= 1.0
+    assert dane["stan"] in {"w_porzadku", "konczy_sie", "wyczerpany"}
+    assert dane["doladowanie"]["minimum_gr"] == 1_000
+    for wpis in dane["historia"]:
+        assert set(wpis) == {"powod", "opis", "kiedy"}, "historia nie może nieść wartości"

@@ -18,9 +18,12 @@ import os
 import re
 import shutil
 import tempfile
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from nexus.db import ADMIN_OWNER
 
 ADDRESS = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$")
 SEGMENT = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,99}$")
@@ -66,6 +69,14 @@ background:#f4f4f5;color:#52525b}}</style></head>
 
 class SiteError(ValueError):
     """Nieprawidłowa operacja na stronie (komunikat dla użytkownika lub modelu)."""
+
+
+def wlasciciel_strony(meta: dict[str, Any]) -> uuid.UUID:
+    """Konto, do którego należy strona; strony sprzed wykazu należą do właściciela instalacji."""
+    try:
+        return uuid.UUID(str(meta.get("owner_id")))
+    except ValueError:
+        return ADMIN_OWNER
 
 
 def now_iso() -> str:
@@ -138,11 +149,17 @@ def _tree_size(root: Path) -> tuple[int, int]:
 
 
 class SiteStore:
-    """Strony użytkownika na dysku serwera."""
+    """Strony użytkownika na dysku serwera.
 
-    def __init__(self, root: Path, max_site_mb: int = 200) -> None:
+    ``owner`` zawęża magazyn do jednego konta: metadane, pliki, wersje i publikacja cudzej
+    strony są wtedy nieosiągalne — jak strona, której nie ma. Bez ``owner`` (serwowanie
+    opublikowanych stron) zawężenia nie ma, bo te pliki są publiczne z założenia.
+    """
+
+    def __init__(self, root: Path, max_site_mb: int = 200, owner: uuid.UUID | None = None) -> None:
         self.root = root
         self.max_site_bytes = max_site_mb * 1024 * 1024
+        self.owner = owner
 
     # --- katalogi i metadane ---------------------------------------------------------------------
 
@@ -162,12 +179,15 @@ class SiteStore:
         return self._meta_file(address).is_file()
 
     def meta(self, address: str) -> dict[str, Any]:
-        """Metadane strony; ``SiteError``, gdy strona nie istnieje."""
+        """Metadane strony konta; ``SiteError``, gdy strona nie istnieje albo należy do innego konta."""
         path = self._meta_file(address)
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            dane = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             raise SiteError(f"Strona {address!r} nie istnieje.") from None
+        if self.owner is not None and wlasciciel_strony(dane) != self.owner:
+            raise SiteError(f"Strona {address!r} nie istnieje.")
+        return dane
 
     def _save_meta(self, address: str, meta: dict[str, Any]) -> dict[str, Any]:
         meta["updated_at"] = now_iso()
@@ -193,6 +213,7 @@ class SiteStore:
         (draft / "index.html").write_text(PLACEHOLDER.format(title=safe_title), encoding="utf-8")
         meta = {
             "address": address,
+            "owner_id": str(self.owner) if self.owner else None,
             "title": title,
             "description": description.strip()[:4000],
             "created_at": now_iso(),
@@ -211,9 +232,11 @@ class SiteStore:
         if folder.is_dir():
             for path in folder.glob("*.json"):
                 try:
-                    sites.append(json.loads(path.read_text(encoding="utf-8")))
+                    dane = json.loads(path.read_text(encoding="utf-8"))
                 except (OSError, json.JSONDecodeError):
                     continue
+                if self.owner is None or wlasciciel_strony(dane) == self.owner:
+                    sites.append(dane)
         return sorted(sites, key=lambda item: item.get("updated_at", ""), reverse=True)
 
     def delete_site(self, address: str) -> None:
@@ -410,6 +433,6 @@ class SiteStore:
         return self.update_meta(address, published_at=None, published_version=None, publish_request=None)
 
 
-def site_store(settings: Any) -> SiteStore:
-    """Magazyn stron według ustawień aplikacji."""
-    return SiteStore(settings.data_dir / "strony", getattr(settings, "tworczy_site_max_mb", 200))
+def site_store(settings: Any, owner: uuid.UUID | None = None) -> SiteStore:
+    """Magazyn stron według ustawień aplikacji, zawężony do konta, gdy podano ``owner``."""
+    return SiteStore(settings.data_dir / "strony", getattr(settings, "tworczy_site_max_mb", 200), owner)

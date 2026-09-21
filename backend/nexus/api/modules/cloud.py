@@ -8,6 +8,7 @@ kawałkami (przeglądarka → Nexus → chunked upload v2 Nextcloud).
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
 import tempfile
 import uuid
@@ -26,12 +27,24 @@ from starlette.background import BackgroundTask
 from nexus.api import conversations
 from nexus.api.auth import require_session
 from nexus.api.conversations import file_payload
-from nexus.api.files import INLINE_MIME_PREFIXES, INLINE_ZABRONIONE, _content_disposition, zajete_miejsce
+from nexus.api.files import (
+    INLINE_MIME_PREFIXES,
+    INLINE_ZABRONIONE,
+    _content_disposition,
+    typ_nosnika,
+    zajete_miejsce,
+)
 from nexus.cloud_service import CloudError, CloudService, check_name, clean_path
 from nexus.config import Settings
 from nexus.db import Conversation, Database, StoredFile
 from nexus.platnosci.uprawnienia import limity_uzytkownika, opis_przestrzeni
 from nexus.storage import FileStorage, guess_mime, safe_filename
+
+_dziennik = logging.getLogger(__name__)
+
+# Treść wyjątku httpx potrafi nieść adres i port usługi chmury. Do rozmowy wraca jedno
+# zdanie o tym, co się stało; szczegół zostaje w dzienniku serwera.
+BRAK_POLACZENIA = "Chmura nie odpowiedziała. Spróbuj ponownie za chwilę."
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"], dependencies=[Depends(require_session)])
 
@@ -68,7 +81,8 @@ async def _service(request: Request) -> CloudService:
         raise HTTPException(error.status, str(error)) from error
     except httpx.HTTPError as error:
         await service.close()
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Brak połączenia z chmurą: {error}") from error
+        _dziennik.warning("chmura nie odpowiedziała: %s", error)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, BRAK_POLACZENIA) from error
     return service
 
 
@@ -80,7 +94,8 @@ async def _call(request: Request, operation: Any) -> Any:
     except CloudError as error:
         raise HTTPException(error.status, str(error)) from error
     except httpx.HTTPError as error:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Brak połączenia z chmurą: {error}") from error
+        _dziennik.warning("chmura nie odpowiedziała: %s", error)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, BRAK_POLACZENIA) from error
     finally:
         await service.close()
 
@@ -211,7 +226,8 @@ async def _stream(request: Request, path: str, inline: bool, version: str | None
         raise HTTPException(error.status, str(error)) from error
     except httpx.HTTPError as error:
         await service.close()
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Brak połączenia z chmurą: {error}") from error
+        _dziennik.warning("chmura nie odpowiedziała: %s", error)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, BRAK_POLACZENIA) from error
 
     async def cleanup() -> None:
         await response.aclose()
@@ -221,7 +237,7 @@ async def _stream(request: Request, path: str, inline: bool, version: str | None
     if version:
         stem, dot, suffix = name.rpartition(".")
         name = f"{stem} (wersja){dot}{suffix}" if dot else f"{name} (wersja)"
-    mime = (response.headers.get("content-type") or guess_mime(name)).split(";")[0].strip()
+    mime = typ_nosnika(response.headers.get("content-type") or guess_mime(name))
     show_inline = inline and mime.startswith(INLINE_MIME_PREFIXES) and mime not in INLINE_ZABRONIONE
     headers = {
         "Content-Disposition": _content_disposition(name, show_inline),

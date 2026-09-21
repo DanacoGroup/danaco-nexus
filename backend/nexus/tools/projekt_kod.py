@@ -4,7 +4,8 @@ Serwer ma komplet narzędzi programisty i webmastera, ale agent nie miał ich w 
 mógł napisać stronę, a nie mógł jej zobaczyć ani sprawdzić; mógł czytać kod projektu,
 a nie mógł go skontrolować. Pięć narzędzi domyka tę lukę:
 
-* ``code_check`` — semgrep, ruff, shellcheck i typos pod jednym wyborem,
+* ``code_check`` — semgrep, gitleaks, osv-scanner, jscpd, ruff, shellcheck i typos
+  pod jednym wyborem,
 * ``web_audit`` — Lighthouse (szybkość, SEO) i pa11y (dostępność WCAG),
 * ``web_screenshot`` — Playwright: agent widzi stronę, którą właśnie napisał,
 * ``icon_find`` — ikony Iconify (ponad 400 tys. znaków) jako gotowy SVG,
@@ -34,7 +35,7 @@ from typing import Any, Literal
 from PIL import Image
 from pydantic import Field
 
-from nexus.agent.przestrzenie import WorkspaceError, existing_project, safe_path
+from nexus.agent.przestrzenie import WorkspaceError, projekt_konta, safe_path
 from nexus.research.web import FetchError, check_url
 from nexus.storage import safe_filename
 from nexus.tools.base import (
@@ -129,7 +130,8 @@ def _cel_kodu(ctx: ToolContext, projekt: str, podkatalog: str, file_ids: list[st
     if bool(projekt) == bool(file_ids):
         raise ToolError("Podaj nazwę projektu z modułu Kod albo pliki z rozmowy — jedno z dwóch.")
     if projekt:
-        katalog = existing_project(ctx.settings, projekt)
+        # Projekt należy do konta prowadzącego przebieg; cudzy jest jak nieistniejący.
+        katalog = projekt_konta(ctx.settings, projekt, ctx.owner_id)
         if katalog is None:
             raise ToolError(f"Nie ma projektu {projekt!r} w module Kod (sprawdź listę projektów).")
         try:
@@ -150,7 +152,7 @@ def _cel_kodu(ctx: ToolContext, projekt: str, podkatalog: str, file_ids: list[st
 
 def _szkic(ctx: ToolContext, site: str) -> Path:
     """Katalog szkicu strony; błąd, gdy strony nie ma."""
-    store = site_store(ctx.settings)
+    store = site_store(ctx.settings, ctx.owner_id)
     try:
         store.meta(site)
         katalog = store.draft_dir(site)
@@ -361,6 +363,97 @@ def _shellcheck(ctx: ToolContext, cel: Path, limit: int) -> dict[str, Any]:
     return {"sprawdzone_pliki": len(pliki), "znalezione": len(usterki), "lista": usterki[:limit]}
 
 
+def _sekrety(ctx: ToolContext, cel: Path, limit: int) -> dict[str, Any]:
+    """Klucze, hasła i tokeny wpisane wprost w kod (gitleaks).
+
+    Najczęstszy sposób, w jaki prywatny projekt staje się publiczną wpadką: klucz API
+    wklejony „na chwilę” do pliku i zapomniany. Kontrola czyta pliki, nie historię gita —
+    projekt w module Kod bywa świeżym katalogiem bez repozytorium.
+    """
+    program = _program("gitleaks", "Wykrywanie sekretów w kodzie (gitleaks)")
+    raport = ctx.output_path("gitleaks.json")
+    ctx.progress("Gitleaks: klucze i hasła w kodzie")
+    _uruchom_kontrole(
+        ctx,
+        [program, "dir", "--no-banner", "--redact", "--report-format", "json",
+         "--report-path", str(raport), str(cel)],
+        (0, 1),
+    )
+    dane = json.loads(raport.read_text(encoding="utf-8") or "[]") if raport.is_file() else []
+    usterki = [
+        {
+            "plik": _wzgledna(str(wynik.get("File", "")), cel),
+            "wiersz": wynik.get("StartLine"),
+            "waga": "error",
+            "regula": str(wynik.get("RuleID", "")),
+            # Sama wartość sekretu nie wraca do rozmowy — gitleaks dostaje `--redact`.
+            "opis": str(wynik.get("Description", "")).strip()[:400],
+        }
+        for wynik in (dane if isinstance(dane, list) else [])
+    ]
+    return {"znalezione": len(usterki), "lista": usterki[:limit]}
+
+
+def _zaleznosci(ctx: ToolContext, cel: Path, limit: int) -> dict[str, Any]:
+    """Znane podatności w bibliotekach projektu (osv-scanner, baza OSV)."""
+    program = _program("osv-scanner", "Kontrola podatności zależności (osv-scanner)")
+    ctx.progress("OSV: podatności w bibliotekach")
+    wyjscie = _uruchom_kontrole(
+        ctx, [program, "scan", "source", "--format", "json", "--recursive", str(cel)], (0, 1, 127, 128)
+    )
+    try:
+        dane = json.loads(wyjscie or "{}")
+    except json.JSONDecodeError:
+        dane = {}
+    usterki: list[dict[str, Any]] = []
+    for wynik in dane.get("results", []):
+        plik = _wzgledna(str(wynik.get("source", {}).get("path", "")), cel)
+        for paczka in wynik.get("packages", []):
+            nazwa = paczka.get("package", {}).get("name", "")
+            wersja = paczka.get("package", {}).get("version", "")
+            for luka in paczka.get("vulnerabilities", []):
+                usterki.append(
+                    {
+                        "plik": plik,
+                        "wiersz": None,
+                        "waga": "error",
+                        "regula": str(luka.get("id", "")),
+                        "opis": f"{nazwa} {wersja}: {str(luka.get('summary', '')).strip()[:300]}",
+                    }
+                )
+    return {"znalezione": len(usterki), "lista": usterki[:limit]}
+
+
+def _powtorzenia(ctx: ToolContext, cel: Path, limit: int) -> dict[str, Any]:
+    """Skopiowane fragmenty kodu (jscpd) — pierwszy objaw kodu, który rozjedzie się przy zmianie."""
+    program = _program("jscpd", "Wykrywanie powtórzeń kodu (jscpd)")
+    katalog = ctx.output_path("jscpd")
+    katalog.mkdir(parents=True, exist_ok=True)
+    ctx.progress("jscpd: powtórzone fragmenty")
+    _uruchom_kontrole(
+        ctx,
+        [program, "--silent", "--reporters", "json", "--output", str(katalog), str(cel)],
+        (0, 1),
+    )
+    raport = katalog / "jscpd-report.json"
+    dane = json.loads(raport.read_text(encoding="utf-8")) if raport.is_file() else {}
+    usterki = [
+        {
+            "plik": _wzgledna(str(wpis.get("firstFile", {}).get("name", "")), cel),
+            "wiersz": wpis.get("firstFile", {}).get("start"),
+            "waga": "warning",
+            "regula": "powtórzenie",
+            "opis": (
+                f"{wpis.get('lines', 0)} wierszy powtórzonych w "
+                f"{_wzgledna(str(wpis.get('secondFile', {}).get('name', '')), cel)}"
+                f":{wpis.get('secondFile', {}).get('start')}"
+            ),
+        }
+        for wpis in dane.get("duplicates", [])
+    ]
+    return {"znalezione": len(usterki), "lista": usterki[:limit]}
+
+
 def _typos(ctx: ToolContext, cel: Path, limit: int) -> dict[str, Any]:
     """Literówki w kodzie i nazwach (słownik angielski)."""
     program = _program("typos", "Kontrola literówek (typos)")
@@ -403,12 +496,17 @@ class KontrolaInput(ToolInput):
         max_length=20,
         description="Zamiast projektu: pliki z rozmowy (pojedynczy skrypt, paczka kodu).",
     )
-    kontrole: list[Literal["bezpieczenstwo", "python", "powloka", "literowki"]] = Field(
+    kontrole: list[
+        Literal["bezpieczenstwo", "sekrety", "zaleznosci", "powtorzenia", "python", "powloka", "literowki"]
+    ] = Field(
         default=["bezpieczenstwo"],
         min_length=1,
-        max_length=4,
+        max_length=7,
         description=(
-            "bezpieczenstwo = semgrep (podatności i pułapki w 12 językach), python = ruff, "
+            "bezpieczenstwo = semgrep (podatności i pułapki w 12 językach), "
+            "sekrety = gitleaks (klucze i hasła wpisane wprost w kod), "
+            "zaleznosci = osv-scanner (znane podatności bibliotek projektu), "
+            "powtorzenia = jscpd (skopiowane fragmenty kodu), python = ruff, "
             "powloka = shellcheck (.sh), literowki = typos (słownik angielski)."
         ),
     )
@@ -432,10 +530,12 @@ class KontrolaInput(ToolInput):
 
 @registry.register(
     "code_check",
-    """Kontroluje jakość kodu: podatności i pułapki (semgrep), błędy Pythona (ruff), błędy
-skryptów powłoki (shellcheck), literówki w kodzie (typos). Pracuje na projekcie z modułu Kod
-albo na plikach wysłanych w rozmowie. Stosuj, gdy użytkownik pyta „czy ten kod jest bezpieczny”,
-„znajdź błędy w projekcie”, „przejrzyj ten skrypt”, a także po większej zmianie w kodzie.
+    """Kontroluje jakość kodu: podatności i pułapki (semgrep), klucze i hasła wpisane wprost
+w kod (gitleaks), znane podatności bibliotek projektu (osv-scanner), skopiowane fragmenty
+(jscpd), błędy Pythona (ruff), błędy skryptów powłoki (shellcheck), literówki (typos).
+Pracuje na projekcie z modułu Kod albo na plikach wysłanych w rozmowie. Stosuj, gdy
+użytkownik pyta „czy ten kod jest bezpieczny”, „znajdź błędy w projekcie”, „przejrzyj ten
+skrypt”, a także po większej zmianie w kodzie.
 Zwraca listę usterek z plikiem, wierszem i wagą — nie poprawia ich sam. Do sprawdzenia
 polszczyzny w tekście służy check_grammar, nie ta kontrola.""",
     KontrolaInput,
@@ -448,6 +548,12 @@ def code_check(ctx: ToolContext, args: KontrolaInput) -> ToolResult:
         ctx.check_cancelled()
         if kontrola == "bezpieczenstwo":
             wynik = _semgrep(ctx, cel, args.jezyk, args.limit)
+        elif kontrola == "sekrety":
+            wynik = _sekrety(ctx, cel, args.limit)
+        elif kontrola == "zaleznosci":
+            wynik = _zaleznosci(ctx, cel, args.limit)
+        elif kontrola == "powtorzenia":
+            wynik = _powtorzenia(ctx, cel, args.limit)
         elif kontrola == "python":
             wynik = _ruff(ctx, cel, args.limit)
         elif kontrola == "powloka":
@@ -862,7 +968,7 @@ def icon_find(ctx: ToolContext, args: IkonyInput) -> ToolResult:
 
     zapisane: list[str] = []
     if args.do_strony:
-        store = site_store(ctx.settings)
+        store = site_store(ctx.settings, ctx.owner_id)
         try:
             katalog = check_path(args.katalog, allow_empty=True)
             for ikona in znalezione:
@@ -918,7 +1024,7 @@ def site_optimize_assets(ctx: ToolContext, args: OptymalizacjaInput) -> ToolResu
     ][: args.limit_plikow]
     if not pliki:
         raise ToolError(f"Strona {args.site} nie ma plików {' ani '.join(sorted(rozszerzenia))}.")
-    store = site_store(ctx.settings)
+    store = site_store(ctx.settings, ctx.owner_id)
     zmienione: list[dict[str, Any]] = []
     pominiete: list[str] = []
     przed_razem = po_razem = 0

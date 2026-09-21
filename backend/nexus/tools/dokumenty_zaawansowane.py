@@ -3,7 +3,7 @@
 Serwer ma programy, których agent nie mógł dotąd użyć, a które domykają obietnicę
 „PDF do druku” i pracę z tekstem mówionym:
 
-* Typst — skład poligraficzny z gotowych szablonów (raport, oferta, CV, broszura,
+* Typst — skład poligraficzny z gotowych szablonów (raport, oferta, CV, broszura, umowa,
   plakat); dotąd PDF powstawał z DOCX-a przepuszczonego przez LibreOffice,
 * pandoc — konwersje, których LibreOffice nie robi: EPUB, LaTeX, Markdown, reStructuredText,
 * Docling — rozbiór dokumentu na strukturę: nagłówki, kolejność czytania, tabele jako dane,
@@ -166,10 +166,10 @@ class Sekcja(ToolInput):
 
 
 class SkladInput(ToolInput):
-    szablon: Literal["raport", "oferta", "cv", "broszura", "plakat"] = Field(
+    szablon: Literal["raport", "oferta", "cv", "broszura", "plakat", "umowa"] = Field(
         description="Układ strony: raport (A4, tekst ciągły), oferta (A4, tabele i kwoty), "
         "cv (A4, kolumna z danymi obok treści), broszura (A4, dwie szpalty), "
-        "plakat (A3, duży tytuł i hasła)."
+        "plakat (A3, duży tytuł i hasła), umowa (A4, paragrafy § i miejsce na podpisy)."
     )
     tytul: str = Field(min_length=1, max_length=200, description="Tytuł dokumentu; w CV imię i nazwisko.")
     podtytul: str = Field(
@@ -224,6 +224,16 @@ SZABLONY: dict[str, dict[str, str]] = {
         "naglowki": '("Archivo", "DejaVu Sans")',
         "stopien": "10pt",
         "naglowek": "1.3em",
+    },
+    "umowa": {
+        # Pismo szeryfowe i szersze marginesy: umowę się czyta linijka po linijce,
+        # często z długopisem w ręku, a na marginesie robi dopiski.
+        "papier": "a4",
+        "margines": "(x: 25mm, top: 24mm, bottom: 26mm)",
+        "tekst": '("Literata", "DejaVu Serif")',
+        "naglowki": '("Literata", "DejaVu Serif")',
+        "stopien": "11pt",
+        "naglowek": "1.15em",
     },
     "plakat": {
         "papier": "a3",
@@ -344,6 +354,22 @@ def _naglowek_dokumentu(args: SkladInput) -> str:
             "#v(10pt)",
         ]
         return "\n".join(part for part in czesci if part) + "\n"
+    if args.szablon == "umowa":
+        # Umowa nie zaczyna się reklamą: tytuł na środku, pod nim strony i data zawarcia.
+        strony = [czesc for czesc in (args.autor, args.adresat) if czesc]
+        czesci = [
+            "#align(center)[",
+            f"#text(font: naglowki, size: 16pt, weight: 600, hyphenate: false)[#{tytul}]",
+            f"#v(3pt)\n#text(size: 10.5pt, fill: luma(80))[#{podtytul}]" if args.podtytul else "",
+            "]",
+            f"#v(10pt)\n#text(size: 10pt)[#{_ciag('zawarta między: ' + ' a '.join(strony))}]"
+            if strony
+            else "",
+            f"#v(2pt)\n#text(size: 10pt, fill: luma(80))[#{_ciag(args.data)}]" if args.data else "",
+            "#v(6pt)\n#line(length: 100%, stroke: 0.8pt + akcent)",
+            "#v(12pt)",
+        ]
+        return "\n".join(part for part in czesci if part) + "\n"
     # Raport, oferta i broszura: pasek z barwą wiodącą i wiersz metryki pod nim.
     metryka = []
     if args.autor:
@@ -376,6 +402,64 @@ def _stopka_strony(args: SkladInput) -> str:
     return f"#set page(footer: context [\n  #set text(size: 8.5pt, fill: luma(115))\n  {lewa}{prawa}\n])\n"
 
 
+def _regula_naglowka(args: SkladInput, szablon: dict[str, str]) -> str:
+    """Wygląd nagłówka rozdziału.
+
+    Umowa numeruje rozdziały paragrafami — tak się je cytuje w korespondencji i w sądzie,
+    i dlatego nie dostaje kreski pod nagłówkiem: § i tak oddziela części wzrokowo.
+    """
+    stopien = f"  #text(size: {szablon['naglowek']}, weight: 600)[#it.body]"
+    if args.szablon == "umowa":
+        return "\n".join(
+            [
+                "#set heading(numbering: (..n) => if n.pos().len() == 1 "
+                "{ [§ ] + str(n.pos().first()) })",
+                # Barwa wiodąca zostaje na kresce pod nagłówkiem dokumentu; paragrafy
+                # umowy są czarne, bo tak wygląda pismo, które się podpisuje.
+                # Rozmiar bezwzględny, bo „em” w nagłówku mnoży się przez własną skalę
+                # nagłówka Typsta i tytuł paragrafu urastał do rozmiaru tytułu umowy.
+                "#show heading: set text(fill: luma(25), size: 12pt)",
+                "#show heading.where(level: 1): it => block(above: 1.6em, below: 0.7em, width: 100%)[",
+                "  #align(center)[",
+                "    #context counter(heading).display(it.numbering)",
+                "    #v(-0.35em)",
+                "    #text(weight: 600)[#it.body]",
+                "  ]",
+                "]",
+            ]
+        )
+    return "\n".join(
+        [
+            "#show heading.where(level: 1): it => block(above: 1.5em, below: 0.7em, width: 100%)[",
+            stopien,
+            "  #v(-0.45em)",
+            "  #line(length: 100%, stroke: 0.6pt + akcent.lighten(55%))",
+            "]",
+        ]
+    )
+
+
+def _podpisy(args: SkladInput) -> str:
+    """Miejsce na podpisy stron na końcu umowy.
+
+    Umowa bez miejsca na podpis jest projektem umowy, nie umową — a nikt nie pamięta,
+    żeby poprosić o to osobno.
+    """
+    strony = [czesc for czesc in (args.autor, args.adresat) if czesc] or ["", ""]
+    if len(strony) == 1:
+        strony.append("")
+    pola = ",\n".join(
+        "  [#line(length: 80%, stroke: 0.6pt + luma(120))\n"
+        f"   #v(4pt)\n   #text(size: 9pt, fill: luma(90))[#{_ciag(strona)}]]"
+        for strona in strony[:2]
+    )
+    return (
+        "\n#v(26pt)\n"
+        "#grid(columns: (1fr, 1fr), column-gutter: 24pt,\n"
+        f"{pola}\n)\n"
+    )
+
+
 def _zrodlo(args: SkladInput) -> str:
     """Kompletne źródło Typsta: ustawienia szablonu, blok tytułowy i treść."""
     szablon = SZABLONY[args.szablon]
@@ -400,6 +484,8 @@ def _zrodlo(args: SkladInput) -> str:
             "#set list(marker: [], indent: 0pt, body-indent: 0pt, spacing: 1.1em)\n"
             f"{tresc}\n]]\n"
         )
+    if args.szablon == "umowa":
+        tresc += _podpisy(args)
     czesci = [
         f"#let akcent = rgb({_ciag(args.kolor)})",
         f"#let naglowki = {szablon['naglowki']}",
@@ -409,11 +495,7 @@ def _zrodlo(args: SkladInput) -> str:
         f'#set text(font: {szablon["tekst"]}, size: {szablon["stopien"]}, lang: "pl", hyphenate: true)',
         "#set par(justify: true, leading: 0.72em, spacing: 1.05em)",
         "#show heading: set text(font: naglowki, fill: akcent)",
-        "#show heading.where(level: 1): it => block(above: 1.5em, below: 0.7em, width: 100%)[",
-        f"  #text(size: {szablon['naglowek']}, weight: 600)[#it.body]",
-        "  #v(-0.45em)",
-        "  #line(length: 100%, stroke: 0.6pt + akcent.lighten(55%))",
-        "]",
+        _regula_naglowka(args, szablon),
         "#show heading.where(level: 2): set text(size: 1.12em, weight: 600)",
         "#show heading.where(level: 3): set text(size: 1em, weight: 600)",
         "#show table.cell.where(y: 0): set text(fill: akcent.darken(20%))",
@@ -426,8 +508,9 @@ def _zrodlo(args: SkladInput) -> str:
 
 @registry.register(
     "typeset_document",
-    """Składa dokument do druku programem Typst: raport, oferta handlowa, CV, broszura
-albo plakat tekstowy. Treść podajesz w sekcjach i blokach (akapit, lista, tabela, pary
+    """Składa dokument do druku programem Typst: raport, oferta handlowa, CV, broszura,
+plakat tekstowy albo umowa (paragrafy § i miejsce na podpisy stron). Treść podajesz
+w sekcjach i blokach (akapit, lista, tabela, pary
 etykieta–wartość, cytat, ramka), a narzędzie dba o typografię: kroje, światło, tabele,
 nagłówki, numerację stron i barwę wiodącą. Używaj go zawsze, gdy PDF ma wyglądać
 zawodowo — write_document daje zwykły wydruk z edytora tekstu, a convert_documents

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import stat
 import sys
@@ -69,6 +70,11 @@ async def prepare(
         claude_bin=str(make_fake_cli(tmp_path)),
         claude_profile_dir=profile,
         run_timeout_minutes=5,
+        # Tu sprawdzamy przebieg agenta, a nie piaskownicę: atrapa CLI jest skryptem
+        # w katalogu tymczasowym i pisze obok siebie dziennik wywołań, więc w zamkniętej
+        # przestrzeni montowań nie miałaby jak działać. Piaskownicę sprawdza
+        # `test_piaskownica.py`, a jej wpięcie w polecenie — `test_polecenie_cli_*` niżej.
+        agent_piaskownica=False,
     )
     database = Database(url)
     await database.create_schema()
@@ -241,6 +247,7 @@ async def test_cancel_kills_cli_process_group(tmp_path: Path, monkeypatch: pytes
     settings, database, _conversation_id, run_id, _file_id, _log = await prepare(
         tmp_path, monkeypatch, "hang"
     )
+    przed = set(asyncio.all_tasks())
     task = asyncio.create_task(AgentRunner(settings, database).execute(run_id))
     for _ in range(100):
         if any(event.type == "text.delta" for event in await events(database, run_id)):
@@ -253,6 +260,13 @@ async def test_cancel_kills_cli_process_group(tmp_path: Path, monkeypatch: pytes
         run = await session.get(Run, run_id)
     assert run is not None and run.status == "cancelled"
     assert (await events(database, run_id))[-1].type == "run.cancelled"
+    # Bieg nie zostawia po sobie zadań w połowie sprzątania. Samo `cancel()` niczego nie
+    # kończy, a obserwator anulowania jest wtedy w sesji bazy i ma jeszcze wycofać
+    # transakcję. Niezebrane zadanie potrafiło zawiesić zamykanie pętli — a że pętlę
+    # zamyka fikstura pytest-asyncio zaraz po teście, wieszało to cały przebieg testów
+    # i bramkę wydania. Sprawdzamy więc nie tylko wynik biegu, ale i to, co po nim zostało.
+    zostale = [zadanie for zadanie in asyncio.all_tasks() - przed if not zadanie.done()]
+    assert zostale == [], f"bieg zostawił niedokończone zadania: {zostale}"
 
 
 def test_command_uses_whitelist_and_resume(tmp_path: Path) -> None:
@@ -453,3 +467,149 @@ async def test_worker_stop_interrupts_runs_after_grace(
     await check.close()
     assert run is not None and run.status == "failed" and "przerwane" in run.error
     assert final == "run.failed"
+
+
+# --- piaskownica w poleceniu CLI ----------------------------------------------------------
+
+
+def test_polecenie_cli_jest_owiniete_w_piaskownice(tmp_path: Path) -> None:
+    """Domyślnie proces CLI startuje w zamkniętej przestrzeni montowań, nie wprost."""
+    from nexus.agent import piaskownica
+
+    if not piaskownica.dostepna():
+        pytest.skip("bwrap niedostępny")
+    projekt = tmp_path / "projekt"
+    projekt.mkdir()
+    owiniete = piaskownica.polecenie(
+        piaskownica.znajdz_bwrap(), ["claude", "-p"], cwd=projekt, zapis=(projekt,)
+    )
+    assert owiniete[0].endswith("bwrap")
+    assert owiniete[-2:] == ["claude", "-p"]
+    assert "--unshare-all" in owiniete
+    assert str(projekt) in owiniete
+
+
+def test_ustawienie_wylacza_piaskownice_w_przebiegu() -> None:
+    """Wyłącznik jest świadomą decyzją operatora, nie stanem domyślnym."""
+    from nexus.agent.runner import piaskownica_wlaczona
+
+    assert piaskownica_wlaczona(Settings(agent_piaskownica=False)) is False
+
+
+def test_serwer_mcp_dostaje_kod_z_tego_samego_miejsca_co_proces_roboczy() -> None:
+    """Narzędzia i agent mają pochodzić z jednego kodu — także po wymianie wydania.
+
+    Serwer MCP startuje w przestrzeni użytkownika, więc `python -m nexus.mcp_server`
+    nie znajdzie tam pakietu przy bieżącym katalogu i sięgnąłby po instalację edytowalną
+    z venv, czyli po stan roboczy repozytorium. `PYTHONPATH` przecina tę drogę.
+    """
+    from pathlib import Path
+
+    import nexus as nexus_pakiet
+    from nexus.agent.runner import mcp_config
+
+    konfiguracja = mcp_config(uuid.uuid4(), uuid.uuid4(), uuid.uuid4())
+    serwer = next(iter(konfiguracja["mcpServers"].values()))
+    oczekiwany = str(Path(nexus_pakiet.__file__).resolve().parents[1])
+
+    assert serwer["env"]["PYTHONPATH"].split(os.pathsep)[0] == oczekiwany
+
+
+def test_diagnostyka_widzi_zadania_stojace_w_kolejce(tmp_path: Path) -> None:
+    """Instalacja bez procesu roboczego przyjmuje zadania i nigdy ich nie wykonuje.
+
+    Jedynym śladem jest zaległość w kolejce — dlatego `doctor` pyta o nią wprost.
+    """
+    from datetime import timedelta
+
+    from nexus.db import Conversation, Run, utcnow
+    from nexus.doctor import KOLEJKA_ALARM_MIN, check_kolejka
+
+    ustawienia = Settings(
+        data_dir=tmp_path / "dane",
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'kolejka.db').as_posix()}",
+    )
+
+    async def przygotuj(wiek_minut: int) -> None:
+        baza = Database(ustawienia.database_url)
+        await baza.create_schema()
+        async with baza.session() as sesja:
+            rozmowa = Conversation(title="Próba")
+            sesja.add(rozmowa)
+            await sesja.flush()
+            sesja.add(
+                Run(
+                    conversation_id=rozmowa.id,
+                    status="queued",
+                    created_at=utcnow() - timedelta(minutes=wiek_minut),
+                )
+            )
+        await baza.close()
+
+    async def sprawdz() -> tuple[bool, str]:
+        wynik = await check_kolejka(ustawienia)
+        return wynik.ok, wynik.detail
+
+    # Zadanie świeżo w kolejce to normalna praca, nie usterka.
+    asyncio.run(przygotuj(0))
+    assert asyncio.run(sprawdz())[0] is True
+
+    asyncio.run(przygotuj(KOLEJKA_ALARM_MIN + 10))
+    ok, szczegoly = asyncio.run(sprawdz())
+    assert ok is False
+    assert "proces roboczy" in szczegoly
+
+
+def test_diagnostyka_nie_przewraca_sie_na_jednej_kontroli(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Po to uruchamia się diagnostykę, żeby zobaczyć wszystko, co nie działa.
+
+    Kontrola mowy wywoływała `ffmpeg`; brak programu wychodził jako `FileNotFoundError`
+    i przerywał `doctor` w połowie — reszty kontroli nikt już nie zobaczył.
+    """
+    from nexus import doctor
+
+    def wybuch() -> doctor.Check:
+        raise FileNotFoundError(2, "No such file or directory", "ffmpeg")
+
+    monkeypatch.setattr(doctor, "check_font", wybuch)
+
+    wyniki = doctor.run_checks(Settings(database_url="sqlite+aiosqlite:///:memory:"))
+
+    przerwane = [wynik for wynik in wyniki if wynik.name == "kontrola przerwana"]
+    assert len(przerwane) == 1
+    assert "ffmpeg" in przerwane[0].detail
+    # Pozostałe kontrole i tak się wykonały.
+    assert len(wyniki) > 5
+
+
+def test_nieoczekiwany_blad_nie_pokazuje_wnetrza_serwera() -> None:
+    """Na ekran idzie zdanie do przeczytania, treść wyjątku zostaje w dzienniku.
+
+    Wyjątek bywa niesie ścieżkę na serwerze albo fragment zapytania do bazy — rzeczy,
+    których użytkownik nie powinien widzieć, a które i tak nic mu nie mówią.
+    """
+    import inspect
+
+    from nexus.agent import runner as modul_runnera
+    from nexus.tworczy import zadania
+
+    for zrodlo in (inspect.getsource(modul_runnera), inspect.getsource(zadania)):
+        assert 'f"Błąd wewnętrzny: {error}"' not in zrodlo
+        assert "Coś poszło nie tak po naszej stronie" in zrodlo
+
+
+def test_polecenie_systemowe_zakazuje_rozmowy_o_rozliczeniach() -> None:
+    """Liczba kredytów nie ma prawa wyjść do użytkownika — także ustami asystenta.
+
+    Interfejs zasady pilnuje (moduł Płatności pokazuje pasek wykorzystania, nie liczby),
+    ale polecenie systemowe uczyło dotąd modelu, że „podagenci kosztują użytkownika
+    dodatkowe kredyty”. Żadne narzędzie nie podaje stanu konta, więc konkretnej liczby
+    asystent nie wymyśli — ale samo pojęcie mogło trafić do odpowiedzi jako wymówka
+    („zrobię prościej, żeby nie zużyć kredytów”). Zasada stoi teraz wprost.
+    """
+    from nexus.agent.prompt import AGENTS_SECTION, SYSTEM_PROMPT
+
+    assert "Rozliczenia nie są tematem rozmowy." in SYSTEM_PROMPT
+    assert "Nie podawaj stanu konta" in SYSTEM_PROMPT
+    # Uzasadnienie doboru podagentów zostaje, ale bez odsyłania użytkownika do rachunku.
+    assert "kredyty" not in AGENTS_SECTION

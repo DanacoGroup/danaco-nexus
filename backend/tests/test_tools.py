@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -266,3 +267,59 @@ def test_upscale_image_with_realesrgan(harness: ToolHarness, tmp_path: Path) -> 
     output = read_image(result.files[0].path)
     assert output.shape[:2] == (256, 192)
     assert result.files[0].name == "maly_x2.png"
+
+
+def test_diagnostyka_zna_kazdy_program_wywolywany_przez_narzedzia() -> None:
+    """Lista programów w `doctor` ma nadążać za narzędziami.
+
+    Narzędzie trafia do rejestru niezależnie od tego, czy jego program jest na ścieżce —
+    brak wychodzi dopiero przy wywołaniu, czyli już przy użytkowniku. Tak zniknął cały
+    skład dokumentów: `typst` leżał poza `PATH` usług i `typeset_document` odmawiał pracy,
+    choć widniał w spisie możliwości.
+    """
+    import re
+
+    from nexus.doctor import PROGRAMY_NARZEDZI
+
+    katalog = Path(__file__).resolve().parents[1] / "nexus" / "tools"
+    wzorzec = re.compile(r'_program\(\s*"([a-z0-9._-]+)"')
+    uzywane = {
+        nazwa
+        for plik in katalog.glob("*.py")
+        for nazwa in wzorzec.findall(plik.read_text(encoding="utf-8"))
+    }
+
+    brakujace = sorted(uzywane - set(PROGRAMY_NARZEDZI))
+    assert brakujace == [], f"dopisz do PROGRAMY_NARZEDZI w doctor.py: {brakujace}"
+    zbedne = sorted(set(PROGRAMY_NARZEDZI) - uzywane)
+    assert zbedne == [], f"te programy nie są już wywoływane przez narzędzia: {zbedne}"
+
+
+def test_katalog_narzedzi_strony_zgadza_sie_z_rejestrem() -> None:
+    """Strona produktu obiecuje konkretną liczbę narzędzi — ma się zgadzać z rejestrem.
+
+    `frontend/src/dane/narzedzia.ts` powstaje ze skryptu (`frontend/scripts/narzedzia.py`),
+    ale nic nie pilnowało, żeby go po dołożeniu narzędzia uruchomić. Liczba `LICZBA_NARZEDZI`
+    wchodzi wprost do zdań sprzedażowych („Nexus ma N narzędzi”, „Zobacz wszystkie N”), więc
+    rozjazd to nie kosmetyka, tylko nieprawdziwa obietnica na stronie i nagłówek, który nie
+    zgadza się z tym, co klient zobaczy po kliknięciu.
+    """
+    katalog = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "dane" / "narzedzia.ts").read_text(
+        encoding="utf-8"
+    )
+    zadeklarowana = re.search(r"export const LICZBA_NARZEDZI = (\d+);", katalog)
+    assert zadeklarowana, "nie znaleziono LICZBA_NARZEDZI — zmienił się kształt katalogu"
+
+    # W pliku „id” mają i narzędzia, i dziedziny — te drugie po prostu nie występują
+    # w rejestrze, a sprawdzamy wyłącznie różnicę w stronę rejestru, więc nie przeszkadzają.
+    nazwy_strony = set(re.findall(r'"id": "([a-z0-9_]+)"', katalog))
+    nazwy_rejestru = set(registry.names())
+
+    brak_na_stronie = sorted(nazwy_rejestru - nazwy_strony)
+    assert brak_na_stronie == [], (
+        f"narzędzia z rejestru bez wpisu w katalogu strony: {brak_na_stronie} — "
+        "uruchom `python frontend/scripts/narzedzia.py`"
+    )
+    assert int(zadeklarowana.group(1)) == len(nazwy_rejestru), (
+        f"strona obiecuje {zadeklarowana.group(1)} narzędzi, rejestr ma {len(nazwy_rejestru)}"
+    )

@@ -190,6 +190,12 @@ class CloudService:
         if code == 403:
             raise CloudError(403, f"Chmura: {action}{where} – brak uprawnień lub niedozwolona nazwa.")
         if code == 423:
+            # Blokada przy odczycie katalogu nie jest „plikiem używanym w innej aplikacji”:
+            # Nextcloud trzyma ją przez chwilę także wtedy, gdy sam zakłada albo skanuje
+            # przestrzeń świeżego konta. Komunikat o zablokowanym pliku wyskakiwał wtedy
+            # na pustym module i wyglądał jak awaria.
+            if action == "odczyt":
+                raise CloudError(423, "Chmura jest zajęta porządkowaniem tej przestrzeni. Odśwież za chwilę.")
             raise CloudError(423, f"Plik{where} jest zablokowany (używany w innej aplikacji).")
         if code == 507:
             raise CloudError(507, "Brak miejsca w chmurze.")

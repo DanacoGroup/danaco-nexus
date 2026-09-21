@@ -11,10 +11,12 @@ dotychczasowego zestawu:
 * rozpoznawanie twarzy (InsightFace) — porządkowanie archiwum zdjęć według osób.
 
 Uwaga do ostatniego: modele InsightFace mają licencję niekomercyjną, a wizerunek
-twarzy to dane biometryczne — szczególna kategoria wg RODO. Przed wejściem produktu
-na rynek trzeba rozstrzygnąć jedno i drugie: licencję (wymiana modelu albo umowa)
-oraz podstawę przetwarzania (zgoda, okres przechowywania wektorów). Czynność jest
-opisana w `docs/zgodnosc/REJESTR-CZYNNOSCI.md`.
+twarzy to dane biometryczne — szczególna kategoria wg RODO. Zastrzeżenie brzmiało
+„przed wejściem produktu na rynek”, a **produkt wszedł na rynek 21 września 2026**
+(sprzedaż włączona, Stripe skonfigurowany) — więc oba punkty czekają na rozstrzygnięcie
+już teraz: licencja (wymiana modelu albo umowa z autorami) i podstawa przetwarzania
+(zgoda, okres przechowywania wektorów). Czynność jest opisana
+w `docs/zgodnosc/REJESTR-CZYNNOSCI.md` (CZ-14).
 
 Każdy z tych programów ma na serwerze gotowe polecenie `danaco-*`, które ustawia modele
 i tryb offline. Wywołujemy je zamiast powtarzać tu tamtą konfigurację.

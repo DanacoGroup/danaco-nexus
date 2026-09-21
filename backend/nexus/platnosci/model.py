@@ -64,6 +64,10 @@ class Subskrypcja(Base):
     okres_od: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     okres_do: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     anuluj_na_koniec: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Liczba opłaconych miejsc. Plan „Grupa” kosztuje za każdego użytkownika, więc ilość
+    # z pozycji subskrypcji Stripe jest tym, za co klient naprawdę zapłacił — i tym, ile
+    # osób zmieści się w grupie. Plany jednoosobowe mają tu 1.
+    miejsca: Mapped[int] = mapped_column(Integer, default=1)
     kupon: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)

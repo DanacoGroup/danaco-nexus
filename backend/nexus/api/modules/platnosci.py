@@ -21,6 +21,7 @@ from sqlalchemy import select
 from nexus.api.auth import require_session
 from nexus.db import Database, UserSession
 from nexus.platnosci import kredyty
+from nexus.platnosci.grupy import konto_rozliczeniowe
 from nexus.platnosci.klient import BladStripe, KlientHttpStripe, KlientStripe
 from nexus.platnosci.konfiguracja import (
     OKRESY,
@@ -40,6 +41,7 @@ from nexus.platnosci.uslugi import (
     ma_platna_subskrypcje,
     odswiez_faktury,
     otworz_portal,
+    rozpocznij_doladowanie,
     rozpocznij_rezygnacje,
     rozpocznij_zakup,
     rozpocznij_zakup_pakietu,
@@ -236,18 +238,82 @@ async def _cennik_json(request: Request) -> dict[str, Any]:
     return {"waluta": ustawienia.waluta, "sprzedaz_aktywna": ustawienia.skonfigurowane, "plany": lista}
 
 
+#: Próg, od którego mówimy użytkownikowi, że dostęp się kończy (udział zużycia).
+PROG_OSTRZEZENIA = 0.85
+
+
 @router.get("/kredyty")
 async def kredyty_konta(
     request: Request, sesja: UserSession = Depends(require_session)
 ) -> dict[str, Any]:
-    """Saldo kredytów zalogowanego konta wraz z ostatnimi zmianami.
+    """Stan wykorzystania dostępu — paskiem, bez liczb.
 
-    Kredyt jest jednostką pracy agenta. Użytkownik ma widzieć nie tylko liczbę, ale i to,
-    za co zeszła — stąd historia obok salda.
+    Kredyt jest jednostką rozliczeniową między nami a dostawcą modelu, nie towarem dla
+    użytkownika. Pokazywanie salda w sztukach zmuszałoby go do liczenia, ile „kosztuje”
+    zdanie, i robiłoby z rozmowy licznik taksówki. Dlatego na zewnątrz idzie wyłącznie
+    udział zużycia (0–1), z którego interfejs rysuje pasek, oraz stan słowny.
+
+    Historia zmian zostaje, ale bez wartości: mówi, co się działo, a nie ile czego ubyło.
     """
     database: Database = request.app.state.database
-    biezace = await kredyty.stan(database, sesja.owner_id)
-    return {**biezace.mapa(), "historia": await kredyty.historia(database, sesja.owner_id, 30)}
+    # W grupie pasek pokazuje wspólną pulę: to z niej schodzi praca każdego członka,
+    # więc pokazywanie mu własnego, nietykanego konta byłoby wprowadzaniem w błąd.
+    konto = await konto_rozliczeniowe(database, sesja.owner_id)
+    biezace = await kredyty.stan(database, konto)
+    udzial = kredyty.udzial_zuzycia(biezace)
+    wyczerpane = biezace.saldo < kredyty.PROG_ZLECENIA
+    stan = "wyczerpany" if wyczerpane else "konczy_sie" if udzial >= PROG_OSTRZEZENIA else "w_porzadku"
+    historia = [
+        {"powod": wpis["powod"], "opis": wpis["opis"], "kiedy": wpis["kiedy"]}
+        for wpis in await kredyty.historia(database, konto, 30)
+    ]
+    return {
+        "zuzycie": round(udzial, 4),
+        "stan": stan,
+        "wyczerpane": wyczerpane,
+        "historia": historia,
+        # Pola zgodności dla okien, które nie zdążyły się jeszcze zaktualizować.
+        # Aplikacja jest instalowana jako PWA i potrafi chodzić na wersji sprzed
+        # wydania; bez tych pól stary kod sięga po `saldo`, nie znajduje go i gasi
+        # cały ekran. Do usunięcia, gdy wszystkie okna będą po aktualizacji.
+        "saldo": biezace.saldo,
+        "przydzielone": biezace.przydzielone,
+        "zuzyte": biezace.zuzyte,
+        "doladowanie": {
+            "minimum_gr": kredyty.MINIMUM_DOLADOWANIA_GR,
+            "maksimum_gr": kredyty.MAKSIMUM_DOLADOWANIA_GR,
+            "kwoty_szybkie_gr": list(kredyty.KWOTY_SZYBKIE_GR),
+            "sprzedaz": ustawienia_platnosci().skonfigurowane,
+        },
+    }
+
+
+class DoladowanieBody(BaseModel):
+    """Kwota doładowania wpisana przez użytkownika (w groszach)."""
+
+    kwota_gr: int = Field(ge=0, le=10_000_000)
+
+
+@router.post("/doladowanie/checkout")
+async def checkout_doladowania(
+    payload: DoladowanieBody, request: Request, sesja: UserSession = Depends(require_session)
+) -> dict[str, str]:
+    """Rozpoczyna jednorazowe doładowanie dostępu kwotą podaną przez użytkownika."""
+    _wymagaj_sprzedazy(ustawienia_platnosci())
+    database: Database = request.app.state.database
+    uzytkownik = klucz_konta(sesja)
+    wynik = await _wywolaj(
+        request,
+        lambda klient: rozpocznij_doladowanie(
+            database,
+            klient,
+            ustawienia_platnosci(),
+            _adresy(request),
+            uzytkownik,
+            payload.kwota_gr,
+        ),
+    )
+    return {"url": wynik.adres, "tryb": wynik.tryb}
 
 
 @router.get("/cennik")

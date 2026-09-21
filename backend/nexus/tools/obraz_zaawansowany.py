@@ -17,6 +17,8 @@ tu tamtą konfigurację.
 
 from __future__ import annotations
 
+import json
+import os
 import re
 import shutil
 from pathlib import Path
@@ -60,6 +62,12 @@ ZAPIS_CZASU = re.compile(r"^\d{1,2}(:\d{2}){0,2}(\.\d+)?$")
 BARWA = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 LOTTIE_ROZSZERZENIA = frozenset({".json", ".lottie"})
+#: Biblioteka gotowych animacji Lottie na serwerze (wykaz + pliki). Agent nie musi mieć
+#: animacji od użytkownika — sięga po gotową i renderuje ją do filmu, GIF-a albo klatki.
+LOTTIE_BIBLIOTEKA = Path(os.environ.get("NEXUS_LOTTIE_DIR", "/danaco/programy/web/lottie"))
+LOTTIE_WYKAZ = LOTTIE_BIBLIOTEKA / "indeks.json"
+#: Ile pozycji wykazu wraca bez zawężenia — pełne 450+ zajmowałoby pół okna rozmowy.
+LOTTIE_LIMIT = 60
 
 
 def _program(nazwa: str, czego_dotyczy: str) -> str:
@@ -477,8 +485,73 @@ def video_to_gif(ctx: ToolContext, args: GifInput) -> ToolResult:
 # --- Lottie --------------------------------------------------------------------------------------
 
 
+def _animacja_biblioteki(nazwa: str) -> Path:
+    """Ścieżka animacji z biblioteki serwera; odrzuca wszystko, co wychodzi poza nią."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,60}/[A-Za-z0-9][A-Za-z0-9._-]{0,80}", nazwa):
+        raise ToolError(
+            f"Nieprawidłowa nazwa animacji {nazwa!r}. Podaj postać „zbior/nazwa” ze spisu lottie_library."
+        )
+    plik = (LOTTIE_BIBLIOTEKA / "animacje" / f"{nazwa}.json").resolve()
+    korzen = (LOTTIE_BIBLIOTEKA / "animacje").resolve()
+    if not plik.is_file() or korzen not in plik.parents:
+        raise ToolError(f"Biblioteka nie ma animacji {nazwa!r}. Spis pokazuje lottie_library.")
+    return plik
+
+
+class WykazLottieInput(ToolInput):
+    szukaj: str = Field(
+        default="",
+        max_length=60,
+        description="Fragment nazwy (np. „loading”, „check”, „rocket”). Pusto = początek spisu.",
+    )
+    limit: int = Field(default=30, ge=1, le=LOTTIE_LIMIT, description="Ile pozycji zwrócić.")
+
+
+@registry.register(
+    "lottie_library",
+    """Spis gotowych animacji Lottie leżących na serwerze — animacje interfejsu, ikony w ruchu,
+wskaźniki ładowania, ilustracje. Użyj, zanim sięgniesz po render_lottie: wybierasz pozycję ze
+spisu i podajesz jej identyfikator („zbior/nazwa”) do render_lottie, bez proszenia użytkownika
+o plik. Do ożywienia strony, materiału promocyjnego albo wstawki do posta.""",
+    WykazLottieInput,
+)
+def lottie_library(ctx: ToolContext, args: WykazLottieInput) -> ToolResult:
+    if not LOTTIE_WYKAZ.is_file():
+        raise ToolError("Biblioteka animacji Lottie nie jest zainstalowana na tym serwerze.")
+    try:
+        wykaz = json.loads(LOTTIE_WYKAZ.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as blad:
+        raise ToolError("Wykaz biblioteki animacji jest nieczytelny.") from blad
+    animacje = wykaz.get("animacje") or []
+    igla = args.szukaj.strip().lower()
+    if igla:
+        animacje = [a for a in animacje if igla in str(a.get("id", "")).lower()]
+    wybrane = animacje[: args.limit]
+    dane = {
+        "wszystkich": wykaz.get("pozycji", len(wykaz.get("animacje") or [])),
+        "pasujacych": len(animacje),
+        "animacje": wybrane,
+    }
+    if igla and not animacje:
+        return ToolResult(dane, f"Biblioteka nie ma animacji pasującej do „{args.szukaj}”.")
+    return ToolResult(
+        dane,
+        f"Animacje Lottie: {len(wybrane)} z {dane['pasujacych']} pasujących "
+        f"(w bibliotece {dane['wszystkich']}). Identyfikator podaj do render_lottie.",
+    )
+
+
 class LottieInput(ToolInput):
-    file_id: str = Field(description="Plik animacji Lottie (.json albo .lottie).")
+    file_id: str = Field(
+        default="",
+        description="Plik animacji Lottie z rozmowy (.json albo .lottie). Zamiast tego można podać "
+        "`animacja` — pozycję z biblioteki serwera.",
+    )
+    animacja: str = Field(
+        default="",
+        max_length=120,
+        description="Animacja z biblioteki serwera w postaci „zbior/nazwa” (spis: lottie_library).",
+    )
     format_wyniku: Literal["mp4", "webm", "gif", "png"] = Field(
         default="mp4",
         description="mp4 do filmu i prezentacji, webm z przezroczystością, gif do wiadomości, "
@@ -505,35 +578,46 @@ z niej film, obrazek albo wstawkę do posta; nic innego w zestawie nie otwiera t
 )
 def render_lottie(ctx: ToolContext, args: LottieInput) -> ToolResult:
     program = _program("danaco-lottie", "Render animacji Lottie")
-    plik = ctx.file(args.file_id)
-    if plik.suffix not in LOTTIE_ROZSZERZENIA:
-        raise ToolError(f"{plik.name} nie jest animacją Lottie — potrzebny plik .json albo .lottie.")
+    if args.animacja and args.file_id:
+        raise ToolError("Podaj albo plik z rozmowy (file_id), albo animację z biblioteki — nie oba naraz.")
+    if args.animacja:
+        sciezka = _animacja_biblioteki(args.animacja)
+        nazwa_zrodla = sciezka.name
+    elif args.file_id:
+        plik = ctx.file(args.file_id)
+        if plik.suffix not in LOTTIE_ROZSZERZENIA:
+            raise ToolError(f"{plik.name} nie jest animacją Lottie — potrzebny plik .json albo .lottie.")
+        sciezka = plik.path
+        nazwa_zrodla = plik.name
+    else:
+        raise ToolError("Podaj plik animacji (file_id) albo pozycję z biblioteki (animacja).")
     if args.tlo and not BARWA.match(args.tlo):
         raise ToolError(f"Barwa tła musi mieć postać „#RRGGBB”, a nie {args.tlo!r}.")
-    cel = ctx.output_path(with_suffix(plik.name, f".{args.format_wyniku}"))
-    polecenie = [program, "render", str(plik.path), str(cel), "--szerokosc", str(args.szerokosc)]
+    cel = ctx.output_path(with_suffix(nazwa_zrodla, f".{args.format_wyniku}"))
+    polecenie = [program, "render", str(sciezka), str(cel), "--szerokosc", str(args.szerokosc)]
     if args.fps:
         polecenie += ["--fps", str(args.fps)]
     if args.tlo:
         polecenie += ["--tlo", args.tlo]
-    ctx.progress(f"Renderowanie animacji: {plik.name}")
+    ctx.progress(f"Renderowanie animacji: {nazwa_zrodla}")
     ctx.run_command(polecenie, timeout=CZAS_LOTTIE)
     if not cel.is_file():
-        raise ToolError(f"Render animacji {plik.name} nie dał pliku wynikowego.")
+        raise ToolError(f"Render animacji {nazwa_zrodla} nie dał pliku wynikowego.")
     podglady: list[bytes] = []
     if args.format_wyniku in {"png", "gif"}:
         with Image.open(cel) as otwarty:
             podglady.append(image_preview(otwarty.convert("RGB"), PODGLAD))
     return ToolResult(
         {"output": cel.name, "format": args.format_wyniku},
-        f"Animacja wyrenderowana: {plik.name} → {args.format_wyniku.upper()}",
+        f"Animacja wyrenderowana: {nazwa_zrodla} → {args.format_wyniku.upper()}",
         images=podglady,
-        files=[OutputFile(cel, cel.name, f"{plik.name} jako {args.format_wyniku.upper()}")],
+        files=[OutputFile(cel, cel.name, f"{nazwa_zrodla} jako {args.format_wyniku.upper()}")],
     )
 
 
 __all__ = [
     "blur_background_by_depth",
+    "lottie_library",
     "depth_map",
     "inpaint_photo",
     "render_lottie",

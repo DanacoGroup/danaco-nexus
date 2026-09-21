@@ -78,7 +78,7 @@ def _czas(wartosc: datetime | None) -> str:
     return (wartosc or utcnow()).isoformat()
 
 
-def atom(baza: str, pozycje: list[PortalContent], tytul: str = "Danaco Nexus – blog") -> str:
+def atom(baza: str, pozycje: list[PortalContent], tytul: str = "Danaco Nexus — blog") -> str:
     """Kanał Atom 1.0 z podanymi pozycjami (najnowsza pierwsza)."""
     zaktualizowano = _czas(max((p.published_at for p in pozycje if p.published_at), default=None))
     wiersze = [

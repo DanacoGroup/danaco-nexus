@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Select, delete, func, or_, select
+from sqlalchemy import Select, delete, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus.db import utcnow
@@ -104,9 +104,11 @@ async def lista(
     if tylko_opublikowane:
         warunki = _opublikowane(warunki)
     for slowo in tresc.slowa_zapytania(zapytanie):
-        warunki = warunki.where(PortalContent.search_text.like(f"%{slowo}%"))
+        warunki = warunki.where(_dopasowanie(slowo))
     if tag.strip():
-        warunki = warunki.where(PortalContent.search_text.like(f"%{tresc.znormalizuj(tag)}%"))
+        # Znacznik filtruje tak samo jak słowo zapytania: od początku wyrazu, nie od
+        # dowolnego miejsca w tekście — inaczej znacznik „AI” łapałby „Kraina”.
+        warunki = warunki.where(_dopasowanie(tresc.znormalizuj(tag)))
     razem = await session.scalar(select(func.count()).select_from(warunki.subquery())) or 0
     strony = max(1, -(-razem // na_stronie))
     rekordy = (
@@ -217,6 +219,59 @@ async def usun(session: AsyncSession, identyfikator: uuid.UUID) -> None:
     await session.execute(delete(PortalContent).where(PortalContent.id == record.id))
 
 
+#: Najkrótszy rdzeń, do jakiego wolno skrócić słowo zapytania.
+#:
+#: Cztery litery to próg, poniżej którego skracanie przestaje pomagać, a zaczyna łapać
+#: przypadkowe wyrazy: „kody” skrócone do „ko” wyciągnęłoby pół bazy. Przy czterech
+#: „umowa” skraca się do „umow” i trafia w „umowy” oraz „umowie” — a tego właśnie
+#: klient oczekuje, pisząc jedno słowo w wyszukiwarce pomocy.
+MIN_RDZEN = 4
+
+#: Ile liter wolno odciąć z końca słowa, szukając rdzenia.
+ODCINANE = 2
+
+
+def _rdzenie(slowo: str) -> list[str]:
+    """Słowo i jego krótsze warianty — tyle, ile trzeba na polską odmianę.
+
+    Wyszukiwarka dopasowuje **początek wyrazu**, a polszczyzna odmienia końcówki. Klient
+    piszący „faktury” nie znajdował artykułu, w którym stoi „fakturach”: żadne z tych słów
+    nie jest początkiem drugiego. Dlatego obok całego słowa próbujemy jego rdzeni —
+    „faktury” → „faktur” → i trafiamy we wszystkie przypadki tego rzeczownika.
+
+    Skracamy najwyżej o dwie litery i nie poniżej ``MIN_RDZEN``, żeby nie zamienić
+    wyszukiwania w zgadywanie.
+    """
+    warianty = [slowo]
+    for ile in range(1, ODCINANE + 1):
+        rdzen = slowo[:-ile]
+        if len(rdzen) >= MIN_RDZEN and len(slowo) > MIN_RDZEN:  # noqa: SIM102 - czytelniej wprost
+            warianty.append(rdzen)
+    return warianty
+
+
+def _dopasowanie(slowo: str) -> Any:
+    """Warunek „w tekście jest wyraz zaczynający się od ``slowo`` albo od jego rdzenia”.
+
+    Zwykłe ``LIKE '%slowo%'`` trafia w środek wyrazów: zapytanie „or” pasowało do
+    „ktory” i wyciągało całą bazę, bo dwuliterowy ciąg siedzi w połowie polskich słów.
+    Dopasowanie do początku wyrazu jest wciąż tanie (jeden ``LIKE`` na wariant), a przestaje
+    mylić przypadkowy fragment z trafieniem. Spacja doklejana z przodu w zapytaniu, a nie
+    w kolumnie, żeby działało też dla wierszy zapisanych wcześniej.
+    """
+    kolumna = literal(" ").concat(PortalContent.search_text)
+    # Zasłaniamy `%` i `_` — w `LIKE` są znakami wieloznacznymi. Słowa zapytania przechodzą
+    # wprawdzie przez `slowa_zapytania`, które przepuszcza tylko litery i cyfry, ale tą samą
+    # drogą idzie **znacznik** (`tag`), a ten trafia tu prosto z adresu: `?tag=%` pasowałoby
+    # do każdej pozycji w bazie.
+    return or_(*(kolumna.like(f"% {_zaslon(wariant)}%", escape="\\") for wariant in _rdzenie(slowo)))
+
+
+def _zaslon(wzorzec: str) -> str:
+    """Tekst bezpieczny do wstawienia we wzorzec ``LIKE`` (z `escape="\\"`)."""
+    return wzorzec.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _ocena(record: PortalContent, slowa: list[str]) -> int:
     """Trafność pozycji: waga zależy od pola, w którym wystąpiło słowo zapytania."""
     pola = (
@@ -225,7 +280,15 @@ def _ocena(record: PortalContent, slowa: list[str]) -> int:
         tresc.znormalizuj(" ".join(record.tags or [])),
         record.search_text,
     )
-    return sum(waga for slowo in slowa for waga, pole in zip(WAGI, pola, strict=True) if slowo in pole)
+    # Te same rdzenie co w warunku wyszukiwania. Inaczej pozycja znaleziona przez rdzeń
+    # („faktury” → „faktur”) miałaby ocenę zero i spadała na koniec listy — trafienie
+    # byłoby, ale nie tam, gdzie klient patrzy.
+    return sum(
+        waga
+        for slowo in slowa
+        for waga, pole in zip(WAGI, pola, strict=True)
+        if any(f" {pole}".find(f" {wariant}") >= 0 for wariant in _rdzenie(slowo))
+    )
 
 
 async def szukaj(
@@ -239,7 +302,7 @@ async def szukaj(
     if rodzaje:
         warunki = warunki.where(or_(*[PortalContent.kind == rodzaj for rodzaj in rodzaje]))
     for slowo in slowa:
-        warunki = warunki.where(PortalContent.search_text.like(f"%{slowo}%"))
+        warunki = warunki.where(_dopasowanie(slowo))
     kandydaci = (await session.scalars(warunki.limit(KANDYDACI_WYSZUKIWANIA))).all()
     najlepsze = sorted(kandydaci, key=lambda record: (-_ocena(record, slowa), record.title))
     return [

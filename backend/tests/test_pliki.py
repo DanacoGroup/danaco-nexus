@@ -77,6 +77,11 @@ def test_filtrowanie_i_wyszukiwanie(client: TestClient, settings: Settings) -> N
     znalezione = client.get("/api/pliki", params={"q": "najmu"}).json()["pliki"]
     assert [plik["name"] for plik in znalezione] == ["umowa-najmu.pdf"]
 
+    # `%` i `_` są w LIKE znakami wieloznacznymi. Bez zasłonięcia ich szukanie „%”
+    # oddawało **wszystkie** pliki, a podkreślenie zastępowało dowolny znak.
+    assert client.get("/api/pliki", params={"q": "%"}).json()["pliki"] == []
+    assert client.get("/api/pliki", params={"q": "umowa_najmu"}).json()["pliki"] == []
+
 
 def test_porzadkowanie_plikow(client: TestClient, settings: Settings) -> None:  # noqa: F811
     """Plik trafia do katalogu, wraca z niego, a własny tytuł nie rusza nazwy z dysku."""

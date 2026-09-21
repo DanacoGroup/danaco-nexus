@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import socket
 import uuid
 from collections.abc import Callable, Iterator
@@ -474,7 +475,15 @@ def _online(host: str = "api.openalex.org") -> bool:
         return False
 
 
-@pytest.mark.skipif(not _online(), reason="Brak dostępu do sieci (api.openalex.org)")
+# Samo otwarte gniazdo nie znaczy, że OpenAlex odpowie: serwer bywa niedostępny, odrzuca
+# ruch z serwerowni albo zwraca błąd. Zestaw testów ma być zielony bez sieci, więc test
+# sięgający do obcej usługi uruchamia się wyłącznie na żądanie: NEXUS_TESTY_SIEC=1.
+TESTY_SIEC = os.environ.get("NEXUS_TESTY_SIEC", "") == "1"
+
+
+@pytest.mark.skipif(
+    not (TESTY_SIEC and _online()), reason="Test sieciowy — uruchom z NEXUS_TESTY_SIEC=1"
+)
 def test_openalex_real_network() -> None:
     with scholar.scholar_client() as client:
         papers = scholar.search_openalex(
@@ -859,7 +868,8 @@ def test_api_research_flow(api_client: tuple[TestClient, FakeKnowledge, Settings
     assert started.status_code == 201, started.text
     report = started.json()
     assert report["status"] == "queued" and report["run_id"]
-    assert report["title"].startswith("Research: Czy pompa")
+    # Tytuł raportu widzi użytkownik, a produkt jest po polsku.
+    assert report["title"].startswith("Badanie sieci: Czy pompa")
 
     conversation_id = uuid.UUID(report["conversation_id"])
     run_id = uuid.UUID(report["run_id"])
@@ -927,7 +937,7 @@ def test_api_research_flow(api_client: tuple[TestClient, FakeKnowledge, Settings
         headers=HEADERS,
     ).json()
     assert scholar_run["collection_id"] is None
-    assert scholar_run["title"].startswith("Scholar: ")
+    assert scholar_run["title"].startswith("Prace naukowe: ")
     assert client.delete(f"/api/research/badania/{report['id']}", headers=HEADERS).json() == {"ok": True}
     assert [item["id"] for item in client.get("/api/research/badania").json()] == [scholar_run["id"]]
 

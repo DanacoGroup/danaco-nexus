@@ -24,6 +24,7 @@ from starlette.websockets import WebSocketDisconnect
 from test_api import HEADERS, login, set_password
 
 from nexus.api.app import create_app
+from nexus.api.modules.pulpit import SPRZATANIE_SEKUND
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER
 from nexus.pulpit import MEMORY_BROKER, PcError, choose_computer, online_computers
@@ -99,6 +100,24 @@ def _wait_online(client: TestClient, count: int = 1) -> list[dict[str, Any]]:
     raise AssertionError("Komputer nie pojawił się w rejestrze.")
 
 
+def _wait_offline(client: TestClient) -> None:
+    """Czeka, aż komputer zniknie z rejestru — z zapasem ponad limit sprzątania.
+
+    Sprzątanie rozłączenia czeka na zadanie przekazujące żądania najwyżej
+    ``SPRZATANIE_SEKUND``; dopiero potem skreśla obecność. Budżet czekania musi być
+    **wyraźnie większy** od tego limitu, inaczej test mierzy obciążenie maszyny, a nie
+    zachowanie serwera: przy 2,5 s wobec limitu 2,0 s wariant redisowy przechodził na
+    pustej maszynie i przewracał się, gdy w tle szła budowa wydania.
+    """
+    budzet = SPRZATANIE_SEKUND + 4.0
+    krok = 0.05
+    for _ in range(int(budzet / krok)):
+        if not client.get("/api/pulpit/komputery").json():
+            return
+        time.sleep(krok)
+    raise AssertionError("Komputer został na liście podłączonych po rozłączeniu.")
+
+
 def test_tool_without_computer_explains_problem(tools: ToolHarness) -> None:
     with pytest.raises(ToolError, match="Żaden komputer"):
         registry.get("pc_info").handler(tools.context(), registry.get("pc_info").parse({}))
@@ -145,11 +164,7 @@ def test_relay_round_trip(client: TestClient, settings: Settings, tools: ToolHar
         # Ping odświeża rejestr i dostaje odpowiedź.
         socket.send_json({"type": "ping"})
         assert socket.receive_json() == {"type": "pong"}
-    for _ in range(50):
-        if not client.get("/api/pulpit/komputery").json():
-            break
-        time.sleep(0.05)
-    assert client.get("/api/pulpit/komputery").json() == []
+    _wait_offline(client)
 
 
 def test_upload_and_cancel(client: TestClient, settings: Settings, tools: ToolHarness) -> None:

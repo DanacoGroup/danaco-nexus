@@ -118,16 +118,18 @@ KATALOG: tuple[PlanKatalogu, ...] = (
             "Wersje plików — powrót do poprzedniej",
             "Synchronizacja z komputerem i telefonem",
             "Cztery zadania naraz zamiast jednego",
-            "Dziesięciokrotnie więcej kredytów",
+            "Dziesięciokrotnie większy zakres pracy",
         ),
         kolejnosc=20,
     ),
     PlanKatalogu(
         kod="zespol",
         # Nazwa „Grupa”, bo tak działa: rodzina, wspólnicy, mały zespół — cena liczy się
-        # za każdego użytkownika, a kredyty są wspólne i kupuje je założyciel grupy.
+        # za każdego użytkownika, a zakres pracy jest wspólny i kupuje go założyciel grupy.
+        # „konta: 5” jest tylko wartością zastępczą, zanim powstanie subskrypcja: o liczbie
+        # miejsc rozstrzyga to, za ile zapłacono w kasie (`platnosci.grupy.miejsca_grupy`).
         nazwa="Grupa",
-        opis="Dla rodziny albo małego zespołu — cena za każdego użytkownika, kredyty wspólne.",
+        opis="Dla rodziny albo małego zespołu — cena za każdego użytkownika, zakres pracy wspólny.",
         limity={"zadania_rownolegle": 8, "automatyzacje": 100, "konta": 5, "skrzynki": 10},
         kredyty_okresowo=60_000,
         przestrzen_mb=10_240,
@@ -137,7 +139,7 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         zawartosc=(
             "Wszystko z planu Pro",
             "Cena za każdego użytkownika w grupie",
-            "Wspólna pula kredytów — dokupuje ją założyciel grupy",
+            "Wspólny zakres pracy — przedłuża go założyciel grupy",
             "Rolę założyciela można przekazać innej osobie",
             "10 GB przestrzeni na pliki i pocztę",
             "Osiem zadań naraz",

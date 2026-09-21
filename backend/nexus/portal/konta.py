@@ -219,6 +219,24 @@ def sesja_wazna(record: PortalSession, teraz: datetime) -> bool:
     return record.expires_at >= teraz and (teraz - record.last_seen_at) <= BEZCZYNNOSC
 
 
+async def konto_sesji(request: Request) -> PortalUser | None:
+    """Konto z ważnej sesji portalu albo ``None`` — bez wyjątku, gdy nikt nie jest zalogowany.
+
+    ``wymagaj_konta`` odmawia 401, bo strzeże zasobów. Pytanie „czy ktoś tu jest” to co
+    innego: brak sesji jest poprawną odpowiedzią, nie błędem.
+    """
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        return None
+    database = request.app.state.database
+    async with database.session() as session:
+        record = await session.get(PortalSession, auth.token_hash(token))
+        if record is None or not sesja_wazna(record, utcnow()):
+            return None
+        user = await session.get(PortalUser, record.user_id)
+    return user if user is not None and user.active else None
+
+
 async def wymagaj_konta(request: Request) -> PortalUser:
     """Zależność FastAPI: ważna sesja klienta portalu (i nagłówek CSRF przy zmianach stanu)."""
     token = request.cookies.get(COOKIE_NAME)
