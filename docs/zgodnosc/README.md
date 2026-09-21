@@ -178,8 +178,7 @@ usuwamy razem z grupą.
 
 ### 6.3 Trzecia luka, znaleziona 21.09.2026: treść cudzych stron z rozszerzenia
 
-Rozszerzenie przeglądarki ma `host_permissions: ["<all_urls>"]` i **czyta treść
-odwiedzanych stron**: `extension/src/tresc/ekstraktor.ts` wyodrębnia artykuł (limit
+Rozszerzenie przeglądarki **czyta treść odwiedzanych stron**: `extension/src/tresc/ekstraktor.ts` wyodrębnia artykuł (limit
 24 000 znaków), `opinie.ts` — opinie, a menu kontekstowe bierze zaznaczenie. Wysyłany
 ładunek to `{ kind: "page", title, url, text }` (`extension/src/tresc/index.ts:35-37`),
 czyli **tytuł, adres i treść cudzej strony** — dalej do modelu.
@@ -188,6 +187,19 @@ W polityce prywatności rozszerzenie pada **raz**, i to przy zupełnie innej kat
 „Klucze urządzeń … dodatek do przeglądarki”. O czytaniu stron nie ma tam ani słowa.
 To ta sama klasa luki co biometria: kategoria istnieje w produkcie, a nie ma jej
 w dokumencie, który czyta klient.
+
+**Rozstrzygnięcie zakresu (21.09.2026).** Do tego dnia rozszerzenie brało
+`host_permissions: ["<all_urls>"]`, czyli dostęp do wszystkich stron już przy instalacji.
+Właściciel rozstrzygnął, że zakres wybiera użytkownik. Uprawnienie do stron jest teraz
+opcjonalne (`optional_host_permissions`), a w opcjach rozszerzenia stoi wybór trzech
+zakresów: „Tylko po kliknięciu” (domyślny, `activeTab` — dostęp do jednej karty na czas
+jednej wizyty), „Wybrane witryny” i „Wszystkie strony”. Skrypt treści nie jest już wpisany
+w manifeście na stałe; tło rejestruje go wyłącznie na witrynach, na które użytkownik się
+zgodził (`extension/src/wspolne/zakres.ts`). Zawężenie zakresu oddaje wcześniejszą zgodę.
+
+Obowiązek informacyjny to zmienia o tyle, że zakres odczytu jest odtąd decyzją
+użytkownika podejmowaną świadomie, a nie warunkiem instalacji. Sam wiersz w tabeli
+danych zostaje bez zmian — kategoria danych jest ta sama.
 
 Gotowy wiersz do tabeli „3. Jakie dane zbieramy”:
 

@@ -5,6 +5,7 @@
 
 import type { AkcjaMenu, DoTla, Mozliwosci, TloDoTresci, WynikSzybkiejAkcji } from "./wspolne/komunikaty";
 import { wczytaj } from "./wspolne/ustawienia";
+import { przeladujSkrypt } from "./wspolne/zakres";
 
 const MENU: Array<{ id: AkcjaMenu["akcja"]; tytul: string; konteksty: string[] }> = [
   { id: "zapytaj", tytul: "Zapytaj Nexusa o zaznaczenie", konteksty: ["selection"] },
@@ -56,6 +57,17 @@ try {
   chrome.runtime.onStartup?.addListener(utworzMenu);
 } catch {
   // brak zdarzeń cyklu życia
+}
+
+// Skrypt treści chodzi tylko tam, gdzie użytkownik na to pozwolił. Rejestrację
+// odświeżamy przy starcie i po każdej zmianie zgód — także wtedy, gdy zgoda zostanie
+// cofnięta w ustawieniach przeglądarki, o czym rozszerzenie nie jest pytane.
+void przeladujSkrypt();
+try {
+  chrome.permissions?.onAdded?.addListener(() => void przeladujSkrypt());
+  chrome.permissions?.onRemoved?.addListener(() => void przeladujSkrypt());
+} catch {
+  // brak zdarzeń uprawnień
 }
 
 /** Wykonuje szybką akcję przybornika na serwerze Nexusa.

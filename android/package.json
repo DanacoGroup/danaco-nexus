@@ -1,7 +1,7 @@
 {
   "name": "danaco-nexus-android",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Aplikacja Android Danaco Nexus (Capacitor + moduły Kotlin).",
   "scripts": {
     "sync": "cap sync android"

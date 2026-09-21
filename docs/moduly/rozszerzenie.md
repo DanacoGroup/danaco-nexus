@@ -107,6 +107,23 @@ Zabezpieczenia, które czynią to bezpiecznym (do realizacji w trybie osadzonym 
 
 ## Bezpieczeństwo
 
+- **Zakres dostępu do stron wybiera użytkownik.** Manifest nie bierze żadnego hosta
+  przy instalacji: `<all_urls>` stoi w `optional_host_permissions`, a zwykłe uprawnienia
+  obejmują `activeTab`. W opcjach rozszerzenia są trzy zakresy:
+
+  | Zakres | Co obejmuje |
+  |---|---|
+  | Tylko po kliknięciu (domyślny) | dostęp do jednej karty, na czas jednej wizyty, po kliknięciu ikony, skrócie albo pozycji menu kontekstowego |
+  | Wybrane witryny | wskazane adresy działają same: przycisk przy krawędzi i przybornik zaznaczenia pojawiają się bez klikania ikony |
+  | Wszystkie strony | to samo na każdej stronie |
+
+  Skrypt treści nie jest wpisany w manifeście na stałe — wpis stały żądałby dostępu do
+  wszystkich stron już przy instalacji i wybór nic by nie dał. Tło rejestruje skrypt
+  dynamicznie na przyznanych witrynach (`chrome.scripting.registerContentScripts`)
+  i wyrejestrowuje po zawężeniu zakresu; źródłem prawdy są uprawnienia przeglądarki,
+  nie zapis w ustawieniach, bo zgodę można cofnąć poza rozszerzeniem.
+  Kod: `extension/src/wspolne/zakres.ts`, wywołania w `extension/src/tlo.ts`
+  i `extension/src/opcje/opcje.ts`.
 - Klucz urządzenia leży wyłącznie w `chrome.storage.local` rozszerzenia (zapas: `localStorage`
   pochodzenia `chrome-extension://`), nigdy w magazynie odwiedzanej strony. Skrypt treści go nie czyta.
   Pole klucza nie pokazuje zapisanej wartości.
@@ -170,7 +187,8 @@ Wersja rozszerzenia pochodzi z `extension/manifest.json`; ikony z pakietu marki 
 
 | Plik | Rola |
 |---|---|
-| `extension/manifest.json` | Manifest V3 (uprawnienia: storage, contextMenus, scripting, clipboardWrite; hosty: `<all_urls>`) |
+| `extension/manifest.json` | Manifest V3 (uprawnienia: storage, contextMenus, scripting, clipboardWrite, activeTab; hosty opcjonalne: `<all_urls>`) |
+| `extension/src/wspolne/zakres.ts` | Wybór zakresu dostępu do stron i rejestracja skryptu treści na przyznanych witrynach |
 | `extension/src/tresc/` | skrypt treści: panel (`panel-host.ts`), ekstraktor, opinie, wstawianie, skrót |
 | `extension/src/panel/` | panel: pasek akcji, most do Nexusa (`most.ts`), polecenia akcji |
 | `extension/src/opcje/` | strona opcji |

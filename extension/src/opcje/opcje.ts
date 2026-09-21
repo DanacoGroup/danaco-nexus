@@ -4,6 +4,17 @@ import type { Mozliwosci } from "../wspolne/komunikaty";
 import { logo } from "../wspolne/ikony";
 import { formularzPolaczenia } from "../wspolne/polaczenie";
 import { LIMIT_SKROTOW, wczytaj, zapisz, type SkrotPrzybornika } from "../wspolne/ustawienia";
+import {
+  OPISY_ZAKRESU,
+  WSZYSTKIE,
+  biezacy,
+  oddaj,
+  popros,
+  przeladujSkrypt,
+  przyznane,
+  wzorzecWitryny,
+  type Zakres,
+} from "../wspolne/zakres";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -13,6 +24,108 @@ async function mozliwosci(): Promise<Mozliwosci | null> {
   } catch {
     return null;
   }
+}
+
+/** Rysuje wybór zakresu dostępu do stron wraz z listą przyznanych witryn.
+ *
+ * Stan czytamy z uprawnień przeglądarki, nie z własnego zapisu: zgodę można cofnąć
+ * w ustawieniach przeglądarki, a rozszerzenie nie dostanie o tym pytania. Każdy wybór
+ * wychodzi z kliknięcia, bo tylko wtedy przeglądarka pokaże okienko zgody.
+ */
+async function rysujZakres(): Promise<void> {
+  const kontener = $("zakres");
+  kontener.replaceChildren();
+
+  const teraz = await biezacy();
+  const wzorce = (await przyznane()).filter((wzorzec) => wzorzec !== WSZYSTKIE);
+
+  const wybor = document.createElement("div");
+  for (const zakres of ["klik", "wybrane", "wszystkie"] as Zakres[]) {
+    const opis = OPISY_ZAKRESU[zakres];
+    const wiersz = document.createElement("label");
+    wiersz.className = "wiersz";
+    const pole = document.createElement("input");
+    pole.type = "radio";
+    pole.name = "zakres";
+    pole.value = zakres;
+    pole.checked = zakres === teraz;
+    pole.addEventListener("change", () => void ustawZakres(zakres));
+    const nazwa = document.createElement("strong");
+    nazwa.textContent = opis.nazwa;
+    const tresc = document.createElement("span");
+    tresc.textContent = ` — ${opis.opis}`;
+    wiersz.append(pole, nazwa, tresc);
+    wybor.append(wiersz);
+  }
+  kontener.append(wybor);
+
+  if (teraz === "wybrane") {
+    const lista = document.createElement("ul");
+    for (const wzorzec of wzorce) {
+      const pozycja = document.createElement("li");
+      const usun = document.createElement("button");
+      usun.type = "button";
+      usun.className = "link";
+      usun.textContent = "odbierz dostęp";
+      usun.addEventListener("click", async () => {
+        await oddaj([wzorzec]);
+        await przeladujSkrypt();
+        void rysujZakres();
+      });
+      pozycja.append(`${wzorzec} – `, usun);
+      lista.append(pozycja);
+    }
+    if (!wzorce.length) {
+      const puste = document.createElement("p");
+      puste.className = "pomoc";
+      puste.textContent = "Nie wskazałeś jeszcze żadnej witryny.";
+      lista.append(puste);
+    }
+
+    const pole = document.createElement("input");
+    pole.type = "text";
+    pole.placeholder = "adres witryny, np. sklep.example.pl";
+    const dodaj = document.createElement("button");
+    dodaj.type = "button";
+    dodaj.textContent = "Dodaj witrynę";
+    const blad = document.createElement("p");
+    blad.className = "pomoc";
+    dodaj.addEventListener("click", async () => {
+      const wzorzec = wzorzecWitryny(pole.value);
+      if (!wzorzec) {
+        blad.textContent = "Nie rozpoznaję tego adresu. Podaj samą nazwę witryny, na przykład sklep.example.pl.";
+        return;
+      }
+      blad.textContent = (await popros([wzorzec]))
+        ? ""
+        : "Przeglądarka nie przyznała dostępu do tej witryny.";
+      await przeladujSkrypt();
+      void rysujZakres();
+    });
+    kontener.append(lista, pole, dodaj, blad);
+  }
+
+  const stopka = document.createElement("p");
+  stopka.className = "pomoc";
+  stopka.textContent =
+    "Zakres zmienisz w każdej chwili. Zawężenie oddaje przeglądarce wcześniejszą zgodę; " +
+    "panel i przybornik działają wtedy po kliknięciu ikony albo skrócie.";
+  kontener.append(stopka);
+}
+
+/** Wprowadza wybrany zakres: prosi o zgodę albo oddaje tę, która już nie jest potrzebna. */
+async function ustawZakres(zakres: Zakres): Promise<void> {
+  if (zakres === "klik") {
+    await oddaj();
+  } else if (zakres === "wszystkie") {
+    await popros([WSZYSTKIE]);
+  } else {
+    // „Wybrane witryny” nie jest osobnym uprawnieniem: to stan, w którym przyznane są
+    // pojedyncze adresy. Zgoda na wszystkie strony musi więc odejść, zanim lista ma sens.
+    await oddaj([WSZYSTKIE]);
+  }
+  await przeladujSkrypt();
+  void rysujZakres();
 }
 
 async function rysujUkryte(): Promise<void> {
@@ -122,6 +235,7 @@ async function start(): Promise<void> {
     $("wersja").textContent = "";
   }
   await formularzPolaczenia($("polaczenie"), () => undefined);
+  await rysujZakres();
 
   const ustawienia = await wczytaj(true);
   const przycisk = $<HTMLInputElement>("przycisk");
