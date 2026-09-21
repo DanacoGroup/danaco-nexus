@@ -13,17 +13,30 @@
 
 import { createRequire } from "node:module";
 
-const { chromium } = createRequire(import.meta.url)("playwright");
+// Playwright leży w instalacji globalnej Node’a, a nie w `node_modules` projektu.
+// Szukanie względem tego pliku kończy się „Cannot find module”, bo katalog `frontend`
+// go nie ma; wyszukanie od katalogu globalnego trafia od razu.
+function wczytajPlaywright() {
+  for (const skad of [import.meta.url, "/danaco/programy/node/lib/node_modules/x.js"]) {
+    try {
+      return createRequire(skad)("playwright");
+    } catch {
+      // następna droga
+    }
+  }
+  throw new Error("Nie znaleziono pakietu playwright — zainstaluj go albo wskaż ścieżkę.");
+}
+
+const { chromium } = wczytajPlaywright();
 
 const BAZA = process.argv[2] || "http://127.0.0.1:8992";
 const SZEROKOSC = Number(process.argv[3] || 390);
 
+// Publiczne trasy witryny. `/cennik`, `/mozliwosci` i `/o-nas` nie są osobnymi stronami —
+// nic do nich nie prowadzi, a aplikacja rysuje pod nimi stronę produktu. Pomiar ich nie
+// obejmuje, żeby nie liczyć trzy razy tego samego widoku.
 const TRASY = [
   "/",
-  "/cennik",
-  "/mozliwosci",
-  "/o-nas",
-  "/kontakt",
   "/portal",
   "/portal/oferta",
   "/portal/funkcje",

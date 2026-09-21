@@ -1,8 +1,8 @@
 # Obsługiwane formaty i limity
 
 Nexus przyjmuje pliki, którymi pracuje się w biurze na co dzień, i oddaje wynik w postaci
-gotowej do użycia. Poniżej wykaz tego, co wchodzi i co wychodzi, razem z ograniczeniami
-wynikającymi z planu.
+gotowej do użycia. Poniżej wykaz tego, co wchodzi i co wychodzi, oraz granice, o które
+warto wiedzieć przed wgraniem pierwszego pliku.
 
 ## Dokumenty, arkusze i skany
 
