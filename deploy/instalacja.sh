@@ -3,7 +3,7 @@
 #
 # Wszystko, co należy wyłącznie do projektu, trafia do katalogu projektu:
 #   .venv/               środowisko Pythona (backend)
-#   programy/qdrant/     program Qdrant
+#   (programy Qdrant, Valkey i FrankenPHP trafiają do wspólnego /danaco/programy)
 #   dane/postgres/       klaster PostgreSQL 18 (port 5433, gniazdo w dane/run)
 #   dane/qdrant/         magazyn Qdrant (porty 6335/6336)
 #   dane/app/            pliki, pamięć podręczna, logi aplikacji
@@ -23,6 +23,7 @@ UV=/danaco/programy/bin/uv
 NODE_BIN=/danaco/programy/node/bin
 PG_BIN=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin
 PG_LIB=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
+PROGRAMY=/danaco/programy
 QDRANT_WERSJA=v1.19.1
 VALKEY_WERSJA=9.1.2
 FRANKENPHP_WERSJA=v1.12.7
@@ -35,7 +36,7 @@ krok() { printf '\n== %s\n' "$*"; }
 
 krok "Katalogi projektu"
 umask 002
-mkdir -p dane/app dane/run dane/qdrant dane/valkey dane/tmp dane/.cache programy .cache
+mkdir -p dane/app dane/run dane/qdrant dane/valkey dane/tmp dane/.cache .cache
 if [ ! -d dane/claude-profil ]; then
     sudo -u "$USLUGA_UZYTKOWNIK" mkdir -m 700 dane/claude-profil
 fi
@@ -48,38 +49,38 @@ krok "Środowisko Pythona (.venv)"
 krok "Interfejs WWW (frontend/dist)"
 (cd frontend && PATH="$NODE_BIN:$PATH" npm ci --no-audit --no-fund && PATH="$NODE_BIN:$PATH" npm run build)
 
-krok "Qdrant $QDRANT_WERSJA (programy/qdrant)"
-if [ ! -x programy/qdrant/qdrant ] || [ "$(cat programy/qdrant/WERSJA 2>/dev/null)" != "$QDRANT_WERSJA" ]; then
-    mkdir -p programy/qdrant
+krok "Qdrant $QDRANT_WERSJA ($PROGRAMY/qdrant)"
+if [ ! -x $PROGRAMY/qdrant/qdrant ] || [ "$(cat $PROGRAMY/qdrant/WERSJA 2>/dev/null)" != "$QDRANT_WERSJA" ]; then
+    mkdir -p $PROGRAMY/qdrant
     archiwum="$PROJEKT/.cache/qdrant-$QDRANT_WERSJA.tar.gz"
     curl -fsSL --retry 3 -o "$archiwum" \
         "https://github.com/qdrant/qdrant/releases/download/$QDRANT_WERSJA/qdrant-x86_64-unknown-linux-gnu.tar.gz"
-    tar -xzf "$archiwum" -C programy/qdrant qdrant
-    echo "$QDRANT_WERSJA" > programy/qdrant/WERSJA
+    tar -xzf "$archiwum" -C $PROGRAMY/qdrant qdrant
+    echo "$QDRANT_WERSJA" > $PROGRAMY/qdrant/WERSJA
 fi
-programy/qdrant/qdrant --version
+$PROGRAMY/qdrant/qdrant --version
 
-krok "Valkey $VALKEY_WERSJA (programy/valkey) – Redis projektu"
-if [ ! -x programy/valkey/bin/valkey-server ] || [ "$(cat programy/valkey/WERSJA 2>/dev/null)" != "$VALKEY_WERSJA" ]; then
+krok "Valkey $VALKEY_WERSJA ($PROGRAMY/valkey) – Redis projektu"
+if [ ! -x $PROGRAMY/valkey/bin/valkey-server ] || [ "$(cat $PROGRAMY/valkey/WERSJA 2>/dev/null)" != "$VALKEY_WERSJA" ]; then
     archiwum="$PROJEKT/.cache/valkey-$VALKEY_WERSJA-noble-x86_64.tar.gz"
     adres="https://download.valkey.io/releases/valkey-$VALKEY_WERSJA-noble-x86_64.tar.gz"
     curl -fsSL --retry 3 -o "$archiwum" "$adres"
     oczekiwana="$(curl -fsSL "$adres.sha256" | cut -d' ' -f1)"
     [ "$(sha256sum "$archiwum" | cut -d' ' -f1)" = "$oczekiwana" ] || { echo "Błędna suma kontrolna Valkey" >&2; exit 1; }
-    mkdir -p programy/valkey
-    tar -xzf "$archiwum" -C programy/valkey --strip-components=1
-    echo "$VALKEY_WERSJA" > programy/valkey/WERSJA
+    mkdir -p $PROGRAMY/valkey
+    tar -xzf "$archiwum" -C $PROGRAMY/valkey --strip-components=1
+    echo "$VALKEY_WERSJA" > $PROGRAMY/valkey/WERSJA
 fi
-programy/valkey/bin/valkey-server --version
+$PROGRAMY/valkey/bin/valkey-server --version
 
-krok "FrankenPHP $FRANKENPHP_WERSJA (programy/frankenphp) – serwer PHP chmury"
-if [ ! -x programy/frankenphp/frankenphp ] || [ "$(cat programy/frankenphp/WERSJA 2>/dev/null)" != "$FRANKENPHP_WERSJA" ]; then
-    mkdir -p programy/frankenphp
-    curl -fsSL --retry 3 -o programy/frankenphp/frankenphp.nowy \
+krok "FrankenPHP $FRANKENPHP_WERSJA ($PROGRAMY/frankenphp) – serwer PHP chmury"
+if [ ! -x $PROGRAMY/frankenphp/frankenphp ] || [ "$(cat $PROGRAMY/frankenphp/WERSJA 2>/dev/null)" != "$FRANKENPHP_WERSJA" ]; then
+    mkdir -p $PROGRAMY/frankenphp
+    curl -fsSL --retry 3 -o $PROGRAMY/frankenphp/frankenphp.nowy \
         "https://github.com/php/frankenphp/releases/download/$FRANKENPHP_WERSJA/frankenphp-linux-x86_64"
-    chmod 755 programy/frankenphp/frankenphp.nowy
-    mv -f programy/frankenphp/frankenphp.nowy programy/frankenphp/frankenphp
-    echo "$FRANKENPHP_WERSJA" > programy/frankenphp/WERSJA
+    chmod 755 $PROGRAMY/frankenphp/frankenphp.nowy
+    mv -f $PROGRAMY/frankenphp/frankenphp.nowy $PROGRAMY/frankenphp/frankenphp
+    echo "$FRANKENPHP_WERSJA" > $PROGRAMY/frankenphp/WERSJA
 fi
 
 krok "Nextcloud $NEXTCLOUD_WERSJA (dane/nextcloud/nextcloud) – chmura osobista"

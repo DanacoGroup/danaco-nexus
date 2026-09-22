@@ -17,7 +17,7 @@ Environment=XDG_CONFIG_HOME=/danaco/projekty/danaco-nexus/dane/nextcloud/caddy
 Environment=XDG_DATA_HOME=/danaco/projekty/danaco-nexus/dane/nextcloud/caddy
 Environment=PHP_INI_SCAN_DIR=/danaco/projekty/danaco-nexus/deploy/chmura/php
 Environment=TMPDIR=/danaco/projekty/danaco-nexus/dane/tmp
-ExecStart=/danaco/projekty/danaco-nexus/programy/frankenphp/frankenphp run \
+ExecStart=/danaco/programy/frankenphp/frankenphp run \
     --config /danaco/projekty/danaco-nexus/deploy/chmura/Caddyfile --adapter caddyfile
 Restart=always
 RestartSec=5

@@ -3,8 +3,8 @@
 #
 # Użycie:  deploy/android/buduj-apk.sh [--tylko-narzedzia] [--bez-testow]
 #
-# Skrypt jest idempotentny. Przy pierwszym uruchomieniu instaluje w katalogu projektu
-# (nigdy globalnie):
+# Skrypt jest idempotentny. Przy pierwszym uruchomieniu instaluje we wspólnym katalogu programów
+# serwera /danaco/programy:
 #   programy/jdk-21        – Temurin 21 (wymagany przez Capacitor 8 i AGP 8.13),
 #   programy/android-sdk   – Android SDK: cmdline-tools, platform-tools, platforma i build-tools,
 #   .cache/gradle, .cache/npm – pamięć podręczna Gradle i npm.
@@ -17,7 +17,7 @@ set -euo pipefail
 
 PROJEKT="${NEXUS_PROJEKT:-/danaco/projekty/danaco-nexus}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PROGRAMY="$PROJEKT/programy"
+PROGRAMY=/danaco/programy
 JDK="${JDK21_HOME:-$PROGRAMY/jdk-21}"
 SDK="${ANDROID_HOME:-$PROGRAMY/android-sdk}"
 WYJSCIE="${WYJSCIE:-$PROJEKT/.tmp/android/out}"

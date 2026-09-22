@@ -12,7 +12,7 @@ WorkingDirectory=/danaco/projekty/danaco-nexus/dane/nextcloud/nextcloud
 Environment=HOME=/danaco/projekty/danaco-nexus/dane/nextcloud
 Environment=PHP_INI_SCAN_DIR=/danaco/projekty/danaco-nexus/deploy/chmura/php
 Environment=TMPDIR=/danaco/projekty/danaco-nexus/dane/tmp
-ExecStart=/danaco/projekty/danaco-nexus/programy/frankenphp/frankenphp php-cli \
+ExecStart=/danaco/programy/frankenphp/frankenphp php-cli \
     /danaco/projekty/danaco-nexus/dane/nextcloud/nextcloud/cron.php
 TimeoutStartSec=30min
 Nice=10

@@ -11,4 +11,4 @@ if [ "$(id -un)" != "danaco-serwis" ]; then
 fi
 export PHP_INI_SCAN_DIR="$PROJEKT/deploy/chmura/php" TMPDIR="$PROJEKT/dane/tmp" HOME="$PROJEKT/dane/nextcloud"
 cd "$PROJEKT/dane/nextcloud/nextcloud"
-exec "$PROJEKT/programy/frankenphp/frankenphp" php-cli occ "$@"
+exec "/danaco/programy/frankenphp/frankenphp" php-cli occ "$@"

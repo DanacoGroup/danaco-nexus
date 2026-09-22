@@ -13,7 +13,7 @@ set -euo pipefail
 PROJEKT=/danaco/projekty/danaco-nexus
 NC_KATALOG="$PROJEKT/dane/nextcloud"
 NC="$NC_KATALOG/nextcloud"
-FRANKENPHP="$PROJEKT/programy/frankenphp/frankenphp"
+FRANKENPHP="/danaco/programy/frankenphp/frankenphp"
 PG_BIN=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin
 PG_GNIAZDO="$PROJEKT/dane/run"
 PG_PORT=5433

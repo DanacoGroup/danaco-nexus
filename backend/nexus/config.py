@@ -51,8 +51,8 @@ class Settings(BaseSettings):
     chmura_user: str = "admin"
     chmura_token_file: Path = Path("dane/app/chmura-token")
     realesrgan_dir: Path = Path("/danaco/programy/realesrgan")
-    voice_stt_model_dir: Path = Path("/danaco/projekty/danaco-nexus/programy/modele/whisper-large-v3-turbo")
-    voice_tts_dir: Path = Path("/danaco/projekty/danaco-nexus/programy/modele/piper")
+    voice_stt_model_dir: Path = Path("/danaco/programy/modele/whisper-large-v3-turbo")
+    voice_tts_dir: Path = Path("/danaco/programy/modele/piper")
     voice_default: str = ""
     voice_google_key_file: Path = Path("/danaco/projekty/danaco-nexus/dane/app/google-api-key")
     voice_threads: int = 16

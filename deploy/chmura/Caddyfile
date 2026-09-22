@@ -25,6 +25,7 @@
 }
 
 http://127.0.0.1:8940, http://localhost:8940 {
+	bind 127.0.0.1
 	root * /danaco/projekty/danaco-nexus/dane/nextcloud/nextcloud
 	encode zstd gzip
 
