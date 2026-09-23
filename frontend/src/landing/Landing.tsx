@@ -1,6 +1,7 @@
 // Publiczna strona produktu Danaco Nexus (dla gościa niezalogowanego).
 // Treść, układ i ruch: landing/LANDING_PAGE_SPEC.md. Wartości wizualne: design-tokens.
 
+import { wejscieDoAplikacji } from "../sladLogowania";
 import { Fragment, useEffect, useState } from "react";
 import { Logo, Logotype } from "../components/icons";
 import { ArrowRightIcon } from "../shell/icons";
@@ -235,10 +236,10 @@ export function MenuMobilne({ aktywna }: { aktywna: string }) {
               Wypróbuj bez rejestracji
             </a>
             <a
-              href="/zaloguj"
+              href={wejscieDoAplikacji().adres}
               className="flex h-11 items-center justify-center rounded-full text-sm font-medium text-muted transition-colors hover:text-fg"
             >
-              Zaloguj się
+              {wejscieDoAplikacji().etykieta}
             </a>
           </div>
         </div>
@@ -287,10 +288,10 @@ function Nawigacja() {
             Wypróbuj
           </a>
           <a
-            href="/zaloguj"
+            href={wejscieDoAplikacji().adres}
             className="hidden h-9 items-center rounded-full px-4 text-sm font-medium text-muted transition-colors hover:text-fg sm:inline-flex"
           >
-            Zaloguj się
+            {wejscieDoAplikacji().etykieta}
           </a>
           <PrzyciskInstalacji rozmiar="maly" />
           <MenuMobilne aktywna={aktywna} />
@@ -350,10 +351,10 @@ function Hero() {
         >
           <PrzyciskInstalacji />
           <a
-            href="/zaloguj"
+            href={wejscieDoAplikacji().adres}
             className="ui-nacisk inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line-strong px-6 font-medium transition-colors hover:bg-hover sm:w-auto"
           >
-            Zaloguj się
+            {wejscieDoAplikacji().etykieta}
           </a>
         </div>
         <p className="mt-5 text-sm text-muted">

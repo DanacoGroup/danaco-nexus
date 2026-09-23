@@ -71,7 +71,7 @@ describe("trasowanie aplikacji", () => {
   });
 
   it("nie zmienia pozostałych tras aplikacji", () => {
-    expect(parseRoute("/", "")).toEqual({ view: "chat", conversationId: null });
+    expect(parseRoute("/", "")).toEqual({ view: "landing" });
     expect(parseRoute("/m/kod", "")).toEqual({ view: "module", moduleId: "kod" });
     expect(parseRoute("/start", "")).toEqual({ view: "landing" });
     expect(parseRoute("/portalowy", "")).toEqual({ view: "chat", conversationId: null });

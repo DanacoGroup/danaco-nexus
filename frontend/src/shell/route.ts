@@ -19,17 +19,34 @@ const CZAT = new Set(["czat", "chat", "rozmowa"]);
 /** Stałe adresy części publicznej; portal odsyła do nich po nazwie. */
 export const SCIEZKA = {
   aplikacja: "/zaloguj",
+  czat: "/czat",
   stronaProduktu: "/start",
   piaskownica: "/wyprobuj",
   portal: "/portal",
 } as const;
 
-export function parseRoute(pathname: string, search: string): Route {
+/**
+ * Parametry, z którymi „/” jest wejściem do aplikacji, a nie stroną: start zainstalowanej
+ * aplikacji i skróty (`source`), udostępnianie (`share`, `tekst`) i powrót z chmury (`next`).
+ * Inne parametry, np. znaczniki kampanii, zostawiają stronę.
+ */
+const WEJSCIE_DO_APLIKACJI = ["source", "share", "tekst", "next"];
+
+/**
+ * `oknoAplikacji` — strona działa w oknie aplikacji na Androida albo na komputer, które
+ * otwierają „/” jako start. W przeglądarce „/” to zawsze strona produktu, także dla
+ * zalogowanego: aplikacja stoi pod `SCIEZKA.czat`.
+ */
+export function parseRoute(pathname: string, search: string, oknoAplikacji = false): Route {
   const params = new URLSearchParams(search);
   const sciezka = pathname.replace(/\/+$/, "") || "/";
   if (params.get("widok") === "panel") return { view: "panel" };
   if (sciezka === SCIEZKA.aplikacja) return { view: "login" };
   if (sciezka === SCIEZKA.stronaProduktu) return { view: "landing" };
+  if (sciezka === "/" && !oknoAplikacji && !WEJSCIE_DO_APLIKACJI.some((nazwa) => params.has(nazwa))) {
+    return { view: "landing" };
+  }
+  if (sciezka === SCIEZKA.czat) return { view: "chat", conversationId: null };
   if (sciezka === SCIEZKA.piaskownica) return { view: "demo" };
   // Portal ma własne trasowanie (src/portal/trasy.ts).
   if (sciezka === SCIEZKA.portal || pathname.startsWith(`${SCIEZKA.portal}/`)) return { view: "portal" };
@@ -60,23 +77,17 @@ export function routePath(route: Route): string {
     case "module":
       return `/m/${route.moduleId}`;
     case "chat":
-      return route.conversationId ? `/c/${route.conversationId}` : "/";
+      return route.conversationId ? `/c/${route.conversationId}` : SCIEZKA.czat;
   }
 }
 
-/**
- * Ekran dla trasy. Niezalogowany użytkownik na „/” widzi stronę startową; adres rozmowy
- * lub modułu (i powrót do chmury ?next=cloud) prowadzi prosto do logowania.
- */
-export function resolveScreen(route: Route, loggedIn: boolean, search: string): Screen {
+/** Ekran dla trasy. Niezalogowany użytkownik pod adresem aplikacji trafia na logowanie. */
+export function resolveScreen(route: Route, loggedIn: boolean): Screen {
   if (route.view === "panel") return "panel";
   if (route.view === "landing") return "landing";
   if (loggedIn) return "app";
   // „Wypróbuj” to wejście do tej samej aplikacji na koncie próbnym, nie osobny pokaz.
   if (route.view === "demo") return "demo";
-  if (route.view === "login") return "login";
-  const params = new URLSearchParams(search);
-  if (route.view === "chat" && route.conversationId === null && !params.has("next")) return "landing";
   return "login";
 }
 

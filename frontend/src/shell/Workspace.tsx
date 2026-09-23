@@ -25,7 +25,7 @@ import { EkranWylogowania } from "./EkranWylogowania";
 import { Paleta } from "./Paleta";
 import { PasekAktualizacji } from "./PasekAktualizacji";
 import { PasekKontaProbnego } from "./PasekKontaProbnego";
-import type { Route } from "./route";
+import { SCIEZKA, type Route } from "./route";
 import { TasksButton, TasksPanel, useActiveTasks } from "./TasksPanel";
 import { Toasts, type Toast } from "./Toasts";
 import { displayTurn } from "./turnDisplay";
@@ -189,7 +189,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
   /** Nowa rozmowa z gotowym zdaniem w polu wiadomości (moduł „Możliwości”, podpowiedzi). */
   const openChat = useCallback(
     (tekst?: string) => {
-      navigate("/");
+      navigate(SCIEZKA.czat);
       if (tekst) setPrefill(tekst);
     },
     [navigate],
@@ -242,7 +242,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
     takeSharedContent()
       .then((shared) => {
         if (!shared) return;
-        navigate("/", true);
+        navigate(SCIEZKA.czat, true);
         chat.open(null);
         if (shared.files.length) setDropped(shared.files);
         if (shared.text) setPrefill(shared.text);
@@ -352,7 +352,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
         onSelect={openConversation}
         onNew={() => {
           setSidebarOpen(false);
-          navigate("/");
+          navigate(SCIEZKA.czat);
           chat.open(null);
         }}
         onRename={(id, title) => void chat.rename(id, title)}
@@ -404,7 +404,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
             type="button"
             className="icon-btn md:hidden"
             onClick={() => {
-              navigate("/");
+              navigate(SCIEZKA.czat);
               chat.open(null);
             }}
             aria-label="Nowa rozmowa"
@@ -605,7 +605,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
               więc czytnik ekranu nie miał od czego zacząć — choć sam komunikat był na miejscu. */}
             <h1 className="text-xl font-semibold">Ten moduł nie jest dostępny</h1>
             <p className="max-w-sm text-sm text-muted">Moduł „{activeId}” nie jest zainstalowany w tej wersji Nexusa.</p>
-            <button type="button" className="rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent" onClick={() => navigate("/")}>
+            <button type="button" className="rounded-xl bg-accent-fill px-4 py-2 text-sm font-medium text-on-accent" onClick={() => navigate(SCIEZKA.czat)}>
               Wróć do czatu
             </button>
           </div>
@@ -665,7 +665,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
         onSelectEntry={selectEntry}
         onOpenConversation={openConversation}
         onNewConversation={() => {
-          navigate("/");
+          navigate(SCIEZKA.czat);
           chat.open(null);
         }}
         onToggleTheme={() => {

@@ -34,7 +34,7 @@ export default defineConfig({
         description: DESCRIPTION,
         lang: "pl",
         dir: "ltr",
-        start_url: "/?source=pwa",
+        start_url: "/czat?source=pwa",
         scope: "/",
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
@@ -93,7 +93,7 @@ export default defineConfig({
           {
             name: "Nowa rozmowa",
             short_name: "Nowa",
-            url: "/?source=shortcut",
+            url: "/czat?source=shortcut",
             icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
           },
           {

@@ -5,10 +5,11 @@ import { api, ApiError } from "./api";
 import { przySmianiePreferencji, wczytajPreferencje, zastosujRuch } from "./preferencje";
 import { applyTheme } from "./theme";
 import { Login } from "./components/Login";
-import { isStandalone } from "./pwa";
+import { isStandalone, jestOknemAplikacji } from "./pwa";
 import { EkranStartowy } from "./shell/EkranStartowy";
 import { applyIndexing } from "./seo";
-import { parseRoute, resolveScreen, safeNext, type Screen } from "./shell/route";
+import { zapamietajZalogowanie } from "./sladLogowania";
+import { parseRoute, resolveScreen, safeNext, SCIEZKA, type Screen } from "./shell/route";
 
 /** Ile plansza otwarcia czeka na odpowiedź o sesji, zanim ustąpi ujęciu uruchomienia. */
 const CZEKANIE_NA_SESJE_MS = 2500;
@@ -78,7 +79,7 @@ export default function App() {
     return () => worker.removeEventListener("message", onMessage);
   }, [navigate]);
 
-  const route = parseRoute(location.pathname, location.search);
+  const route = parseRoute(location.pathname, location.search, jestOknemAplikacji());
   if (route.view === "panel")
     return (
       <Suspense fallback={<Pusto />}>
@@ -92,41 +93,17 @@ export default function App() {
         <Portal />
       </Suspense>
     );
-  // Strona produktu pod „/start” wygląda tak samo dla gościa i zalogowanego, więc nie czeka
-  // na /api/auth/me: mniej o jeden obieg i o ujęcie uruchomienia.
-  if (route.view === "landing")
+  // Strona produktu pod „/” i „/start” wygląda tak samo dla gościa i zalogowanego, więc nie
+  // czeka na /api/auth/me: mniej o jeden obieg i o ujęcie uruchomienia.
+  if (route.view === "landing") {
+    aktualizujZnaczniki("landing");
     return (
       <Suspense fallback={<Pusto />}>
         <Landing />
       </Suspense>
     );
+  }
   return <MainApp location={location} navigate={navigate} />;
-}
-
-/** Ślad „ktoś się tu logował” — wyłącznie do decyzji o wyprzedzającym pobraniu pakietu.
- *
- * Nie jest to stan sesji i nie wolno go tak używać: o tym, kto patrzy, rozstrzyga wyłącznie
- * odpowiedź serwera. To podpowiedź wydajnościowa, więc jej brak (prywatne okno, wyczyszczone
- * dane, zablokowane `localStorage`) niczego nie psuje — pakiet pobierze się wtedy zwyczajnie,
- * po odpowiedzi o sesji, z zasłoną `EkranStartowy` na czas pobrania.
- */
-const SLAD_LOGOWANIA = "dn:byl-zalogowany";
-
-function bylZalogowany(): boolean {
-  try {
-    return localStorage.getItem(SLAD_LOGOWANIA) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function zapamietajZalogowanie(tak: boolean): void {
-  try {
-    if (tak) localStorage.setItem(SLAD_LOGOWANIA, "1");
-    else localStorage.removeItem(SLAD_LOGOWANIA);
-  } catch {
-    /* prywatne okno albo zablokowane dane witryny — podpowiedź jest opcjonalna */
-  }
 }
 
 function MainApp({
@@ -139,7 +116,7 @@ function MainApp({
   const [user, setUser] = useState<string | null | undefined>(undefined);
   const [cloudUrl, setCloudUrl] = useState("");
   const [gosc, setGosc] = useState(false);
-  const route = parseRoute(location.pathname, location.search);
+  const route = parseRoute(location.pathname, location.search, jestOknemAplikacji());
 
   const loadMe = useCallback(
     () =>
@@ -168,18 +145,9 @@ function MainApp({
     // kiedy wiadomo, kto patrzy. `catch` jest celowo pusty — nieudane wyprzedzenie nic
     // nie psuje, bo `Suspense` pobierze pakiet jeszcze raz, już z zasłoną.
     //
-    // Ale **nie każdemu**. Pod „/” stoi albo okno aplikacji, albo strona produktu — zależnie
-    // od sesji. Wyprzedzenie bez warunku znaczyło, że każdy, kto pierwszy raz wchodzi na
-    // stronę produktu, ściąga 560 kB pakietu okna, którego nie zobaczy. Zmierzone
-    // Lighthouse'em na wydaniu 21.09.2026: `Workspace-*.js` był największym pobraniem
-    // strony publicznej, większym niż oba nagrania hero razem wzięte.
-    //
-    // Warunek jest prosty i nie wymaga pytania serwera: pod adresem aplikacji (`/c/…`,
-    // `/m/…`, `/wyprobuj`) okno wejdzie na pewno, a pod „/” — tylko jeśli na tym urządzeniu
-    // ktoś już był zalogowany. Pierwszy gość nie płaci za nic.
-    if (location.pathname !== "/" || bylZalogowany()) {
-      void import("./shell/Workspace").catch(() => undefined);
-    }
+    // Strona produktu (`/`, `/start`) nie dochodzi do `MainApp`, więc gość na niej nie
+    // pobiera 560 kB pakietu okna, którego nie zobaczy.
+    void import("./shell/Workspace").catch(() => undefined);
     if (location.pathname === "/wyprobuj") void import("./demo/WejscieGoscia").catch(() => undefined);
 
     const sesja = loadMe();
@@ -200,7 +168,7 @@ function MainApp({
 
   // Preferencje konta jadą za użytkownikiem, nie za przeglądarką: po zalogowaniu
   // pobieramy je raz i od razu stosujemy motyw. Moduł startowy otwieramy wyłącznie
-  // przy wejściu na „/” bez wskazanej rozmowy — adres modułu albo rozmowy ma
+  // przy wejściu na czat bez wskazanej rozmowy — adres modułu albo rozmowy ma
   // pierwszeństwo nad ustawieniem.
   // Znacznik ograniczonego ruchu stoi na korzeniu dokumentu od pierwszej klatki — także
   // na ekranie logowania, zanim konto zdąży podać swoje preferencje. Zmiana przełącznika
@@ -219,7 +187,12 @@ function MainApp({
         applyTheme(dane.motyw);
         zastosujRuch();
         const naStarcie = dane.modul_startowy;
-        if (naStarcie && naStarcie !== "chat" && location.pathname === "/" && !location.search) {
+        // „/” dochodzi tu tylko jako start aplikacji (`?source=pwa`, okno na Androida i komputer).
+        const zapytanie = new URLSearchParams(location.search);
+        zapytanie.delete("source");
+        const sciezka = location.pathname.replace(/\/+$/, "") || "/";
+        const pustyCzat = (sciezka === SCIEZKA.czat || sciezka === "/") && !zapytanie.toString();
+        if (naStarcie && naStarcie !== "chat" && pustyCzat) {
           navigate(`/m/${naStarcie}`, true);
         }
       })
@@ -236,7 +209,7 @@ function MainApp({
   // Po zalogowaniu na /zaloguj – powrót pod adres z ?next= albo do czatu.
   useEffect(() => {
     if (user && route.view === "login") {
-      navigate(safeNext(new URLSearchParams(location.search).get("next")) ?? "/", true);
+      navigate(safeNext(new URLSearchParams(location.search).get("next")) ?? SCIEZKA.czat, true);
     }
   }, [user, route.view]);
 
@@ -248,10 +221,7 @@ function MainApp({
   // podmiana wariantu w połowie przerywałaby odtwarzanie i widać by było skok.
   if (user === undefined) return <EkranStartowy />;
 
-  let screen = resolveScreen(route, Boolean(user), location.search);
-  // Zainstalowana aplikacja (PWA) otwiera się od razu na logowaniu, nie na stronie startowej.
-  // Adres „/start” tu nie dochodzi — obsługuje go App przed stanem logowania.
-  if (screen === "landing" && isStandalone()) screen = "login";
+  const screen = resolveScreen(route, Boolean(user));
   // Aplikacja jest jednostronicowa: bez tego wywołania wyszukiwarka i podgląd odsyłacza
   // widziały znaczniki z `index.html` niezależnie od tego, na którym ekranie stoi użytkownik
   // — a ekrany za logowaniem mają mieć „noindex”. Moduł `seo` istniał, ale nikt go nie wołał.
@@ -269,7 +239,7 @@ function MainApp({
       <Suspense fallback={<Zaslona />}>
         <WejscieGoscia
           onWejscie={() => {
-            navigate("/", true);
+            navigate(SCIEZKA.czat, true);
             void loadMe();
           }}
         />

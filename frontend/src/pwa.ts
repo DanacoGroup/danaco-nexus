@@ -24,6 +24,11 @@ export function isStandalone(): boolean {
   );
 }
 
+/** Okno aplikacji na Androida (`NexusAndroid/`) albo na komputer (Electron): „/” jest tam startem aplikacji. */
+export function jestOknemAplikacji(userAgent: string = navigator.userAgent): boolean {
+  return /NexusAndroid\/|Electron\//.test(userAgent);
+}
+
 export function isIos(): boolean {
   const platform = navigator.userAgent;
   return /iPhone|iPad|iPod/.test(platform) || (platform.includes("Macintosh") && navigator.maxTouchPoints > 1);

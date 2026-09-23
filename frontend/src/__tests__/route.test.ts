@@ -5,7 +5,7 @@ const ID = "0b8f3c1e-3c52-4d0f-9d61-8c1a2b3c4d5e";
 
 describe("parseRoute", () => {
   it("rozpoznaje trasy aplikacji", () => {
-    expect(parseRoute("/", "")).toEqual({ view: "chat", conversationId: null });
+    expect(parseRoute("/czat", "")).toEqual({ view: "chat", conversationId: null });
     expect(parseRoute(`/c/${ID}`, "")).toEqual({ view: "chat", conversationId: ID });
     expect(parseRoute("/m/urzadzenia", "")).toEqual({ view: "module", moduleId: "urzadzenia" });
     expect(parseRoute("/m/deep-research/", "")).toEqual({ view: "module", moduleId: "deep-research" });
@@ -21,7 +21,23 @@ describe("parseRoute", () => {
   it("tryb osadzony ma pierwszeństwo przed ścieżką", () => {
     expect(parseRoute("/", "?widok=panel")).toEqual({ view: "panel" });
     expect(parseRoute("/", "?source=pwa&widok=panel")).toEqual({ view: "panel" });
-    expect(parseRoute("/", "?widok=inny")).toEqual({ view: "chat", conversationId: null });
+    expect(parseRoute("/", "?widok=inny")).toEqual({ view: "landing" });
+  });
+
+  it("„/” w przeglądarce to strona produktu, także ze znacznikami kampanii", () => {
+    expect(parseRoute("/", "")).toEqual({ view: "landing" });
+    expect(parseRoute("/", "?utm_source=facebook")).toEqual({ view: "landing" });
+  });
+
+  it("„/” jest wejściem do aplikacji przy starcie, skrótach, udostępnianiu i powrocie z chmury", () => {
+    for (const zapytanie of ["?source=pwa", "?source=shortcut", "?share=1", "?tekst=abc", "?next=cloud"]) {
+      expect(parseRoute("/", zapytanie)).toEqual({ view: "chat", conversationId: null });
+    }
+  });
+
+  it("w oknie aplikacji na Androida i komputer „/” otwiera aplikację", () => {
+    expect(parseRoute("/", "", true)).toEqual({ view: "chat", conversationId: null });
+    expect(parseRoute("/start", "", true)).toEqual({ view: "landing" });
   });
 
   it("nieznane i błędne adresy prowadzą do czatu", () => {
@@ -31,28 +47,31 @@ describe("parseRoute", () => {
   });
 
   it("routePath odwraca parseRoute", () => {
-    for (const path of ["/", `/c/${ID}`, "/m/urzadzenia", "/zaloguj", "/start"]) {
+    for (const path of ["/czat", `/c/${ID}`, "/m/urzadzenia", "/zaloguj", "/start"]) {
       expect(routePath(parseRoute(path, ""))).toBe(path);
     }
     expect(routePath({ view: "panel" })).toBe("/?widok=panel");
+    expect(routePath({ view: "chat", conversationId: null })).toBe("/czat");
   });
 });
 
 describe("resolveScreen", () => {
-  it("niezalogowany: strona startowa na /, logowanie dla rozmów, modułów i powrotu do chmury", () => {
-    expect(resolveScreen(parseRoute("/", ""), false, "")).toBe("landing");
-    expect(resolveScreen(parseRoute("/", "?next=cloud"), false, "?next=cloud")).toBe("login");
-    expect(resolveScreen(parseRoute(`/c/${ID}`, ""), false, "")).toBe("login");
-    expect(resolveScreen(parseRoute("/m/kod", ""), false, "")).toBe("login");
-    expect(resolveScreen(parseRoute("/zaloguj", ""), false, "")).toBe("login");
+  it("niezalogowany: strona startowa na /, logowanie dla czatu, rozmów, modułów i powrotu do chmury", () => {
+    expect(resolveScreen(parseRoute("/", ""), false)).toBe("landing");
+    expect(resolveScreen(parseRoute("/czat", ""), false)).toBe("login");
+    expect(resolveScreen(parseRoute("/", "?next=cloud"), false)).toBe("login");
+    expect(resolveScreen(parseRoute(`/c/${ID}`, ""), false)).toBe("login");
+    expect(resolveScreen(parseRoute("/m/kod", ""), false)).toBe("login");
+    expect(resolveScreen(parseRoute("/zaloguj", ""), false)).toBe("login");
   });
 
-  it("zalogowany: aplikacja; strona startowa i panel dostępne zawsze", () => {
-    expect(resolveScreen(parseRoute("/", ""), true, "")).toBe("app");
-    expect(resolveScreen(parseRoute("/zaloguj", ""), true, "")).toBe("app");
-    expect(resolveScreen(parseRoute("/start", ""), true, "")).toBe("landing");
-    expect(resolveScreen(parseRoute("/start", ""), false, "")).toBe("landing");
-    expect(resolveScreen(parseRoute("/", "?widok=panel"), false, "?widok=panel")).toBe("panel");
+  it("zalogowany: aplikacja pod /czat; strona produktu pod / i panel dostępne zawsze", () => {
+    expect(resolveScreen(parseRoute("/czat", ""), true)).toBe("app");
+    expect(resolveScreen(parseRoute("/", ""), true)).toBe("landing");
+    expect(resolveScreen(parseRoute("/zaloguj", ""), true)).toBe("app");
+    expect(resolveScreen(parseRoute("/start", ""), true)).toBe("landing");
+    expect(resolveScreen(parseRoute("/start", ""), false)).toBe("landing");
+    expect(resolveScreen(parseRoute("/", "?widok=panel"), false)).toBe("panel");
   });
 });
 

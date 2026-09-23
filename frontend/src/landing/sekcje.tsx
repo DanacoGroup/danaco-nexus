@@ -1,6 +1,7 @@
 // Sekcje strony produktu: pasek zdań, kroki, funkcje, filmy, prywatność, zaufanie, cennik, pytania, brama.
 // Treść i zachowanie: landing/LANDING_PAGE_SPEC.md, rozdz. 7.
 
+import { wejscieDoAplikacji } from "../sladLogowania";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckIcon, ChevronIcon, PauseIcon, PlayIcon, PlusIcon, SparkIcon, ToolIcon } from "../components/icons";
 import { ArrowRightIcon, DocumentIcon, LockIcon, PhoneIcon, ShieldIcon, WindowsIcon } from "../shell/icons";
@@ -721,10 +722,10 @@ export function Brama({ instaluj }: { instaluj: ReactNode }) {
       <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
         {instaluj}
         <a
-          href="/zaloguj"
+          href={wejscieDoAplikacji().adres}
           className="ui-nacisk inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line-strong px-6 font-medium transition-colors hover:bg-hover sm:w-auto"
         >
-          Zaloguj się <ArrowRightIcon size={18} />
+          {wejscieDoAplikacji().etykieta} <ArrowRightIcon size={18} />
         </a>
       </div>
       <p className="mt-5 text-sm text-muted">

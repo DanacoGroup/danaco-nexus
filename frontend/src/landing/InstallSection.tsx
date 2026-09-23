@@ -6,6 +6,7 @@ import { InstallIcon, ShareIcon } from "../components/icons";
 import { isIos, isStandalone, usePwa } from "../pwa";
 import { kaskada, NagranieStartu, ograniczonyRuch, PrzejscieWidoku, useWidocznosc, ZnakRuchu } from "../ruch";
 import { PhoneIcon, WindowsIcon, type IconProps } from "../shell/icons";
+import { SCIEZKA } from "../shell/route";
 import { Naglowek, Sekcja } from "./sekcje";
 
 type Platforma = "windows" | "android" | "ios";
@@ -81,7 +82,7 @@ export function PrzyciskInstalacji({ rozmiar = "duzy" }: { rozmiar?: "duzy" | "m
 
   if (isStandalone()) {
     return (
-      <a href="/" className={`${GLOWNY} ${wymiar}`}>
+      <a href={SCIEZKA.czat} className={`${GLOWNY} ${wymiar}`}>
         Otwórz<span className={maly ? "hidden sm:inline" : ""}> aplikację</span>
       </a>
     );
