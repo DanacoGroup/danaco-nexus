@@ -158,3 +158,39 @@ def test_sprzatanie_usuwa_tylko_wygasle_konta_probne(ustawienia: Settings) -> No
         await database.close()
 
     asyncio.run(run())
+
+
+def test_sprzatanie_kasuje_wygasle_sesje_i_stara_historie_dzialan(ustawienia: Settings) -> None:
+    """Polityka prywatności: sesja do wygaśnięcia, historia działań 30 dni po decyzji."""
+    from nexus.models.biuro import PendingAction
+    from nexus.usuwanie_konta import sprzataj_przeterminowane
+
+    async def run() -> None:
+        database = Database(ustawienia.database_url)
+        await database.create_schema()
+        klient = uuid.uuid4()
+        dawno = utcnow() - timedelta(days=45)
+        async with database.session() as session:
+            session.add_all(
+                [
+                    UserSession(
+                        token_hash=token_hash("stara"),
+                        owner_id=klient,
+                        expires_at=utcnow() - timedelta(hours=1),
+                    ),
+                    UserSession(
+                        token_hash=token_hash("wazna"),
+                        owner_id=klient,
+                        expires_at=utcnow() + timedelta(days=1),
+                    ),
+                    PendingAction(kind="mail", status="done", owner_id=klient, updated_at=dawno),
+                    PendingAction(kind="mail", status="cancelled", owner_id=klient, updated_at=utcnow()),
+                    PendingAction(kind="mail", status="pending", owner_id=klient, updated_at=dawno),
+                ]
+            )
+        assert await sprzataj_przeterminowane(database) == {"sesje": 1, "dzialania": 1}
+        assert await _liczba(database, UserSession) == 1
+        assert await _liczba(database, PendingAction) == 2
+        await database.close()
+
+    asyncio.run(run())

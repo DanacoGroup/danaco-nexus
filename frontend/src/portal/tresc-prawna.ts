@@ -184,6 +184,7 @@ Kopię lub opis zastosowanego zabezpieczenia otrzymasz po napisaniu na ${ADMINIS
       tytul: "8. Jak długo przechowujemy dane",
       tresc: `| Dane | Okres |
 |---|---|
+| Konto próbne („Wypróbuj bez rejestracji”) | 2 dni od założenia; potem usuwane automatycznie razem z rozmowami, plikami i pozostałymi danymi konta |
 | Konto klienta portalu | do czasu usunięcia konta; usunięcie jest nieodwracalne i kasuje konto wraz z sesjami, tokenami odzyskiwania oraz rozmowami, plikami, bazą wiedzy, stronami, projektami i chmurą konta |
 | Sesja portalu | do wygaśnięcia ciasteczka (domyślnie 14 dni) albo do 7 dni bezczynności — rozstrzyga krótszy termin; rekordy wygasłe są kasowane przy kolejnym logowaniu |
 | Sesja aplikacji | do wygaśnięcia (domyślnie 30 dni) albo do wylogowania |
@@ -194,9 +195,10 @@ Kopię lub opis zastosowanego zabezpieczenia otrzymasz po napisaniu na ${ADMINIS
 | Nagranie rozmowy głosowej | kasowane z serwera zaraz po rozpoznaniu mowy; rozpoznany tekst zostaje tylko wtedy, gdy wyślesz go jako wiadomość — wtedy trwa tak jak rozmowy. Okres po stronie Google wynika z warunków tej usługi |
 | Wiadomości poczty, wydarzenia kalendarza, pliki chmury osobistej | Nexus nie prowadzi ich kopii: zostają odpowiednio na serwerze Twojego dostawcy poczty i w chmurze osobistej, do czasu, aż je usuniesz |
 | Dane konta poczty w pliku konfiguracji na serwerze | do usunięcia tego konta w module Poczta |
-| Działanie przygotowane do zatwierdzenia (wysyłka wiadomości, zmiana w kalendarzu) | do zatwierdzenia, odrzucenia albo błędu wykonania |
+| Działanie przygotowane do zatwierdzenia (wysyłka wiadomości, zmiana w kalendarzu) | do zatwierdzenia albo odrzucenia, a potem jeszcze 30 dni jako historia w module Poczta i Kalendarz |
 | Wiadomość z formularza kontaktu | do załatwienia sprawy, a następnie przez okres przedawnienia roszczeń |
 | Faktury i dane rozliczeniowe | przez okres wymagany przepisami podatkowymi i o rachunkowości |
+| Kopie zapasowe serwera | 14 dni; dane usunięte z konta znikają z kopii najpóźniej po tym czasie, a kopia służy wyłącznie odtworzeniu usługi po awarii |
 | Dziennik zdarzeń rozliczeniowych | przez okres rozliczenia subskrypcji i przedawnienia roszczeń |
 | Klucz urządzenia | do odwołania klucza w ustawieniach |
 | Subskrypcja powiadomień | do wycofania zgody w przeglądarce albo do trwałego błędu doręczenia |

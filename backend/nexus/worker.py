@@ -26,7 +26,7 @@ from nexus.db import Database, Run, utcnow
 from nexus.events import QUEUE_CHANNEL, EventBus
 from nexus.logging_setup import configure_logging
 from nexus.tools import registry
-from nexus.usuwanie_konta import usun_wygasle_konta_probne
+from nexus.usuwanie_konta import sprzataj_przeterminowane, usun_wygasle_konta_probne
 
 logger = logging.getLogger("nexus.worker")
 
@@ -167,6 +167,9 @@ class Worker:
     async def _sprzataj_konta_probne(self) -> None:
         try:
             await usun_wygasle_konta_probne(self._settings, self._database)
+            usuniete = await sprzataj_przeterminowane(self._database)
+            if any(usuniete.values()):
+                logger.info("Sprzątanie przeterminowanych wpisów: %s", usuniete)
         except Exception:  # noqa: BLE001 - sprzątanie nie może zatrzymać procesu roboczego
             logger.exception("Błąd sprzątania wygasłych kont próbnych")
 

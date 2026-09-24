@@ -217,6 +217,29 @@ async def _usun_chmure(
         raise RuntimeError(f"folder chmury konta został ({odpowiedz.status_code})")
 
 
+#: Jak długo zostaje historia zatwierdzonych i odrzuconych działań (szkiców maili, usunięć).
+HISTORIA_DZIALAN_DNI = 30
+
+
+async def sprzataj_przeterminowane(database: Database) -> dict[str, int]:
+    """Kasuje wygasłe sesje aplikacji i starą historię działań oczekujących.
+
+    Polityka prywatności podaje dla sesji „do wygaśnięcia”, a dla działań do zatwierdzenia
+    — czas do decyzji i 30 dni historii. Bez tego wpisy (w tym treść szkiców maili) zostawały
+    w bazie na zawsze.
+    """
+    teraz = utcnow()
+    async with database.session() as session:
+        sesje = await session.execute(delete(UserSession).where(UserSession.expires_at < teraz))
+        dzialania = await session.execute(
+            delete(PendingAction).where(
+                PendingAction.status.in_(("done", "cancelled")),
+                PendingAction.updated_at < teraz - timedelta(days=HISTORIA_DZIALAN_DNI),
+            )
+        )
+    return {"sesje": sesje.rowcount or 0, "dzialania": dzialania.rowcount or 0}
+
+
 async def usun_wygasle_konta_probne(settings: Settings, database: Database) -> int:
     """Usuwa konta próbne starsze niż ich czas życia — razem z rozmowami i plikami.
 
