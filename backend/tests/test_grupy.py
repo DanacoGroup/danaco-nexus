@@ -133,6 +133,7 @@ async def test_przekazanie_roli_przenosi_rachunek(baza: Database) -> None:
     grupa = await grupy.zaloz(baza, szef)
     token = await grupy.zapros(baza, grupa, szef, "nastepca@example.com")
     await grupy.przyjmij(baza, token, nastepca)
+    await subskrypcja(baza, nastepca, grupy.PLAN_GRUPY, "aktywna")
 
     await grupy.przekaz_zalozyciela(baza, grupa, szef, nastepca)
 
@@ -142,6 +143,31 @@ async def test_przekazanie_roli_przenosi_rachunek(baza: Database) -> None:
     role = {pozycja.email: pozycja.rola for pozycja in await grupy.czlonkowie(baza, grupa.id)}
     assert role["nastepca@example.com"] == grupy.ROLA_ZALOZYCIEL
     assert role["szef@example.com"] == grupy.ROLA_CZLONEK
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stan", [None, "anulowana"], ids=["bez-subskrypcji", "subskrypcja-anulowana"])
+async def test_rola_zalozyciela_tylko_dla_konta_z_oplaconym_planem_grupa(
+    baza: Database, stan: str | None
+) -> None:
+    """Subskrypcja, która płaci za grupę, zostaje na koncie płacącego.
+
+    Przekazanie roli komuś bez własnego planu Grupa odebrałoby wszystkim członkom limity
+    planu i pulę pracy, a Stripe dalej obciążałby poprzedniego założyciela.
+    """
+    szef = await konto(baza, "szef@example.com")
+    nastepca = await konto(baza, "nastepca@example.com", plan="osobisty")
+    grupa = await grupy.zaloz(baza, szef)
+    await grupy.przyjmij(baza, await grupy.zapros(baza, grupa, szef, "nastepca@example.com"), nastepca)
+    if stan is not None:
+        await subskrypcja(baza, nastepca, grupy.PLAN_GRUPY, stan)
+
+    with pytest.raises(grupy.BladGrupy, match="plan Grupa"):
+        await grupy.przekaz_zalozyciela(baza, grupa, szef, nastepca)
+
+    assert await grupy.konto_rozliczeniowe(baza, nastepca) == szef
+    role = {pozycja.email: pozycja.rola for pozycja in await grupy.czlonkowie(baza, grupa.id)}
+    assert role["szef@example.com"] == grupy.ROLA_ZALOZYCIEL
 
 
 @pytest.mark.asyncio
@@ -286,6 +312,144 @@ async def test_bez_subskrypcji_miejsca_biora_sie_z_limitu_planu(baza: Database) 
     assert await grupy.miejsca_grupy(baza, szef) == grupy.miejsca_planu(grupy.PLAN_GRUPY)
 
 
+# --- limity planu u członka grupy ------------------------------------------------------------
+#
+# Członek grupy dostawał z grupy wyłącznie pulę dostępu założyciela, a przestrzeń, zadania
+# naraz i synchronizację brał z własnej subskrypcji — bez niej z zakresu próbnego (100 MB,
+# jedno zadanie, bez synchronizacji). Cennik obiecuje w Grupie co innego.
+
+
+async def subskrypcja(database: Database, konto_id: uuid.UUID, plan: str, status: str) -> None:
+    from nexus.platnosci.model import Subskrypcja
+
+    async with database.session() as session:
+        session.add(Subskrypcja(uzytkownik=str(konto_id), plan_kod=plan, status=status, okres="miesiac"))
+
+
+async def zmien_status(database: Database, konto_id: uuid.UUID, status: str) -> None:
+    from sqlalchemy import update
+
+    from nexus.platnosci.model import Subskrypcja
+
+    async with database.session() as session:
+        await session.execute(
+            update(Subskrypcja).where(Subskrypcja.uzytkownik == str(konto_id)).values(status=status)
+        )
+
+
+async def grupa_z_czlonkiem(database: Database) -> tuple[grupy.Grupa, uuid.UUID, uuid.UUID]:
+    szef = await konto(database, "szef@example.com")
+    pracownik = await konto(database, "pracownik@example.com", plan="osobisty")
+    await subskrypcja(database, szef, grupy.PLAN_GRUPY, "aktywna")
+    grupa = await grupy.zaloz(database, szef, "Kancelaria")
+    token = await grupy.zapros(database, grupa, szef, "pracownik@example.com")
+    await grupy.przyjmij(database, token, pracownik)
+    return grupa, szef, pracownik
+
+
+def zakres(limity) -> tuple[int, int, bool]:
+    return limity.zadania_rownolegle, limity.przestrzen_mb, limity.synchronizacja
+
+
+@pytest.mark.asyncio
+async def test_czlonek_oplaconej_grupy_ma_limity_planu_grupa(baza: Database) -> None:
+    """Członek pracuje na tym samym planie co założyciel: 8 zadań naraz, 10 GB, synchronizacja."""
+    from nexus.platnosci.uprawnienia import limity_uzytkownika
+
+    _, szef, pracownik = await grupa_z_czlonkiem(baza)
+
+    zalozyciel = await limity_uzytkownika(baza, str(szef))
+    czlonek = await limity_uzytkownika(baza, str(pracownik))
+    assert zakres(zalozyciel) == (8, 10_240, True)
+    assert zakres(czlonek) == zakres(zalozyciel)
+    assert czlonek.nazwa_planu == "Grupa"
+    assert czlonek.probny is False
+
+
+@pytest.mark.asyncio
+async def test_po_wyjsciu_z_grupy_czlonek_wraca_do_wlasnych_limitow(baza: Database) -> None:
+    from nexus.platnosci.uprawnienia import limity_uzytkownika
+
+    grupa, _, pracownik = await grupa_z_czlonkiem(baza)
+    await grupy.usun_czlonka(baza, grupa, pracownik, pracownik)
+
+    assert zakres(await limity_uzytkownika(baza, str(pracownik))) == (1, 100, False)
+
+
+@pytest.mark.asyncio
+async def test_po_wygasnieciu_subskrypcji_grupy_czlonek_wraca_do_wlasnego_planu(baza: Database) -> None:
+    """Grupa bez opłaty nie daje nic ponad własny plan członka — także gdy ten ma własny Pro."""
+    from nexus.platnosci.uprawnienia import limity_uzytkownika
+
+    _, szef, pracownik = await grupa_z_czlonkiem(baza)
+    await subskrypcja(baza, pracownik, "pro", "aktywna")
+    assert zakres(await limity_uzytkownika(baza, str(pracownik))) == (8, 10_240, True)
+
+    await zmien_status(baza, szef, "anulowana")
+
+    assert zakres(await limity_uzytkownika(baza, str(pracownik))) == (4, 2_048, True)
+    # Pula dostępu dalej należy do założyciela — to osobna zasada, limity jej nie zmieniają.
+    assert await grupy.konto_rozliczeniowe(baza, pracownik) == szef
+
+
+@pytest.mark.asyncio
+async def test_grupa_bez_oplaconego_planu_nie_rozszerza_limitow_czlonka(baza: Database) -> None:
+    from nexus.platnosci.uprawnienia import limity_uzytkownika
+
+    szef = await konto(baza, "szef@example.com")
+    pracownik = await konto(baza, "pracownik@example.com", plan="osobisty")
+    grupa = await grupy.zaloz(baza, szef)
+    await grupy.przyjmij(baza, await grupy.zapros(baza, grupa, szef, "pracownik@example.com"), pracownik)
+
+    assert zakres(await limity_uzytkownika(baza, str(pracownik))) == (1, 100, False)
+
+
+@pytest.mark.asyncio
+async def test_zmiana_subskrypcji_zalozyciela_uzgadnia_chmure_czlonkow(
+    baza: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Członek z własnym Nextcloudem dostaje limit grupy od razu, a nie przy wejściu do Nexusa."""
+    import nexus.chmura_konta as chmura
+
+    _, szef, pracownik = await grupa_z_czlonkiem(baza)
+    uzgodnione: list[uuid.UUID] = []
+
+    async def zapisz(_ustawienia: object, _baza: object, owner: uuid.UUID, *_: object, **__: object) -> None:
+        uzgodnione.append(owner)
+
+    monkeypatch.setattr(chmura, "konto_chmury", lambda _ustawienia, _owner: object())
+    monkeypatch.setattr(chmura, "konto_wedlug_planu", zapisz)
+
+    await chmura.uzgodnij_limit_po_zmianie_planu(None, baza, szef)  # type: ignore[arg-type]
+    assert uzgodnione == [szef, pracownik]
+
+    uzgodnione.clear()
+    await chmura.uzgodnij_limit_po_zmianie_planu(None, baza, pracownik)  # type: ignore[arg-type]
+    assert uzgodnione == [pracownik], "członek nie pociąga za sobą reszty grupy"
+
+
+@pytest.mark.asyncio
+async def test_blad_chmury_jednego_konta_nie_zatrzymuje_uzgadniania_reszty(
+    baza: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Wyjątek przy założycielu (np. błąd bazy przy limitach) nie może zostawić członków ze starym limitem."""
+    import nexus.chmura_konta as chmura
+
+    _, szef, pracownik = await grupa_z_czlonkiem(baza)
+    uzgodnione: list[uuid.UUID] = []
+
+    async def zapisz(_ustawienia: object, _baza: object, owner: uuid.UUID, *_: object, **__: object) -> None:
+        if owner == szef:
+            raise RuntimeError("baza chwilowo niedostępna")
+        uzgodnione.append(owner)
+
+    monkeypatch.setattr(chmura, "konto_chmury", lambda _ustawienia, _owner: object())
+    monkeypatch.setattr(chmura, "konto_wedlug_planu", zapisz)
+
+    await chmura.uzgodnij_limit_po_zmianie_planu(None, baza, szef)  # type: ignore[arg-type]
+    assert uzgodnione == [pracownik]
+
+
 def test_kasa_planu_grupowego_pozwala_wybrac_liczbe_miejsc() -> None:
     """Bez tego 49 zł byłoby ceną całej grupy, a nie ceną za osobę — czyli czymś innym niż cennik."""
     from nexus.platnosci.plany import pozycja_katalogu
@@ -305,3 +469,165 @@ def test_kasa_planu_grupowego_pozwala_wybrac_liczbe_miejsc() -> None:
     assert osobisty is not None
     jednoosobowa = _pozycja_zakupu(osobisty, "price_y")
     assert jednoosobowa == {"price": "price_y", "quantity": 1}
+
+
+@pytest.mark.asyncio
+async def test_ekran_platnosci_czlonka_pokazuje_limity_grupy(baza: Database) -> None:
+    """Moduł Twój plan ma pokazywać limity, które serwer stosuje, a nie zakres próbny członka."""
+    from nexus.api.modules.platnosci import _subskrypcja_json
+    from nexus.platnosci.konfiguracja import ustawienia_platnosci
+    from nexus.platnosci.uslugi import subskrypcja_uzytkownika
+
+    _, _, pracownik = await grupa_z_czlonkiem(baza)
+    rekord = await subskrypcja_uzytkownika(baza, str(pracownik))
+
+    dane = await _subskrypcja_json(baza, rekord, ustawienia_platnosci())
+
+    assert dane["limity"]["zadania_rownolegle"] == 8
+    assert dane["limity"]["synchronizacja"]
+
+
+# --- grupa w aplikacji: zadania naraz, przekazanie roli, przyjęcie zaproszenia -------------------
+
+import asyncio  # noqa: E402
+
+import nexus.api.modules.grupy as api_grupy  # noqa: E402
+from nexus.db import Conversation, Run  # noqa: E402
+
+
+def w_bazie(ustawienia: Settings, praca):  # type: ignore[no-untyped-def]  # noqa: F811
+    """Wykonuje ``praca(baza)`` na bazie aplikacji testowej."""
+
+    async def run():  # type: ignore[no-untyped-def]
+        database = Database(ustawienia.database_url)
+        try:
+            await database.create_schema()
+            return await praca(database)
+        finally:
+            await database.close()
+
+    return asyncio.run(run())
+
+
+def grupa_w_aplikacji(ustawienia: Settings) -> tuple[uuid.UUID, uuid.UUID]:  # noqa: F811
+    """Opłacona grupa z założycielem i członkiem — konta portalu logujące się do aplikacji."""
+    set_password(ustawienia)
+
+    async def praca(baza: Database) -> tuple[uuid.UUID, uuid.UUID]:
+        _, szef, pracownik = await grupa_z_czlonkiem(baza)
+        return szef, pracownik
+
+    return w_bazie(ustawienia, praca)
+
+
+def zaloguj_konto(klient: TestClient, email: str) -> None:
+    klient.cookies.clear()
+    odpowiedz = klient.post("/api/auth/login", json={"username": email, "password": HASLO}, headers=HEADERS)
+    assert odpowiedz.status_code == 200, odpowiedz.text
+
+
+def sledz_chmure(monkeypatch: pytest.MonkeyPatch) -> list[uuid.UUID]:
+    """Zapisuje konta, dla których API zleca uzgodnienie limitu chmury."""
+    uzgodnione: list[uuid.UUID] = []
+
+    async def zapisz(_ustawienia: object, _baza: object, owner: uuid.UUID) -> None:
+        uzgodnione.append(owner)
+
+    monkeypatch.setattr(api_grupy, "uzgodnij_limit_po_zmianie_planu", zapisz)
+    return uzgodnione
+
+
+def test_zadania_naraz_licza_sie_dla_calej_grupy(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Cennik: „Osiem zadań naraz, więc kilka osób pracuje jednocześnie” — osiem na grupę.
+
+    Liczone osobno dla każdego członka dawało grupie z 20 miejscami 160 zadań naraz.
+    """
+    szef, pracownik = grupa_w_aplikacji(settings)
+
+    async def zajmij(baza: Database) -> list[uuid.UUID]:
+        przebiegi = []
+        async with baza.session() as session:
+            for numer in range(8):
+                rozmowa = Conversation(owner_id=szef if numer < 5 else pracownik, title=f"Zadanie {numer}")
+                session.add(rozmowa)
+                await session.flush()
+                przebieg = Run(conversation_id=rozmowa.id, status="running")
+                session.add(przebieg)
+                await session.flush()
+                przebiegi.append(przebieg.id)
+        return przebiegi
+
+    przebiegi = w_bazie(settings, zajmij)
+
+    for email in ("pracownik@example.com", "szef@example.com"):
+        zaloguj_konto(client, email)
+        rozmowa = client.post("/api/conversations", json={}, headers=HEADERS).json()["id"]
+        odmowa = client.post(
+            f"/api/conversations/{rozmowa}/messages", json={"text": "Zadanie"}, headers=HEADERS
+        )
+        assert odmowa.status_code == 409, f"{email}: {odmowa.text}"
+        assert "8 zadania naraz" in odmowa.json()["detail"]
+
+    async def zakoncz(baza: Database) -> None:
+        async with baza.session() as session:
+            przebieg = await session.get(Run, przebiegi[0])
+            przebieg.status = "done"
+
+    w_bazie(settings, zakoncz)
+    zaloguj_konto(client, "pracownik@example.com")
+    rozmowa = client.post("/api/conversations", json={}, headers=HEADERS).json()["id"]
+    wolne = client.post(f"/api/conversations/{rozmowa}/messages", json={"text": "Zadanie"}, headers=HEADERS)
+    assert wolne.status_code == 202, wolne.text
+
+
+def test_przekazanie_roli_wymaga_planu_grupa_i_uzgadnia_chmure_grupy(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    szef, pracownik = grupa_w_aplikacji(settings)
+    uzgodnione = sledz_chmure(monkeypatch)
+    zaloguj_konto(client, "szef@example.com")
+
+    odmowa = client.post("/api/grupa/zalozyciel", json={"uzytkownik_id": str(pracownik)}, headers=HEADERS)
+    assert odmowa.status_code == 400, odmowa.text
+    assert "plan Grupa" in odmowa.json()["detail"]
+    assert client.get("/api/grupa", headers=HEADERS).json()["grupa"]["jestem_zalozycielem"] is True
+    assert uzgodnione == []
+
+    w_bazie(settings, lambda baza: subskrypcja(baza, pracownik, grupy.PLAN_GRUPY, "aktywna"))
+    przekazanie = client.post(
+        "/api/grupa/zalozyciel", json={"uzytkownik_id": str(pracownik)}, headers=HEADERS
+    )
+    assert przekazanie.status_code == 200, przekazanie.text
+    assert przekazanie.json()["grupa"]["jestem_zalozycielem"] is False
+    # Limity wszystkich członków idą teraz za subskrypcją nowego założyciela.
+    assert sorted(uzgodnione) == sorted([szef, pracownik])
+
+
+def test_przyjecie_zaproszenia_uzgadnia_chmure_przyjmujacego(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Członek z własnym Nextcloudem dostaje limit grupy od razu, a nie przy wejściu do chmury."""
+    set_password(settings)
+
+    async def przygotuj(baza: Database) -> tuple[uuid.UUID, str]:
+        szef = await konto(baza, "szef@example.com")
+        pracownik = await konto(baza, "pracownik@example.com", plan="osobisty")
+        await subskrypcja(baza, szef, grupy.PLAN_GRUPY, "aktywna")
+        grupa = await grupy.zaloz(baza, szef)
+        return pracownik, await grupy.zapros(baza, grupa, szef, "pracownik@example.com")
+
+    pracownik, token = w_bazie(settings, przygotuj)
+    uzgodnione = sledz_chmure(monkeypatch)
+    zaloguj_konto(client, "pracownik@example.com")
+
+    przyjecie = client.post("/api/grupa/przyjmij", json={"token": token}, headers=HEADERS)
+
+    assert przyjecie.status_code == 200, przyjecie.text
+    assert uzgodnione == [pracownik]

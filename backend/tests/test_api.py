@@ -292,6 +292,150 @@ def test_device_tokens(client: TestClient, settings: Settings) -> None:
     assert client.get("/api/conversations", headers=bearer).status_code == 401
 
 
+def _sesja_telefonu_i_przegladarki(client: TestClient, settings: Settings) -> tuple[dict, dict]:
+    """Dwie niezależne sesje tego samego konta: okno aplikacji na telefonie i przeglądarka."""
+    set_password(settings)
+    login(client)
+    telefon = dict(client.cookies)
+    client.cookies.clear()
+    login(client)
+    przegladarka = dict(client.cookies)
+    client.cookies.clear()
+    return telefon, przegladarka
+
+
+def test_cofniecie_klucza_konczy_sesje_ktora_go_zalozyla(client: TestClient, settings: Settings) -> None:
+    """Zgubiony telefon po „Cofnij” nie może dalej pracować w oknie ani założyć nowego klucza.
+
+    Okno aplikacji Android (i Nexus Desktop) ma własną sesję i zakłada klucz sam z tej sesji.
+    Samo unieważnienie klucza zostawiało sesję, a aplikacja po odrzuceniu klucza prosiła
+    o nowy — i dostawała go z tej samej, wciąż ważnej sesji.
+    """
+    telefon, przegladarka = _sesja_telefonu_i_przegladarki(client, settings)
+    client.cookies.update(telefon)
+    created = client.post("/api/urzadzenia", json={"name": "Telefon", "kind": "android"}, headers=HEADERS)
+    assert created.status_code == 201, created.text
+    assert created.json()["wylogowuje_okno"] is True
+    bearer = {"Authorization": f"Bearer {created.json()['token']}"}
+    client.cookies.clear()
+
+    client.cookies.update(przegladarka)
+    assert client.delete(f"/api/urzadzenia/{created.json()['id']}", headers=HEADERS).status_code == 200
+    assert client.get("/api/conversations").status_code == 200, "przeglądarka, która cofa klucz, zostaje"
+    client.cookies.clear()
+
+    assert client.get("/api/conversations", headers=bearer).status_code == 401
+    client.cookies.update(telefon)
+    assert client.get("/api/conversations").status_code == 401
+    nowy = client.post("/api/urzadzenia", json={"name": "Telefon", "kind": "android"}, headers=HEADERS)
+    assert nowy.status_code == 401
+
+
+def test_klucz_po_wygasnieciu_sesji_nie_obiecuje_wylogowania_okna(
+    client: TestClient, settings: Settings
+) -> None:
+    """Telefon zalogowany ponownie po wygaśnięciu sesji zatrzymuje stary klucz. Klucz zna tylko
+    starą sesję, więc lista nie może twierdzić, że jego cofnięcie wyloguje obecne okno."""
+    telefon, przegladarka = _sesja_telefonu_i_przegladarki(client, settings)
+    client.cookies.update(telefon)
+    created = client.post("/api/urzadzenia", json={"name": "Telefon", "kind": "android"}, headers=HEADERS)
+    assert created.status_code == 201, created.text
+    client.post("/api/auth/logout", headers=HEADERS)
+    client.cookies.clear()
+
+    client.cookies.update(przegladarka)
+    lista = client.get("/api/urzadzenia").json()
+    wpis = next(pozycja for pozycja in lista if pozycja["id"] == created.json()["id"])
+    assert wpis["wylogowuje_okno"] is False
+
+
+def test_klucz_dla_innego_urzadzenia_nie_wiaze_sesji_przegladarki(
+    client: TestClient, settings: Settings
+) -> None:
+    """Klucz z formularza w module Sprzęt jest dla innego urządzenia (rozszerzenie, wklejony
+    klucz w Nexus Desktop) — jego cofnięcie nie może wylogować przeglądarki, która go wydała."""
+    _, przegladarka = _sesja_telefonu_i_przegladarki(client, settings)
+    client.cookies.update(przegladarka)
+    created = client.post(
+        "/api/urzadzenia",
+        json={"name": "Chrome – biuro", "kind": "rozszerzenie", "dla_innego_urzadzenia": True},
+        headers=HEADERS,
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["wylogowuje_okno"] is False
+    assert client.delete(f"/api/urzadzenia/{created.json()['id']}", headers=HEADERS).status_code == 200
+    assert client.get("/api/conversations").status_code == 200
+    bearer = {"Authorization": f"Bearer {created.json()['token']}"}
+    assert client.get("/api/conversations", headers=bearer).status_code == 401
+
+
+def test_klucz_sprzed_zmiany_bez_sesji_cofa_sie_jak_dotad(client: TestClient, settings: Settings) -> None:
+    """Klucze założone przed zapisywaniem sesji nie mają jej w bazie — cofnięcie unieważnia
+    wyłącznie klucz i nie dotyka żadnej sesji."""
+    from sqlalchemy import update
+
+    from nexus.db import DeviceToken
+
+    telefon, przegladarka = _sesja_telefonu_i_przegladarki(client, settings)
+    client.cookies.update(telefon)
+    created = client.post("/api/urzadzenia", json={"name": "Telefon", "kind": "android"}, headers=HEADERS)
+    assert created.status_code == 201, created.text
+    client.cookies.clear()
+
+    async def odlacz_sesje() -> None:
+        database = Database(settings.database_url)
+        async with database.session() as session:
+            await session.execute(update(DeviceToken).values(sesja_hash=None))
+        await database.close()
+
+    asyncio.run(odlacz_sesje())
+    client.cookies.update(przegladarka)
+    assert client.delete(f"/api/urzadzenia/{created.json()['id']}", headers=HEADERS).status_code == 200
+    client.cookies.clear()
+    client.cookies.update(telefon)
+    assert client.get("/api/conversations").status_code == 200
+    bearer = {"Authorization": f"Bearer {created.json()['token']}"}
+    client.cookies.clear()
+    assert client.get("/api/conversations", headers=bearer).status_code == 401
+
+
+def test_kolumna_sesji_klucza_dochodzi_do_istniejacej_bazy(tmp_path: Path) -> None:
+    """Wdrożona baza ma już tabelę ``device_tokens`` bez nowej kolumny — ``create_schema``
+    ma ją dopisać, a istniejące klucze zostawić bez powiązanej sesji."""
+    from sqlalchemy import text
+
+    url = f"sqlite+aiosqlite:///{(tmp_path / 'stara.db').as_posix()}"
+
+    async def run() -> tuple[set[str], list[tuple[str, object]]]:
+        database = Database(url)
+        async with database.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "CREATE TABLE device_tokens (id CHAR(32) PRIMARY KEY, token_hash VARCHAR(64) UNIQUE, "
+                    "name VARCHAR(100), kind VARCHAR(20), created_at DATETIME, last_used_at DATETIME, "
+                    "revoked BOOLEAN)"
+                )
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO device_tokens VALUES ('0123456789abcdef0123456789abcdef', 'skrot', "
+                    "'Telefon', 'android', '2026-09-01 10:00:00', NULL, 0)"
+                )
+            )
+        await database.create_schema()
+        async with database.engine.connect() as connection:
+            opis = await connection.execute(text("PRAGMA table_info(device_tokens)"))
+            kolumny = {wiersz[1] for wiersz in opis}
+            wynik = await connection.execute(text("SELECT name, sesja_hash FROM device_tokens"))
+            wiersze = [tuple(wiersz) for wiersz in wynik]
+        await database.close()
+        return kolumny, wiersze
+
+    kolumny, wiersze = asyncio.run(run())
+    assert {"sesja_hash", "owner_id"} <= kolumny
+    assert wiersze == [("Telefon", None)]
+
+
 def test_nieistniejacy_wpis_portalu_daje_404(settings: Settings) -> None:
     """Adres wpisu, którego nie ma, ma zwrócić 404, a nie 200 z powłoką aplikacji.
 

@@ -28,6 +28,8 @@ export interface Device {
   created_at: string;
   last_used_at: string | null;
   revoked: boolean;
+  /** Cofnięcie wyloguje też okno aplikacji, które założyło klucz (telefon, Nexus Desktop). */
+  wylogowuje_okno?: boolean;
 }
 
 export interface DownloadInfo {
@@ -47,8 +49,10 @@ export const startApi = {
   pushUnsubscribe: (endpoint: string) => apiRequest<{ ok: boolean }>("POST", "/api/push/wypisz", { endpoint }),
   pushTest: () => apiRequest<{ sent: number; removed: number; failed: number }>("POST", "/api/push/test"),
   devices: () => apiRequest<Device[]>("GET", "/api/urzadzenia"),
+  // Klucz z modułu Sprzęt jest dla innego urządzenia: serwer nie wiąże go z sesją tego okna,
+  // więc jego cofnięcie nie wyloguje przeglądarki, która go wydała.
   createDevice: (name: string, kind: DeviceKind) =>
-    apiRequest<Device & { token: string }>("POST", "/api/urzadzenia", { name, kind }),
+    apiRequest<Device & { token: string }>("POST", "/api/urzadzenia", { name, kind, dla_innego_urzadzenia: true }),
   revokeDevice: (id: string) => apiRequest<{ ok: boolean }>("DELETE", `/api/urzadzenia/${id}`),
 };
 

@@ -82,15 +82,85 @@ def test_saldo_nie_schodzi_ponizej_zera(baza: Database) -> None:
 
 
 def test_nowe_konto_dostaje_przydzial_startowy(baza: Database) -> None:
-    """Świeże konto ma móc od razu pracować — inaczej po rejestracji nic się nie dzieje."""
+    """Świeże konto ma móc od razu pracować — inaczej po rejestracji nic się nie dzieje.
+
+    Start to zakres okresu próbnego, a nie pełny przydział planu: pełny przychodzi dopiero
+    z opłaconą fakturą, a cennik obiecuje na początek właśnie zakres próbny.
+    """
     konto = uuid.uuid4()
 
     async def przebieg() -> None:
         from nexus.platnosci.plany import PLAN_DOMYSLNY, pozycja_katalogu
 
         await kredyty.sprawdz_przed_zleceniem(baza, konto)
-        assert (await kredyty.stan(baza, konto)).saldo == pozycja_katalogu(PLAN_DOMYSLNY).kredyty_okresowo
+        pozycja = pozycja_katalogu(PLAN_DOMYSLNY)
+        assert pozycja is not None and 0 < pozycja.probny_kredyty < pozycja.kredyty_okresowo
+        assert (await kredyty.stan(baza, konto)).saldo == pozycja.probny_kredyty
         assert (await kredyty.historia(baza, konto))[0]["powod"] == "start"
+        # Przydział startowy jest jednorazowy.
+        await kredyty.pierwszy_przydzial(baza, konto)
+        assert (await kredyty.stan(baza, konto)).saldo == pozycja.probny_kredyty
+
+    asyncio.run(przebieg())
+
+
+def test_zakres_probny_tylko_dla_planu_z_okresem_probnym(baza: Database) -> None:
+    """Plan bez okresu próbnego nie ma węższego zakresu — dostaje pełny przydział."""
+    osobiste, pro = uuid.uuid4(), uuid.uuid4()
+
+    async def przebieg() -> None:
+        from nexus.platnosci.plany import pozycja_katalogu
+
+        assert await kredyty.przydziel_z_planu(baza, osobiste, "osobisty", "okres-probny", probny=True) == (
+            pozycja_katalogu("osobisty").probny_kredyty
+        )
+        assert await kredyty.przydziel_z_planu(baza, pro, "pro", "okres-probny", probny=True) == (
+            pozycja_katalogu("pro").kredyty_okresowo
+        )
+
+    asyncio.run(przebieg())
+
+
+def test_zakup_ani_wpis_zerowy_nie_odbieraja_zakresu_probnego(baza: Database) -> None:
+    """Zakres próbny blokuje wyłącznie wcześniejszy przydział, a nie zakup czy wpis zerowy.
+
+    Konto, które najpierw dokupiło dostęp kwotą, a potem zaczęło okres próbny, nie dostało
+    nigdy przydziału startowego — faktura otwierająca okres próbny ma mu go dać.
+    """
+    po_zakupie, po_pustym_przebiegu = uuid.uuid4(), uuid.uuid4()
+
+    async def przebieg() -> None:
+        from nexus.platnosci.plany import pozycja_katalogu
+
+        probny = pozycja_katalogu("osobisty").probny_kredyty
+        await kredyty.przydziel(baza, po_zakupie, 630, "zakup", "Przedłużenie dostępu")
+        saldo = await kredyty.pierwszy_przydzial(baza, po_zakupie, "osobisty", "okres-probny")
+        assert saldo == 630 + probny
+        powody = [wpis["powod"] for wpis in await kredyty.historia(baza, po_zakupie)]
+        assert powody == ["okres-probny", "zakup"]
+
+        # Obciążenie przy saldzie zero zapisuje wpis ze zmianą 0 — to nie był przydział.
+        await kredyty.obciaz(baza, po_pustym_przebiegu, 5, uuid.uuid4())
+        saldo = await kredyty.pierwszy_przydzial(baza, po_pustym_przebiegu, "osobisty", "okres-probny")
+        assert saldo == probny
+
+    asyncio.run(przebieg())
+
+
+def test_wlasciciel_instalacji_dostaje_na_start_pelny_plan(baza: Database) -> None:
+    """Właściciel instalacji nie ma okresu próbnego ani faktury, która dałaby mu pełny przydział.
+
+    Z zakresem próbnym świeża instalacja stawała po kilkudziesięciu zleceniach, a konta
+    administratora nie da się doładować poleceniem CLI.
+    """
+    from nexus.db import ADMIN_OWNER
+    from nexus.platnosci.plany import PLAN_DOMYSLNY, pozycja_katalogu
+
+    async def przebieg() -> None:
+        await kredyty.sprawdz_przed_zleceniem(baza, ADMIN_OWNER)
+        pelny = pozycja_katalogu(PLAN_DOMYSLNY).kredyty_okresowo
+        assert (await kredyty.stan(baza, ADMIN_OWNER)).saldo == pelny
+        assert [wpis["powod"] for wpis in await kredyty.historia(baza, ADMIN_OWNER)] == ["start"]
 
     asyncio.run(przebieg())
 
@@ -100,7 +170,7 @@ def test_zuzyte_konto_nie_przyjmuje_zlecenia(baza: Database) -> None:
     konto = uuid.uuid4()
 
     async def przebieg() -> None:
-        await kredyty.przydziel(baza, konto, 5, "zakup")
+        await kredyty.przydziel(baza, konto, 5, "start")
         await kredyty.obciaz(baza, konto, 5, uuid.uuid4())
         assert (await kredyty.stan(baza, konto)).saldo == 0
 

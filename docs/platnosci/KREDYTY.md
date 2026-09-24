@@ -51,13 +51,19 @@ Dopłata liczy się za każde wywołanie narzędzia w przebiegu.
 
 ## Przydziały
 
-| Zdarzenie | Co się dzieje |
-|---|---|
-| Pierwsze zlecenie na koncie bez historii | przydział planu domyślnego (`start`) |
-| Uruchomienie albo odnowienie planu | przydział z katalogu planów (`kredyty_okresowo`) |
-| `nexus.cli konto-testowe` | przydział planu wskazanego `--plan` plus opcjonalne `--kredyty` |
+| Zdarzenie | Co się dzieje | Powód w księdze |
+|---|---|---|
+| Pierwsze zlecenie na koncie bez wcześniejszego przydziału (`POWODY_PRZYDZIALU`; zakup i wpis zerowy się nie liczą) | zakres próbny planu domyślnego (`probny_kredyty` Osobistego) — `kredyty.pierwszy_przydzial`; właściciel instalacji (`ADMIN_OWNER`) dostaje pełny przydział planu (`kredyty_okresowo`) | `start` |
+| Konto próbne bez rejestracji (`POST /api/auth/gosc`) | zakres próbny planu domyślnego (`probny_kredyty` Osobistego) | `start` |
+| Opłacona faktura na 0 zł otwierająca okres próbny (`billing_reason` = `subscription_create`, plan z okresem próbnym) | zakres próbny planu (`probny_kredyty`) przez `pierwszy_przydzial` — tylko gdy konto nie dostało jeszcze przydziału, więc konto, które już dostało `start`, nie dostaje zakresu drugi raz | `okres-probny` |
+| Pierwsza opłacona faktura okresu płatnego i każde odnowienie (`invoice.paid`) | pełny przydział planu (`kredyty_okresowo`); plan bez okresu próbnego dostaje go od pierwszej faktury. Plan bierze się z faktury (cena pozycji, potem `subscription_details.metadata.plan`), rekord subskrypcji w bazie jest rezerwą | `odnowienie` |
+| Doładowanie kwotą albo pakiet (sesja Checkout w trybie `payment`, potwierdzona wpłata) | kredyty z przelicznika `kredyty_za_kwote` albo z pakietu | `zakup` |
+| `nexus.cli konto-testowe` | pełny przydział planu wskazanego `--plan` (`kredyty_okresowo`) plus opcjonalne `--kredyty` | `konto-testowe` |
 
-Kredyty w katalogu planów: Osobisty 2 000, Pro 20 000, Grupa 60 000.
+Kredyty w katalogu planów (`kredyty_okresowo`): Osobisty 2 000, Pro 20 000, Grupa 60 000. Zakres
+próbny (`probny_kredyty`) ma tylko plan z okresem próbnym: Osobisty 300 (7 dni). Praca członka
+grupy schodzi z salda założyciela (`platnosci/grupy.py:konto_rozliczeniowe`) niezależnie od
+przydziałów na jego własnym koncie.
 
 ## Zasady naliczania
 

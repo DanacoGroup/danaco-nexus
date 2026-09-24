@@ -18,6 +18,7 @@ Rachunek trzyma się jednej zasady: praca członka schodzi z puli założyciela
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
@@ -25,6 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from nexus.api.auth import require_session
+from nexus.chmura_konta import uzgodnij_limit_po_zmianie_planu
 from nexus.db import Database, UserSession
 from nexus.models.grupy import ROLA_ZALOZYCIEL, Grupa
 from nexus.platnosci import grupy as uslugi
@@ -57,6 +59,20 @@ async def _moja_grupa(database: Database, sesja: UserSession) -> Grupa:
     if grupa is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie należysz do żadnej grupy.")
     return grupa
+
+
+async def _uzgodnij_chmure(request: Request, konta: list[uuid.UUID]) -> None:
+    """Limity konta zmieniają się z przynależnością do grupy — także w jego Nextcloudzie.
+
+    Błąd chmury nie cofa zmiany w grupie: limit dogoni plan przy najbliższym wejściu do chmury.
+    """
+    for konto in konta:
+        try:
+            await uzgodnij_limit_po_zmianie_planu(request.app.state.settings, _baza(request), konto)
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Nie udało się uzgodnić limitu chmury konta %s", konto, exc_info=True
+            )
 
 
 def _odmowa(blad: uslugi.BladGrupy) -> HTTPException:
@@ -142,6 +158,7 @@ async def przyjmij_zaproszenie(
         grupa = await uslugi.przyjmij(database, payload.token, sesja.owner_id)
     except uslugi.BladGrupy as blad:
         raise _odmowa(blad) from blad
+    await _uzgodnij_chmure(request, [sesja.owner_id])
     return {"grupa": await _opis(database, grupa, sesja.owner_id)}
 
 
@@ -155,6 +172,7 @@ async def usun_z_grupy(
         await uslugi.usun_czlonka(database, grupa, sesja.owner_id, uzytkownik_id)
     except uslugi.BladGrupy as blad:
         raise _odmowa(blad) from blad
+    await _uzgodnij_chmure(request, [uzytkownik_id])
     if uzytkownik_id == sesja.owner_id:
         return {"grupa": None}
     return {"grupa": await _opis(database, grupa, sesja.owner_id)}
@@ -170,6 +188,8 @@ async def przekaz_role(
         await uslugi.przekaz_zalozyciela(database, grupa, sesja.owner_id, payload.uzytkownik_id)
     except uslugi.BladGrupy as blad:
         raise _odmowa(blad) from blad
+    # Limity wszystkich członków idą teraz za subskrypcją nowego założyciela.
+    await _uzgodnij_chmure(request, [c.uzytkownik_id for c in await uslugi.czlonkowie(database, grupa.id)])
     odswiezona = await uslugi.grupa_uzytkownika(database, sesja.owner_id)
     return {"grupa": await _opis(database, odswiezona, sesja.owner_id) if odswiezona else None}
 
@@ -178,10 +198,12 @@ async def przekaz_role(
 async def rozwiaz_grupe(request: Request, sesja: UserSession = Depends(require_session)) -> dict[str, Any]:
     database = _baza(request)
     grupa = await _moja_grupa(database, sesja)
+    czlonkowie = [c.uzytkownik_id for c in await uslugi.czlonkowie(database, grupa.id)]
     try:
         await uslugi.rozwiaz(database, grupa, sesja.owner_id)
     except uslugi.BladGrupy as blad:
         raise _odmowa(blad) from blad
+    await _uzgodnij_chmure(request, [c for c in czlonkowie if c != sesja.owner_id])
     return {"grupa": None}
 
 

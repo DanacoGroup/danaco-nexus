@@ -62,11 +62,11 @@ export const OFERTA: PozycjaOferty[] = [
   },
   {
     nazwa: "Spotkania i zdjęcia",
-    opis: "Spotkanie kończy się wtedy, kiedy się kończy — nie wtedy, gdy ktoś je spisze. Z nagrania wraca notatka z podziałem na mówców i lista zadań z terminami, a ze zdjęcia materiał, który można pokazać klientowi.",
+    opis: "Spotkanie kończy się wtedy, kiedy się kończy — nie wtedy, gdy ktoś je spisze. Z nagrania wraca notatka i lista zadań z terminami, a ze zdjęcia materiał, który można pokazać klientowi.",
     dla: "Marketing i szkolenia",
     zakres: [
       "Korekta, powiększanie, usuwanie tła",
-      "Transkrypcja z podziałem na mówców",
+      "Transkrypcja z czasem każdego słowa",
       "Napisy SRT i VTT",
     ],
   },
@@ -156,7 +156,7 @@ export const FUNKCJONALNOSCI: Funkcjonalnosc[] = [
   {
     grupa: "Biuro",
     nazwa: "Chmura osobista",
-    opis: "Od 1 GB do 10 GB zależnie od planu, wspólnie na pliki i pocztę. W planie Pro i wyżej wersje plików oraz synchronizacja z komputerem.",
+    opis: "Od 1 GB do 10 GB na pliki, zależnie od planu. Poczta zostaje u Twojego dostawcy i nie zajmuje tego miejsca. W planie Pro i wyżej wersje plików oraz synchronizacja z komputerem.",
   },
   {
     grupa: "Biuro",
@@ -176,7 +176,7 @@ export const FUNKCJONALNOSCI: Funkcjonalnosc[] = [
   {
     grupa: "Obraz i dźwięk",
     nazwa: "Transkrypcja nagrań",
-    opis: "Nagranie wraca jako tekst ze znacznikami czasu i podziałem na mówców, razem z plikiem napisów SRT lub VTT.",
+    opis: "Nagranie wraca jako tekst ze znacznikami czasu, razem z plikiem napisów SRT lub VTT.",
   },
   {
     grupa: "Obraz i dźwięk",
@@ -269,7 +269,7 @@ export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
   {
     pytanie: "Kto widzi moje pliki?",
     odpowiedz:
-      "Pliki, rozmowy, pocztę i kalendarz widzi wyłącznie właściciel konta. Poza tę przestrzeń wychodzi tylko to, czego wymaga bieżące zadanie: treść polecenia i dołączone pliki trafiają do modelu, który prowadzi rozmowę. Funkcje sięgające danych osób trzecich — rozpoznawanie twarzy, odczyt stron, SMS-y i ekran telefonu — są domyślnie wyłączone i wymagają osobnej zgody.",
+      "Pliki, rozmowy, pocztę i kalendarz widzi wyłącznie właściciel konta. Poza tę przestrzeń wychodzi tylko to, czego wymaga bieżące zadanie. Do modelu, który prowadzi rozmowę, trafia polecenie, historia bieżącej rozmowy, wyniki narzędzi i fragmenty, które agent musi przeczytać — z dołączonych plików, z wyników wyszukiwania w bazie wiedzy, z chmury i z poczty. Odczyt stron przez dodatek do przeglądarki, SMS-y i ekran telefonu wymagają Twojej zgody.",
   },
   {
     pytanie: "Co się dzieje z danymi po usunięciu konta?",

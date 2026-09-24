@@ -165,7 +165,11 @@ async def zmien_haslo(
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Obecne hasło jest nieprawidłowe.")
         try:
             konta.sprawdz_nowe_haslo(konto, payload.new_password)
-            await konta.ustaw_haslo(session, konto, payload.new_password)
+            # Bieżące okno zostaje zalogowane; pozostałe sesje konta kończy ``ustaw_haslo``.
+            biezacy = request.cookies.get(COOKIE_NAME)
+            await konta.ustaw_haslo(
+                session, konto, payload.new_password, token_hash(biezacy) if biezacy else ""
+            )
         except konta.BladKonta as error:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
     return {"ok": True}

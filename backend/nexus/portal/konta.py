@@ -24,13 +24,13 @@ from datetime import datetime, timedelta
 
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import HTTPException, Request, Response, status
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus.api import auth
 from nexus.config import Settings
-from nexus.db import utcnow
+from nexus.db import DeviceToken, UserSession, utcnow
 from nexus.models.portal import (
     PortalEmailConfirmation,
     PortalPasswordReset,
@@ -161,13 +161,38 @@ def haslo_zgodne(user: PortalUser | None, haslo: str) -> bool:
         return False
 
 
-async def ustaw_haslo(session: AsyncSession, user: PortalUser, haslo: str) -> None:
-    """Zmienia hasło konta i unieważnia wszystkie jego sesje oraz tokeny odzyskiwania."""
+async def ustaw_haslo(
+    session: AsyncSession, user: PortalUser, haslo: str, zachowaj_sesje_aplikacji: str = ""
+) -> None:
+    """Zmienia hasło konta i unieważnia wszystkie jego sesje, tokeny odzyskiwania i klucze okien.
+
+    Dotyczy to także sesji okna aplikacji (``sessions``), nie tylko portalu: hasło zmienia
+    się zwykle po to, żeby odciąć urządzenie, które je zna, a okno aplikacji na telefonie
+    i w Nexus Desktop trzyma własną sesję do 30 dni. ``zachowaj_sesje_aplikacji`` to skrót
+    tokenu sesji, z której klient zmienia hasło w aplikacji — ta jedna zostaje.
+    """
     sprawdz_haslo_polityka(haslo, user.email)
     user.password_hash = auth.hasher.hash(haslo)
     user.updated_at = utcnow()
     await session.execute(delete(PortalSession).where(PortalSession.user_id == user.id))
     await session.execute(delete(PortalPasswordReset).where(PortalPasswordReset.user_id == user.id))
+    await session.execute(
+        delete(UserSession).where(
+            UserSession.owner_id == user.id, UserSession.token_hash != zachowaj_sesje_aplikacji
+        )
+    )
+    # Zgubiony telefon: natywna część aplikacji (panel, głos, SMS) działa kluczem także po
+    # wylogowaniu okna, a klucz może wskazywać starą sesję sprzed ponownego logowania. Cofamy
+    # więc klucze okien poza bieżącym; klucze bez sesji (rozszerzenie, wklejony) zostają.
+    await session.execute(
+        update(DeviceToken)
+        .where(
+            DeviceToken.owner_id == user.id,
+            DeviceToken.sesja_hash.is_not(None),
+            DeviceToken.sesja_hash != zachowaj_sesje_aplikacji,
+        )
+        .values(revoked=True)
+    )
 
 
 async def zaloz_sesje(

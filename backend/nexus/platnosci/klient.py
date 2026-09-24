@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
+from urllib.parse import quote
 
 import httpx
 
@@ -80,7 +81,7 @@ class KlientStripe(Protocol):
         ...
 
     async def znajdz_kod_promocyjny(self, kod: str) -> dict[str, Any] | None:
-        """Szuka aktywnego kodu promocyjnego o podanym zapisie (albo ``None``)."""
+        """Szuka aktywnego kodu promocyjnego o podanym zapisie (albo ``None``), z obiektem kuponu."""
         ...
 
     async def zamknij(self) -> None:
@@ -164,7 +165,16 @@ class KlientHttpStripe:
     async def znajdz_kod_promocyjny(self, kod: str) -> dict[str, Any] | None:
         wynik = await self._zadanie("GET", "/promotion_codes", {"code": kod, "active": True, "limit": 1})
         pozycje = wynik.get("data", [])
-        return dict(pozycje[0]) if pozycje else None
+        if not pozycje:
+            return None
+        znaleziony = dict(pozycje[0])
+        # Od 2025-09-30.clover kupon stoi w promotion.coupon jako sam identyfikator. Kupon
+        # dociągamy osobno, bo rozwinięcie (expand) tego pola starsza wersja API odrzuca.
+        promocja = znaleziony.get("promotion")
+        if isinstance(promocja, dict) and isinstance(promocja.get("coupon"), str) and promocja["coupon"]:
+            rabat = await self._zadanie("GET", f"/coupons/{quote(promocja['coupon'], safe='')}")
+            znaleziony["promotion"] = {**promocja, "coupon": rabat}
+        return znaleziony
 
     async def zamknij(self) -> None:
         await self._klient.aclose()

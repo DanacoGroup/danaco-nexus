@@ -13,7 +13,7 @@ from sqlalchemy import delete, func, select, update
 from nexus.api.auth import require_session, wlasciciel
 from nexus.db import Conversation, Database, Message, Run, StoredFile, ToolCall, utcnow
 from nexus.platnosci import kredyty
-from nexus.platnosci.grupy import konto_rozliczeniowe
+from nexus.platnosci.grupy import konta_wspolnego_limitu_zadan, konto_rozliczeniowe
 from nexus.platnosci.uprawnienia import limity_uzytkownika
 from nexus.storage import FileStorage
 
@@ -333,6 +333,8 @@ async def send_message(
         await kredyty.sprawdz_przed_zleceniem(database, await konto_rozliczeniowe(database, owner))
     except kredyty.BrakKredytow as blad:
         raise HTTPException(blad.status, str(blad)) from blad
+    # W opłaconej grupie limit „zadania naraz” dotyczy całej grupy, nie każdego członka z osobna.
+    konta_limitu = await konta_wspolnego_limitu_zadan(database, owner)
     async with database.session() as session:
         busy = await session.scalar(
             select(func.count())
@@ -349,16 +351,17 @@ async def send_message(
                 select(func.count())
                 .select_from(Run)
                 .join(Conversation, Conversation.id == Run.conversation_id)
-                .where(Run.status.in_(ACTIVE_STATUSES), Conversation.owner_id == owner)
+                .where(Run.status.in_(ACTIVE_STATUSES), Conversation.owner_id.in_(konta_limitu))
             )
             or 0
         )
     limity = await limity_uzytkownika(database, str(owner))
     if trwajace >= max(1, limity.zadania_rownolegle):
+        zakres = " w całej grupie" if len(konta_limitu) > 1 else ""
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"Plan {limity.nazwa_planu} pozwala na {limity.zadania_rownolegle} "
-            f"{'zadanie' if limity.zadania_rownolegle == 1 else 'zadania'} naraz. "
+            f"{'zadanie' if limity.zadania_rownolegle == 1 else 'zadania'} naraz{zakres}. "
             "Poczekaj na zakończenie albo przejdź na wyższy plan.",
         )
     async with database.session() as session:

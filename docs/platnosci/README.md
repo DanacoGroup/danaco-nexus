@@ -184,6 +184,20 @@ Zdarzenia spoza wykazu są zapisywane ze stanem `pominiete` i kwitowane odpowied
 `200` — Stripe nie ponawia ich bez potrzeby. Błąd przetwarzania kończy się stanem
 `blad` we wpisie i odpowiedzią `500`, czyli ponowieniem doręczenia przez Stripe.
 
+Konto Stripe jest wspólne dla Nexusa, danaco-lex.pl i e-kancelaria.app, więc webhook
+dostaje też faktury, subskrypcje i sesje zakupu innych produktów. Przed obsługą
+`_uzytkownik` (`platnosci/zdarzenia.py`) ustala konto Nexusa: z `metadata.uzytkownik`,
+`client_reference_id` albo metadanych subskrypcji na fakturze (`subscription_details`,
+od API 2025-03-31 `parent.subscription_details`), a gdy ich brak — po kliencie Stripe
+zapisanym w `platnosci_subskrypcje` (kasa zakłada go przed każdą sesją zakupu). Oznaczenie
+liczy się tylko wtedy, gdy wskazuje konto Nexusa: identyfikator konta w zapisie z łącznikami,
+adres konta portalu albo login administratora tej instalacji. Zdarzenie bez konta Nexusa
+dostaje stan `pominiete`, w polu `blad` opis przyczyny, i niczego nie zmienia: nie zakłada
+rekordu subskrypcji, nie zapisuje faktury, nie dopisuje kredytów. Nie trafia też do
+właściciela instalacji. Zdarzenie z ceną z cennika Nexusa, ale bez konta (np. subskrypcja
+założona ręcznie w panelu Stripe), ma w `blad` osobny opis i ostrzeżenie w dzienniku
+aplikacji — do wyjaśnienia ręcznie.
+
 ## 6. Zmienne środowiskowe
 
 Pełna sekcja znajduje się na końcu `.env.example`. W repozytorium nie ma i nie może się
@@ -252,10 +266,19 @@ Do wykonania ręcznie, raz, przed uruchomieniem sprzedaży.
    i generowanie PDF — bez tego pole `invoice_pdf` pozostaje puste i lista faktur nie ma
    czego pokazać.
 8. **Kupony.** *Product catalog → Coupons*: załóż kupon i **kod promocyjny** (kod
-   promocyjny, nie sam kupon — moduł szuka kodu przez `/v1/promotion_codes`).
+   promocyjny, nie sam kupon — moduł szuka kodu przez `/v1/promotion_codes`; od API
+   2025-09-30.clover kod podaje tylko identyfikator kuponu, więc moduł dociąga go
+   z `/v1/coupons/{id}`).
 9. **Webhook.** *Developers → Webhooks → Add endpoint*: adres
-   `https://<adres-nexusa>/api/platnosci/webhook`, zdarzenia z rozdz. 5. Sekret
-   (`whsec_…`) zapisz w `NEXUS_PLATNOSCI_WEBHOOK_SEKRET_PLIK`.
+   `https://<adres-nexusa>/api/platnosci/webhook` i sześć zdarzeń obsługiwanych przez
+   `OBSLUGA` w `backend/nexus/platnosci/zdarzenia.py` (rozdz. 5):
+   `checkout.session.completed`, `customer.subscription.created`,
+   `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`,
+   `invoice.payment_failed`. Konto Stripe jest wspólne z danaco-lex.pl i e-kancelaria.app,
+   więc punkt dostanie zdarzenia tych typów z całego konta, także cudze faktury i subskrypcje.
+   Obsługa pomija zdarzenia bez konta Nexusa (stan `pominiete`, bez zmian w bazie — rozdz. 5).
+   Wersja API punktu może zostać wersją konta (2026-06-24.dahlia): moduł czyta obiekty i w tym
+   kształcie, i w starszym. Sekret (`whsec_…`) zapisz w `NEXUS_PLATNOSCI_WEBHOOK_SEKRET_PLIK`.
 10. **Restart usług.** Katalog planów i kwoty wczytują się przy starcie API.
 
 ## 8. Testowanie webhooków
@@ -397,9 +420,22 @@ z katalogu planów, rozstrzyga pojemność grupy — limit katalogu jest wartoś
 dopóki subskrypcji nie ma (konto testowe, chwila przed pierwszą płatnością).
 
 **Kto płaci.** `platnosci/grupy.py:konto_rozliczeniowe` zwraca konto, z którego schodzi
-praca: dla osoby poza grupą ją samą, dla członka — założyciela. Wywołują je trzy miejsca
-i tylko te trzy: sprawdzenie przed zleceniem (`api/conversations.py`), naliczenie po
-przebiegu (`agent/runner.py`) i widok wykorzystania (`api/modules/platnosci.py`).
+praca: dla osoby poza grupą ją samą, dla członka — założyciela. Wywołują je cztery miejsca
+i tylko te cztery: sprawdzenie przed zleceniem (`api/conversations.py`), naliczenie po
+przebiegu (`agent/runner.py`), szybka akcja rozszerzenia (`api/modules/rozszerzenie.py`,
+sprawdzenie i obciążenie) i widok wykorzystania (`api/modules/platnosci.py`).
+
+**Limity planu.** Członek grupy, której założyciel ma opłaconą subskrypcję planu Grupa
+(status z `STATUSY_UPRAWNIAJACE`), dostaje limity tego planu: `uprawnienia.limity_uzytkownika`
+bierze je z `grupy.subskrypcja_grupy`, więc obejmuje to wszystkie miejsca egzekwowania
+(zadania naraz, przestrzeń, konto Nextcloud z synchronizacją). Po wyjściu z grupy, jej
+rozwiązaniu albo wygaśnięciu subskrypcji założyciela członek wraca do limitów własnego planu;
+limit jego konta Nextcloud uzgadniają `DELETE /api/grupa…`, `POST /api/grupa/przyjmij`,
+`POST /api/grupa/zalozyciel` i webhook subskrypcji założyciela
+(`chmura_konta.uzgodnij_limit_po_zmianie_planu`, w tle po odpowiedzi dla Stripe). Zadania naraz
+(8) liczą się **na całą opłaconą grupę** (`grupy.konta_wspolnego_limitu_zadan`): trwające
+przebiegi założyciela i wszystkich członków. Przestrzeń (10 GB) liczy się **na każde konto
+osobno** — kod nie ma wspólnego licznika przestrzeni grupy.
 
 **Zaproszenia.** Jednorazowy token, w bazie wyłącznie jako skrót, z terminem ważności
 (`WAZNOSC_ZAPROSZENIA_DNI`). Przyjąć je może tylko konto o adresie, na który je wystawiono.
@@ -407,7 +443,9 @@ Odsyłacz wraca do interfejsu zapraszającego zamiast iść pocztą: skrzynka by
 nieskonfigurowana, a wtedy zaproszenie przepadałoby bez śladu.
 
 **Role.** Założyciel jest dokładnie jeden. `przekaz_zalozyciela` zamienia role, a nie dodaje
-drugiego założyciela; od tej chwili płaci i rozlicza się nowy. Założyciel nie wyjdzie
+drugiego założyciela; od tej chwili płaci i rozlicza się nowy. Subskrypcja Stripe nie
+przechodzi z rolą, więc odbiorca musi mieć własny opłacony plan Grupa — inaczej przekazanie
+jest odrzucane (członkowie straciliby limity planu i pulę pracy). Założyciel nie wyjdzie
 z grupy, dopóki roli nie przekaże — inaczej zostałaby grupa bez płatnika. Konto należy
 najwyżej do jednej grupy (warunek jednoznaczności w `grupy_czlonkowie`).
 

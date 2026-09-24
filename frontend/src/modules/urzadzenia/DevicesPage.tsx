@@ -1,5 +1,7 @@
-// Urządzenia: klucze dla aplikacji Android, Nexus Desktop i rozszerzenia, parowanie kodem QR,
-// powiadomienia push na tym urządzeniu i instalatory do pobrania.
+// Urządzenia: klucze dla rozszerzenia, Nexus Desktop i urządzeń własnych, lista i cofanie kluczy
+// (także tych, które telefon i Nexus Desktop zakładają same z sesji okna), powiadomienia push
+// na tym urządzeniu i instalatory do pobrania. Kod QR niesie adres serwera i klucz, ale dziś
+// nie czyta go żaden klient Nexusa (docs/moduly/start.md, rozdz. „Urządzenia”).
 
 import { useCallback, useEffect, useState, type ComponentType, type FormEvent } from "react";
 import { ApiError } from "../../api";
@@ -24,11 +26,11 @@ const KIND_ICONS: Record<DeviceKind, ComponentType<IconProps>> = {
   inne: KeyIcon,
 };
 
-const KIND_HINTS: Record<DeviceKind, string> = {
-  // Telefon nie ma ekranu „Połącz z serwerem” ani czytnika kodów: aplikacja Android zakłada
-  // klucz sama, przy pierwszym zalogowaniu w oknie Nexusa. Podpowiedź mówiła co innego, więc
-  // użytkownik szukał w aplikacji funkcji, której tam nie ma.
-  android: "Zaloguj się w aplikacji Nexus na telefonie — klucz urządzenia powstanie sam. Ten klucz przyda się, gdy chcesz go wpisać ręcznie.",
+export const KIND_HINTS: Record<DeviceKind, string> = {
+  // Telefon nie ma ekranu „Połącz z serwerem”, pola na klucz ani czytnika kodów: aplikacja
+  // Android zakłada klucz sama, przy pierwszym zalogowaniu w oknie Nexusa. Podpowiedź mówiła
+  // co innego, więc użytkownik szukał w aplikacji funkcji, której tam nie ma.
+  android: "Aplikacji na telefonie nie podaje się klucza — wystarczy zalogować się w niej, a klucz urządzenia powstanie sam. Ten klucz nie będzie potrzebny, możesz go cofnąć.",
   // Pulpit ma prostszą drogę: „Połącz komputer” robi klucz z sesji okna. Ręczne wklejenie
   // zostaje jako zapas (`desktop/src/ui/settings.html` — sekcja „Wklej klucz ręcznie”).
   desktop: "W Nexus Desktop wystarczy „Połącz komputer” w ustawieniach — klucz powstanie z sesji okna. Ten klucz wklej, gdy wolisz zrobić to ręcznie.",
@@ -36,7 +38,7 @@ const KIND_HINTS: Record<DeviceKind, string> = {
   inne: "Urządzenie wysyła klucz w nagłówku Authorization: Bearer <klucz>.",
 };
 
-/** Adres parowania w kodzie QR: serwer i klucz urządzenia. */
+/** Adres parowania w kodzie QR: serwer i klucz urządzenia (dziś tylko dla urządzeń własnych). */
 export function pairingUri(server: string, token: string): string {
   return `danaconexus://sparuj?serwer=${encodeURIComponent(server)}&klucz=${encodeURIComponent(token)}`;
 }
@@ -70,7 +72,9 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 function NewDevice({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
-  const [kind, setKind] = useState<DeviceKind>("android");
+  // Domyślnie rozszerzenie: to jedyne urządzenie, któremu klucz trzeba wkleić. Telefon zakłada
+  // klucz sam przy logowaniu, więc klucz „android” z tego formularza nigdy się nie przydaje.
+  const [kind, setKind] = useState<DeviceKind>("rozszerzenie");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<(Device & { token: string }) | null>(null);
@@ -128,7 +132,8 @@ function NewDevice({ onCreated }: { onCreated: () => void }) {
               </div>
             </div>
             <p className="text-xs text-muted">
-              Klucz daje pełny dostęp do Nexusa – nie wysyłaj go nikomu. Zgubione urządzenie odłącz przyciskiem „Cofnij”.
+              Klucz daje pełny dostęp do Nexusa – nie wysyłaj go nikomu. „Cofnij” unieważnia go od razu, ale nie kończy
+              logowania hasłem w oknie Nexusa na tamtym urządzeniu.
             </p>
           </div>
         </div>
@@ -313,7 +318,10 @@ export function DevicesPage() {
   useEffect(load, [load]);
 
   const revoke = (device: Device) => {
-    if (!window.confirm(`Odłączyć „${device.name}”? Urządzenie straci dostęp do Nexusa.`)) return;
+    const skutek = device.wylogowuje_okno
+      ? "Klucz przestanie działać, a okno Nexusa na tym urządzeniu zostanie wylogowane."
+      : "Klucz przestanie działać od razu.";
+    if (!window.confirm(`Odłączyć „${device.name}”? ${skutek}`)) return;
     startApi
       .revokeDevice(device.id)
       .then(load)
@@ -340,6 +348,10 @@ export function DevicesPage() {
 
         <section className={card}>
           <h2 className="text-base font-semibold">Połączone urządzenia</h2>
+          <p className="mt-1 text-sm text-muted">
+            Zgubiony telefon albo komputer odłącz przyciskiem „Cofnij” przy jego kluczu. Przy kluczu z dopiskiem
+            „wyloguje też okno aplikacji” kończy to również logowanie w oknie Nexusa na tamtym urządzeniu.
+          </p>
           {error && (
             <div role="alert" className="mt-3 flex items-center gap-2 rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
               <AlertIcon size={16} /> {error}
@@ -363,6 +375,7 @@ export function DevicesPage() {
                     <span className="block truncate text-sm font-medium">{device.name}</span>
                     <span className="block truncate text-xs text-muted">
                       {KIND_LABELS[device.kind] ?? device.kind} · ostatnio: {formatDate(device.last_used_at)}
+                      {device.wylogowuje_okno && " · „Cofnij” wyloguje też okno aplikacji"}
                     </span>
                   </span>
                   <button

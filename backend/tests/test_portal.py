@@ -588,6 +588,124 @@ def test_zmiana_hasla_konczy_sesje(client: TestClient) -> None:
     assert ponowne.status_code == 200
 
 
+def _ustaw_administratora(settings: Settings) -> None:
+    """Logowanie do aplikacji wymaga konta administratora instalacji — bez niego serwer
+    odpowiada 503, zanim sprawdzi konto klienta. Ustawienie hasła kończy sesje, więc raz na test."""
+
+    async def ustaw() -> None:
+        database = Database(settings.database_url)
+        await set_admin_credentials(database, "admin", HASLO_ADMINISTRATORA)
+        await database.close()
+
+    asyncio.run(ustaw())
+
+
+def _okno_aplikacji(client: TestClient) -> TestClient:
+    """Drugie urządzenie klienta: osobne ciasteczka, ta sama aplikacja."""
+    okno = TestClient(client.app)
+    zalogowanie = okno.post(
+        "/api/auth/login",
+        json={"username": "klient@example.com", "password": HASLO_KLIENTA},
+        headers=HEADERS,
+    )
+    assert zalogowanie.status_code == 200, zalogowanie.text
+    assert okno.get("/api/konto").status_code == 200
+    return okno
+
+
+def test_zmiana_hasla_w_portalu_wylogowuje_okna_aplikacji(client: TestClient, settings: Settings) -> None:
+    """Hasło zmienia się po to, żeby odciąć urządzenie, które je zna — także okno aplikacji."""
+    zarejestruj(client)
+    _ustaw_administratora(settings)
+    telefon = _okno_aplikacji(client)
+
+    zmiana = client.post(
+        "/api/portal/konto/haslo",
+        json={"current_password": HASLO_KLIENTA, "new_password": "nowe-haslo-portalu"},
+        headers=HEADERS,
+    )
+
+    assert zmiana.status_code == 200
+    assert telefon.get("/api/konto").status_code == 401
+
+
+def test_zmiana_hasla_w_aplikacji_zostawia_tylko_biezace_okno(client: TestClient, settings: Settings) -> None:
+    zarejestruj(client)
+    _ustaw_administratora(settings)
+    komputer = _okno_aplikacji(client)
+    telefon = _okno_aplikacji(client)
+
+    zmiana = komputer.post(
+        "/api/konto/haslo",
+        json={"current_password": HASLO_KLIENTA, "new_password": "nowe-haslo-aplikacji"},
+        headers=HEADERS,
+    )
+
+    assert zmiana.status_code == 200, zmiana.text
+    assert komputer.get("/api/konto").status_code == 200
+    assert telefon.get("/api/konto").status_code == 401
+
+
+def _klucz(okno: TestClient, rodzaj: str, dla_innego_urzadzenia: bool = False) -> dict[str, str]:
+    """Klucz urządzenia założony z okna aplikacji; zwraca nagłówek ``Authorization``."""
+    zalozony = okno.post(
+        "/api/urzadzenia",
+        json={"name": rodzaj, "kind": rodzaj, "dla_innego_urzadzenia": dla_innego_urzadzenia},
+        headers=HEADERS,
+    )
+    assert zalozony.status_code == 201, zalozony.text
+    return {"Authorization": f"Bearer {zalozony.json()['token']}"}
+
+
+def test_zmiana_hasla_cofa_klucze_okien_i_zostawia_klucze_innych_urzadzen(
+    client: TestClient, settings: Settings
+) -> None:
+    """Zgubiony telefon: po zmianie hasła natywna część aplikacji nie może dalej działać kluczem.
+
+    Klucz okna wskazuje sesję, z której go założono — także taką, której już nie ma po
+    ponownym logowaniu. Klucz rozszerzenia nie ma sesji i zmiana hasła go nie dotyczy.
+    """
+    zarejestruj(client)
+    _ustaw_administratora(settings)
+    telefon = _okno_aplikacji(client)
+    klucz_telefonu = _klucz(telefon, "android")
+    klucz_rozszerzenia = _klucz(telefon, "rozszerzenie", dla_innego_urzadzenia=True)
+    obcy = TestClient(client.app)
+    assert obcy.get("/api/conversations", headers=klucz_telefonu).status_code == 200
+
+    zmiana = client.post(
+        "/api/portal/konto/haslo",
+        json={"current_password": HASLO_KLIENTA, "new_password": "nowe-haslo-portalu"},
+        headers=HEADERS,
+    )
+
+    assert zmiana.status_code == 200
+    assert obcy.get("/api/conversations", headers=klucz_telefonu).status_code == 401
+    assert obcy.get("/api/conversations", headers=klucz_rozszerzenia).status_code == 200
+
+
+def test_zmiana_hasla_w_aplikacji_zostawia_klucz_biezacego_okna(
+    client: TestClient, settings: Settings
+) -> None:
+    zarejestruj(client)
+    _ustaw_administratora(settings)
+    komputer = _okno_aplikacji(client)
+    telefon = _okno_aplikacji(client)
+    klucz_komputera = _klucz(komputer, "desktop")
+    klucz_telefonu = _klucz(telefon, "android")
+
+    zmiana = komputer.post(
+        "/api/konto/haslo",
+        json={"current_password": HASLO_KLIENTA, "new_password": "nowe-haslo-aplikacji"},
+        headers=HEADERS,
+    )
+
+    assert zmiana.status_code == 200, zmiana.text
+    obcy = TestClient(client.app)
+    assert obcy.get("/api/conversations", headers=klucz_komputera).status_code == 200
+    assert obcy.get("/api/conversations", headers=klucz_telefonu).status_code == 401
+
+
 def test_odzyskiwanie_hasla_tokenem(client: TestClient, nadawca: NadawcaTestowy) -> None:
     zarejestruj(client)
     client.post("/api/portal/konto/wylogowanie", headers=HEADERS)

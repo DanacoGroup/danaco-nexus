@@ -114,9 +114,18 @@ async def zapewnij_klienta(
     return await _zapisz(database, rekord)
 
 
+def _rabat_kodu(kod_promocyjny: dict[str, Any]) -> dict[str, Any]:
+    """Kupon kodu promocyjnego: ``coupon`` (API do 2025-08-27) albo ``promotion.coupon``
+    (od 2025-09-30.clover). Sam identyfikator zamiast obiektu daje słownik z ``id``."""
+    rabat = kod_promocyjny.get("coupon") or (kod_promocyjny.get("promotion") or {}).get("coupon")
+    if isinstance(rabat, dict):
+        return rabat
+    return {"id": rabat} if isinstance(rabat, str) and rabat else {}
+
+
 def powod_odrzucenia_kuponu(kod_promocyjny: dict[str, Any], teraz: datetime | None = None) -> str:
     """Powód, dla którego kodu rabatowego nie można użyć (pusty = kod jest ważny)."""
-    rabat = kod_promocyjny.get("coupon") or {}
+    rabat = _rabat_kodu(kod_promocyjny)
     if not kod_promocyjny.get("active", True) or not rabat.get("valid", True):
         return "nieaktywny"
     wygasa = czas(kod_promocyjny.get("expires_at"))
@@ -141,7 +150,7 @@ async def sprawdz_kupon(database: Database, klient: KlientStripe, kod: str) -> K
         wygasa = zapis_daty(czas(znaleziony.get("expires_at")))
         koniec = f" Kod był ważny do {wygasa}." if powod == "wygasl" and wygasa else ""
         raise BladStripe(f"{KOMUNIKATY_KUPONU[powod]}{koniec}", 400)
-    rabat = znaleziony.get("coupon") or {}
+    rabat = _rabat_kodu(znaleziony)
     procent = rabat.get("percent_off") or 0
     kwota = rabat.get("amount_off") or 0
     async with database.session() as session:
@@ -459,7 +468,10 @@ async def rozpocznij_rezygnacje(
 
 
 def _okres_subskrypcji(dane: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
-    """Początek i koniec bieżącego okresu – z subskrypcji albo z jej pierwszej pozycji."""
+    """Początek i koniec bieżącego okresu – z subskrypcji albo z jej pierwszej pozycji.
+
+    Od wersji API 2025-03-31 („basil”) okres stoi wyłącznie na pozycjach (``items.data[]``).
+    """
     od, do = czas(dane.get("current_period_start")), czas(dane.get("current_period_end"))
     if od and do:
         return od, do
@@ -515,7 +527,9 @@ async def zapisz_subskrypcje(
         rekord.plan_kod = str(metadane.get("plan") or rekord.plan_kod or PLAN_DOMYSLNY)
         rekord.okres = str(metadane.get("okres") or rekord.okres)
     rekord.okres_od, rekord.okres_do = _okres_subskrypcji(dane)
-    rekord.anuluj_na_koniec = bool(dane.get("cancel_at_period_end"))
+    # W trybie rozliczeń „flexible” (od 2025-09-30.clover domyślnym) Stripe odradza
+    # cancel_at_period_end na rzecz cancel_at z datą, więc rezygnację znaczy każde z nich.
+    rekord.anuluj_na_koniec = bool(dane.get("cancel_at_period_end")) or bool(czas(dane.get("cancel_at")))
     rekord.miejsca = _miejsca_subskrypcji(dane)
     if rekord.status == STATUS_ANULOWANA:
         rekord.plan_kod = PLAN_DOMYSLNY

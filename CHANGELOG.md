@@ -21,15 +21,29 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   wydarzeń pokazywała propozycje wszystkich kont (z adresatami i treścią), a stan zadania
   modułu twórczego dało się odczytać po numerze z innego konta. W produkcji nie było ani
   subskrypcji push, ani oczekujących działań. Pełny przegląd: `docs/zgodnosc/IZOLACJA-KONT.md`.
+- **Cofnięcie klucza urządzenia wylogowuje okno aplikacji, a zmiana hasła — pozostałe okna.**
+  Okno aplikacji na Androidzie i w Nexus Desktop ma własną sesję (do 30 dni), niezwiązaną
+  z kluczem urządzenia: po „Cofnij” w module Sprzęt zgubiony telefon dalej pracował w oknie
+  i przy następnym otwarciu zakładał sobie nowy klucz. Klucz zapamiętuje teraz sesję, z której
+  go założono, i jej cofnięcie tę sesję kończy; lista mówi przy kluczu, czy tak będzie (klucze
+  sprzed zmiany i klucze dla rozszerzenia działają jak dotąd). Zmiana hasła — w aplikacji,
+  w portalu i przy odzyskiwaniu — kasowała tylko sesje portalu; teraz kończy też sesje okien
+  aplikacji i cofa klucze założone z tych okien (w aplikacji zostaje okno, z którego zmieniono
+  hasło; klucze rozszerzeń zostają). Klucz okna zna tylko sesję, z której go założono — po
+  ponownym zalogowaniu telefonu lista nie obiecuje już, że „Cofnij” wyloguje okno; pełne
+  przepinanie klucza przy każdym logowaniu wymaga nowej wersji aplikacji na Androida.
 
 ### Dodano
 
-- **Materiały portalu wczytane do bazy (24.09.2026).** Dokumentację, centrum wiedzy i blog
-  napisano 21 września, ale do bazy — z której portal je pokazuje — trafiło tylko 5 z 24
-  materiałów, i to w starszych wersjach. Dokumentacja (9 stron) jest teraz opublikowana
-  w wersji z repozytorium, a 10 poradników i 5 wpisów czeka w panelu portalu jako szkice
-  do przejrzenia i publikacji. Sprawdzone przed nadpisaniem: każda strona w bazie była
-  wcześniejszą wersją pliku z historii gita, bez poprawek naniesionych w panelu.
+- **Materiały portalu sprawdzone z kodem i opublikowane (24.09.2026).** Dokumentację, centrum
+  wiedzy i blog napisano 21 września, ale do bazy — z której portal je pokazuje — trafiło tylko
+  5 z 24 materiałów, i to w starszych wersjach. Każde twierdzenie wszystkich 24 materiałów
+  porównano z kodem (ustalenia potwierdzane przez trzech niezależnych sprawdzających: 133 ze
+  148), naniesiono poprawki, każdy plik sprawdził potem osobny kontroler, a na końcu cały
+  zestaw — pod kątem sprzeczności między materiałami. Najczęstsze błędy: nazwy przycisków
+  i układ ekranów, limity skrzynek pocztowych przypisane usłudze, której jeszcze nie ma,
+  „rozdzielanie mówców” bez modelu na serwerze, obietnice wersji i synchronizacji we wszystkich
+  planach, zakres danych przekazywanych do modelu. Wszystkie 24 pozycje są opublikowane.
 - **Własna chmura dla planów z synchronizacją.** Konto z planem Pro albo Grupa dostaje przy
   pierwszym wejściu do chmury własne konto Nextcloud (`nexus-<konto>`) z limitem przestrzeni
   planu; pliki z dotychczasowego folderu przechodzą tam same. Logowanie do chmury, także
@@ -63,6 +77,40 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   po koncie nie znajdowało ich wcale (`nexus-cli.sh przeindeksuj-wiedze` poprawia stare wpisy).
 - Zmiana planu widoczna z wnętrza aplikacji: moduł „Twój plan” i pasek „Zmień plan”, gdy
   dostęp w okresie dobiega końca.
+- **Webhook płatności na wspólnym koncie Stripe i w bieżącej wersji API.** Konto Stripe
+  obsługuje też inne produkty, a zdarzenie bez rozpoznanego konta trafiało do właściciela
+  instalacji — po podpięciu webhooka faktury i subskrypcje cudzych klientów zmieniałyby jego
+  plan, fakturę i kredyty. Zdarzenie przypisuje się teraz wyłącznie do istniejącego konta
+  Nexusa (metadane, klient Stripe z kasy), obce jest pomijane, a jego ładunek nie zostaje
+  w bazie. Konto pracuje na wersji API 2026-06-24: faktura subskrypcji nie ma już pola
+  `subscription` (jest w `parent.subscription_details`), pozycje — `price` (jest w
+  `pricing.price_details`), kupon kodu rabatowego przychodzi jako identyfikator. Bez tego
+  żadna opłacona faktura nie dawała przydziału, a kody rabatowe liczyły 0%. Plan przydziału
+  bierze się z faktury, a nie z rekordu, który mógł jeszcze nie znać subskrypcji. Uwaga:
+  webhooka Nexusa nie ma jeszcze na koncie Stripe (są tylko danaco-lex i e-kancelaria).
+- **Plan Grupa — osiem zadań naraz na całą grupę**, jak w cenniku (dotąd liczone na osobę);
+  przekazanie roli założyciela tylko osobie z opłaconym planem Grupa; limity chmury
+  uzgadniają się po przyjęciu zaproszenia, a po zdarzeniu Stripe w tle, po odpowiedzi.
+- **Członkowie planu Grupa mają limity planu Grupa.** Z grupy szła tylko pula pracy
+  założyciela; zadania naraz, przestrzeń i synchronizacja brały się z własnej subskrypcji
+  członka, czyli bez niej z zakresu próbnego (jedno zadanie, 100 MB, bez synchronizacji).
+  Limit chmury członków idzie za zmianą subskrypcji założyciela i za wyjściem z grupy,
+  a moduł „Twój plan” pokazuje limity, które serwer naprawdę stosuje.
+- **Okres próbny daje zakres z cennika.** Faktura na 0 zł otwierająca 7-dniowy okres próbny
+  dawała pełny przydział planu (2000), a cennik obiecuje zakres próbny (300); pełny przydział
+  wchodzi teraz z pierwszą płatną fakturą. Przydział startowy konta bez planu to też zakres
+  próbny — wcześniej samo założenie konta dawało pełny przydział planu Osobisty.
+- Poczta na telefonie ma przycisk „Skrzynki i ustawienia” — lewa kolumna z nim znika na
+  wąskim ekranie, więc skrzynki nie dało się dodać ani odłączyć.
+- Paleta poleceń (Ctrl + K) zawęża listę do wpisanego tekstu, bez względu na wielkość liter
+  i polskie znaki; wyszukiwarka „Wszystkie moduły” znajduje „Głos” po wpisaniu „glos”.
+- Teksty, które obiecywały więcej niż aplikacja: opis planu Osobisty („własny adres e-mail” —
+  w przygotowaniu), „podział na mówców” (brak modelu na serwerze), przeniesienie pracy
+  z konta próbnego na zwykłe konto (w FAQ strony produktu), „przestrzeń na pliki i pocztę”
+  (poczta zostaje u dostawcy), odpowiedź „Kto widzi moje pliki?”, opis pola Firma, warunek
+  „zadanie dłuższe niż chwila” przy powiadomieniach, adres w komunikacie mikrofonu (`/czat`),
+  ekran „nie jest jeszcze podłączony” w Chmurze i Kalendarzu (przyczyną jest konfiguracja
+  serwera, nie konto próbne), podpowiedź wyszukiwarki narzędzi dająca pusty wynik.
 
 ### Dodano
 

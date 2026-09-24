@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from nexus import __version__, model_krotki
 from nexus.api.auth import require_session, wlasciciel
 from nexus.platnosci import kredyty as ksiega
+from nexus.platnosci.grupy import konto_rozliczeniowe
 
 router = APIRouter(prefix="/api/rozszerzenie", tags=["rozszerzenie"], dependencies=[Depends(require_session)])
 
@@ -92,8 +93,10 @@ async def szybka_akcja(
     """Jedna krótka akcja na zaznaczonym tekście; odpowiedź wraca wprost do przybornika."""
     settings = request.app.state.settings
     database = request.app.state.database
+    # Członek grupy pracuje na puli założyciela, tak jak przy zleceniach w rozmowie.
+    konto = await konto_rozliczeniowe(database, owner)
     try:
-        await ksiega.sprawdz_przed_zleceniem(database, owner)
+        await ksiega.sprawdz_przed_zleceniem(database, konto)
     except ksiega.BrakKredytow as brak:
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(brak)) from brak
 
@@ -117,5 +120,5 @@ async def szybka_akcja(
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, "Nexus nie zwrócił treści dla tego zaznaczenia."
         )
-    await ksiega.obciaz(database, owner, KOSZT_AKCJI, uuid.uuid4())
+    await ksiega.obciaz(database, konto, KOSZT_AKCJI, uuid.uuid4())
     return {"wynik": tresc}

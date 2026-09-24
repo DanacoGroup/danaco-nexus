@@ -149,7 +149,7 @@ export function KalendarzPage({ openConversation, openChat }: ModulePageProps) {
         <EmptyState icon={<CalendarIcon size={26} />} title="Kalendarz nie jest jeszcze podłączony" szerokosc="max-w-lg" poziom={2}>
           <p>
             Terminy trzyma Twoja przestrzeń w chmurze — kalendarz pokaże je, gdy ta przestrzeń będzie gotowa.
-            Na koncie próbnym jeszcze jej nie ma, więc nie ma też czego wyświetlić.
+            Na tym serwerze nie jest jeszcze przygotowana, więc nie ma też czego wyświetlić.
           </p>
           <p className="mt-3">
             Zaplanować dzień możesz mimo to: napisz Nexusowi, co Cię czeka, a ułoży plan i przypomni o terminach,

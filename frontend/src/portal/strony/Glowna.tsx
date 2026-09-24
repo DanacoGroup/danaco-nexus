@@ -20,7 +20,7 @@ const ODBIORCY = [
   },
   {
     nazwa: "Materiał do opracowania",
-    opis: "Nagranie spotkania wraca jako tekst z podziałem na mówców. Dokument w obcym języku wraca z nienaruszonym układem.",
+    opis: "Nagranie spotkania wraca jako tekst ze znacznikami czasu. Dokument w obcym języku wraca z nienaruszonym układem.",
   },
   {
     nazwa: "Robota, do której brakuje specjalisty",

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { findModule, MODULES } from "../modules/registry";
 import { breadcrumbs, chunkRanges, joinPath, parentPath, uploadToCloud, type CloudEntry } from "../modules/cloud/api";
@@ -16,6 +16,16 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+/** Widoczny poniżej `md`: ani element, ani żaden przodek nie ma `hidden` działającego na wąskim ekranie
+ *  (samo `hidden` albo `max-*:hidden`; `md:hidden` chowa dopiero od `md` w górę). */
+function widocznyNaTelefonie(element: Element): boolean {
+  for (let wezel: Element | null = element; wezel; wezel = wezel.parentElement) {
+    const klasy = String(wezel.getAttribute("class") ?? "").split(/\s+/);
+    if (klasy.some((klasa) => klasa === "hidden" || /^max-[a-z0-9]+:hidden$/.test(klasa))) return false;
+  }
+  return true;
+}
 
 const entry = (name: string, type: "file" | "folder", size = 0, modified = "2026-09-01T10:00:00+02:00"): CloudEntry => ({
   path: `/${name}`,
@@ -238,6 +248,32 @@ describe("Poczta – odpowiedzi i adresy", () => {
     // czyta tę samą skrzynkę.
     expect(screen.getByRole("button", { name: "Podłącz skrzynkę" })).toBeTruthy();
     expect(screen.queryByText(/sudo -u danaco-serwis/)).toBeNull();
+  });
+
+  it("na telefonie z podłączoną pocztą da się dojść do skrzynek i ustawień", async () => {
+    // Przycisk był tylko w lewej kolumnie (`hidden md:flex`), więc na wąskim ekranie
+    // nie dało się dodać ani odłączyć skrzynki.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/stan")) {
+          const konto = { id: "jan@example.pl", address: "jan@example.pl", name: "", label: "", signature: false };
+          return new Response(JSON.stringify({ configured: true, address: konto.address, accounts: [konto] }));
+        }
+        if (url.includes("/foldery")) return new Response(JSON.stringify([{ name: "INBOX", role: "INBOX", label: "Odebrane" }]));
+        if (url.includes("/wiadomosci")) {
+          return new Response(JSON.stringify({ folder: "INBOX", total: 0, messages: [], more: false }));
+        }
+        return new Response("[]");
+      }),
+    );
+    render(<PocztaPage openConversation={() => undefined} openModule={() => undefined} openChat={() => undefined} />);
+    const przyciski = await screen.findAllByRole("button", { name: "Skrzynki i ustawienia" });
+    const naTelefonie = przyciski.filter(widocznyNaTelefonie);
+    expect(naTelefonie).toHaveLength(1);
+    fireEvent.click(naTelefonie[0]!);
+    expect(await screen.findByText("Dodaj kolejną skrzynkę")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Odłącz" })).toBeTruthy();
   });
 
   it("chmura bez przestrzeni mówi to po ludzku, a nie czerwonym paskiem", async () => {

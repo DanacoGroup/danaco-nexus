@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PaperclipIcon, PlusIcon, SparkIcon } from "../../components/icons";
+import { SettingsIcon } from "../../shell/icons";
 import type { ModulePageProps } from "../registry";
 import { describe } from "../_biuro/http";
 import { ClockIcon, InboxIcon, MailIcon, SearchIcon, StarIcon } from "../_biuro/icons";
@@ -382,6 +383,11 @@ export function PocztaPage({ openConversation }: ModulePageProps) {
               </select>
               <button type="button" className="icon-btn md:hidden" aria-label="Nowa wiadomość" onClick={() => setCompose({ initial: newDraft() })}>
                 <PlusIcon />
+              </button>
+              {/* Lewa kolumna ze „Skrzynkami i ustawieniami” znika poniżej `md`; bez tego
+                  przycisku na telefonie nie da się dodać ani odłączyć skrzynki. */}
+              <button type="button" className="icon-btn md:hidden" aria-label="Skrzynki i ustawienia" onClick={() => setUstawienia(true)}>
+                <SettingsIcon />
               </button>
             </form>
             <div className="px-3 pt-2">

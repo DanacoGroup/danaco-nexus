@@ -332,10 +332,10 @@ export function CloudPage({ openConversation, openModule }: ModulePageProps) {
         <EmptyState icon={<CloudIcon size={26} />} title="Chmura nie jest jeszcze podłączona" szerokosc="max-w-lg" poziom={2}>
           <p>
             Tu stanie Twoja przestrzeń na pliki: wszystko, co Nexus dla Ciebie zrobi, i wszystko, co sam wgrasz —
-            z kopią, wersjami i dostępem z telefonu. Na koncie próbnym przestrzeni jeszcze nie ma.
+            z kopią, wersjami i dostępem z telefonu. Na tym serwerze przestrzeń w chmurze nie jest jeszcze gotowa.
           </p>
           <p className="mt-3">
-            Pliki z rozmowy są w module „Pliki”; przestrzeń w chmurze dochodzi razem z własnym kontem.
+            Pliki z rozmowy są w module „Pliki” i możesz z nich korzystać już teraz.
           </p>
           <button type="button" className={`mt-5 ${buttonClass.primary}`} onClick={() => openModule("pliki")}>
             Otwórz Pliki

@@ -57,6 +57,9 @@ COLUMNS: list[tuple[str, str, str, str]] = [
             "biuro_oczekujace",
         )
     ),
+    # Sesja, z której założono klucz urządzenia (``sessions.token_hash``). Klucze sprzed
+    # tej kolumny mają NULL — ich cofnięcie unieważnia wyłącznie klucz, jak dotąd.
+    ("device_tokens", "sesja_hash", "VARCHAR(64)", "VARCHAR(64)"),
 ]
 
 
@@ -144,6 +147,11 @@ class DeviceToken(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Sesja okna aplikacji, która założyła klucz dla siebie (Android, Nexus Desktop).
+    # Cofnięcie klucza kończy też tę sesję — inaczej zgubiony telefon dalej pracowałby
+    # w oknie i sam zakładałby sobie nowy klucz. Pusta: klucz dla innego urządzenia
+    # albo klucz założony przed wprowadzeniem kolumny.
+    sesja_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class Conversation(Base):

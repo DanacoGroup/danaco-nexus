@@ -15,7 +15,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -36,7 +36,7 @@ from nexus.platnosci.pakiety import KATALOG_PAKIETOW
 from nexus.platnosci.plany import KATALOG_WG_KODU, PlanKatalogu, do_kupienia, synchronizuj_plany
 from nexus.platnosci.podpis import BladPodpisu, odczytaj_zdarzenie
 from nexus.platnosci.stany import KOMUNIKAT_SPRZEDAZ_WYLACZONA, stan_sprzedazy
-from nexus.platnosci.uprawnienia import limity_planu, limity_subskrypcji
+from nexus.platnosci.uprawnienia import limity_planu, limity_uzytkownika
 from nexus.platnosci.uslugi import (
     faktura_do_zaplaty,
     faktury_uzytkownika,
@@ -130,8 +130,12 @@ def _adresy(request: Request) -> Any:
 async def _subskrypcja_json(
     database: Database, subskrypcja: Subskrypcja, ustawienia: UstawieniaPlatnosci
 ) -> dict[str, Any]:
-    """Subskrypcja, limity planu i stan sprzedaży wraz z komunikatem dla użytkownika."""
-    limity = limity_subskrypcji(subskrypcja)
+    """Subskrypcja, limity planu i stan sprzedaży wraz z komunikatem dla użytkownika.
+
+    Limity to te, które serwer naprawdę stosuje: członek opłaconej grupy dostaje limity
+    planu Grupa z subskrypcji założyciela, choć jego własny rekord to plan domyślny.
+    """
+    limity = await limity_uzytkownika(database, subskrypcja.uzytkownik)
     pozycja = KATALOG_WG_KODU.get(subskrypcja.plan_kod)
     zalegla = await faktura_do_zaplaty(database, subskrypcja.uzytkownik)
     stan = stan_sprzedazy(subskrypcja, ustawienia.skonfigurowane, zalegla)
@@ -503,7 +507,10 @@ async def _tresc_webhooka(request: Request) -> bytes:
 
 
 async def _uzgodnij_limit_chmury(request: Request, zdarzenie: dict[str, Any]) -> None:
-    """Limit chmury idzie za planem; błąd chmury nie może cofać przyjęcia zdarzenia przez Stripe."""
+    """Limit chmury idzie za planem; błąd chmury nie może cofać przyjęcia zdarzenia przez Stripe.
+
+    Działa w tle, po odpowiedzi dla Stripe (``webhook``), więc wyjątek nie ma już komu wrócić.
+    """
     if not str(zdarzenie.get("type", "")).startswith(("customer.subscription.", "checkout.")):
         return
     try:
@@ -519,7 +526,9 @@ async def _uzgodnij_limit_chmury(request: Request, zdarzenie: dict[str, Any]) ->
 
 
 @router.post("/webhook", include_in_schema=False)
-async def webhook(request: Request, stripe_signature: str = Header("")) -> dict[str, Any]:
+async def webhook(
+    request: Request, tasks: BackgroundTasks, stripe_signature: str = Header("")
+) -> dict[str, Any]:
     """Webhook Stripe: weryfikacja podpisu, zapis zdarzenia, idempotentna zmiana stanu."""
     ustawienia = ustawienia_platnosci()
     ladunek = await _tresc_webhooka(request)
@@ -535,5 +544,7 @@ async def webhook(request: Request, stripe_signature: str = Header("")) -> dict[
             status.HTTP_500_INTERNAL_SERVER_ERROR, "Nie udało się przetworzyć zdarzenia."
         ) from blad
     if wynik.get("obsluzone"):
-        await _uzgodnij_limit_chmury(request, zdarzenie)
+        # occ dla założyciela i każdego członka grupy trwa sekundy, przy zawieszeniu minuty —
+        # po przekroczeniu czasu Stripe uznaje doręczenie za nieudane. Uzgodnienie idzie w tle.
+        tasks.add_task(_uzgodnij_limit_chmury, request, zdarzenie)
     return wynik

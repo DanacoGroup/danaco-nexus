@@ -531,7 +531,7 @@ export const PYTANIA = [
   {
     pytanie: "Czy mogę zobaczyć Nexusa bez zakładania konta?",
     odpowiedz:
-      "Tak. Pod adresem danaco-nexus.pl/wyprobuj otwiera się ta sama aplikacja, z której korzystają klienci: rozmowa, pliki i narzędzia. Konto próbne zakłada się w tle. Bez rejestracji, bez podawania adresu poczty i bez karty. Konto próbne ma mniejszy przydział i wygasa; założenie zwykłego konta zachowuje rozmowy i pliki.",
+      "Tak. Pod adresem danaco-nexus.pl/wyprobuj otwiera się ta sama aplikacja, z której korzystają klienci: rozmowa, pliki i narzędzia. Konto próbne zakłada się w tle. Bez rejestracji, bez podawania adresu poczty i bez karty. Konto próbne ma mniejszy przydział i po dwóch dniach znika razem z rozmowami i plikami. Zwykłe konto zakładasz od nowa, więc to, co chcesz zachować, pobierz wcześniej.",
   },
   {
     pytanie: "Czy Nexus obsłuży moją pocztę i kalendarz?",

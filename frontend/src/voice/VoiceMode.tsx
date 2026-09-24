@@ -75,7 +75,7 @@ export function bladMikrofonu(failure: unknown): string {
       break;
   }
   if (!window.isSecureContext) {
-    return "Mikrofon działa tylko przez HTTPS albo na 127.0.0.1. Otwórz Nexusa pod adresem https://danaco-nexus.pl.";
+    return "Mikrofon działa tylko przez HTTPS albo na 127.0.0.1. Otwórz Nexusa pod adresem https://danaco-nexus.pl/czat.";
   }
   return "Nie udało się uruchomić mikrofonu. Sprawdź uprawnienia przeglądarki i urządzenie wejściowe.";
 }

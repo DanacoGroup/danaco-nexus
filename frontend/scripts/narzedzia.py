@@ -69,7 +69,7 @@ DZIEDZINY: list[tuple[str, str, str, tuple[str, ...]]] = [
     (
         "dzwiek",
         "Dźwięk i wideo",
-        "Nagranie wraca jako tekst z napisami i podziałem na mówców. "
+        "Nagranie wraca jako tekst z napisami i czasem każdego słowa. "
         "Ze zdjęć i klipów powstaje gotowy film, a z opisu — animacja.",
         ("video_compose", "audio_compose", "transcribe_audio", "transcribe_speakers", "media_process", "clean_audio",
          "split_audio_tracks", "edit_subtitles", "video_to_gif", "animate_explainer"),
@@ -137,7 +137,7 @@ PRZYKLADY: dict[str, str] = {
     "animate_photo": "Zrób z tego zdjęcia krótki film na Instagram.",
     "animate_explainer": "Wytłumacz mi na animacji, jak działa procent składany.",
     "typeset_document": "Złóż z tego ofertę do druku, w jednym stylu i z naszym logo.",
-    "transcribe_speakers": "Spisz tę rozmowę z zaznaczeniem, kto co powiedział.",
+    "transcribe_speakers": "Spisz ten wywiad z czasem każdego słowa, potrzebuję dokładnych napisów.",
     "read_document_aloud": "Przeczytaj mi ten raport na głos, posłucham w samochodzie.",
     "restore_faces": "Twarze na tym starym zdjęciu rozmyły się — odtwórz je.",
     "inpaint_photo": "Usuń ten samochód z lewej strony zdjęcia.",
@@ -254,7 +254,7 @@ ETYKIETY: dict[str, str] = {
     "asset_library": "Biblioteka materiałów",
     "asset_to_site": "Materiał na stronę",
     "restore_faces": "Odtwórz twarze na zdjęciu",
-    "transcribe_speakers": "Spisz rozmowę z mówcami",
+    "transcribe_speakers": "Spisz rozmowę co do słowa",
     "typeset_document": "Złóż dokument do druku",
     "video_to_gif": "Zrób GIF z filmu",
     "change_background": "Zmień tło zdjęcia",

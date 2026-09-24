@@ -126,7 +126,7 @@ export function Narzedzia() {
         <input
           value={szukane}
           onChange={(zdarzenie) => setSzukane(zdarzenie.target.value)}
-          placeholder="Wpisz, co masz do zrobienia: faktura, nagranie, tło, logo, publikacja…"
+          placeholder="Wpisz, co masz do zrobienia: faktury, nagranie, tło, logo, strona…"
           className="h-11 w-full rounded-lg border border-line-control bg-raised px-3.5 text-sm outline-none transition-colors focus:border-accent"
         />
       </label>

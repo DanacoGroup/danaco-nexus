@@ -403,7 +403,7 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
   {
     "id": "dzwiek",
     "tytul": "Dźwięk i wideo",
-    "opis": "Nagranie wraca jako tekst z napisami i podziałem na mówców. Ze zdjęć i klipów powstaje gotowy film, a z opisu — animacja.",
+    "opis": "Nagranie wraca jako tekst z napisami i czasem każdego słowa. Ze zdjęć i klipów powstaje gotowy film, a z opisu — animacja.",
     "narzedzia": [
       {
         "id": "video_compose",
@@ -425,9 +425,9 @@ export const DZIEDZINY: DziedzinaNarzedzi[] = [
       },
       {
         "id": "transcribe_speakers",
-        "nazwa": "Spisz rozmowę z mówcami",
-        "opis": "Spisuje rozmowę z zaznaczeniem, kto co powiedział, i z czasem każdego słowa.",
-        "przyklad": "Spisz tę rozmowę z zaznaczeniem, kto co powiedział."
+        "nazwa": "Spisz rozmowę co do słowa",
+        "opis": "Spisuje nagranie rozmowy z czasem każdego słowa.",
+        "przyklad": "Spisz ten wywiad z czasem każdego słowa, potrzebuję dokładnych napisów."
       },
       {
         "id": "media_process",

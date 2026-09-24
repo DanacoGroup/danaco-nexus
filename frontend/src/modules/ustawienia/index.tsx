@@ -168,7 +168,7 @@ function Konto({ profil, onZmiana }: { profil: Profil | null; onZmiana: (dane: P
           value={firma}
           onChange={setFirma}
           disabled={!profil.wlasne_konto}
-          description="Trafia na faktury i do pism, które piszesz w Nexusie."
+          description="Widać ją w profilu konta i w panelu klienta."
         />
       </div>
       <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
@@ -415,7 +415,7 @@ function Powiadomienia() {
   return (
     <Sekcja
       tytul="Powiadomienia"
-      opis="Nexus daje znać, gdy skończy zadanie, które trwało dłużej niż chwila."
+      opis="Nexus daje znać, gdy zadanie się zakończy albo nie powiedzie. Nie powiadamia, gdy rozmowa z tym zadaniem jest otwarta w aktywnym oknie."
     >
       <Switch
         label="Powiadomienia w tej przeglądarce"

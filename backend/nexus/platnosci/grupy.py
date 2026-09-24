@@ -36,6 +36,7 @@ from nexus.models.grupy import (
     ZaproszenieGrupy,
 )
 from nexus.models.portal import PortalUser
+from nexus.platnosci.model import STATUSY_UPRAWNIAJACE, Subskrypcja
 from nexus.platnosci.plany import pozycja_katalogu
 
 #: Plan, który w ogóle pozwala założyć grupę.
@@ -75,8 +76,6 @@ async def miejsca_grupy(database: Database, zalozyciel: uuid.UUID) -> int:
     Stripe. Bierzemy ją z subskrypcji, a nie z limitu planu — limit jest tylko wartością
     zastępczą, dopóki subskrypcji nie ma (konto testowe, okres przed pierwszą płatnością).
     """
-    from nexus.platnosci.model import Subskrypcja
-
     async with database.session() as session:
         rekord = await session.scalar(
             select(Subskrypcja).where(Subskrypcja.uzytkownik == str(zalozyciel))
@@ -106,6 +105,50 @@ async def konto_rozliczeniowe(database: Database, uzytkownik: uuid.UUID) -> uuid
     async with database.session() as session:
         grupa = await session.get(Grupa, wpis.grupa_id)
     return grupa.zalozyciel_id if grupa is not None else uzytkownik
+
+
+async def oplacony_plan_grupy(database: Database, konto: uuid.UUID) -> Subskrypcja | None:
+    """Własna subskrypcja planu Grupa konta, o ile uprawnia do planu, albo ``None``."""
+    # Odczyt bez ``subskrypcja_uzytkownika``: ta zakłada brakujący rekord, a tu tylko pytamy.
+    async with database.session() as session:
+        rekord = await session.scalar(select(Subskrypcja).where(Subskrypcja.uzytkownik == str(konto)))
+    if rekord is None or rekord.plan_kod != PLAN_GRUPY or rekord.status not in STATUSY_UPRAWNIAJACE:
+        return None
+    return rekord
+
+
+async def subskrypcja_grupy(database: Database, uzytkownik: uuid.UUID) -> Subskrypcja | None:
+    """Opłacona subskrypcja planu Grupa, na której pracuje członek grupy, albo ``None``.
+
+    Członek nie kupuje planu — kupił go założyciel dla całej grupy, więc limity planu
+    (przestrzeń, zadania naraz, synchronizacja) członek bierze z jego subskrypcji. Założyciel
+    i konto spoza grupy dostają ``None``: rozstrzyga ich własna subskrypcja. Po wyjściu
+    z grupy albo po wygaśnięciu subskrypcji założyciela członek wraca do własnego planu.
+    """
+    zalozyciel = await konto_rozliczeniowe(database, uzytkownik)
+    if zalozyciel == uzytkownik:
+        return None
+    return await oplacony_plan_grupy(database, zalozyciel)
+
+
+async def konta_wspolnego_limitu_zadan(database: Database, uzytkownik: uuid.UUID) -> list[uuid.UUID]:
+    """Konta, których trwające zadania liczą się razem do limitu „zadania naraz”.
+
+    Plan Grupa obiecuje zadania naraz dla całej grupy („kilka osób pracuje jednocześnie”),
+    więc w opłaconej grupie liczą się przebiegi wszystkich członków i założyciela. Poza grupą
+    i w grupie bez opłaconego planu (każdy ma wtedy limit własnego planu) — samo konto.
+    """
+    grupa = await grupa_uzytkownika(database, uzytkownik)
+    if grupa is None or await oplacony_plan_grupy(database, grupa.zalozyciel_id) is None:
+        return [uzytkownik]
+    async with database.session() as session:
+        return list(
+            (
+                await session.scalars(
+                    select(CzlonekGrupy.uzytkownik_id).where(CzlonekGrupy.grupa_id == grupa.id)
+                )
+            ).all()
+        )
 
 
 async def grupa_uzytkownika(database: Database, uzytkownik: uuid.UUID) -> Grupa | None:
@@ -269,11 +312,22 @@ async def przekaz_zalozyciela(database: Database, grupa: Grupa, kto: uuid.UUID, 
     """Przekazuje rolę założyciela innemu członkowi grupy (role się zamieniają).
 
     Od tej chwili to nowy założyciel płaci i jego pula obsługuje grupę — dlatego rola
-    wędruje w całości, a nie w postaci drugiego założyciela obok pierwszego.
+    wędruje w całości, a nie w postaci drugiego założyciela obok pierwszego. Subskrypcja
+    Stripe nie przechodzi razem z rolą, więc odbiorca musi mieć własny opłacony plan Grupa:
+    inaczej członkowie straciliby limity planu, a płacący zostałby zwykłym członkiem.
     """
     await _sprawdz_zalozyciela(database, grupa, kto)
     if komu == kto:
         raise BladGrupy("Ta osoba już jest założycielem.")
+    wpis = await czlonkostwo(database, komu)
+    if wpis is None or wpis.grupa_id != grupa.id:
+        raise BladGrupy("Ta osoba nie należy do grupy.")
+    if await oplacony_plan_grupy(database, komu) is None:
+        raise BladGrupy(
+            "Rolę założyciela można przekazać tylko osobie, która ma własny, opłacony plan Grupa. "
+            "Subskrypcja opłacająca grupę zostaje na Twoim koncie, więc bez niej grupa straciłaby "
+            "limity planu i wspólną pulę pracy."
+        )
     async with database.session() as session:
         nowy = await session.scalar(
             select(CzlonekGrupy).where(

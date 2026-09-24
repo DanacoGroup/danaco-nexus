@@ -6,7 +6,7 @@ import type { ConversationSummary } from "../api";
 import { SparkIcon, SunIcon } from "../components/icons";
 import { ChatIcon } from "./icons";
 import { CommandPalette, useCommandPaletteShortcut, type CommandItem, type CommandMode } from "../ui";
-import type { NavEntry } from "./ModuleNav";
+import { bezZnakow, type NavEntry } from "./ModuleNav";
 
 interface Props {
   entries: NavEntry[];
@@ -75,6 +75,13 @@ export function Paleta({
     return [...polecenia, ...rozmowy];
   }, [entries, conversations, onSelectEntry, onOpenConversation, onNewConversation, onToggleTheme]);
 
+  // `CommandPalette` pokazuje to, co dostanie — zawężanie listy należy do tego, kto ją składa.
+  const widoczne = useMemo(() => {
+    const igla = bezZnakow(query.trim());
+    if (!igla) return items;
+    return items.filter((pozycja) => bezZnakow(`${pozycja.label} ${pozycja.description ?? ""}`).includes(igla));
+  }, [items, query]);
+
   return (
     <CommandPalette
       open={open}
@@ -83,7 +90,7 @@ export function Paleta({
       onModeChange={setMode}
       query={query}
       onQueryChange={setQuery}
-      items={items}
+      items={widoczne}
       onAskAssistant={(pytanie) => {
         setOpen(false);
         setQuery("");

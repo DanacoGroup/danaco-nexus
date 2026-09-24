@@ -42,9 +42,9 @@ export const ZASTOSOWANIA: Zastosowanie[] = [
     problem:
       "Nagranie ze spotkania leży na dysku. Przesłuchanie zajmuje tyle, ile trwało spotkanie, a notatkę i tak trzeba napisać od zera.",
     polecenie:
-      "Przepisz to nagranie z podziałem na mówców, wypisz ustalenia i zadania z terminami, a całość zapisz jako notatkę w DOCX.",
+      "Przepisz to nagranie, wypisz ustalenia i zadania z terminami, a całość zapisz jako notatkę w DOCX.",
     wynik:
-      "Transkrypcja ze znacznikami czasu i podziałem na mówców, plik DOCX z ustaleniami do rozesłania oraz napisy SRT i VTT do samego nagrania.",
+      "Transkrypcja ze znacznikami czasu, plik DOCX z ustaleniami do rozesłania oraz napisy SRT i VTT do samego nagrania.",
     narzedzia: ["transcribe_speakers", "edit_subtitles", "write_document", "calendar_create"],
   },
   {

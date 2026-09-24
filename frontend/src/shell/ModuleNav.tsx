@@ -373,8 +373,14 @@ const SZYBKI_WYBOR = ["chat", "glos", "pliki", "poczta"];
 /** Pozycje pokazywane osobno, pod kreską — to nie są moduły do pracy, tylko obsługa konta. */
 const NA_DOLE = ["ustawienia", "platnosci"];
 
-function bezZnakow(tekst: string): string {
-  return tekst.toLocaleLowerCase("pl-PL").normalize("NFD").replace(/\p{Diacritic}/gu, "");
+/** Postać tekstu do wyszukiwania: bez wielkości liter i polskich znaków („Głos” → „glos”).
+ *  „ł” nie rozkłada się w NFD na literę i znak diakrytyczny, więc zamienia się osobno. */
+export function bezZnakow(tekst: string): string {
+  return tekst
+    .toLocaleLowerCase("pl-PL")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/ł/g, "l");
 }
 
 /**

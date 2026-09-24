@@ -1,6 +1,7 @@
 """Egzekwowanie limitów planu po stronie serwera.
 
 Limity rozstrzyga aktywna subskrypcja użytkownika, nigdy dane przysłane przez klienta.
+Członek opłaconej grupy bierze je z subskrypcji założyciela (``limity_uzytkownika``).
 Egzekwowane są dziś: przydział kredytów (``nexus/platnosci/kredyty.py``), liczba zadań
 naraz (``nexus/api/conversations.py``) i przestrzeń konta (``nexus/api/files.py``).
 Rozmiar jednego pliku pozostaje ustawieniem serwera (``NEXUS_UPLOAD_LIMIT_MB``) wspólnym
@@ -11,9 +12,11 @@ je sprawdzić — i dlatego katalog ich nie sprzedaje. Miejsca wpięcia i stan e
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 
 from nexus.db import ADMIN_OWNER, Database
+from nexus.platnosci.grupy import subskrypcja_grupy
 from nexus.platnosci.model import STATUS_PROBNA, STATUSY_UPRAWNIAJACE, Subskrypcja
 from nexus.platnosci.plany import PLAN_DOMYSLNY, limity_pozycji, pozycja_katalogu
 from nexus.platnosci.uslugi import subskrypcja_uzytkownika
@@ -133,8 +136,19 @@ async def limity_uzytkownika(database: Database, uzytkownik: str = "") -> Limity
 
     Kluczem subskrypcji jest identyfikator konta (``UserSession.owner_id``), a nie login:
     limity, kredyty i rozmowy mają się rozstrzygać po tym samym koncie.
+
+    Członek opłaconej grupy ma limity planu Grupa z subskrypcji założyciela
+    (``grupy.subskrypcja_grupy``) — tak jak założyciel, choć sam planu nie kupował.
     """
     nazwa = uzytkownik or str(ADMIN_OWNER)
+    try:
+        konto: uuid.UUID | None = uuid.UUID(nazwa)
+    except ValueError:
+        # Login zamiast identyfikatora konta (administrator instalacji) — poza grupami.
+        konto = None
+    grupowa = await subskrypcja_grupy(database, konto) if konto is not None else None
+    if grupowa is not None:
+        return limity_subskrypcji(grupowa)
     return limity_subskrypcji(await subskrypcja_uzytkownika(database, nazwa))
 
 

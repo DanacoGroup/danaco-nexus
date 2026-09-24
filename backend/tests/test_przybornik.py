@@ -121,3 +121,30 @@ def test_szybka_akcja_mowi_po_ludzku_gdy_model_zawiedzie(
     tresc = odpowiedz.json()["detail"]
     assert "Traceback" not in tresc and "subprocess" not in tresc
     assert "Spróbuj" in tresc
+
+
+def test_szybka_akcja_czlonka_grupy_schodzi_z_puli_zalozyciela(
+    client: TestClient,  # noqa: F811
+    settings: Settings,  # noqa: F811
+) -> None:
+    """Jak zlecenie w rozmowie: członek grupy pracuje na puli założyciela, a nie na własnym
+    przydziale startowym, który po wyczerpaniu dawał odmowę mimo kredytów w puli grupy."""
+    from test_grupy import HASLO, grupa_w_aplikacji, w_bazie
+
+    szef, pracownik = grupa_w_aplikacji(settings)
+    w_bazie(settings, lambda baza: ksiega.przydziel(baza, szef, 50, "zakup"))
+    zalogowanie = client.post(
+        "/api/auth/login", json={"username": "pracownik@example.com", "password": HASLO}, headers=HEADERS
+    )
+    assert zalogowanie.status_code == 200, zalogowanie.text
+    client.app.state.szybka_akcja_runner = lambda polecenie, srodowisko, katalog: (
+        '{"type":"result","subtype":"success","result":"Gotowe."}'
+    )
+
+    odpowiedz = client.post(
+        "/api/rozszerzenie/szybka-akcja", json={"tekst": "fragment", "polecenie": "skróć"}, headers=HEADERS
+    )
+
+    assert odpowiedz.status_code == 200, odpowiedz.text
+    assert w_bazie(settings, lambda baza: ksiega.stan(baza, szef)).saldo == 50 - KOSZT_AKCJI
+    assert w_bazie(settings, lambda baza: ksiega.historia(baza, pracownik)) == []

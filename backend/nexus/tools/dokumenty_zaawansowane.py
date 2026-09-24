@@ -782,10 +782,12 @@ class MowcyInput(ToolInput):
 
 @registry.register(
     "transcribe_speakers",
-    """Spisuje rozmowę z zaznaczeniem, kto co powiedział, i z czasem każdego słowa.
+    """Spisuje nagranie rozmowy z czasem każdego słowa.
 Bierz to narzędzie do spotkania, wywiadu, rozprawy i podcastu, czyli wszędzie tam, gdzie trzeba
-wiedzieć, kto powiedział które zdanie, albo dociąć napisy co do słowa (WhisperX). Do zwykłego
-spisania nagrania jednej osoby szybsze jest transcribe_audio.""",
+wiedzieć, kto powiedział które zdanie, albo dociąć napisy co do słowa (WhisperX). Podział na
+mówców działa dopiero po przygotowaniu modelu na serwerze (pobiera go administrator); do tego
+czasu ustaw mowcy = fałsz. Do zwykłego spisania nagrania jednej osoby szybsze jest
+transcribe_audio.""",
     MowcyInput,
 )
 def transcribe_speakers(ctx: ToolContext, args: MowcyInput) -> ToolResult:

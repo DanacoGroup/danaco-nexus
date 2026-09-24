@@ -405,7 +405,18 @@ async def uzgodnij_limit_po_zmianie_planu(settings: Settings, database: Any, own
 
     Bez tego klient, który synchronizuje wyłącznie aplikacją Nextcloud na komputerze, zostawał
     ze starym limitem do czasu wejścia do Nexusa. Konto bez własnego Nextclouda — bez zmian.
+    Subskrypcja założyciela grupy wyznacza też limity członków, więc uzgadniamy i ich konta.
     """
-    if owner == ADMIN_OWNER or konto_chmury(settings, owner) is None:
-        return
-    await konto_wedlug_planu(settings, database, owner)
+    from nexus.platnosci.grupy import czlonkowie, grupa_uzytkownika
+
+    konta = [owner]
+    grupa = await grupa_uzytkownika(database, owner)
+    if grupa is not None and grupa.zalozyciel_id == owner:
+        konta += [c.uzytkownik_id for c in await czlonkowie(database, grupa.id) if c.uzytkownik_id != owner]
+    for konto in konta:
+        # Błąd jednego konta (occ, baza) nie może zostawić pozostałych członków ze starym limitem.
+        try:
+            if konto != ADMIN_OWNER and konto_chmury(settings, konto) is not None:
+                await konto_wedlug_planu(settings, database, konto)
+        except Exception:  # noqa: BLE001
+            logger.warning("Nie udało się uzgodnić limitu chmury konta %s", konto, exc_info=True)

@@ -22,7 +22,7 @@ from typing import Any
 from sqlalchemy import BigInteger, Integer, String, Uuid, func, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from nexus.db import Base, Database, JsonType, UtcDateTime, utcnow
+from nexus.db import ADMIN_OWNER, Base, Database, JsonType, UtcDateTime, utcnow
 
 # --- cennik kredytów -------------------------------------------------------------------
 #
@@ -76,6 +76,11 @@ KOSZT_NARZEDZI: dict[str, int] = {
     "web_search": 2,
     "web_fetch_page": 2,
 }
+
+
+#: Powody wpisów, które są przydziałem z planu albo startu. Tylko one odbierają kontu
+#: przydział startowy i zakres próbny — zakup (``zakup``) i praca (``przebieg``) nie.
+POWODY_PRZYDZIALU = ("start", "okres-probny", "plan", "odnowienie", "konto-testowe")
 
 
 class SaldoKredytow(Base):
@@ -227,33 +232,53 @@ async def obciaz(
 
 
 async def przydziel_z_planu(
-    database: Database, owner: uuid.UUID, plan_kod: str, powod: str = "plan"
+    database: Database, owner: uuid.UUID, plan_kod: str, powod: str = "plan", probny: bool = False
 ) -> int:
-    """Dopisuje kredyty wynikające z planu (uruchomienie subskrypcji, odnowienie okresu)."""
+    """Dopisuje kredyty wynikające z planu (uruchomienie subskrypcji, odnowienie okresu).
+
+    ``probny`` daje zakres okresu próbnego (``probny_kredyty``), który obiecuje cennik.
+    Plan bez okresu próbnego nie ma węższego zakresu i dostaje pełny przydział.
+    """
     from nexus.platnosci.plany import PLAN_DOMYSLNY, pozycja_katalogu
 
     pozycja = pozycja_katalogu(plan_kod) or pozycja_katalogu(PLAN_DOMYSLNY)
     if pozycja is None:
         return (await stan(database, owner)).saldo
+    if probny and pozycja.okres_probny_dni > 0 and pozycja.probny_kredyty > 0:
+        opis = f"Plan {pozycja.nazwa}, okres próbny"
+        return await przydziel(database, owner, pozycja.probny_kredyty, powod, opis)
     return await przydziel(database, owner, pozycja.kredyty_okresowo, powod, f"Plan {pozycja.nazwa}")
 
 
-async def pierwszy_przydzial(database: Database, owner: uuid.UUID, plan_kod: str = "") -> int:
+async def pierwszy_przydzial(
+    database: Database, owner: uuid.UUID, plan_kod: str = "", powod: str = "start", probny: bool = True
+) -> int:
     """Przydział startowy dla konta, które nigdy żadnego nie dostało.
 
     Bez tego świeżo założone konto — również konto administratora po instalacji — nie mogłoby
-    zlecić ani jednego zadania. Przydział jest jednorazowy: liczy się wyłącznie brak
-    jakiegokolwiek wpisu w księdze, a nie zerowe saldo po zużyciu.
+    zlecić ani jednego zadania. Przydział jest jednorazowy: liczy się wcześniejszy przydział
+    (``POWODY_PRZYDZIALU``), a nie zerowe saldo po zużyciu. Zakup i wpis zerowy go nie blokują.
+
+    Start to zakres okresu próbnego, nie pełny plan: pełny przydział przychodzi z pierwszą
+    opłaconą fakturą. Tej samej funkcji używa faktura otwierająca okres próbny, więc konto,
+    które zleciło pracę przed jej nadejściem, nie dostaje zakresu próbnego drugi raz.
+    ``probny=False`` daje pełny plan (właściciel instalacji).
     """
     from nexus.platnosci.plany import PLAN_DOMYSLNY
 
     async with database.session() as session:
-        byly_wpisy = await session.scalar(
-            select(func.count()).select_from(RuchKredytow).where(RuchKredytow.owner_id == owner)
+        byly_przydzialy = await session.scalar(
+            select(func.count())
+            .select_from(RuchKredytow)
+            .where(
+                RuchKredytow.owner_id == owner,
+                RuchKredytow.powod.in_(POWODY_PRZYDZIALU),
+                RuchKredytow.zmiana > 0,
+            )
         )
-    if byly_wpisy:
+    if byly_przydzialy:
         return (await stan(database, owner)).saldo
-    return await przydziel_z_planu(database, owner, plan_kod or PLAN_DOMYSLNY, "start")
+    return await przydziel_z_planu(database, owner, plan_kod or PLAN_DOMYSLNY, powod, probny=probny)
 
 
 async def sprawdz_przed_zleceniem(database: Database, owner: uuid.UUID) -> None:
@@ -261,8 +286,9 @@ async def sprawdz_przed_zleceniem(database: Database, owner: uuid.UUID) -> None:
     biezace = await stan(database, owner)
     if biezace.saldo >= PROG_ZLECENIA:
         return
-    # Konto bez historii dostaje przydział startowy zamiast odmowy.
-    saldo = await pierwszy_przydzial(database, owner)
+    # Konto bez historii dostaje przydział startowy zamiast odmowy. Właściciel instalacji
+    # dostaje pełny plan: nie ma okresu próbnego ani faktury, która by go potem uzupełniła.
+    saldo = await pierwszy_przydzial(database, owner, probny=owner != ADMIN_OWNER)
     if saldo < PROG_ZLECENIA:
         raise BrakKredytow(saldo)
 

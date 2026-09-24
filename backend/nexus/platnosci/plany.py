@@ -6,10 +6,15 @@ Kwoty dopisuje środowisko (``NEXUS_PLATNOSCI_KWOTY``), bo ceny podawane są prz
 sprzedaży. Plan jest do kupienia dopiero wtedy, gdy sprzedaż jest włączona i plan ma
 kwotę oraz identyfikator ceny Stripe – do tego czasu interfejs pokazuje go jako „Wkrótce”.
 
-Z liczb opisujących plan egzekwowany jest dziś wyłącznie przydział kredytów
-(``kredyty_okresowo``, ``nexus/platnosci/kredyty.py``) i tylko on jest pokazywany
-w cenniku. Pozostałe pozycje ``limity`` są danymi dla ``sprawdz_limit`` bez wpięcia
-w modułach; opisuje to ``docs/platnosci/README.md`` rozdz. 9.
+Serwer egzekwuje przydział kredytów (``kredyty_okresowo``, ``nexus/platnosci/kredyty.py``),
+liczbę zadań naraz (``zadania_rownolegle``, ``nexus/api/conversations.py``) i przestrzeń
+konta (``przestrzen_mb``: ``nexus/api/files.py``, ``nexus/api/modules/cloud.py``, limit
+konta Nextcloud w ``nexus/chmura_konta.py``). ``synchronizacja`` rozstrzyga, czy powstaje
+konto Nextcloud (``nexus/chmura_konta.py``), a ``konta`` jest liczbą miejsc grupy tylko
+do czasu, gdy subskrypcja poda opłacone miejsca (``nexus/platnosci/grupy.py``). Nigdzie
+nie są sprawdzane ``automatyzacje``, ``wersjonowanie`` ani ``skrzynki_poczty``. Cennik
+podaje kredyty, przestrzeń, skrzynki, wersje, synchronizację i ``limity``. Stan wpięć:
+``docs/platnosci/README.md`` rozdz. 9.
 """
 
 from __future__ import annotations
@@ -79,8 +84,8 @@ KATALOG: tuple[PlanKatalogu, ...] = (
         kod="osobisty",
         nazwa="Osobisty",
         opis=(
-            "Dla jednej osoby, do pracy i do domu: rozmowa, dokumenty, zdjęcia, nagrania "
-            "i własny adres e-mail. Pierwsze 7 dni bez opłaty."
+            "Dla jednej osoby, do pracy i do domu: rozmowa, dokumenty, zdjęcia "
+            "i nagrania. Pierwsze 7 dni bez opłaty."
         ),
         limity={"zadania_rownolegle": 1, "automatyzacje": 0, "konta": 1, "skrzynki": 1},
         kredyty_okresowo=2_000,
@@ -95,7 +100,7 @@ KATALOG: tuple[PlanKatalogu, ...] = (
             "Dokumenty, zdjęcia i nagrania — wynikiem jest plik",
             "OCR skanów z językiem polskim",
             "Wyszukiwanie w Twoich plikach i notatkach",
-            "1 GB przestrzeni na pliki i pocztę",
+            "1 GB przestrzeni na pliki",
             "Adres e-mail w domenie Nexusa — w przygotowaniu",
             "Jedno zadanie naraz",
         ),
@@ -124,7 +129,7 @@ KATALOG: tuple[PlanKatalogu, ...] = (
             "Synchronizacja z komputerem i telefonem",
             "Cztery zadania naraz zamiast jednego",
             "Dziesięciokrotnie większy zakres pracy",
-            "2 GB przestrzeni na pliki i pocztę",
+            "2 GB przestrzeni na pliki",
             "Do 10 adresów e-mail w domenie Nexusa — w przygotowaniu",
         ),
         kolejnosc=20,
@@ -151,7 +156,7 @@ KATALOG: tuple[PlanKatalogu, ...] = (
             "Własne konto i własna skrzynka dla każdej osoby w grupie",
             "Wspólny zakres pracy — przedłuża go założyciel grupy",
             "Osiem zadań naraz, więc kilka osób pracuje jednocześnie",
-            "10 GB przestrzeni na pliki i pocztę",
+            "10 GB przestrzeni na pliki",
             "Rolę założyciela można przekazać innej osobie",
             "Cena za każdego użytkownika w grupie",
         ),
