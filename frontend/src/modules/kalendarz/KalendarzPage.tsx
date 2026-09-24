@@ -574,16 +574,19 @@ function PlanDialog({ day, onClose, onStarted }: { day: string; onClose: () => v
 
 function SyncDialog({ onClose }: { onClose: () => void }) {
   const [info, setInfo] = useState<{ caldav_url: string; user: string } | null>(null);
+  const [blad, setBlad] = useState("");
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     calendarApi
       .sync()
       .then(setInfo)
-      .catch(() => setInfo(null));
+      .catch((failure) => setBlad(describe(failure)));
   }, []);
   return (
     <Modal title="Kalendarz w telefonie i na komputerze" onClose={onClose} wide>
-      {!info ? (
+      {blad ? (
+        <ErrorBanner message={blad} />
+      ) : !info ? (
         <Loading />
       ) : (
         <div className="space-y-4 text-sm">

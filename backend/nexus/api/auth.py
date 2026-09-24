@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
+from nexus.chmura_konta import konto_chmury
 from nexus.db import ADMIN_OWNER, Database, DeviceToken, Setting, UserSession, utcnow
 
 COOKIE_NAME = "nexus_session"
@@ -431,6 +432,10 @@ async def sso(request: Request) -> Response:
         return Response(
             status_code=status.HTTP_204_NO_CONTENT, headers={SSO_USER_HEADER: settings.chmura_user}
         )
+    # Konto klienta z własnym kontem Nextcloud (plan z synchronizacją) wchodzi na nie.
+    konto = konto_chmury(settings, sesja.owner_id) if sesja is not None else None
+    if konto is not None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={SSO_USER_HEADER: konto.uid})
     original = urlsplit(request.headers.get("x-forwarded-uri", "/"))
     direct = "direct=1" in original.query.split("&")
     if sesja is None and original.path in CLOUD_LOGIN_PATHS and not direct and settings.public_url:
@@ -459,9 +464,10 @@ async def me(request: Request, sesja: UserSession = Depends(require_session)) ->
         if sesja.owner_id != ADMIN_OWNER:
             konto = await session.get(PortalUser, sesja.owner_id)
             if konto is not None:
+                chmura = konto_chmury(request.app.state.settings, sesja.owner_id)
                 return {
                     "username": konto.name or konto.email,
-                    "cloud_url": "",
+                    "cloud_url": request.app.state.settings.chmura_public_url if chmura else "",
                     "gosc": "1" if konto.plan == GOSC_PLAN else "",
                 }
         record = await session.get(Setting, USERNAME_KEY)

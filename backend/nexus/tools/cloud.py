@@ -82,8 +82,13 @@ class CloudClient:
             raise CloudNotConfigured(
                 "Chmura osobista nie jest skonfigurowana (brak adresu Nextcloud lub hasła aplikacji)."
             )
-        self.user = settings.chmura_user
-        self.konto = "" if owner_id == ADMIN_OWNER else katalog_konta(owner_id)
+        from nexus.chmura_konta import konto_chmury
+
+        wlasne = konto_chmury(settings, owner_id)
+        if wlasne is not None:
+            token = wlasne.haslo
+        self.user = wlasne.uid if wlasne is not None else settings.chmura_user
+        self.konto = "" if owner_id == ADMIN_OWNER or wlasne is not None else katalog_konta(owner_id)
         self._dav_uzytkownika = f"{settings.chmura_url.rstrip('/')}/remote.php/dav/files/{quote(self.user)}"
         self.base = self._dav_uzytkownika + quote(self.konto)
         self._root_path = urlsplit(self.base).path

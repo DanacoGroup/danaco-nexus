@@ -115,14 +115,18 @@ wydań (`deploy/wydania/`).
 
 ### Co zostaje do zrobienia w tym wątku
 
-1. **Subskrypcje kluczowane kontem.** `platnosci_subskrypcje.uzytkownik` trzyma login
-   właściciela instalacji, więc zakup dotyczy całej instalacji, a nie konta. Do czasu zmiany
-   przydział kredytów z odnowienia trzeba wywołać ręcznie (`kredyty.przydziel_z_planu`).
-2. **Odnowienie okresowe kredytów** przy zdarzeniu `invoice.paid` ze Stripe.
+Stan na 24 września 2026 (sprawdzony w kodzie, nie w notatkach):
+
+1. ~~Subskrypcje kluczowane kontem~~ — zrobione: kluczem subskrypcji jest identyfikator
+   konta (`platnosci/uprawnienia.py`, `limity_uzytkownika`).
+2. ~~Odnowienie okresowe kredytów przy `invoice.paid`~~ — zrobione
+   (`platnosci/zdarzenia.py`, obsługa `invoice.paid`).
 3. **Rotacja profili Claude Code CLI** (4 konta właściciela) z przełączeniem po limicie —
-   dziś runner ma jeden profil `dane/claude-profil`.
-4. **Chmura osobista per konto** — pliki Nextcloud nadal są wspólne; kolekcje bazy wiedzy
-   są już rozdzielone.
+   nadal otwarte; runner ma jeden profil `dane/claude-profil`.
+4. **Chmura osobista per konto** — konto z planem obejmującym synchronizację (Pro, Grupa)
+   dostaje własne konto Nextcloud `nexus-<owner>` z limitem przestrzeni planu
+   (`backend/nexus/chmura_konta.py`); pozostałe konta pracują w `/Konta/<owner>` konta
+   technicznego. Narzędzia agenta, kosz i baza wiedzy są zawężone do konta (24.09.2026).
 
 ## Nowy podział planów (20 września, po decyzji właściciela)
 
@@ -148,7 +152,7 @@ w `backend/nexus/api/conversations.py`, więc wolno go sprzedawać w cenniku.
 
 ### Do zamiecenia po zakończeniu fal
 
-Teksty witryny mówią jeszcze o „2 GB na koncie” jako wartości jednakowej dla wszystkich.
+~~Teksty witryny mówiły o „2 GB na koncie” jako wartości jednakowej dla wszystkich~~ — przepisane na wartości zależne od planu (sprawdzone 24.09.2026).
 Po zmianie podziału trzeba je przepisać na wartości zależne od planu — pliki:
 `frontend/src/landing/tresc.ts`, `frontend/src/landing/sekcje.tsx`, `frontend/src/seo.ts`,
 `frontend/src/portal/tresc.ts`, `frontend/src/portal/tresc-prawna.ts` (i jego test).

@@ -297,3 +297,46 @@ def test_klient_nie_dostaje_chmury_wlasciciela(tmp_path: Path) -> None:
         odmowa = klient.get("/api/cloud/synchronizacja")
         assert odmowa.status_code == 403
         assert ustawienia.chmura_user not in odmowa.text
+        kalendarz = klient.get("/api/kalendarz/synchronizacja")
+        assert kalendarz.status_code == 403
+        assert ustawienia.chmura_user not in kalendarz.text
+
+
+def test_klient_z_wlasnym_kontem_chmury_wchodzi_na_nie_przez_sso(tmp_path: Path) -> None:
+    """Plan z synchronizacją daje konto Nextcloud — SSO i /me prowadzą na nie, nie na konto techniczne."""
+    from nexus.chmura_konta import _zapisz_haslo, uid_konta
+    from nexus.portal.konta import znajdz_konto
+
+    ustawienia = Settings(
+        data_dir=tmp_path / "data",
+        static_dir=tmp_path / "static",
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'nexus.db').as_posix()}",
+        cookie_secure=False,
+        cookie_domain="",
+        public_url="",
+        chmura_public_url="https://cloud.example.pl",
+        chmura_token_file=tmp_path / "app" / "chmura-token",
+        redis_url="",
+        voice_warm_up=False,
+        qdrant_url="http://127.0.0.1:1",
+    )
+    set_password(ustawienia)
+    zaloz_konto(ustawienia, "pro@example.com")
+
+    async def wlasciciel() -> uuid.UUID:
+        database = Database(ustawienia.database_url)
+        async with database.session() as session:
+            konto = await znajdz_konto(session, "pro@example.com")
+        await database.close()
+        assert konto is not None
+        return konto.id
+
+    owner = asyncio.run(wlasciciel())
+    with TestClient(create_app(ustawienia)) as klient:
+        zaloguj(klient, "pro@example.com", KLIENT_HASLO)
+        assert klient.get("/api/auth/sso").headers.get("x-nexus-user") is None
+        assert klient.get("/api/auth/me").json()["cloud_url"] == ""
+
+        _zapisz_haslo(ustawienia, uid_konta(owner), "haslo-konta")
+        assert klient.get("/api/auth/sso").headers.get("x-nexus-user") == uid_konta(owner)
+        assert klient.get("/api/auth/me").json()["cloud_url"] == "https://cloud.example.pl"

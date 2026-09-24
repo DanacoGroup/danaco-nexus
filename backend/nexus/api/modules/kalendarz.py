@@ -16,6 +16,7 @@ from nexus.api import conversations
 from nexus.api.auth import require_session
 from nexus.calendar import CalendarClient, CalendarError, CalendarNotConfigured, EventData, When, caldav_url
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 
 router = APIRouter(prefix="/api/kalendarz", tags=["kalendarz"], dependencies=[Depends(require_session)])
 
@@ -199,6 +200,17 @@ async def plan_with_nexus(payload: PlanRequest, request: Request) -> dict[str, A
 
 @router.get("/synchronizacja")
 async def sync_info(request: Request) -> dict[str, str]:
-    """Adres CalDAV do synchronizacji telefonu (DAVx5) i programów kalendarza."""
+    """Adres CalDAV do synchronizacji telefonu (DAVx5) i programów kalendarza.
+
+    Kalendarze wszystkich kont leżą w koncie technicznym Nextcloud, więc CalDAV dostaje
+    wyłącznie właściciel instalacji. Klient dostawał tu login ``admin``, którym i tak by się
+    nie zalogował.
+    """
+    if (await require_session(request)).owner_id != ADMIN_OWNER:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Synchronizacja kalendarza z telefonem nie jest jeszcze dostępna dla Twojego konta. "
+            "Terminy widzisz i dodajesz w module Kalendarz.",
+        )
     settings = _settings(request)
     return {"caldav_url": caldav_url(settings), "user": settings.chmura_user}

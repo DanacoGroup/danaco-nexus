@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     chmura_public_url: str = ""
     chmura_user: str = "admin"
     chmura_token_file: Path = Path("dane/app/chmura-token")
+    chmura_occ: Path = Path("/danaco/projekty/danaco-nexus/deploy/chmura/occ.sh")
     realesrgan_dir: Path = Path("/danaco/programy/realesrgan")
     voice_stt_model_dir: Path = Path("/danaco/programy/modele/whisper-large-v3-turbo")
     voice_tts_dir: Path = Path("/danaco/programy/modele/piper")

@@ -34,6 +34,7 @@ from nexus.api.files import (
     typ_nosnika,
     zajete_miejsce,
 )
+from nexus.chmura_konta import BladKontaChmury, KontoChmury, konto_chmury, zapewnij_konto
 from nexus.cloud_service import CloudError, CloudService, check_name, clean_path
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER, Conversation, Database, StoredFile
@@ -66,12 +67,10 @@ async def _service(request: Request) -> CloudService:
     listowanie kończyłoby się błędem 404 zamiast pustym katalogiem.
     """
     sesja = await require_session(request)
+    transport = getattr(request.app.state, "cloud_transport", None)
     try:
-        service = CloudService(
-            _settings(request),
-            transport=getattr(request.app.state, "cloud_transport", None),
-            owner=sesja.owner_id,
-        )
+        konto = await _konto_chmury(request, sesja.owner_id, transport)
+        service = CloudService(_settings(request), transport=transport, owner=sesja.owner_id, konto=konto)
     except CloudError as error:
         raise HTTPException(error.status, str(error)) from error
     try:
@@ -84,6 +83,30 @@ async def _service(request: Request) -> CloudService:
         _dziennik.warning("chmura nie odpowiedziała: %s", error)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, BRAK_POLACZENIA) from error
     return service
+
+
+async def _konto_chmury(
+    request: Request, owner: uuid.UUID, transport: Any, odswiez: bool = False
+) -> KontoChmury | None:
+    """Własne konto Nextcloud konta klienta: istniejące albo zakładane, gdy plan je obejmuje.
+
+    Konto zostaje także po zmianie planu na niższy — pliki są w nim i nie mogą zniknąć.
+    ``odswiez`` ponawia ustawienie limitu przestrzeni (ekran synchronizacji).
+    """
+    if owner == ADMIN_OWNER:
+        return None
+    settings = _settings(request)
+    istniejace = konto_chmury(settings, owner)
+    if istniejace is not None and not odswiez:
+        return istniejace
+    limity = await limity_uzytkownika(request.app.state.database, str(owner))
+    if not limity.synchronizacja:
+        return istniejace
+    try:
+        return await zapewnij_konto(settings, owner, limity.przestrzen_mb, transport)
+    except (BladKontaChmury, httpx.HTTPError, OSError) as blad:
+        _dziennik.warning("konto chmury %s: %s", owner, blad)
+        raise CloudError(502, "Nie udało się przygotować Twojej chmury. Spróbuj za chwilę.") from blad
 
 
 async def _call(request: Request, operation: Any) -> Any:
@@ -617,20 +640,30 @@ async def sync_info(request: Request) -> dict[str, Any]:
     Tylko dla właściciela instalacji: konto Nextcloud jest jedno i należy do niego. Klient
     dostawał tu login ``admin``, którym nie zaloguje się i którego nie powinien znać.
     """
-    if (await require_session(request)).owner_id != ADMIN_OWNER:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Synchronizacja z aplikacjami Nextcloud nie jest jeszcze dostępna dla Twojego konta. "
-            "Pliki przesyłasz i pobierasz w module Pliki.",
-        )
+    owner = (await require_session(request)).owner_id
+    uzytkownik = _settings(request).chmura_user
+    if owner != ADMIN_OWNER:
+        try:
+            konto = await _konto_chmury(
+                request, owner, getattr(request.app.state, "cloud_transport", None), odswiez=True
+            )
+        except CloudError as blad:
+            raise HTTPException(blad.status, str(blad)) from blad
+        if konto is None:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Synchronizacja z komputerem i telefonem jest w planach Pro i Grupa. "
+                "Plan zmienisz w module Twój plan.",
+            )
+        uzytkownik = konto.uid
     settings = _settings(request)
     server = (settings.chmura_public_url or DEFAULT_PUBLIC_CLOUD).rstrip("/")
     qr = segno.make(server, error="m")
     return {
         "server_url": server,
-        "user": settings.chmura_user,
+        "user": uzytkownik,
         "qr": qr.svg_data_uri(scale=6, border=2, dark="#111113", light="#ffffff"),
-        "webdav_url": f"{server}/remote.php/dav/files/{settings.chmura_user}/",
+        "webdav_url": f"{server}/remote.php/dav/files/{uzytkownik}/",
         "clients": {
             "windows": "https://nextcloud.com/install/#install-clients",
             "android": "https://play.google.com/store/apps/details?id=com.nextcloud.client",

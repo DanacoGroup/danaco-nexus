@@ -5,6 +5,40 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 
 ## [Nieopublikowane]
 
+### Bezpieczeństwo
+
+- **Agent konta klienta nie sięga już do danych innych kont (24.09.2026).** Serwer narzędzi
+  wystawia te same narzędzia każdemu kontu, a kilka z nich nie było zawężonych do konta,
+  dla którego pracuje agent: `cloud_browse`, `cloud_import` i `cloud_save` działały na korzeniu
+  konta technicznego Nextcloud (pliki właściciela i przestrzenie wszystkich kont),
+  `knowledge_read` i `knowledge_notes` czytały kolekcje, źródła i notatki wszystkich kont,
+  a narzędzia przyjmowały plik dowolnego konta po numerze. W module Pliki kosz chmury
+  pokazywał klientowi pliki usunięte przez innych i pozwalał je przywrócić. Sprawdzone w bazie
+  produkcyjnej: żaden agent klienta nie wywołał narzędzi chmury ani bazy wiedzy, a baza wiedzy
+  była pusta — luki nie zostały wykorzystane.
+
+### Dodano
+
+- **Własna chmura dla planów z synchronizacją.** Konto z planem Pro albo Grupa dostaje przy
+  pierwszym wejściu do chmury własne konto Nextcloud (`nexus-<konto>`) z limitem przestrzeni
+  planu; pliki z dotychczasowego folderu przechodzą tam same. Logowanie do chmury, także
+  z aplikacji Nextcloud na komputerze i telefonie, idzie przez Nexusa. Pozostałe plany pracują
+  jak dotąd w module Pliki, a ekran synchronizacji mówi, w którym planie ją znajdą. Nowe konta
+  Nextcloud zaczynają bez przykładowych plików.
+
+### Poprawiono
+
+- Ekran synchronizacji kalendarza nie podaje kontom klientów loginu konta technicznego i przy
+  odmowie pokazuje komunikat zamiast niekończącego się ładowania.
+- Adres `danaco-nexus.pl` zawsze otwiera stronę produktu, także zalogowanym; aplikacja stoi
+  pod `/czat`. Zalogowany widzi na stronie „Otwórz aplikację” zamiast „Zaloguj się”.
+- Wyniki agenta i modułów twórczych zapisują się na konto zlecającego — klient mógł nie
+  pobrać wyniku własnego zlecenia, bo plik należał do konta właściciela instalacji.
+- Wpisy bazy wiedzy trafiają do indeksu z właścicielem; wcześniej wyszukiwanie filtrowane
+  po koncie nie znajdowało ich wcale (`nexus-cli.sh przeindeksuj-wiedze` poprawia stare wpisy).
+- Zmiana planu widoczna z wnętrza aplikacji: moduł „Twój plan” i pasek „Zmień plan”, gdy
+  dostęp w okresie dobiega końca.
+
 ### Dodano
 
 - **Strona produktu przestała pobierać pakiet okna aplikacji.** Wyprzedzające pobranie

@@ -19,6 +19,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 import httpx
 
+from nexus.chmura_konta import KontoChmury
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER
 from nexus.tools.base import ToolError
@@ -104,21 +105,28 @@ class CloudService:
         settings: Settings,
         transport: httpx.AsyncBaseTransport | None = None,
         owner: uuid.UUID | None = None,
+        konto: KontoChmury | None = None,
     ) -> None:
         try:
             token = settings.chmura_token_file.read_text(encoding="utf-8").strip()
         except OSError:
             token = ""
+        if konto is not None:
+            token = konto.haslo
         if not settings.chmura_url or not token:
             raise CloudError(
                 503, "Chmura osobista nie jest skonfigurowana (brak adresu Nextcloud lub hasła aplikacji)."
             )
-        self.user = settings.chmura_user
+        # Konto z własnym kontem Nextcloud (plan z synchronizacją) pracuje w jego korzeniu;
+        # pozostałe — w folderze /Konta/<owner> konta technicznego.
+        self.user = konto.uid if konto is not None else settings.chmura_user
         self.owner = owner
+        self.konto = konto
+        self._przedrostek = "" if konto is not None else katalog_konta(owner)
         self.base_url = settings.chmura_url.rstrip("/")
         self.public_url = (settings.chmura_public_url or "").rstrip("/")
         self.dav = f"{self.base_url}/remote.php/dav"
-        przedrostek = quote(katalog_konta(owner))
+        przedrostek = quote(self._przedrostek)
         self.files_root = f"{self.dav}/files/{quote(self.user)}{przedrostek}"
         self._files_path = urlsplit(self.files_root).path
         self._zakres_szukania = f"/files/{quote(self.user)}{przedrostek}"
@@ -128,7 +136,7 @@ class CloudService:
 
     async def przygotuj_przestrzen(self) -> None:
         """Zakłada folder konta, gdy jeszcze go nie ma (pierwsze wejście do chmury)."""
-        if self.owner is None:
+        if self.owner is None or self.konto is not None:
             return
         for sciezka in (f"{self.dav}/files/{quote(self.user)}/{quote(KATALOG_KONT)}", self.files_root):
             response = await self.http.request("MKCOL", sciezka)
@@ -157,11 +165,11 @@ class CloudService:
         WebDAV adresujemy pełnym adresem (``files_root`` zawiera już folder konta), ale
         OCS przyjmuje samą ścieżkę, więc przedrostek trzeba dołożyć tutaj.
         """
-        return f"{katalog_konta(self.owner)}{clean_path(path)}" or "/"
+        return f"{self._przedrostek}{clean_path(path)}" or "/"
 
     def sciezka_wzgledna(self, path: str) -> str:
         """Odwrotność :meth:`sciezka_konta` — ścieżka pokazywana użytkownikowi."""
-        przedrostek = katalog_konta(self.owner)
+        przedrostek = self._przedrostek
         if przedrostek and path.startswith(przedrostek):
             return normalize_cloud_path(path.removeprefix(przedrostek))
         return path
@@ -406,7 +414,7 @@ class CloudService:
         nazwy i ścieżki plików usuniętych przez właściciela i inne konta, i mógł je
         przywrócić. Właściciel instalacji widzi kosz w całości, jak w samej chmurze.
         """
-        if self.owner is None or self.owner == ADMIN_OWNER:
+        if self.owner is None or self.owner == ADMIN_OWNER or self.konto is not None:
             return ""
         return katalog_konta(self.owner).lstrip("/") + "/"
 

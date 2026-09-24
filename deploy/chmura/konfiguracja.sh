@@ -59,6 +59,10 @@ occ config:system:set trusted_domains 1 --value=127.0.0.1
 occ config:system:set trusted_domains 2 --value="$DOMENA_CHMURY"
 occ config:system:set trusted_proxies 0 --value=127.0.0.1
 occ config:system:set overwrite.cli.url --value="https://$DOMENA_CHMURY"
+# Nowe konta (klienci z planem obejmującym synchronizację) zaczynają od pustej chmury:
+# przykładowe pliki Nextcloud zajmowałyby przestrzeń planu i myliły.
+occ config:system:set skeletondirectory --value=""
+occ config:system:set templatedirectory --value=""
 occ config:system:set overwriteprotocol --value=https
 occ config:system:set overwritecondaddr --value='^127\.0\.0\.1$'
 occ config:system:set memcache.local --value='\OC\Memcache\APCu'
