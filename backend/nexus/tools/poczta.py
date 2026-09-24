@@ -343,7 +343,7 @@ def mail_send(ctx: ToolContext, args: MailComposeInput) -> ToolResult:
         raise ToolError(str(error)) from error
     attachments_for(ctx, data["file_ids"])
     summary = f"Od: {client.config.address} · Do: {', '.join(data['to'])} – {data['subject']}"
-    pending_id = oczekujace.create_sync(ctx.settings, "mail", summary, data, ctx.run_id)
+    pending_id = oczekujace.create_sync(ctx.settings, "mail", summary, data, ctx.run_id, ctx.owner_id)
     return ToolResult(
         {
             "pending_id": pending_id,

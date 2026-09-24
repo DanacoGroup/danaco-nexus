@@ -34,6 +34,7 @@ class Job:
     """Zadanie modułu: stan, postęp, wynik albo błąd."""
 
     kind: str
+    owner: uuid.UUID | None = None
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     status: str = "running"
     progress: str = ""
@@ -72,10 +73,12 @@ class JobRegistry:
                 raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Zbyt wiele trwających zadań.")
             del self._jobs[oldest.id]
 
-    def start(self, kind: str, work: Callable[[Job], Awaitable[dict[str, Any]]]) -> Job:
-        """Uruchamia zadanie; ``work`` zwraca wynik (słownik) albo zgłasza błąd."""
+    def start(
+        self, kind: str, work: Callable[[Job], Awaitable[dict[str, Any]]], owner: uuid.UUID | None = None
+    ) -> Job:
+        """Uruchamia zadanie konta ``owner``; ``work`` zwraca wynik (słownik) albo zgłasza błąd."""
         self._prune()
-        job = Job(kind)
+        job = Job(kind, owner)
         self._jobs[job.id] = job
 
         async def runner() -> None:
@@ -101,14 +104,15 @@ class JobRegistry:
         job.task = asyncio.get_running_loop().create_task(runner())
         return job
 
-    def get(self, job_id: str) -> Job:
+    def get(self, job_id: str, owner: uuid.UUID | None = None) -> Job:
+        """Zadanie po numerze; zadanie innego konta jest jak nieistniejące."""
         job = self._jobs.get(job_id)
-        if job is None:
+        if job is None or (owner is not None and job.owner != owner):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono zadania (mogło wygasnąć).")
         return job
 
-    def cancel(self, job_id: str) -> Job:
-        job = self.get(job_id)
+    def cancel(self, job_id: str, owner: uuid.UUID | None = None) -> Job:
+        job = self.get(job_id, owner)
         job.cancel.set()
         return job
 
@@ -184,4 +188,4 @@ async def start_tool_job(
                 extra.path.unlink(missing_ok=True)
         return {"summary": result.summary, "files": stored, "data": result.data}
 
-    return job_registry(app).start(tool_name, work)
+    return job_registry(app).start(tool_name, work, wlasciciel)

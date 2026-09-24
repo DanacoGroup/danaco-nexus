@@ -91,10 +91,10 @@ async def translate_document(payload: DocumentRequest, request: Request) -> dict
 @router.get("/zadania/{job_id}")
 async def job_status(job_id: str, request: Request) -> dict[str, Any]:
     """Stan zadania tłumaczenia dokumentu."""
-    return job_registry(request.app).get(job_id).payload()
+    return job_registry(request.app).get(job_id, (await require_session(request)).owner_id).payload()
 
 
 @router.delete("/zadania/{job_id}")
 async def cancel_job(job_id: str, request: Request) -> dict[str, Any]:
     """Anuluje tłumaczenie dokumentu."""
-    return job_registry(request.app).cancel(job_id).payload()
+    return job_registry(request.app).cancel(job_id, (await require_session(request)).owner_id).payload()

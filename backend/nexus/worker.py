@@ -117,6 +117,7 @@ class Worker:
         )
         last_recover = time.monotonic()
         ostatnie_sprzatanie = 0.0
+        sprzatanie: asyncio.Task[None] | None = None
         # Powiadomienie o nowym zadaniu (Redis) budzi pętlę od razu; baza jest i tak
         # odpytywana co POLL_SECONDS (zadania z innych źródeł, brak Redisa).
         async with self._events.listener(QUEUE_CHANNEL) as wait:
@@ -130,12 +131,14 @@ class Worker:
                             logger.warning("Oznaczono %d przerwanych zadań.", recovered)
                     except Exception:  # noqa: BLE001
                         logger.exception("Błąd odzyskiwania przerwanych zadań")
-                if time.monotonic() - ostatnie_sprzatanie >= SPRZATANIE_GOSCI_CO_SEKUND:
+                # Sprzątanie idzie obok kolejki: pierwsze po wdrożeniu obejmuje dziesiątki kont
+                # i każde pyta chmurę, a zadania agenta nie mogą w tym czasie stać.
+                if (
+                    time.monotonic() - ostatnie_sprzatanie >= SPRZATANIE_GOSCI_CO_SEKUND
+                    and (sprzatanie is None or sprzatanie.done())
+                ):
                     ostatnie_sprzatanie = time.monotonic()
-                    try:
-                        await usun_wygasle_konta_probne(self._settings, self._database)
-                    except Exception:  # noqa: BLE001 - sprzątanie nie może zatrzymać kolejki
-                        logger.exception("Błąd sprzątania wygasłych kont próbnych")
+                    sprzatanie = asyncio.create_task(self._sprzataj_konta_probne())
                 if not await self._acquire_slot():
                     continue
                 run_id = None
@@ -153,6 +156,12 @@ class Worker:
         await self._drain()
         await self._events.close()
         await self._database.close()
+
+    async def _sprzataj_konta_probne(self) -> None:
+        try:
+            await usun_wygasle_konta_probne(self._settings, self._database)
+        except Exception:  # noqa: BLE001 - sprzątanie nie może zatrzymać procesu roboczego
+            logger.exception("Błąd sprzątania wygasłych kont próbnych")
 
     async def _acquire_slot(self) -> bool:
         """Czeka na wolne miejsce; ``False``, gdy w międzyczasie zażądano zatrzymania."""

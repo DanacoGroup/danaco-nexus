@@ -183,6 +183,7 @@ def calendar_delete(ctx: ToolContext, args: CalendarDeleteInput) -> ToolResult:
             "reason": args.reason,
         },
         ctx.run_id,
+        ctx.owner_id,
     )
     return ToolResult(
         {"pending_id": pending_id, "status": "czeka na zatwierdzenie użytkownika w module Kalendarz"},

@@ -48,7 +48,14 @@ COLUMNS: list[tuple[str, str, str, str]] = [
     # pliki i klucze urządzeń powstały przed podziałem na konta i należą do niego.
     *(
         (tabela, "owner_id", _WLASCICIEL_PG, _WLASCICIEL_SQLITE)
-        for tabela in ("conversations", "files", "sessions", "device_tokens", "push_subscriptions")
+        for tabela in (
+            "conversations",
+            "files",
+            "sessions",
+            "device_tokens",
+            "push_subscriptions",
+            "biuro_oczekujace",
+        )
     ),
 ]
 

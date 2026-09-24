@@ -498,7 +498,7 @@ export const PYTANIA = [
   {
     pytanie: "Czym jest chmura osobista?",
     odpowiedz:
-      "To Twój dysk w Nexusie, pod adresem cloud.danaco-nexus.pl. Przechowuje pliki, synchronizuje je z komputerem i telefonem i pozwala je udostępniać. Logujesz się raz — sesja Nexusa otwiera też chmurę. Asystent pobiera z niej pliki i zapisuje w niej wyniki.",
+      "To Twój dysk w Nexusie: przechowuje pliki i wyniki pracy, a asystent pobiera z niego pliki i zapisuje w nim wyniki. W planach Pro i Grupa dostajesz też własne konto pod adresem cloud.danaco-nexus.pl — z synchronizacją z komputerem i telefonem i udostępnianiem. Logujesz się raz: sesja Nexusa otwiera też chmurę.",
   },
   {
     pytanie: "Ile kosztuje Nexus?",

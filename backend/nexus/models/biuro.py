@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from nexus.db import Base, JsonType, UtcDateTime, utcnow
+from nexus.db import ADMIN_OWNER, Base, JsonType, UtcDateTime, utcnow
 
 
 class PendingAction(Base):
@@ -23,6 +23,9 @@ class PendingAction(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     kind: Mapped[str] = mapped_column(String(30), index=True)
+    # Konto, które zleciło działanie. Bez tego lista oczekujących maili i usunięć pokazywała
+    # propozycje wszystkich kont — z adresatami, tematami i treścią cudzych wiadomości.
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     summary: Mapped[str] = mapped_column(String(300), default="")
     payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)

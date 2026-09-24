@@ -451,7 +451,7 @@ def _database(request: Request) -> Database:
 
 
 async def _pending(request: Request, action_id: uuid.UUID) -> Any:
-    record = await oczekujace.get(_database(request), action_id, "mail")
+    record = await oczekujace.get(_database(request), action_id, "mail", await _wlasciciel(request))
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Nie znaleziono wiadomości.")
     return record
@@ -460,7 +460,9 @@ async def _pending(request: Request, action_id: uuid.UUID) -> Any:
 @router.get("/oczekujace")
 async def pending_list(request: Request, all: bool = False) -> list[dict[str, Any]]:  # noqa: A002
     """Wiadomości czekające na wysłanie (``all=1`` – także wysłane i odrzucone)."""
-    records = await oczekujace.list_pending(_database(request), "mail", include_finished=all)
+    records = await oczekujace.list_pending(
+        _database(request), "mail", await _wlasciciel(request), include_finished=all
+    )
     return [oczekujace.payload(record) for record in records]
 
 
@@ -468,7 +470,9 @@ async def pending_list(request: Request, all: bool = False) -> list[dict[str, An
 async def pending_create(payload: Draft, request: Request) -> dict[str, Any]:
     """Nowa wiadomość z formularza (wysyłana osobnym kliknięciem „Wyślij”)."""
     data = _validate(payload.model_dump(mode="json"))
-    record = await oczekujace.create(_database(request), "mail", _summary(data), data)
+    record = await oczekujace.create(
+        _database(request), "mail", _summary(data), data, owner=await _wlasciciel(request)
+    )
     return oczekujace.payload(record)
 
 
@@ -559,7 +563,7 @@ async def send(
     """Wysyła oczekującą wiadomość – wyłącznie na polecenie użytkownika."""
     database = _database(request)
     await _pending(request, action_id)
-    record = await oczekujace.claim(database, action_id, "mail")
+    record = await oczekujace.claim(database, action_id, "mail", owner)
     if record is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ta wiadomość została już wysłana lub odrzucona.")
     data = dict(record.payload or {})

@@ -142,10 +142,10 @@ async def upscale(payload: UpscaleRequest, request: Request) -> dict[str, Any]:
 @router.get("/zadania/{job_id}")
 async def job_status(job_id: str, request: Request) -> dict[str, Any]:
     """Stan zadania: running, done (z plikami wynikowymi), failed albo cancelled."""
-    return job_registry(request.app).get(job_id).payload()
+    return job_registry(request.app).get(job_id, (await require_session(request)).owner_id).payload()
 
 
 @router.delete("/zadania/{job_id}")
 async def cancel_job(job_id: str, request: Request) -> dict[str, Any]:
     """Anuluje zadanie."""
-    return job_registry(request.app).cancel(job_id).payload()
+    return job_registry(request.app).cancel(job_id, (await require_session(request)).owner_id).payload()

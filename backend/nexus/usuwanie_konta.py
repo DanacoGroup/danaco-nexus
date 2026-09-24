@@ -36,6 +36,7 @@ from nexus.db import (
     utcnow,
 )
 from nexus.models.agenci import AgentUzytkownika
+from nexus.models.biuro import PendingAction
 from nexus.models.grupy import CzlonekGrupy, Grupa, ZaproszenieGrupy
 from nexus.models.pliki import KatalogPlikow
 from nexus.models.push import PushSubscription
@@ -113,6 +114,7 @@ async def usun_dane_konta(
         await session.execute(delete(UserSession).where(UserSession.owner_id == owner))
         await session.execute(delete(DeviceToken).where(DeviceToken.owner_id == owner))
         await session.execute(delete(PushSubscription).where(PushSubscription.owner_id == owner))
+        await session.execute(delete(PendingAction).where(PendingAction.owner_id == owner))
         wynik.update(rozmowy=len(rozmowy), pliki=len(pliki_na_dysku), kolekcje=len(kolekcje))
 
     magazyn = FileStorage(settings.files_dir)

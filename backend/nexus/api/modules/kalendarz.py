@@ -139,7 +139,8 @@ async def delete_event(
 @router.get("/oczekujace")
 async def pending(request: Request) -> list[dict[str, Any]]:
     """Usunięcia zaproponowane przez asystenta, czekające na decyzję."""
-    records = await oczekujace.list_pending(request.app.state.database, "kalendarz_usun")
+    owner = (await require_session(request)).owner_id
+    records = await oczekujace.list_pending(request.app.state.database, "kalendarz_usun", owner)
     return [oczekujace.payload(record) for record in records]
 
 
@@ -147,7 +148,9 @@ async def pending(request: Request) -> list[dict[str, Any]]:
 async def approve(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
     """Zatwierdza usunięcie wydarzenia zaproponowane przez asystenta."""
     database = request.app.state.database
-    record = await oczekujace.claim(database, action_id, "kalendarz_usun")
+    record = await oczekujace.claim(
+        database, action_id, "kalendarz_usun", (await require_session(request)).owner_id
+    )
     if record is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ta prośba nie czeka już na decyzję.")
     event_id = str((record.payload or {}).get("event_id", ""))
@@ -165,7 +168,9 @@ async def approve(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
 async def reject(action_id: uuid.UUID, request: Request) -> dict[str, Any]:
     """Odrzuca prośbę o usunięcie (wydarzenie zostaje)."""
     database = request.app.state.database
-    record = await oczekujace.get(database, action_id, "kalendarz_usun")
+    record = await oczekujace.get(
+        database, action_id, "kalendarz_usun", (await require_session(request)).owner_id
+    )
     if record is None or record.status != "pending":
         raise HTTPException(status.HTTP_409_CONFLICT, "Ta prośba nie czeka już na decyzję.")
     updated = await oczekujace.update(database, action_id, status="cancelled")
