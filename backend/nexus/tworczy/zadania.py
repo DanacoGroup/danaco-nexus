@@ -19,6 +19,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 
+from nexus.api.auth import require_session
 from nexus.file_service import FileService
 from nexus.tools.base import FileRef, ToolCancelled, ToolContext, ToolError
 
@@ -148,7 +149,8 @@ async def start_tool_job(
     except ToolError as error:
         raise HTTPException(422, str(error)) from error
     app = request.app
-    files = FileService(app.state.database, app.state.storage)
+    wlasciciel = (await require_session(request)).owner_id
+    files = FileService(app.state.database, app.state.storage, wlasciciel)
     resolved: dict[uuid.UUID, FileRef] = {}
     for file_id in file_ids:
         try:
@@ -171,6 +173,7 @@ async def start_tool_job(
             resolve_file=resolve,
             cancel=job.cancel,
             progress=lambda text: setattr(job, "progress", text),
+            owner_id=wlasciciel,
         )
         try:
             result = await asyncio.to_thread(tool.handler, context, parsed)

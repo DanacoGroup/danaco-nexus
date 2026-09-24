@@ -66,13 +66,13 @@ class ToolServer:
     def __init__(self) -> None:
         self._settings = get_settings()
         self._database = Database(self._settings.database_url)
-        self._files = FileService(self._database, FileStorage(self._settings.files_dir))
         self._executor = ThreadPoolExecutor(max_workers=max(2, self._settings.tool_threads))
         self._run_id = uuid.UUID(os.environ["NEXUS_RUN_ID"])
         conversation = os.environ.get("NEXUS_CONVERSATION_ID", "")
         self._conversation_id = uuid.UUID(conversation) if conversation else None
         wlasciciel = os.environ.get("NEXUS_OWNER_ID", "")
         self._owner_id = uuid.UUID(wlasciciel) if wlasciciel else ADMIN_OWNER
+        self._files = FileService(self._database, FileStorage(self._settings.files_dir), self._owner_id)
         self._cancel = threading.Event()
         self._events = EventBus(self._settings.redis_url)
 

@@ -8,23 +8,29 @@ from typing import Any
 
 from sqlalchemy import update
 
-from nexus.db import Database, StoredFile
+from nexus.db import ADMIN_OWNER, Database, StoredFile
 from nexus.storage import FileStorage, guess_mime
 from nexus.tools.base import FileRef, OutputFile, ToolError
 
 
 class FileService:
-    """Pliki rozmów widziane przez narzędzia agenta."""
+    """Pliki rozmów widziane przez narzędzia agenta — wyłącznie pliki jednego konta.
 
-    def __init__(self, database: Database, storage: FileStorage) -> None:
+    Wyniki zapisują się na konto, dla którego pracuje narzędzie. Wcześniej trafiały na
+    konto właściciela instalacji (wartość domyślna kolumny), więc klient nie mógł pobrać
+    wyników własnego zlecenia, a narzędzie przyjmowało plik dowolnego konta po numerze.
+    """
+
+    def __init__(self, database: Database, storage: FileStorage, owner_id: uuid.UUID = ADMIN_OWNER) -> None:
         self._db = database
         self._storage = storage
+        self._owner_id = owner_id
 
     async def resolve(self, file_id: uuid.UUID) -> FileRef:
         """Plik o podanym identyfikatorze (z weryfikacją obecności na dysku)."""
         async with self._db.session() as session:
             record = await session.get(StoredFile, file_id)
-        if record is None:
+        if record is None or record.owner_id != self._owner_id:
             raise ToolError(f"Plik {file_id} nie istnieje.")
         path = self._storage.path_of(record)
         if not path.is_file():
@@ -53,6 +59,7 @@ class FileService:
                 id=file_id,
                 conversation_id=conversation_id,
                 run_id=run_id,
+                owner_id=self._owner_id,
                 origin="result",
                 name=output.name,
                 mime=guess_mime(output.name),
