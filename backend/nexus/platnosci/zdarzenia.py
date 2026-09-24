@@ -232,6 +232,12 @@ async def _oznacz(database: Database, identyfikator: str, status: str, blad: str
             rekord.przetworzone_at = utcnow()
 
 
+async def wlasciciel_zdarzenia(database: Database, zdarzenie: dict[str, Any]) -> uuid.UUID | None:
+    """Konto, którego dotyczy zdarzenie Stripe (do działań po zmianie planu)."""
+    obiekt = (zdarzenie.get("data") or {}).get("object") or {}
+    return await _wlasciciel_konta(database, await _uzytkownik(database, dict(obiekt)))
+
+
 async def przyjmij_zdarzenie(
     database: Database, ustawienia: UstawieniaPlatnosci, zdarzenie: dict[str, Any]
 ) -> dict[str, Any]:

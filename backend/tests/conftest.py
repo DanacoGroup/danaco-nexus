@@ -162,6 +162,9 @@ def harness(tmp_path: Path) -> ToolHarness:
 
 def pytest_configure(config: pytest.Config) -> None:
     os.environ.setdefault("NEXUS_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    # Domyślny occ to prawdziwy skrypt Nextcloud serwera — test nie może zakładać ani
+    # usuwać kont w produkcyjnej chmurze. Testy podają własną atrapę occ wprost.
+    os.environ["NEXUS_CHMURA_OCC"] = "/nie-istnieje/occ.sh"
 
 
 # Ustawienia produkcyjne (np. z .env serwera), które zmieniają zachowanie aplikacji

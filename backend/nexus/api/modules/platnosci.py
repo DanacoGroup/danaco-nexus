@@ -10,6 +10,7 @@ planów i kwoty, czyli treść przeznaczona do publikacji w portalu.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -19,6 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from nexus.api.auth import require_session
+from nexus.chmura_konta import uzgodnij_limit_po_zmianie_planu
 from nexus.db import Database, UserSession
 from nexus.platnosci import kredyty
 from nexus.platnosci.grupy import konto_rozliczeniowe
@@ -49,7 +51,7 @@ from nexus.platnosci.uslugi import (
     subskrypcja_uzytkownika,
     zsynchronizuj_po_powrocie,
 )
-from nexus.platnosci.zdarzenia import przyjmij_zdarzenie
+from nexus.platnosci.zdarzenia import przyjmij_zdarzenie, wlasciciel_zdarzenia
 
 
 @asynccontextmanager
@@ -243,9 +245,7 @@ PROG_OSTRZEZENIA = 0.85
 
 
 @router.get("/kredyty")
-async def kredyty_konta(
-    request: Request, sesja: UserSession = Depends(require_session)
-) -> dict[str, Any]:
+async def kredyty_konta(request: Request, sesja: UserSession = Depends(require_session)) -> dict[str, Any]:
     """Stan wykorzystania dostępu — paskiem, bez liczb.
 
     Kredyt jest jednostką rozliczeniową między nami a dostawcą modelu, nie towarem dla
@@ -502,6 +502,22 @@ async def _tresc_webhooka(request: Request) -> bytes:
     return bytes(bufor)
 
 
+async def _uzgodnij_limit_chmury(request: Request, zdarzenie: dict[str, Any]) -> None:
+    """Limit chmury idzie za planem; błąd chmury nie może cofać przyjęcia zdarzenia przez Stripe."""
+    if not str(zdarzenie.get("type", "")).startswith(("customer.subscription.", "checkout.")):
+        return
+    try:
+        owner = await wlasciciel_zdarzenia(request.app.state.database, zdarzenie)
+        if owner is not None:
+            await uzgodnij_limit_po_zmianie_planu(
+                request.app.state.settings, request.app.state.database, owner
+            )
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning(
+            "Nie udało się uzgodnić limitu chmury po zdarzeniu %s", zdarzenie.get("id"), exc_info=True
+        )
+
+
 @router.post("/webhook", include_in_schema=False)
 async def webhook(request: Request, stripe_signature: str = Header("")) -> dict[str, Any]:
     """Webhook Stripe: weryfikacja podpisu, zapis zdarzenia, idempotentna zmiana stanu."""
@@ -512,9 +528,12 @@ async def webhook(request: Request, stripe_signature: str = Header("")) -> dict[
     except BladPodpisu as blad:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(blad)) from blad
     try:
-        return await przyjmij_zdarzenie(request.app.state.database, ustawienia, zdarzenie)
+        wynik = await przyjmij_zdarzenie(request.app.state.database, ustawienia, zdarzenie)
     except Exception as blad:
         # Stripe ponawia doręczenie po odpowiedzi 500; zdarzenie jest już w dzienniku.
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR, "Nie udało się przetworzyć zdarzenia."
         ) from blad
+    if wynik.get("obsluzone"):
+        await _uzgodnij_limit_chmury(request, zdarzenie)
+    return wynik

@@ -243,3 +243,39 @@ def test_zawieszony_occ_jest_zabijany(
     monkeypatch.setattr(modul.asyncio, "wait_for", szybko)
     kod, wyjscie = asyncio.run(modul.occ_uslugi(ustawienia)(["status"], {}))
     assert kod == 124 and "120 s" in wyjscie
+
+
+def test_limit_chmury_idzie_za_planem(ustawienia: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Po zmianie planu (w górę i w dół) konto Nextcloud dostaje limit nowego planu; konto zostaje."""
+    from types import SimpleNamespace
+
+    import nexus.chmura_konta as modul
+    import nexus.platnosci.uprawnienia as uprawnienia
+
+    chmura = AtrapaNextcloud()
+    klient = uuid.uuid4()
+    transport = httpx.MockTransport(chmura)
+    monkeypatch.setattr(modul, "occ_uslugi", lambda _s: occ_atrapy(chmura))
+    plan = SimpleNamespace(przestrzen_mb=2048, synchronizacja=True)
+
+    async def limity(_baza: object, _uzytkownik: str) -> SimpleNamespace:
+        return plan
+
+    monkeypatch.setattr(uprawnienia, "limity_uzytkownika", limity)
+
+    konto = asyncio.run(modul.konto_wedlug_planu(ustawienia, None, klient, transport))
+    assert konto is not None and chmura.limity[konto.uid] == "2048 MB"
+
+    plan.przestrzen_mb = 10240
+    asyncio.run(modul.konto_wedlug_planu(ustawienia, None, klient, transport))
+    assert chmura.limity[konto.uid] == "10240 MB"
+
+    # Rezygnacja z planu: synchronizacji już nie ma w planie, ale konto i pliki zostają.
+    plan.przestrzen_mb, plan.synchronizacja = 1024, False
+    zostalo = asyncio.run(modul.konto_wedlug_planu(ustawienia, None, klient, transport))
+    assert zostalo == konto and chmura.limity[konto.uid] == "1024 MB"
+
+    # Plan bez zmian: bez ponownego wywołania occ.
+    chmura.limity[konto.uid] = "ręcznie"
+    asyncio.run(modul.konto_wedlug_planu(ustawienia, None, klient, transport))
+    assert chmura.limity[konto.uid] == "ręcznie"

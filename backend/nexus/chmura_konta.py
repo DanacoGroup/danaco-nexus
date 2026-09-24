@@ -72,6 +72,10 @@ def _znacznik_kalendarzy(settings: Settings, uid: str) -> Path:
     return _katalog_hasel(settings) / f"{uid}.kalendarze"
 
 
+def _zapisany_limit(settings: Settings, uid: str) -> Path:
+    return _katalog_hasel(settings) / f"{uid}.limit"
+
+
 def konto_chmury(settings: Settings, owner: uuid.UUID) -> KontoChmury | None:
     """Założone wcześniej konto Nextcloud konta Nexusa albo ``None``.
 
@@ -103,6 +107,7 @@ def usun_haslo(settings: Settings, uid: str) -> None:
         _katalog_hasel(settings) / uid,
         _znacznik_przeniesienia(settings, uid),
         _znacznik_kalendarzy(settings, uid),
+        _zapisany_limit(settings, uid),
     ):
         plik.unlink(missing_ok=True)
 
@@ -192,6 +197,7 @@ async def zapewnij_konto(
         kod, wyjscie = await occ(["user:setting", uid, "files", "quota", f"{max(przestrzen_mb, 1)} MB"], {})
         if kod != 0:
             raise BladKontaChmury(f"Nextcloud nie przyjął limitu konta {uid}: {wyjscie.strip()[-300:]}")
+        _zapisany_limit(settings, uid).write_text(str(przestrzen_mb), encoding="utf-8")
     return konto
 
 
@@ -373,9 +379,33 @@ async def konto_wedlug_planu(
     if owner == ADMIN_OWNER:
         return None
     istniejace = konto_chmury(settings, owner)
-    if istniejace is not None and not odswiez:
-        return istniejace
     limity = await limity_uzytkownika(database, str(owner))
+    if istniejace is not None:
+        # Limit przestrzeni idzie za planem: po zmianie planu Nextcloud dostaje nowy limit
+        # przy najbliższym wejściu, także po obniżeniu planu (konto i pliki zostają).
+        try:
+            zapisany = int(_zapisany_limit(settings, istniejace.uid).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            zapisany = -1
+        if zapisany == limity.przestrzen_mb and not odswiez:
+            return istniejace
+        try:
+            return await zapewnij_konto(settings, owner, limity.przestrzen_mb, transport)
+        except (BladKontaChmury, httpx.HTTPError, OSError) as blad:
+            # Konto już jest: nieudane uzgodnienie limitu nie może odciąć klienta od plików.
+            logger.warning("Nie udało się uzgodnić limitu konta %s: %s", istniejace.uid, blad)
+            return istniejace
     if not limity.synchronizacja:
-        return istniejace
+        return None
     return await zapewnij_konto(settings, owner, limity.przestrzen_mb, transport)
+
+
+async def uzgodnij_limit_po_zmianie_planu(settings: Settings, database: Any, owner: uuid.UUID) -> None:
+    """Po zdarzeniu subskrypcji: konto z własnym Nextcloudem dostaje limit nowego planu od razu.
+
+    Bez tego klient, który synchronizuje wyłącznie aplikacją Nextcloud na komputerze, zostawał
+    ze starym limitem do czasu wejścia do Nexusa. Konto bez własnego Nextclouda — bez zmian.
+    """
+    if owner == ADMIN_OWNER or konto_chmury(settings, owner) is None:
+        return
+    await konto_wedlug_planu(settings, database, owner)
