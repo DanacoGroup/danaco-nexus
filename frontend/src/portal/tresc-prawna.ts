@@ -193,7 +193,7 @@ Kopię lub opis zastosowanego zabezpieczenia otrzymasz po napisaniu na ${ADMINIS
 | Rozmowy, pliki, wyniki narzędzi, baza wiedzy, materiały badawcze | do czasu, aż je usuniesz; mieszczą się w przestrzeni konta, którą wyznacza plan (rozdział 2) |
 | Saldo kredytów i księga ich zmian | przez czas prowadzenia konta, a następnie przez okres rozliczenia subskrypcji i przedawnienia roszczeń — księga jest dowodem, za co kredyty zostały naliczone |
 | Nagranie rozmowy głosowej | kasowane z serwera zaraz po rozpoznaniu mowy; rozpoznany tekst zostaje tylko wtedy, gdy wyślesz go jako wiadomość — wtedy trwa tak jak rozmowy. Okres po stronie Google wynika z warunków tej usługi |
-| Wiadomości poczty, wydarzenia kalendarza, pliki chmury osobistej | Nexus nie prowadzi ich kopii: zostają odpowiednio na serwerze Twojego dostawcy poczty i w chmurze osobistej, do czasu, aż je usuniesz |
+| Wiadomości poczty, wydarzenia kalendarza, pliki chmury osobistej | Nexus nie prowadzi ich kopii: zostają odpowiednio na serwerze Twojego dostawcy poczty i w chmurze osobistej, do czasu, aż je usuniesz. Wyjątek: załącznik albo plik, który pobierzesz do rozmowy (sam albo przez asystenta), staje się plikiem rozmowy i trwa tak jak ona |
 | Dane konta poczty w pliku konfiguracji na serwerze | do usunięcia tego konta w module Poczta |
 | Działanie przygotowane do zatwierdzenia (wysyłka wiadomości, zmiana w kalendarzu) | do zatwierdzenia albo odrzucenia, a potem jeszcze 30 dni jako historia w module Poczta i Kalendarz |
 | Wiadomość z formularza kontaktu | do załatwienia sprawy, a następnie przez okres przedawnienia roszczeń |

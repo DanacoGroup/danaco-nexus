@@ -8,7 +8,7 @@ PartOf=danaco-nexus.target
 [Service]
 Type=notify
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 Environment=PGDATA=/danaco/projekty/danaco-nexus/dane/postgres
 Environment=LD_LIBRARY_PATH=/danaco/programy/postgresql-18/usr/lib/x86_64-linux-gnu
 ExecStart=/danaco/programy/postgresql-18/usr/lib/postgresql/18/bin/postgres -D ${PGDATA} \

@@ -10,7 +10,7 @@ PartOf=danaco-nexus.target
 [Service]
 Type=simple
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 UMask=0007
 # Kod bierze się z wydania wskazanego przez `wydania/produkcja`, tak samo jak w usłudze API.
 # Inaczej proces roboczy — czyli sam agent — chodziłby na stanie roboczym repozytorium:

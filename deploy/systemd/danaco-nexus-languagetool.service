@@ -7,7 +7,7 @@ PartOf=danaco-nexus.target
 [Service]
 Type=simple
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 WorkingDirectory=/danaco/programy/languagetool
 ExecStart=/danaco/programy/java/bin/java -Xms256m -Xmx1536m -cp /danaco/programy/languagetool/languagetool-server.jar     org.languagetool.server.HTTPServer --port 8010
 Restart=on-failure

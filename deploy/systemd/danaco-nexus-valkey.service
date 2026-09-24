@@ -8,7 +8,7 @@ PartOf=danaco-nexus.target
 [Service]
 Type=notify
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 UMask=0007
 ExecStart=/danaco/programy/valkey/bin/valkey-server /danaco/projekty/danaco-nexus/deploy/valkey/valkey.conf
 Restart=on-failure

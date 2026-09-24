@@ -40,6 +40,15 @@ deploy/wydania/wersje.sh
 deploy/wydania/sprzataj.sh
 ```
 
+Po wydaniu na produkcję warto puścić test dymny izolacji kont: zakłada dwa tymczasowe
+konta klientów (adresy `@example.com`), sprawdza, że drugie nie widzi rozmów, plików,
+szkiców poczty, loginu chmury ani CalDAV pierwszego, i usuwa oba konta przez portal —
+tą samą drogą co klient, więc sprawdza też usuwanie danych konta.
+
+```bash
+.venv/bin/python deploy/wydania/dym-izolacji.py
+```
+
 `zbuduj.sh` przerywa pracę, gdy bramka nie przechodzi — wydanie z czerwonym testem
 nie powstaje, więc nie da się go przez pomyłkę wypchnąć. Pełny dziennik budowy leży
 w `.logs/wydanie-<znacznik>.log`.

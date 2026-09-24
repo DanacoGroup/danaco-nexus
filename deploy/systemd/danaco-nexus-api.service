@@ -9,7 +9,7 @@ PartOf=danaco-nexus.target
 [Service]
 Type=simple
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 UMask=0007
 # Produkcja serwuje wydanie, nie strefę roboczą: plik zmieniony w repozytorium
 # trafia do użytkownika dopiero przez deploy/wydania/zbuduj.sh i wypchnij.sh.

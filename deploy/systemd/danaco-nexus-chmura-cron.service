@@ -6,7 +6,7 @@ Requires=danaco-nexus-postgres.service
 [Service]
 Type=oneshot
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 UMask=0007
 WorkingDirectory=/danaco/projekty/danaco-nexus/dane/nextcloud/nextcloud
 Environment=HOME=/danaco/projekty/danaco-nexus/dane/nextcloud

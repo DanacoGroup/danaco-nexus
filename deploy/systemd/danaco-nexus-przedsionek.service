@@ -9,7 +9,7 @@ PartOf=danaco-nexus.target
 [Service]
 Type=simple
 User=danaco-serwis
-Group=danaco-user
+Group=danaco-projekty
 UMask=0007
 # Kod bierze się z wydania, nie ze strefy roboczej — edycja pliku w repozytorium
 # niczego tu nie zmienia, dopóki nie powstanie i nie zostanie wypchnięte nowe wydanie.
