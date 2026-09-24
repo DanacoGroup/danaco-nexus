@@ -56,7 +56,7 @@
 | Miejsce w kodzie | tabela `portal_users` — `backend/nexus/models/portal.py` |
 | Odbiorcy | brak |
 | Przekazanie poza EOG | nie |
-| Termin usunięcia | do usunięcia konta przez klienta (`konta.usun_konto`) |
+| Termin usunięcia | do usunięcia konta przez klienta (`konta.usun_konto`); razem z kontem kasowane są dane aplikacji konta (`usuwanie_konta.usun_dane_konta`: rozmowy, pliki, baza wiedzy, strony, projekty, poczta, kalendarze, chmura, sesje aplikacji); zostają dokumenty rozliczeniowe |
 
 ### CZ-2. Utrzymanie sesji i ochrona logowania
 
@@ -105,7 +105,7 @@
 | Podstawa prawna | art. 6 ust. 1 lit. b RODO; wobec danych osób trzecich zawartych w materiałach administratorem pozostaje użytkownik |
 | Kategorie osób | użytkownik oraz osoby, których dane znajdują się w przekazanych materiałach |
 | Kategorie danych | rozmowy i wiadomości, pliki wraz z treścią, metadane plików (nazwa, typ, rozmiar, SHA-256), wywołania narzędzi z danymi wejściowymi, przebiegi zadań i zużycie tokenów, fragmenty dokumentów i ich osadzenia w bazie wektorowej, materiały modułu badawczego |
-| Rozdzielenie kont | rozmowy, pliki, sesje, klucze urządzeń i kolekcje modułu badawczego mają kolumnę `owner_id` (`db.py:45-52`, `models/research.py:28`); zapytania ograniczają się do konta z sesji (`auth.wlasciciel`). Przestrzeń jednego konta wyznacza jego plan: 100 MB w okresie próbnym, 1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Grupie (`platnosci/plany.py`, `platnosci/uprawnienia.py:limity_uzytkownika`, sprawdzenie `api/files.py`). Wyjątki opisuje rozdz. 5 |
+| Rozdzielenie kont | rozmowy, pliki, sesje, klucze urządzeń, subskrypcje push, działania oczekujące i kolekcje modułu badawczego mają kolumnę `owner_id` (`db.py:45-52`, `models/research.py:28`); zapytania ograniczają się do konta z sesji (`auth.wlasciciel`). Przestrzeń jednego konta wyznacza jego plan: 100 MB w okresie próbnym, 1 GB w planie Osobistym, 2 GB w Pro, 10 GB w Grupie (`platnosci/plany.py`, `platnosci/uprawnienia.py:limity_uzytkownika`, sprawdzenie `api/files.py`). Wyjątki opisuje rozdz. 5 |
 | Miejsce w kodzie | tabele `conversations`, `messages`, `files`, `runs`, `run_events`, `tool_calls` — `backend/nexus/db.py`; `research_*` — `backend/nexus/models/research.py`; kolekcja `nexus_documents` w bazie wektorowej |
 | Odbiorcy | Anthropic — w zakresie treści bieżącego zadania (CZ-6) |
 | Przekazanie poza EOG | tak, w zakresie CZ-6 |
@@ -183,7 +183,7 @@ założonego w portalu (CZ-1 … CZ-9, CZ-11, CZ-12), tyle że konto ma termin w
 | Miejsce w kodzie | `backend/nexus/api/auth.py` (`gosc`, `_konto_goscia`, `LimitKontGoscia`) |
 | Odbiorcy | Anthropic — w zakresie CZ-6 |
 | Przekazanie poza EOG | tak, w zakresie CZ-6 |
-| Termin usunięcia | wygaśnięcie sesji konta próbnego (2 dni od założenia); wraz z kontem kasowane są jego rozmowy, pliki i przebiegi |
+| Termin usunięcia | 2 dni od założenia, bez ważnej sesji — konto i jego dane usuwa proces roboczy co godzinę (`usuwanie_konta.usun_wygasle_konta_probne`, od 24.09.2026; wcześniej nic ich nie usuwało) |
 
 ### CZ-11. Rozmowa głosowa i przekazanie nagrania do Google
 
@@ -210,7 +210,7 @@ założonego w portalu (CZ-1 … CZ-9, CZ-11, CZ-12), tyle że konto ma termin w
 | Miejsce w kodzie | `backend/nexus/mail.py` (imaplib, smtplib; `mail.config_path` — plik `poczta/<konto>.json` osobny dla każdego konta użytkownika, konto administratora zostaje przy pliku sprzed podziału), `backend/nexus/calendar.py` (CalDAV), `backend/nexus/cloud_service.py` (WebDAV), tabela `biuro_oczekujace` — `backend/nexus/models/biuro.py` |
 | Odbiorcy | serwer poczty wskazany w konfiguracji konta (IMAP i SMTP). Chmura i kalendarz to Nextcloud pod `settings.chmura_url`, domyślnie `http://127.0.0.1:8940`, czyli ten sam serwer — bez odbiorcy zewnętrznego, dopóki adres nie zostanie zmieniony |
 | Przekazanie poza EOG | zależne od wybranego serwera poczty; chmura i kalendarz — nie, przy adresie domyślnym |
-| Termin usunięcia | wiadomości i wydarzenia — po stronie odpowiednio serwera poczty i chmury, do usunięcia przez użytkownika; działanie oczekujące — do zatwierdzenia, odrzucenia albo błędu |
+| Termin usunięcia | wiadomości i wydarzenia — po stronie odpowiednio serwera poczty i chmury, do usunięcia przez użytkownika; działanie oczekujące — do zatwierdzenia albo odrzucenia, potem 30 dni historii (`usuwanie_konta.sprzataj_przeterminowane`) |
 
 ### CZ-13. Kredyty konta i księga ich zmian
 
