@@ -170,7 +170,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
     onUnauthorized: onLoggedOut,
     onOpened: (id) => {
       // Adres podąża za otwartą rozmową tylko w widoku czatu (moduł może otworzyć rozmowę w tle).
-      if (activeIdRef.current === "chat") navigate(id ? `/c/${id}` : "/", true);
+      if (activeIdRef.current === "chat") navigate(id ? `/c/${id}` : SCIEZKA.czat, true);
     },
   });
   const activeIdRef = useRef(activeId);
@@ -287,7 +287,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
     // i na ekranie zapalał się czerwony komunikat „serwer nie ma modeli mowy” — także
     // wtedy, gdy chwilę później okazywało się, że głos działa.
     if (voiceConfig === null) return;
-    navigate(chat.currentId ? `/c/${chat.currentId}` : "/", true);
+    navigate(chat.currentId ? `/c/${chat.currentId}` : SCIEZKA.czat, true);
     startVoice();
     // Uruchamiane przy wejściu pod adres modułu głosu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,11 +295,11 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
 
   const selectEntry = (id: string) => {
     if (id === "glos") {
-      if (activeId !== "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : "/");
+      if (activeId !== "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : SCIEZKA.czat);
       startVoice();
       return;
     }
-    if (id === "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : "/");
+    if (id === "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : SCIEZKA.czat);
     else navigate(`/m/${id}`);
   };
 
@@ -676,7 +676,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
           saveTheme(wybor);
         }}
         onAsk={(pytanie) => {
-          if (activeId !== "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : "/");
+          if (activeId !== "chat") navigate(chat.currentId ? `/c/${chat.currentId}` : SCIEZKA.czat);
           setPrefill(pytanie);
         }}
       />
