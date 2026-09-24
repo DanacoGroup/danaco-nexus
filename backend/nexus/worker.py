@@ -9,6 +9,7 @@ jednej rozmowy są wykonywane kolejno.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import signal
@@ -153,6 +154,12 @@ class Worker:
                 task = asyncio.create_task(self._execute(run_id))
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
+        # Sprzątanie przerwane w połowie wraca przy następnym starcie — nic nie ginie, a baza
+        # nie może zostać zamknięta pod pracującym zadaniem.
+        if sprzatanie is not None and not sprzatanie.done():
+            sprzatanie.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sprzatanie
         await self._drain()
         await self._events.close()
         await self._database.close()
