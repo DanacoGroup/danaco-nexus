@@ -54,6 +54,9 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   odmowie pokazuje komunikat zamiast niekończącego się ładowania.
 - Adres `danaco-nexus.pl` zawsze otwiera stronę produktu, także zalogowanym; aplikacja stoi
   pod `/czat`. Zalogowany widzi na stronie „Otwórz aplikację” zamiast „Zaloguj się”.
+  Poprawka tej zmiany (331bb5d): „Nowa rozmowa”, zamknięcie rozmowy oraz Czat i Głos bez
+  otwartej rozmowy prowadziły na „/”, czyli na stronę produktu — w oknie zostało pięć
+  nawigacji do starego adresu. Wykryte próbą w przeglądarce na produkcji 24.09.
 - Wyniki agenta i modułów twórczych zapisują się na konto zlecającego — klient mógł nie
   pobrać wyniku własnego zlecenia, bo plik należał do konta właściciela instalacji.
 - Wpisy bazy wiedzy trafiają do indeksu z właścicielem; wcześniej wyszukiwanie filtrowane
