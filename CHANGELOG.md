@@ -24,6 +24,12 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 
 ### Dodano
 
+- **Materiały portalu wczytane do bazy (24.09.2026).** Dokumentację, centrum wiedzy i blog
+  napisano 21 września, ale do bazy — z której portal je pokazuje — trafiło tylko 5 z 24
+  materiałów, i to w starszych wersjach. Dokumentacja (9 stron) jest teraz opublikowana
+  w wersji z repozytorium, a 10 poradników i 5 wpisów czeka w panelu portalu jako szkice
+  do przejrzenia i publikacji. Sprawdzone przed nadpisaniem: każda strona w bazie była
+  wcześniejszą wersją pliku z historii gita, bez poprawek naniesionych w panelu.
 - **Własna chmura dla planów z synchronizacją.** Konto z planem Pro albo Grupa dostaje przy
   pierwszym wejściu do chmury własne konto Nextcloud (`nexus-<konto>`) z limitem przestrzeni
   planu; pliki z dotychczasowego folderu przechodzą tam same. Logowanie do chmury, także
