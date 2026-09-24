@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from nexus.db import Base, UtcDateTime, utcnow
+from nexus.db import ADMIN_OWNER, Base, UtcDateTime, utcnow
 
 
 class PushSubscription(Base):
@@ -18,6 +18,9 @@ class PushSubscription(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     endpoint_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # Konto, na którego urządzenie idą powiadomienia. Bez tego zakończone zadanie dowolnego
+    # konta wysyłało tytuł rozmowy na wszystkie zapisane urządzenia, także cudze.
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, default=lambda: ADMIN_OWNER, index=True)
     endpoint: Mapped[str] = mapped_column(Text)
     p256dh: Mapped[str] = mapped_column(String(200))
     auth: Mapped[str] = mapped_column(String(100))

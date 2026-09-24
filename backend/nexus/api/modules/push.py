@@ -25,7 +25,7 @@ from nexus.push_service import (
     ensure_vapid_key,
     listen_run_finished,
     pywebpush_sender,
-    send_to_all,
+    send_to_owner,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,8 +89,11 @@ def _available(request: Request) -> bool:
 async def public_key(request: Request) -> dict[str, Any]:
     """Klucz publiczny VAPID (``applicationServerKey``) i liczba zapisanych subskrypcji."""
     database: Database = request.app.state.database
+    owner = (await require_session(request)).owner_id
     async with database.session() as session:
-        count = await session.scalar(select(func.count()).select_from(PushSubscription))
+        count = await session.scalar(
+            select(func.count()).select_from(PushSubscription).where(PushSubscription.owner_id == owner)
+        )
     return {
         "available": _available(request),
         "public_key": getattr(request.app.state, "push_public_key", ""),
@@ -104,12 +107,15 @@ async def subscribe(payload: NewSubscription, request: Request) -> dict[str, Any
     if not _available(request):
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, PUSH_DISABLED)
     database: Database = request.app.state.database
+    owner = (await require_session(request)).owner_id
     key = endpoint_hash(payload.endpoint)
     async with database.session() as session:
         record = await session.scalar(select(PushSubscription).where(PushSubscription.endpoint_hash == key))
         if record is None:
             record = PushSubscription(endpoint_hash=key, endpoint=payload.endpoint)
             session.add(record)
+        # Ta sama przeglądarka po przelogowaniu na inne konto przechodzi na nie.
+        record.owner_id = owner
         record.p256dh = payload.keys.p256dh
         record.auth = payload.keys.auth
         record.name = payload.name.strip()
@@ -122,21 +128,26 @@ async def subscribe(payload: NewSubscription, request: Request) -> dict[str, Any
 async def unsubscribe(payload: RemoveSubscription, request: Request) -> dict[str, bool]:
     """Usuwa subskrypcję (wyłączenie powiadomień na tym urządzeniu)."""
     database: Database = request.app.state.database
+    owner = (await require_session(request)).owner_id
     async with database.session() as session:
         await session.execute(
-            delete(PushSubscription).where(PushSubscription.endpoint_hash == endpoint_hash(payload.endpoint))
+            delete(PushSubscription).where(
+                PushSubscription.endpoint_hash == endpoint_hash(payload.endpoint),
+                PushSubscription.owner_id == owner,
+            )
         )
     return {"ok": True}
 
 
 @router.post("/test")
 async def test_notification(request: Request) -> dict[str, int]:
-    """Wysyła powiadomienie próbne do wszystkich subskrypcji."""
+    """Wysyła powiadomienie próbne na urządzenia konta, które o nie prosi."""
     if not _available(request):
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, PUSH_DISABLED)
-    report = await send_to_all(
+    report = await send_to_owner(
         request.app.state.database,
         request.app.state.push_sender,
-        {"title": "Danaco Nexus", "body": "Powiadomienia działają.", "url": "/", "tag": "nexus-test"},
+        {"title": "Danaco Nexus", "body": "Powiadomienia działają.", "url": "/czat", "tag": "nexus-test"},
+        (await require_session(request)).owner_id,
     )
     return {"sent": report.sent, "removed": report.removed, "failed": report.failed}

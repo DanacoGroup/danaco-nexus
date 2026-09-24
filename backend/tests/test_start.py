@@ -19,8 +19,8 @@ from nexus.api.app import create_app
 from nexus.api.auth import set_admin_credentials
 from nexus.api.modules.osadzanie import panel_csp
 from nexus.config import Settings
-from nexus.db import Database
-from nexus.push_service import ensure_vapid_key, run_finished_message, send_to_all
+from nexus.db import ADMIN_OWNER, Database
+from nexus.push_service import ensure_vapid_key, run_finished_message, send_to_owner
 
 PASSWORD = "bardzo-tajne-haslo-2026"
 HEADERS = {"X-Nexus-Request": "1"}
@@ -195,7 +195,7 @@ def test_push_subscriptions_and_delivery(client: TestClient, settings: Settings,
     assert client.get("/api/push/klucz").json()["subscriptions"] == 0
 
 
-def test_send_to_all_drops_subscription_after_repeated_failures(settings: Settings) -> None:
+def test_send_to_owner_drops_subscription_after_repeated_failures(settings: Settings) -> None:
     from nexus.models.push import PushSubscription
 
     async def run() -> list[int]:
@@ -210,12 +210,60 @@ def test_send_to_all_drops_subscription_after_repeated_failures(settings: Settin
         failing = FakeSender({"https://push.example.com/blad": 500})
         results = []
         for _ in range(5):
-            report = await send_to_all(database, failing, {"title": "t"})
+            report = await send_to_owner(database, failing, {"title": "t"}, ADMIN_OWNER)
             results.append(report.removed)
         await database.close()
         return results
 
     assert asyncio.run(run()) == [0, 0, 0, 0, 1]
+
+
+def test_powiadomienie_trafia_tylko_na_urzadzenia_wlasciciela(settings: Settings) -> None:
+    """Zakończone zadanie jednego konta nie wysyła tytułu rozmowy na urządzenia innych kont."""
+    import uuid
+
+    from nexus.db import Conversation
+    from nexus.models.push import PushSubscription
+    from nexus.push_service import _wlasciciel_rozmowy
+
+    klient = uuid.uuid4()
+
+    async def run() -> dict[str, int]:
+        database = Database(settings.database_url)
+        await database.create_schema()
+        rozmowa = Conversation(id=uuid.uuid4(), owner_id=klient, title="Umowa z kontrahentem")
+        async with database.session() as session:
+            session.add(rozmowa)
+            session.add_all(
+                [
+                    PushSubscription(
+                        endpoint_hash="k" * 64,
+                        endpoint="https://push.example.com/klient",
+                        p256dh="p",
+                        auth="a",
+                        owner_id=klient,
+                    ),
+                    PushSubscription(
+                        endpoint_hash="w" * 64,
+                        endpoint="https://push.example.com/wlasciciel",
+                        p256dh="p",
+                        auth="a",
+                        owner_id=ADMIN_OWNER,
+                    ),
+                ]
+            )
+        wiadomosc = run_finished_message(
+            {"status": "done", "conversation_id": str(rozmowa.id), "title": rozmowa.title, "run_id": "r"}
+        )
+        assert wiadomosc is not None
+        owner = await _wlasciciel_rozmowy(database, wiadomosc)
+        assert owner == klient
+        nadawca = FakeSender({})
+        await send_to_owner(database, nadawca, wiadomosc, owner)
+        await database.close()
+        return {adres: 1 for adres, _ in nadawca.sent}
+
+    assert asyncio.run(run()) == {"https://push.example.com/klient": 1}
 
 
 # --- zadania w toku ---

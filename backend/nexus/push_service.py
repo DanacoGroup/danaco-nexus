@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import os
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +27,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from sqlalchemy import delete, select, update
 
 from nexus.config import Settings
-from nexus.db import Database, utcnow
+from nexus.db import Conversation, Database, utcnow
 from nexus.models.push import PushSubscription
 
 logger = logging.getLogger(__name__)
@@ -117,11 +118,15 @@ class DeliveryReport:
     failed: int = 0
 
 
-async def send_to_all(database: Database, sender: Sender, message: dict[str, Any]) -> DeliveryReport:
-    """Wysyła powiadomienie do wszystkich subskrypcji; usuwa wygasłe."""
+async def send_to_owner(
+    database: Database, sender: Sender, message: dict[str, Any], owner: uuid.UUID
+) -> DeliveryReport:
+    """Wysyła powiadomienie na urządzenia jednego konta; usuwa wygasłe subskrypcje."""
     payload = json.dumps(message, ensure_ascii=False)
     async with database.session() as session:
-        subscriptions = (await session.scalars(select(PushSubscription))).all()
+        subscriptions = (
+            await session.scalars(select(PushSubscription).where(PushSubscription.owner_id == owner))
+        ).all()
     report = DeliveryReport()
     for record in subscriptions:
         info = {"endpoint": record.endpoint, "keys": {"p256dh": record.p256dh, "auth": record.auth}}
@@ -173,6 +178,17 @@ def run_finished_message(event: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+async def _wlasciciel_rozmowy(database: Database, message: dict[str, Any]) -> uuid.UUID | None:
+    """Konto rozmowy, której dotyczy powiadomienie (``None`` — rozmowy już nie ma)."""
+    try:
+        rozmowa = uuid.UUID(str(message.get("url", "")).removeprefix("/c/"))
+    except ValueError:
+        return None
+    async with database.session() as session:
+        rekord = await session.get(Conversation, rozmowa)
+    return rekord.owner_id if rekord is not None else None
+
+
 async def listen_run_finished(settings: Settings, database: Database, sender: Sender) -> None:
     """Nasłuch kanału ``nexus:run-finished`` (do anulowania zadania asyncio)."""
     if not settings.redis_url:
@@ -193,8 +209,9 @@ async def listen_run_finished(settings: Settings, database: Database, sender: Se
                 except (TypeError, ValueError):
                     continue
                 message = run_finished_message(event) if isinstance(event, dict) else None
-                if message is not None:
-                    report = await send_to_all(database, sender, message)
+                owner = await _wlasciciel_rozmowy(database, message) if message is not None else None
+                if message is not None and owner is not None:
+                    report = await send_to_owner(database, sender, message, owner)
                     logger.info(
                         "Push o zadaniu %s: wysłane %s, usunięte %s, błędy %s",
                         message["run_id"],
