@@ -536,6 +536,12 @@ ograniczenia zakresu (klucz daje pełny dostęp do API tak samo jak sesja przegl
 klienta (`danaco-nexus.caddy:84`). Ciasteczko obejmuje domenę nadrzędną
 (`config.py:65`, `auth.py:202-203`).
 
+Stan od 24.09.2026: nagłówek dostaje sesja właściciela instalacji (konto techniczne) oraz konto
+klienta, które ma własne konto Nextcloud `nexus-<owner>` — zakładane przy pierwszym wejściu do
+chmury, gdy plan obejmuje synchronizację (Pro, Grupa), przez `occ` (`backend/nexus/chmura_konta.py`).
+Pozostałe konta dostają `204` bez nagłówka; ich pliki są w `/Konta/<owner>` konta technicznego
+i widzą je wyłącznie przez moduł Pliki. Przegląd izolacji: `docs/zgodnosc/IZOLACJA-KONT.md`.
+
 ### Trasy publiczne
 
 | Trasa | Uwierzytelnianie | Odsyłacz |
