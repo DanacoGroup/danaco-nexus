@@ -137,7 +137,13 @@ def occ_uslugi(settings: Settings) -> Occ:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
-        wyjscie, _ = await asyncio.wait_for(proces.communicate(), timeout=120)
+        try:
+            wyjscie, _ = await asyncio.wait_for(proces.communicate(), timeout=120)
+        except TimeoutError:
+            # Zawieszony occ nie może zostać w tle z hasłem konta w środowisku.
+            proces.kill()
+            await proces.wait()
+            return 124, "occ nie odpowiedział w 120 s"
         return proces.returncode or 0, wyjscie.decode("utf-8", errors="replace")
 
     return wywolaj

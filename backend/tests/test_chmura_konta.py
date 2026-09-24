@@ -223,3 +223,23 @@ def test_wlasciciel_instalacji_nie_dostaje_osobnego_konta(ustawienia: Settings) 
     assert konto_chmury(ustawienia, ADMIN_OWNER) is None
     with pytest.raises(BladKontaChmury):
         asyncio.run(zapewnij_konto(ustawienia, ADMIN_OWNER, 1024))
+
+
+def test_zawieszony_occ_jest_zabijany(
+    ustawienia: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """occ, który nie odpowiada, nie może zostać w tle z hasłem konta w środowisku."""
+    import nexus.chmura_konta as modul
+
+    skrypt = tmp_path / "occ"
+    skrypt.write_text("#!/bin/sh\nexec sleep 30\n", encoding="utf-8")
+    skrypt.chmod(0o755)
+    ustawienia.chmura_occ = skrypt
+    oryginal = asyncio.wait_for
+
+    async def szybko(zadanie, timeout):  # type: ignore[no-untyped-def]
+        return await oryginal(zadanie, timeout=0.2)
+
+    monkeypatch.setattr(modul.asyncio, "wait_for", szybko)
+    kod, wyjscie = asyncio.run(modul.occ_uslugi(ustawienia)(["status"], {}))
+    assert kod == 124 and "120 s" in wyjscie
