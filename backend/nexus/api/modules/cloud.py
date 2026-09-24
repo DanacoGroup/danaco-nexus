@@ -36,7 +36,7 @@ from nexus.api.files import (
 )
 from nexus.cloud_service import CloudError, CloudService, check_name, clean_path
 from nexus.config import Settings
-from nexus.db import Conversation, Database, StoredFile
+from nexus.db import ADMIN_OWNER, Conversation, Database, StoredFile
 from nexus.platnosci.uprawnienia import limity_uzytkownika, opis_przestrzeni
 from nexus.storage import FileStorage, guess_mime, safe_filename
 
@@ -612,7 +612,17 @@ async def to_conversation(payload: ToConversation, request: Request) -> dict[str
 
 @router.get("/synchronizacja")
 async def sync_info(request: Request) -> dict[str, Any]:
-    """Adres serwera dla aplikacji Nextcloud (Windows, Android, iOS) z kodem QR."""
+    """Adres serwera dla aplikacji Nextcloud (Windows, Android, iOS) z kodem QR.
+
+    Tylko dla właściciela instalacji: konto Nextcloud jest jedno i należy do niego. Klient
+    dostawał tu login ``admin``, którym nie zaloguje się i którego nie powinien znać.
+    """
+    if (await require_session(request)).owner_id != ADMIN_OWNER:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Synchronizacja z aplikacjami Nextcloud nie jest jeszcze dostępna dla Twojego konta. "
+            "Pliki przesyłasz i pobierasz w module Pliki.",
+        )
     settings = _settings(request)
     server = (settings.chmura_public_url or DEFAULT_PUBLIC_CLOUD).rstrip("/")
     qr = segno.make(server, error="m")

@@ -447,6 +447,10 @@ async def me(request: Request, sesja: UserSession = Depends(require_session)) ->
 
     Konto klienta widzi własną nazwę, nie nazwę administratora instalacji: nazwa z ustawień
     dotyczy wyłącznie właściciela instalacji.
+
+    Adres chmury dostaje wyłącznie właściciel. Logowanie jednokrotne (``sso``) wpuszcza do
+    Nextcloud tylko jego, a klienci nie mają tam jeszcze własnych kont — odsyłacz prowadziłby
+    ich na ekran logowania, którego nie przejdą. Pliki klienta działają w Nexusie bez zmian.
     """
     from nexus.models.portal import PortalUser
 
@@ -457,7 +461,7 @@ async def me(request: Request, sesja: UserSession = Depends(require_session)) ->
             if konto is not None:
                 return {
                     "username": konto.name or konto.email,
-                    "cloud_url": request.app.state.settings.chmura_public_url,
+                    "cloud_url": "",
                     "gosc": "1" if konto.plan == GOSC_PLAN else "",
                 }
         record = await session.get(Setting, USERNAME_KEY)

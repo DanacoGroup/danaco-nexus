@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import update
 from test_api import HEADERS, PASSWORD, client, set_password, settings  # noqa: F401
 
+from nexus.api.app import create_app
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER, Database, StoredFile
 from nexus.platnosci.plany import PLAN_DOMYSLNY
@@ -267,3 +268,32 @@ def test_klucze_urzadzen_nie_przeciekaja_miedzy_kontami(
     zaloguj(client, "obcy-telefon@example.com", KLIENT_HASLO)
     assert client.get("/api/urzadzenia").json() == [], "drugie konto nie może widzieć cudzych kluczy"
     assert client.delete(f"/api/urzadzenia/{urzadzenie}", headers=HEADERS).status_code == 404
+
+
+def test_klient_nie_dostaje_chmury_wlasciciela(tmp_path: Path) -> None:
+    """Nextcloud ma jedno konto — właściciela. Klient nie dostaje ani odsyłacza, ani loginu."""
+    ustawienia = Settings(
+        data_dir=tmp_path / "data",
+        static_dir=tmp_path / "static",
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'nexus.db').as_posix()}",
+        cookie_secure=False,
+        cookie_domain="",
+        public_url="",
+        chmura_public_url="https://cloud.example.pl",
+        redis_url="",
+        voice_warm_up=False,
+        qdrant_url="http://127.0.0.1:1",
+    )
+    set_password(ustawienia)
+    zaloz_konto(ustawienia, "klient@example.com")
+    with TestClient(create_app(ustawienia)) as klient:
+        zaloguj(klient, "admin", PASSWORD)
+        assert klient.get("/api/auth/me").json()["cloud_url"] == "https://cloud.example.pl"
+        assert klient.get("/api/cloud/synchronizacja").json()["user"] == ustawienia.chmura_user
+
+        klient.post("/api/auth/logout", headers=HEADERS)
+        zaloguj(klient, "klient@example.com", KLIENT_HASLO)
+        assert klient.get("/api/auth/me").json()["cloud_url"] == ""
+        odmowa = klient.get("/api/cloud/synchronizacja")
+        assert odmowa.status_code == 403
+        assert ustawienia.chmura_user not in odmowa.text
