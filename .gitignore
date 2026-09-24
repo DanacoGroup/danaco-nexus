@@ -87,3 +87,6 @@ deploy/wydania/*.env
 /frontend/public/film/
 /frontend/public/kampania/
 /frontend/public/ruch/
+
+# Ślad sesji telemetrii onnxruntime przy testach (bazy SQLite „:memory:”).
+:memory:.ses
