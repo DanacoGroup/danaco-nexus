@@ -21,7 +21,7 @@ import httpx
 
 from nexus.config import Settings
 from nexus.tools.base import ToolError
-from nexus.tools.cloud import _iso, normalize_cloud_path
+from nexus.tools.cloud import KATALOG_KONT, _iso, katalog_konta, normalize_cloud_path
 
 DAV = "{DAV:}"
 OC = "{http://owncloud.org/ns}"
@@ -87,15 +87,6 @@ def check_name(name: str) -> str:
     if len(name) > 250:
         raise CloudError(400, "Nazwa jest za długa.")
     return name
-
-
-#: Folder, w którym instalacja trzyma przestrzenie poszczególnych kont.
-KATALOG_KONT = "Konta"
-
-
-def katalog_konta(owner: uuid.UUID | None) -> str:
-    """Przedrostek ścieżki WebDAV dla konta (pusty dla instalacji bez rozdziału)."""
-    return f"/{KATALOG_KONT}/{owner}" if owner is not None else ""
 
 
 class CloudService:

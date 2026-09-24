@@ -19,6 +19,20 @@ from nexus.tools.base import ToolContext, ToolError, ToolInput, ToolResult, regi
 from nexus.tools.knowledge import knowledge_base
 
 
+async def _wpis_konta[W: (KnowledgeSource, KnowledgeNote)](
+    session: Any, model: type[W], identyfikator: str, wlasciciel: uuid.UUID
+) -> W | None:
+    """Źródło albo notatka — wyłącznie z kolekcji konta, dla którego pracuje agent.
+
+    Bez tej kontroli agent dowolnego konta czytał cudze źródła i notatki po samym numerze.
+    """
+    wpis = await session.get(model, store._uuid(identyfikator) or uuid.UUID(int=0))
+    if wpis is None:
+        return None
+    kolekcja = await session.get(KnowledgeCollection, wpis.collection_id)
+    return wpis if kolekcja is not None and kolekcja.owner_id == wlasciciel else None
+
+
 def _with_database[T](ctx: ToolContext, action: Callable[[Database], Awaitable[T]]) -> T:
     """Wykonuje operację na bazie danych z wątku narzędzia (własna pętla i połączenie)."""
 
@@ -249,7 +263,7 @@ def knowledge_save(ctx: ToolContext, args: KnowledgeSaveInput) -> ToolResult:
     knowledge = knowledge_base(ctx)
 
     async def action(database: Database) -> dict[str, Any]:
-        collection = await store.resolve_collection(database, args.collection or None)
+        collection = await store.resolve_collection(database, args.collection or None, owner=ctx.owner_id)
         assert collection is not None
         record, created = await store.save_source(
             database, collection, kind=args.kind, title=title, content=content, url=args.url, meta=meta
@@ -306,7 +320,11 @@ def knowledge_notes(ctx: ToolContext, args: KnowledgeNotesInput) -> ToolResult:
         source_id = store._uuid(args.source_id) if args.source_id else None
 
         async def add(database: Database) -> dict[str, Any]:
-            collection = await store.resolve_collection(database, args.collection or None)
+            if source_id is not None:
+                async with database.session() as session:
+                    if await _wpis_konta(session, KnowledgeSource, str(source_id), ctx.owner_id) is None:
+                        raise ToolError(f"Nie znaleziono źródła {args.source_id}.")
+            collection = await store.resolve_collection(database, args.collection or None, owner=ctx.owner_id)
             assert collection is not None
             note = await store.save_note(
                 database, collection, title=args.title, content=args.content, source_id=source_id
@@ -324,10 +342,18 @@ def knowledge_notes(ctx: ToolContext, args: KnowledgeNotesInput) -> ToolResult:
         return ToolResult(result, f"Zapisano notatkę: {result['title'][:80]}")
 
     async def listing(database: Database) -> dict[str, Any]:
-        statement = select(KnowledgeNote).order_by(KnowledgeNote.updated_at.desc()).limit(args.limit)
+        statement = (
+            select(KnowledgeNote)
+            .join(KnowledgeCollection, KnowledgeCollection.id == KnowledgeNote.collection_id)
+            .where(KnowledgeCollection.owner_id == ctx.owner_id)
+            .order_by(KnowledgeNote.updated_at.desc())
+            .limit(args.limit)
+        )
         collection = None
         if args.collection:
-            collection = await store.resolve_collection(database, args.collection, create=False)
+            collection = await store.resolve_collection(
+                database, args.collection, create=False, owner=ctx.owner_id
+            )
             if collection is None:
                 raise ToolError(f"Nie znaleziono kolekcji: {args.collection}")
             statement = statement.where(KnowledgeNote.collection_id == collection.id)
@@ -374,7 +400,7 @@ def knowledge_read(ctx: ToolContext, args: KnowledgeReadInput) -> ToolResult:
     async def action(database: Database) -> tuple[dict[str, Any], str]:
         async with database.session() as session:
             if args.source_id:
-                source = await session.get(KnowledgeSource, store._uuid(args.source_id) or uuid.UUID(int=0))
+                source = await _wpis_konta(session, KnowledgeSource, args.source_id, ctx.owner_id)
                 if source is None:
                     raise ToolError(f"Nie znaleziono źródła {args.source_id}.")
                 data = store.source_payload(source)
@@ -389,12 +415,14 @@ def knowledge_read(ctx: ToolContext, args: KnowledgeReadInput) -> ToolResult:
                 )
                 return data, f"Źródło: {source.title[:80]}"
             if args.note_id:
-                note = await session.get(KnowledgeNote, store._uuid(args.note_id) or uuid.UUID(int=0))
+                note = await _wpis_konta(session, KnowledgeNote, args.note_id, ctx.owner_id)
                 if note is None:
                     raise ToolError(f"Nie znaleziono notatki {args.note_id}.")
                 return store.note_payload(note), f"Notatka: {note.title[:80]}"
         if args.collection:
-            collection = await store.resolve_collection(database, args.collection, create=False)
+            collection = await store.resolve_collection(
+                database, args.collection, create=False, owner=ctx.owner_id
+            )
             if collection is None:
                 raise ToolError(f"Nie znaleziono kolekcji: {args.collection}")
             async with database.session() as session:
@@ -425,7 +453,9 @@ def knowledge_read(ctx: ToolContext, args: KnowledgeReadInput) -> ToolResult:
         async with database.session() as session:
             collections = (
                 await session.scalars(
-                    select(KnowledgeCollection).order_by(KnowledgeCollection.updated_at.desc())
+                    select(KnowledgeCollection)
+                    .where(KnowledgeCollection.owner_id == ctx.owner_id)
+                    .order_by(KnowledgeCollection.updated_at.desc())
                 )
             ).all()
         listing = [store.collection_payload(item, *counts.get(item.id, (0, 0))) for item in collections]

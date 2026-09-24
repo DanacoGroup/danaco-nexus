@@ -21,7 +21,7 @@ from sqlalchemy import select
 from nexus.api.app import create_app
 from nexus.api.auth import set_admin_credentials
 from nexus.config import Settings
-from nexus.db import Conversation, Database, Message, Run
+from nexus.db import ADMIN_OWNER, Conversation, Database, Message, Run
 from nexus.models.research import ResearchReport
 from nexus.research import scholar, web
 from nexus.research.web import BlockedAddressError, FetchError, check_url, fetch_page
@@ -997,3 +997,43 @@ def test_api_chat_with_documents(api_client: tuple[TestClient, FakeKnowledge, Se
     whole = client.post("/api/research/rozmowa", json={"collection_id": cid}, headers=HEADERS).json()
     assert whole["title"] == "Dokumenty: Dom"
     assert json.dumps(whole)
+
+
+def test_narzedzia_bazy_wiedzy_nie_pokazuja_cudzych_wpisow(tool_env: tuple[Any, FakeKnowledge]) -> None:
+    """Agent konta klienta nie widzi kolekcji, źródeł ani notatek właściciela instalacji."""
+    harness, _knowledge = tool_env
+    wlasciciel = call(
+        harness,
+        "knowledge_save",
+        {
+            "content": "Prywatne ustalenia właściciela.",
+            "title": "Tajne",
+            "collection": "Moje",
+            "note": "Poufne",
+        },
+    )
+
+    def jako_klient(name: str, arguments: dict[str, Any]) -> Any:
+        tool = registry.get(name)
+        context = harness.context()
+        context.owner_id = uuid.uuid4()
+        try:
+            return tool.handler(context, tool.parse(arguments))
+        finally:
+            context.cleanup()
+
+    # Wpis jest indeksowany z właścicielem — inaczej filtr konta w wyszukiwaniu go gubi.
+    assert _knowledge.wlasciciele[wlasciciel.data["source_id"]] == str(ADMIN_OWNER)
+    assert jako_klient("knowledge_read", {}).data["collections"] == []
+    assert jako_klient("knowledge_notes", {"action": "list"}).data["notes"] == []
+    with pytest.raises(ToolError, match="Nie znaleziono źródła"):
+        jako_klient("knowledge_read", {"source_id": wlasciciel.data["source_id"]})
+    with pytest.raises(ToolError, match="Nie znaleziono notatki"):
+        jako_klient("knowledge_read", {"note_id": wlasciciel.data["note_id"]})
+    with pytest.raises(ToolError, match="Nie znaleziono kolekcji"):
+        jako_klient("knowledge_read", {"collection": wlasciciel.data["collection_id"]})
+    with pytest.raises(ToolError, match="Nie znaleziono źródła"):
+        jako_klient(
+            "knowledge_notes",
+            {"action": "add", "content": "Dopisek", "source_id": wlasciciel.data["source_id"]},
+        )

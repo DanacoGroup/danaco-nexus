@@ -38,6 +38,7 @@ class Indexer(Protocol):
         name: str,
         conversation_id: uuid.UUID | None,
         pages: list[tuple[int | None, str]],
+        owner_id: uuid.UUID | None = None,
     ) -> int: ...
 
     def delete(self, file_id: uuid.UUID) -> None: ...
@@ -268,13 +269,20 @@ async def index_entry(database: Database, knowledge: Indexer, model: type, entry
     """Indeksuje źródło lub notatkę w Qdrant; zwraca opis błędu (pusty = sukces)."""
     async with database.session() as session:
         record = await session.get(model, entry_id)
+        kolekcja = (
+            await session.get(KnowledgeCollection, record.collection_id) if record is not None else None
+        )
     if record is None:
         return "Nie znaleziono wpisu."
+    # Wyszukiwanie zawsze filtruje po koncie; fragment bez właściciela nie trafiał do nikogo.
+    wlasciciel = kolekcja.owner_id if kolekcja is not None else ADMIN_OWNER
     meta = getattr(record, "meta", None) or {}
     text = index_text(record.title, record.content, meta)
     error = ""
     try:
-        chunks = await asyncio.to_thread(knowledge.index, record.id, record.title, None, [(None, text)])
+        chunks = await asyncio.to_thread(
+            knowledge.index, record.id, record.title, None, [(None, text)], owner_id=wlasciciel
+        )
         if chunks == 0:
             error = "Brak tekstu do zaindeksowania."
     except Exception as failure:  # noqa: BLE001 - niedostępna baza wektorowa nie blokuje zapisu

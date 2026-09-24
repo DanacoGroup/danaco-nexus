@@ -7,6 +7,7 @@ wobec katalogu głównego użytkownika i nie mogą wychodzić poza niego.
 
 from __future__ import annotations
 
+import uuid
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from pathlib import PurePosixPath
@@ -17,6 +18,7 @@ import httpx
 from pydantic import Field
 
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 from nexus.storage import safe_filename
 from nexus.tools.base import OutputFile, ToolContext, ToolError, ToolInput, ToolResult, registry
 from nexus.tools.common import unique_name
@@ -52,10 +54,25 @@ def normalize_cloud_path(path: str) -> str:
     return "/" + "/".join(parts)
 
 
-class CloudClient:
-    """Klient WebDAV konta Nextcloud właściciela."""
+#: Folder, w którym instalacja trzyma przestrzenie poszczególnych kont.
+KATALOG_KONT = "Konta"
 
-    def __init__(self, settings: Settings) -> None:
+
+def katalog_konta(owner: uuid.UUID | None) -> str:
+    """Przedrostek ścieżki WebDAV dla konta (pusty dla instalacji bez rozdziału)."""
+    return f"/{KATALOG_KONT}/{owner}" if owner is not None else ""
+
+
+class CloudClient:
+    """Klient WebDAV chmury, zawężony do przestrzeni konta, dla którego pracuje agent.
+
+    Nextcloud ma jedno konto techniczne. Właściciel instalacji widzi jego całość, a konto
+    klienta wyłącznie ``/Konta/<owner>`` — tę samą przestrzeń, którą pokazuje mu moduł
+    Pliki. Bez zawężenia agent konta próbnego przeglądał i pobierał pliki właściciela
+    i wszystkich pozostałych kont.
+    """
+
+    def __init__(self, settings: Settings, owner_id: uuid.UUID = ADMIN_OWNER) -> None:
         token_file = settings.chmura_token_file
         try:
             token = token_file.read_text(encoding="utf-8").strip()
@@ -66,12 +83,25 @@ class CloudClient:
                 "Chmura osobista nie jest skonfigurowana (brak adresu Nextcloud lub hasła aplikacji)."
             )
         self.user = settings.chmura_user
-        self.base = f"{settings.chmura_url.rstrip('/')}/remote.php/dav/files/{quote(self.user)}"
+        self.konto = "" if owner_id == ADMIN_OWNER else katalog_konta(owner_id)
+        self._dav_uzytkownika = f"{settings.chmura_url.rstrip('/')}/remote.php/dav/files/{quote(self.user)}"
+        self.base = self._dav_uzytkownika + quote(self.konto)
         self._root_path = urlsplit(self.base).path
         self.http = httpx.Client(auth=(self.user, token), timeout=TIMEOUT, follow_redirects=False)
 
     def close(self) -> None:
         self.http.close()
+
+    def przygotuj_przestrzen(self) -> None:
+        """Zakłada folder konta klienta przy pierwszym użyciu (właściciel ma korzeń)."""
+        if not self.konto:
+            return
+        biezaca = ""
+        for czesc in self.konto.split("/")[1:]:
+            biezaca += "/" + czesc
+            response = self.http.request("MKCOL", self._dav_uzytkownika + quote(biezaca))
+            if response.status_code not in (201, 405):
+                self._check(response, "przygotowanie przestrzeni konta", "/")
 
     def url(self, path: str) -> str:
         return self.base + quote(normalize_cloud_path(path))
@@ -177,7 +207,13 @@ def _iso(value: str | None) -> str | None:
 
 
 def _client(ctx: ToolContext) -> CloudClient:
-    return CloudClient(ctx.settings)
+    client = CloudClient(ctx.settings, ctx.owner_id)
+    try:
+        client.przygotuj_przestrzen()
+    except BaseException:
+        client.close()
+        raise
+    return client
 
 
 class CloudBrowseInput(ToolInput):
@@ -297,6 +333,7 @@ def cloud_save(ctx: ToolContext, args: CloudSaveInput) -> ToolResult:
     finally:
         client.close()
     data: dict[str, Any] = {"folder": folder, "saved": saved}
-    if ctx.settings.chmura_public_url:
+    # Odsyłacz do Nextcloud tylko dla właściciela: klient nie ma tam konta.
+    if ctx.settings.chmura_public_url and ctx.owner_id == ADMIN_OWNER:
         data["folder_link"] = f"{ctx.settings.chmura_public_url.rstrip('/')}/apps/files/?dir={quote(folder)}"
     return ToolResult(data, f"Zapisano w chmurze {len(saved)} plików w {folder}")

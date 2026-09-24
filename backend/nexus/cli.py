@@ -89,6 +89,39 @@ async def _materialy_portalu(
     return f"{naglowek}:\n" + "\n".join(wiersze)
 
 
+async def _przeindeksuj_wiedze() -> str:
+    """Indeksuje od nowa wszystkie źródła i notatki bazy wiedzy — z właścicielem kolekcji.
+
+    Do 24.09.2026 wpisy trafiały do Qdranta bez konta, a wyszukiwanie filtruje po koncie,
+    więc zapisanych wcześniej źródeł nie znajdowało nic. Polecenie wystarczy puścić raz.
+    """
+    from sqlalchemy import select
+
+    from nexus.knowledge import KnowledgeBase
+    from nexus.models.research import KnowledgeNote, KnowledgeSource
+    from nexus.research import store
+
+    settings = get_settings()
+    database = Database(settings.database_url)
+    baza = KnowledgeBase(
+        settings.qdrant_url,
+        settings.qdrant_collection,
+        settings.embedding_model,
+        settings.cache_dir / "fastembed",
+    )
+    wynik = {"źródła": 0, "notatki": 0, "błędy": 0}
+    try:
+        for model, klucz in ((KnowledgeSource, "źródła"), (KnowledgeNote, "notatki")):
+            async with database.session() as session:
+                identyfikatory = list((await session.scalars(select(model.id))).all())
+            for identyfikator in identyfikatory:
+                blad = await store.index_entry(database, baza, model, identyfikator)
+                wynik["błędy" if blad else klucz] += 1
+    finally:
+        await database.close()
+    return ", ".join(f"{nazwa}: {liczba}" for nazwa, liczba in wynik.items())
+
+
 def main(argv: list[str] | None = None) -> int:
     """Punkt wejścia poleceń administracyjnych."""
     parser = argparse.ArgumentParser(prog="nexus.cli", description="Administracja Danaco Nexus")
@@ -129,7 +162,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Usuń z portalu pozycje tego rodzaju, których nie ma w katalogu",
     )
+    commands.add_parser(
+        "przeindeksuj-wiedze", help="Zaindeksuj od nowa bazę wiedzy (źródła i notatki z właścicielem)"
+    )
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "przeindeksuj-wiedze":
+        print(asyncio.run(_przeindeksuj_wiedze()))
 
     if arguments.command == "doctor":
         results = run_checks(get_settings(), online=arguments.online)

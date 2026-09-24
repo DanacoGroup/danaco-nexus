@@ -89,3 +89,61 @@ def test_cloud_save_browse_import_roundtrip(harness: ToolHarness, tmp_path: Path
     finally:
         client.http.request("DELETE", client.url(folder.split("/")[1]))
         client.close()
+
+
+def _atrapa_webdav(
+    monkeypatch: pytest.MonkeyPatch, harness: ToolHarness, tmp_path: Path
+) -> list[tuple[str, str]]:
+    """Nextcloud z pustymi katalogami; zwraca listę (metoda, ścieżka) wysłanych żądań."""
+    import httpx
+
+    import nexus.tools.cloud as modul
+
+    token = tmp_path / "token"
+    token.write_text("haslo-aplikacji", encoding="utf-8")
+    harness.settings.chmura_url = "http://chmura.test"
+    harness.settings.chmura_token_file = token
+    zadania: list[tuple[str, str]] = []
+
+    def obsluz(request: httpx.Request) -> httpx.Response:
+        zadania.append((request.method, request.url.path))
+        if request.method == "MKCOL":
+            return httpx.Response(405)
+        pusty = (
+            '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response>'
+            f"<d:href>{request.url.path}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/>"
+            "</d:resourcetype></d:prop></d:propstat></d:response></d:multistatus>"
+        )
+        return httpx.Response(207, content=pusty.encode())
+
+    oryginal = httpx.Client
+
+    def klient(*args: object, **kwargs: object) -> httpx.Client:
+        return oryginal(*args, transport=httpx.MockTransport(obsluz), **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(modul.httpx, "Client", klient)
+    return zadania
+
+
+def test_agent_konta_klienta_nie_wychodzi_poza_jego_przestrzen(
+    harness: ToolHarness, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Agent klienta widzi tylko /Konta/<owner>, nie korzeń właściciela ani cudze konta."""
+    zadania = _atrapa_webdav(monkeypatch, harness, tmp_path)
+    klient = uuid.uuid4()
+    kontekst = harness.context()
+    kontekst.owner_id = klient
+    tool = registry.get("cloud_browse")
+    tool.handler(kontekst, tool.parse({"path": "/"}))
+    przestrzen = f"/remote.php/dav/files/admin/Konta/{klient}"
+    assert ("PROPFIND", przestrzen) in zadania or ("PROPFIND", przestrzen + "/") in zadania
+    assert all(sciezka.startswith("/remote.php/dav/files/admin/Konta") for _, sciezka in zadania)
+
+
+def test_agent_wlasciciela_widzi_korzen_chmury(
+    harness: ToolHarness, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    zadania = _atrapa_webdav(monkeypatch, harness, tmp_path)
+    tool = registry.get("cloud_browse")
+    tool.handler(harness.context(), tool.parse({"path": "/"}))
+    assert zadania == [("PROPFIND", "/remote.php/dav/files/admin/")]
