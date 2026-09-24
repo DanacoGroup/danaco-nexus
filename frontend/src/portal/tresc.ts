@@ -279,7 +279,7 @@ export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
   {
     pytanie: "Co z pocztą — czy dostaję własny adres?",
     odpowiedz:
-      "Tak. Plan Osobisty daje jeden adres w domenie Nexusa, a plany Pro i Grupa do dziesięciu. Możesz też podłączyć własne konta IMAP i SMTP; wiadomości zostają wtedy u Twojego dostawcy, bo Nexus nie prowadzi ich kopii. Skrzynki działają przy aktywnej subskrypcji, poza okresem próbnym.",
+      "Dziś podłączasz własne konta IMAP i SMTP — także kilka naraz; wiadomości zostają u Twojego dostawcy, bo Nexus nie prowadzi ich kopii. Adresy w domenie Nexusa (jeden w planie Osobistym, do dziesięciu w Pro i Grupie) są w przygotowaniu — ruszą przy aktywnej subskrypcji, poza okresem próbnym.",
   },
   {
     pytanie: "Pod jakim adresem staje opublikowana strona?",

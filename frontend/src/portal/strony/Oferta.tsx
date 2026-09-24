@@ -66,7 +66,7 @@ export function Oferta() {
       </ul>
       <Sekcja tytul="Od czego zależy cena" opis="Cena zależy od planu.">
         <p className="max-w-2xl text-muted">
-          Osobisty, Pro i Grupa różnią się miejscem w chmurze, liczbą skrzynek pocztowych i liczbą zadań
+          Osobisty, Pro i Grupa różnią się miejscem w chmurze i liczbą zadań
           prowadzonych naraz. Plan Osobisty zaczyna się od 7&nbsp;dni próbnych ze 100&nbsp;MB miejsca. Plan Grupa
           liczy się za użytkownika i daje wspólny zakres pracy.
         </p>

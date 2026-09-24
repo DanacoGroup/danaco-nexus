@@ -209,8 +209,8 @@ export function Cennik() {
             <dd className="mt-2 text-sm text-muted">
               Gdy zaczynasz pracować w Nexusie codziennie. Pro dokłada wersje plików, czyli powrót
               do wczorajszej wersji dokumentu, synchronizację z komputerem i telefonem oraz cztery
-              zadania naraz zamiast jednego. Zakres pracy rośnie dziesięciokrotnie, przestrzeń do
-              2 GB, a adresów e-mail masz do 10 zamiast jednego.
+              zadania naraz zamiast jednego. Zakres pracy rośnie dziesięciokrotnie, a przestrzeń do
+              2 GB. Adresów e-mail w domenie Nexusa, gdy je uruchomimy, będzie do 10 zamiast jednego.
             </dd>
           </div>
           <div className="rounded-xl border border-line bg-raised p-5">

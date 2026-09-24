@@ -405,7 +405,7 @@ export const PLANY: Plan[] = [
       // chmury osobistej i skrzynek”). „Chmura — 1 GB” czytało się tak, jakby pliki
       // rozmów miały osobny zapas.
       "1 GB na pliki, pocztę i chmurę",
-      "Własny adres e-mail w domenie Nexusa",
+      "Adres e-mail w domenie Nexusa — w przygotowaniu",
       "Aplikacja na komputer i telefon",
     ],
   },
@@ -424,7 +424,10 @@ export const PLANY: Plan[] = [
       // Zamiast „automatyzacji według harmonogramu”: katalog planów takiej pozycji nie zna
       // (`platnosci/uprawnienia.py` — „automatyzacje nie mają jeszcze modułu”), a karta
       // planu na stronie sprzedażowej nie może obiecywać czegoś, czego produkt nie robi.
-      "Do 10 adresów e-mail w domenie Nexusa",
+      // Z tego samego powodu adresy w domenie Nexusa są „w przygotowaniu”: usługa poczty
+      // jest dopiero planem (docs/poczta/PLAN-USLUGI-POCZTY.md), a własne skrzynki IMAP
+      // podłącza się bez limitu planu.
+      "Do 10 adresów e-mail w domenie Nexusa — w przygotowaniu",
       "Wersje plików i synchronizacja z urządzeniami",
     ],
   },
