@@ -17,7 +17,7 @@ konto w usłudze zewnętrznej. Ten dokument zbiera wynik przeglądu wszystkich t
 | Chmura — narzędzia agenta (`cloud_*`) | brak | korzeń konta technicznego: pliki właściciela i wszystkich kont | `5e79f9e` |
 | Chmura — synchronizacja i SSO | konto Nextcloud | klient dostawał login `admin` | `57a3cd9`, `42ebd05` (własne konto `nexus-<owner>` dla planów z synchronizacją) |
 | Kalendarz — wydarzenia | przedrostek `konto-<owner>-` | poprawny | — |
-| Kalendarz — CalDAV | konto techniczne | klient dostawał login `admin` | `42ebd05` (tylko właściciel) |
+| Kalendarz — CalDAV | konto techniczne albo konto Nextcloud klienta | klient dostawał login `admin` | `42ebd05`, `28ae146` (plany Pro i Grupa: kalendarze w koncie `nexus-<owner>`, własny login) |
 | Baza wiedzy — API modułu | `owner_id` kolekcji | poprawny | — |
 | Baza wiedzy — narzędzia agenta | brak | lista i odczyt kolekcji, źródeł i notatek wszystkich kont | `5e79f9e` |
 | Baza wiedzy — indeks wektorowy | `owner_id` w ładunku | wpisy bez właściciela (nieznajdowalne) | `5e79f9e` + `nexus-cli.sh przeindeksuj-wiedze` |
