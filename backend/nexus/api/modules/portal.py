@@ -21,9 +21,11 @@ from nexus.api.auth import LoginThrottle, require_admin, token_hash
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER, Database, UserSession, utcnow
 from nexus.models.portal import RODZAJE, PortalContent, PortalMessage, PortalUser
+from nexus.platnosci.model import STATUSY_UPRAWNIAJACE, Subskrypcja
 from nexus.portal import kanaly, konta, poczta_portalu, repozytorium, tresc
 from nexus.portal.repozytorium import BrakTresci, DaneTresci
 from nexus.portal.ustawienia import PortalSettings, portal_settings
+from nexus.usuwanie_konta import usun_dane_konta
 
 MAX_TRESC = 400_000
 CACHE_PUBLICZNY = "public, max-age=300"
@@ -678,8 +680,27 @@ async def usun_konto(
             raise HTTPException(
                 status.HTTP_401_UNAUTHORIZED, "Hasło jest nieprawidłowe. Wpisz je ponownie."
             )
+        # Opłacany plan zostałby w Stripe i pobierał opłaty za konto, którego już nie ma.
+        subskrypcja = await session.scalar(
+            select(Subskrypcja).where(Subskrypcja.uzytkownik == str(record.id))
+        )
+        if (
+            subskrypcja is not None
+            and subskrypcja.stripe_subscription_id
+            and subskrypcja.status in STATUSY_UPRAWNIAJACE
+            and not subskrypcja.anuluj_na_koniec
+        ):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Konto ma opłacany plan. Najpierw zrezygnuj z planu w module Twój plan "
+                "(Zarządzaj płatnościami), potem usuń konto.",
+            )
         adres_pocztowy = record.email
+        wlasciciel_konta = record.id
         await konta.usun_konto(session, record)
+    # Razem z kontem znikają jego rozmowy, pliki, baza wiedzy, strony, projekty i chmura,
+    # a sesje aplikacji przestają działać od razu.
+    await usun_dane_konta(settings, _baza(request), wlasciciel_konta)
     licznik.success(adres_ip)
     konta.usun_ciasteczko(response, settings)
     temat, wiadomosc = poczta_portalu.tresc_usuniecia_konta()

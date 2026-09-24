@@ -218,6 +218,20 @@ class CalendarClient:
 
     # --- kalendarze ---
 
+    def usun_kalendarze_konta(self) -> int:
+        """Usuwa wszystkie kalendarze konta (usunięcie konta); właściciela instalacji — nigdy."""
+        if not self.przedrostek:
+            raise CalendarError("Kalendarzy konta technicznego nie usuwa się z poziomu konta.")
+        usuniete = 0
+        for kalendarz in self.calendars():
+            if not kalendarz["id"].startswith(self.przedrostek):
+                continue
+            response = self.http.request("DELETE", self._url(kalendarz["id"]))
+            if response.status_code not in (204, 404):
+                self._check(response, "usunięcie kalendarza")
+            usuniete += 1
+        return usuniete
+
     def calendars(self) -> list[dict[str, Any]]:
         """Kalendarze z wydarzeniami (VEVENT): identyfikator, nazwa, kolor, prawo zapisu."""
         response = self.http.request(

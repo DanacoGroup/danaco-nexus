@@ -91,6 +91,12 @@ def _zapisz_haslo(settings: Settings, uid: str, haslo: str) -> None:
     tymczasowy.replace(katalog / uid)
 
 
+def usun_haslo(settings: Settings, uid: str) -> None:
+    """Zapomina hasło i znacznik przeniesienia konta Nextcloud (po jego usunięciu)."""
+    for plik in (_katalog_hasel(settings) / uid, _znacznik_przeniesienia(settings, uid)):
+        plik.unlink(missing_ok=True)
+
+
 def _klient_techniczny(settings: Settings, transport: httpx.AsyncBaseTransport | None) -> httpx.AsyncClient:
     token = settings.chmura_token_file.read_text(encoding="utf-8").strip()
     return httpx.AsyncClient(

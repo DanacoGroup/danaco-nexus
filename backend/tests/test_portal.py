@@ -1376,3 +1376,90 @@ def test_znacznik_z_procentem_nie_pasuje_do_wszystkiego() -> None:
     assert _zaslon("\\") == "\\\\"
     # Zwykły znacznik zostaje bez zmian.
     assert _zaslon("cennik") == "cennik"
+
+
+def _znajdz_owner(settings: Settings, email: str) -> Any:
+    from nexus.models.portal import PortalUser
+
+    async def run() -> Any:
+        database = Database(settings.database_url)
+        async with database.session() as session:
+            konto = await session.scalar(select(PortalUser).where(PortalUser.email == email))
+        await database.close()
+        return konto.id if konto else None
+
+    return asyncio.run(run())
+
+
+def test_usuniecie_konta_kasuje_dane_aplikacji_i_konczy_sesje_aplikacji(
+    client: TestClient, settings: Settings, nadawca: NadawcaTestowy
+) -> None:
+    """Konto portalu jest kontem aplikacji: po usunięciu nie zostaje ani sesja okna, ani rozmowy."""
+    from nexus.db import Conversation
+
+    zarejestruj(client)
+    owner = _znajdz_owner(settings, "klient@example.com")
+
+    async def haslo_instalacji() -> None:
+        database = Database(settings.database_url)
+        await set_admin_credentials(database, "admin", HASLO_ADMINISTRATORA)
+        await database.close()
+
+    # Okno aplikacji przyjmuje logowanie dopiero na instalacji z ustawionym administratorem.
+    asyncio.run(haslo_instalacji())
+    with TestClient(client.app) as okno:
+        logowanie = okno.post(
+            "/api/auth/login",
+            json={"username": "klient@example.com", "password": HASLO_KLIENTA},
+            headers=HEADERS,
+        )
+        assert logowanie.status_code == 200, logowanie.text
+        assert okno.post("/api/conversations", json={"title": "Moja"}, headers=HEADERS).status_code == 201
+
+        usuniecie = client.post(
+            "/api/portal/konto/usuniecie",
+            json={"password": HASLO_KLIENTA, "confirmation": "USUWAM"},
+            headers=HEADERS,
+        )
+        assert usuniecie.status_code == 200, usuniecie.text
+        # Sesja okna aplikacji ma wygasnąć razem z kontem.
+        assert okno.get("/api/conversations").status_code == 401
+
+    async def rozmowy() -> int:
+        database = Database(settings.database_url)
+        async with database.session() as session:
+            liczba = await session.scalar(
+                select(func.count()).select_from(Conversation).where(Conversation.owner_id == owner)
+            )
+        await database.close()
+        return int(liczba or 0)
+
+    assert asyncio.run(rozmowy()) == 0
+
+
+def test_konta_z_oplacanym_planem_nie_da_sie_usunac(client: TestClient, settings: Settings) -> None:
+    """Subskrypcja w Stripe pobierałaby opłaty za konto, którego już nie ma."""
+    from nexus.platnosci.model import Subskrypcja
+
+    zarejestruj(client)
+    owner = _znajdz_owner(settings, "klient@example.com")
+
+    async def oplacony() -> None:
+        database = Database(settings.database_url)
+        async with database.session() as session:
+            session.add(
+                Subskrypcja(
+                    uzytkownik=str(owner), plan_kod="pro", status="aktywna", stripe_subscription_id="sub_1"
+                )
+            )
+        await database.close()
+
+    asyncio.run(oplacony())
+    odmowa = client.post(
+        "/api/portal/konto/usuniecie",
+        json={"password": HASLO_KLIENTA, "confirmation": "USUWAM"},
+        headers=HEADERS,
+    )
+    assert odmowa.status_code == 409
+    assert "Twój plan" in odmowa.json()["detail"]
+    assert client.get("/api/portal/konto/ja").status_code == 200

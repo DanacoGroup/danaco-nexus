@@ -25,12 +25,16 @@ from nexus.db import Database, Run, utcnow
 from nexus.events import QUEUE_CHANNEL, EventBus
 from nexus.logging_setup import configure_logging
 from nexus.tools import registry
+from nexus.usuwanie_konta import usun_wygasle_konta_probne
 
 logger = logging.getLogger("nexus.worker")
 
 POLL_SECONDS = 1.0
 STALE_AFTER = timedelta(minutes=3)
 RECOVER_EVERY_SECONDS = 60.0
+# Konta próbne żyją dwa dni; sprzątanie co godzinę wystarcza, żeby „znikają razem
+# z kontem” było prawdą, a nie obciąża bazy.
+SPRZATANIE_GOSCI_CO_SEKUND = 3600.0
 
 _CLAIM_TEMPLATE = """
 UPDATE runs SET status = 'running', worker_id = :worker, started_at = {now}, heartbeat_at = {now}
@@ -112,6 +116,7 @@ class Worker:
             ", ".join(registry.names()),
         )
         last_recover = time.monotonic()
+        ostatnie_sprzatanie = 0.0
         # Powiadomienie o nowym zadaniu (Redis) budzi pętlę od razu; baza jest i tak
         # odpytywana co POLL_SECONDS (zadania z innych źródeł, brak Redisa).
         async with self._events.listener(QUEUE_CHANNEL) as wait:
@@ -125,6 +130,12 @@ class Worker:
                             logger.warning("Oznaczono %d przerwanych zadań.", recovered)
                     except Exception:  # noqa: BLE001
                         logger.exception("Błąd odzyskiwania przerwanych zadań")
+                if time.monotonic() - ostatnie_sprzatanie >= SPRZATANIE_GOSCI_CO_SEKUND:
+                    ostatnie_sprzatanie = time.monotonic()
+                    try:
+                        await usun_wygasle_konta_probne(self._settings, self._database)
+                    except Exception:  # noqa: BLE001 - sprzątanie nie może zatrzymać kolejki
+                        logger.exception("Błąd sprzątania wygasłych kont próbnych")
                 if not await self._acquire_slot():
                     continue
                 run_id = None

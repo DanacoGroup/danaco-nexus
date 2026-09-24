@@ -483,7 +483,7 @@ function UsuniecieKonta({ poUsunieciu }: { poUsunieciu: () => void }) {
     <Karta>
       <h2 className="font-heading text-lg font-semibold text-fg">Usunięcie konta</h2>
       <p className="mt-2 text-sm text-muted">
-        Usunięcie kasuje dane profilu, sesje i odsyłacze do zmiany hasła. Operacji nie da się cofnąć.
+        Usunięcie kasuje konto razem z rozmowami, plikami, bazą wiedzy, stronami, projektami i chmurą. Operacji nie da się cofnąć — najpierw pobierz, co chcesz zachować. Opłacany plan trzeba wcześniej wyłączyć w module Twój plan.
       </p>
       {otwarte ? (
         <form

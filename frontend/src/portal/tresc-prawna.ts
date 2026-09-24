@@ -184,7 +184,7 @@ Kopię lub opis zastosowanego zabezpieczenia otrzymasz po napisaniu na ${ADMINIS
       tytul: "8. Jak długo przechowujemy dane",
       tresc: `| Dane | Okres |
 |---|---|
-| Konto klienta portalu | do czasu usunięcia konta; usunięcie jest nieodwracalne i kasuje konto wraz z jego sesjami i tokenami odzyskiwania |
+| Konto klienta portalu | do czasu usunięcia konta; usunięcie jest nieodwracalne i kasuje konto wraz z sesjami, tokenami odzyskiwania oraz rozmowami, plikami, bazą wiedzy, stronami, projektami i chmurą konta |
 | Sesja portalu | do wygaśnięcia ciasteczka (domyślnie 14 dni) albo do 7 dni bezczynności — rozstrzyga krótszy termin; rekordy wygasłe są kasowane przy kolejnym logowaniu |
 | Sesja aplikacji | do wygaśnięcia (domyślnie 30 dni) albo do wylogowania |
 | Token odzyskiwania hasła | do użycia albo do wygaśnięcia (domyślnie 30 minut) |
@@ -308,7 +308,7 @@ Korzystanie z internetu wiąże się z ryzykiem typowym dla sieci publicznej. Us
 3. Użytkownik odpowiada za zachowanie hasła w poufności i za działania podjęte z użyciem jego Konta.
 4. Rejestracja może być czasowo zamknięta; informuje o tym formularz rejestracji.
 5. Sesja wygasa po upływie ważności albo po 7 dniach bezczynności. Wygaśnięcie sesji nie usuwa Konta.
-6. Użytkownik może w każdej chwili usunąć Konto w panelu klienta. Operacja wymaga hasła i słowa potwierdzenia, jest **nieodwracalna** i kasuje Konto wraz z sesjami i tokenami odzyskiwania hasła.
+6. Użytkownik może w każdej chwili usunąć Konto w panelu klienta. Operacja wymaga hasła i słowa potwierdzenia, jest **nieodwracalna** i kasuje Konto wraz z sesjami, tokenami odzyskiwania hasła oraz danymi aplikacji: rozmowami, plikami, bazą wiedzy, stronami, projektami i chmurą. Konta z opłacanym planem nie da się usunąć przed rezygnacją z planu.
 7. Usługodawca może zablokować lub usunąć Konto, gdy Użytkownik rażąco narusza regulamin albo przepisy prawa, po uprzednim wezwaniu do zaprzestania naruszenia, chyba że naruszenie zagraża bezpieczeństwu Usługi lub innych osób.`,
     },
     {

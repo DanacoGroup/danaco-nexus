@@ -129,6 +129,19 @@ class KnowledgeBase:
             self._client.upsert(self._collection, points[start : start + 256], wait=True)
         return len(points)
 
+    def usun_konto(self, owner_id: uuid.UUID) -> None:
+        """Usuwa z indeksu wszystkie fragmenty jednego konta (usunięcie konta)."""
+        if not self._client.collection_exists(self._collection):
+            return
+        self._client.delete(
+            self._collection,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[models.FieldCondition(key="owner_id", match=models.MatchValue(value=str(owner_id)))]
+                )
+            ),
+        )
+
     def delete(self, file_id: uuid.UUID) -> None:
         """Usuwa z indeksu fragmenty pliku."""
         if not self._client.collection_exists(self._collection):

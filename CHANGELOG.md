@@ -28,6 +28,15 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
 
 ### Poprawiono
 
+- **Usunięcie konta usuwa dane, a nie tylko logowanie.** Konto portalu jest kontem aplikacji,
+  a jego usunięcie kasowało wyłącznie rekord konta i sesje portalu: rozmowy, pliki, baza wiedzy,
+  strony, projekty i przestrzeń w chmurze zostawały na serwerze bez właściciela, a sesja okna
+  aplikacji działała dalej do wygaśnięcia. Teraz znikają razem z kontem (zostają dokumenty
+  rozliczeniowe). Konta z opłacanym planem nie da się usunąć przed rezygnacją z planu — inaczej
+  Stripe pobierałby opłaty za konto, którego już nie ma.
+- **Konta próbne znikają po dwóch dniach, jak obiecuje portal.** Nic ich dotąd nie sprzątało
+  (w produkcji było ich 73). Proces roboczy usuwa raz na godzinę konta próbne starsze niż
+  dwa dni i bez ważnej sesji, razem z rozmowami i plikami.
 - Ekran synchronizacji kalendarza nie podaje kontom klientów loginu konta technicznego i przy
   odmowie pokazuje komunikat zamiast niekończącego się ładowania.
 - Adres `danaco-nexus.pl` zawsze otwiera stronę produktu, także zalogowanym; aplikacja stoi

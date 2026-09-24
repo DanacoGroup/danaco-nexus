@@ -99,6 +99,13 @@ liczbie pozycji warto przejść na `tsvector` z indeksem GIN; interfejs repozyto
 Wszystkie punkty zmieniające stan wymagają nagłówka `X-Nexus-Request`. Usunięcie konta kasuje
 rekord klienta razem z jego sesjami, tokenami odzyskiwania i tokenami potwierdzenia adresu, kasuje
 ciasteczko sesji i zwalnia adres e-mail — tego samego adresu można użyć do założenia nowego konta.
+Razem z kontem znikają dane aplikacji (`backend/nexus/usuwanie_konta.py`): rozmowy z przebiegami,
+pliki z dysku, katalogi plików, baza wiedzy z indeksem wektorowym, strony, projekty modułu Kod,
+konfiguracja poczty, kalendarze, przestrzeń w chmurze (folder w koncie technicznym albo własne
+konto Nextcloud) oraz sesje aplikacji i tokeny urządzeń. Zostają dokumenty rozliczeniowe.
+Konta z opłacanym planem (aktywna subskrypcja Stripe bez rezygnacji) nie da się usunąć — `409`.
+Wygasłe konta próbne (starsze niż `GOSC_DNI`, bez ważnej sesji) sprząta tak samo proces roboczy,
+raz na godzinę.
 
 ### Administrator (`/api/portal/admin`, wymaga sesji administratora)
 

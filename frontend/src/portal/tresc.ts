@@ -274,7 +274,7 @@ export const PYTANIA: { pytanie: string; odpowiedz: string }[] = [
   {
     pytanie: "Co się dzieje z danymi po usunięciu konta?",
     odpowiedz:
-      "Konto usuwasz sam w panelu klienta. Operacja wymaga hasła i słowa potwierdzenia, kasuje konto razem z sesjami i tokenami odzyskiwania hasła, i nie da się jej cofnąć. Zanim ją potwierdzisz, pobierz to, co chcesz zachować.",
+      "Konto usuwasz sam w panelu klienta. Operacja wymaga hasła i słowa potwierdzenia, kasuje konto razem z rozmowami, plikami, bazą wiedzy, stronami, projektami i chmurą, i nie da się jej cofnąć. Zanim ją potwierdzisz, pobierz to, co chcesz zachować. Zostają wyłącznie dokumenty rozliczeniowe, które przechowujemy z mocy prawa.",
   },
   {
     pytanie: "Co z pocztą — czy dostaję własny adres?",
