@@ -16,6 +16,11 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   pokazywał klientowi pliki usunięte przez innych i pozwalał je przywrócić. Sprawdzone w bazie
   produkcyjnej: żaden agent klienta nie wywołał narzędzi chmury ani bazy wiedzy, a baza wiedzy
   była pusta — luki nie zostały wykorzystane.
+- **Powiadomienia push, szkice maili i zadania modułów należą do konta.** Zakończone zadanie
+  wysyłało tytuł rozmowy na urządzenia wszystkich kont, lista oczekujących maili i usunięć
+  wydarzeń pokazywała propozycje wszystkich kont (z adresatami i treścią), a stan zadania
+  modułu twórczego dało się odczytać po numerze z innego konta. W produkcji nie było ani
+  subskrypcji push, ani oczekujących działań. Pełny przegląd: `docs/zgodnosc/IZOLACJA-KONT.md`.
 
 ### Dodano
 
