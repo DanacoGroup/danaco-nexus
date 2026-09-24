@@ -60,7 +60,14 @@ def test_pozostale_projekty_serwera_sa_niewidoczne(tmp_path: Path) -> None:
     widoczne = {nazwa for nazwa in wyjscie.split() if nazwa}
     na_dysku = {p.name for p in projekty.iterdir() if p.is_dir()}
     assert len(na_dysku) > 1, "test nie ma sensu przy jednym projekcie na dysku"
-    assert not (widoczne & na_dysku), f"agent widzi cudze projekty: {widoczne & na_dysku}"
+    # Katalog roboczy leży czasem w projekcie (bramka z sesji agenta ustawia TMPDIR w .tmp
+    # projektu): wtedy jego człon jest widoczny, ale tylko jako droga — bez zawartości.
+    droga = tmp_path.relative_to(projekty).parts if tmp_path.is_relative_to(projekty) else ()
+    obce = (widoczne & na_dysku) - set(droga[:1])
+    assert not obce, f"agent widzi cudze projekty: {obce}"
+    if droga:
+        wnetrze = w_piaskownicy(f"ls -A /danaco/projekty/{droga[0]} 2>&1", tmp_path).split()
+        assert wnetrze == [droga[1]], f"w projekcie z katalogiem roboczym widać więcej niż drogę: {wnetrze}"
 
 
 def test_lancuch_narzedzi_zostaje_dostepny(tmp_path: Path) -> None:
