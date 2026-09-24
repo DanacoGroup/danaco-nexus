@@ -43,15 +43,15 @@ domysłów wpisanych w dokument.
 - **Notatka ze spotkania** — „Z tego nagrania zrób notatkę i listę zadań z terminami; po
   polsku, najwyżej jedna strona”.
 - **Materiał do druku** — „Zaprojektuj plakat A3 na konferencję 12 lipca: ciemne tło, duża
-  data, plik do druku ze spadami”.
+  data, plik PDF do druku”.
 - **Porządek w archiwum** — „Zindeksuj te dokumenty i przygotuj wykaz umów z datami
   wygaśnięcia”.
 
 ## Pytania przed rozpoczęciem pracy
 
-Nexus dopytuje wtedy, gdy polecenie da się wykonać na dwa sposoby, a wybór zmienia wynik.
-Tak jest przy braku formatu w materiale do druku, niejasnym adresacie pisma i dwóch różnych
-kursach w jednym dokumencie finansowym. Odpowiedź jednym zdaniem wystarcza.
+Narzędzia i ustawienia techniczne (rozpoznawanie tekstu, kontrast, rozdzielczość) Nexus
+dobiera sam, bez pytania. Dopytuje tylko wtedy, gdy cel zadania jest naprawdę niejasny.
+Odpowiedź jednym zdaniem wystarcza.
 
 ## Od czego zacząć
 

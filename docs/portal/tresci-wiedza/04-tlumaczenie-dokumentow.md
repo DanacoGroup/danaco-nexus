@@ -1,8 +1,9 @@
 # Jak przetłumaczyć umowę z zachowaniem układu
 
 Umowę tłumaczysz bez rozbierania jej na kawałki: dołączasz plik DOCX, PPTX albo PDF
-i podajesz język docelowy. Wraca dokument o tym samym układzie — tabele, numeracja
-paragrafów, przypisy i podpisy zostają na swoich miejscach.
+z tekstem cyfrowym i podajesz język docelowy (zeskanowaną umowę najpierw przepuść przez OCR
+na czacie). Wraca dokument o tym samym układzie — tabele, numeracja paragrafów i podpisy
+zostają na swoich miejscach.
 
 ## Układ dokumentu i odwołania po numerach
 
@@ -23,7 +24,8 @@ przyczynę poprawek.
 
 ## Zakres tłumaczenia
 
-- **Tekst dokumentu** — akapity, tabele, nagłówki, przypisy i podpisy pod rysunkami.
+- **Tekst dokumentu** — akapity, tabele, nagłówki i stopki, pola tekstowe i podpisy pod
+  rysunkami. Przypisy dolne i końcowe w plikach DOCX zostają w języku oryginału.
 - **Nazwy własne** — zostają w oryginale, chyba że poprosisz inaczej.
 - **Tekst na obrazach** — wymaga osobnego polecenia, bo to praca na grafice, nie na pliku
   tekstowym.
@@ -45,4 +47,5 @@ zastąpi. Do negocjacji, korespondencji i pracy wewnętrznej przekład z Nexus
 ## Od czego zacząć
 
 Wejdź na /wyprobuj, dołącz umowę w formacie DOCX i podaj język docelowy. Przetłumaczony plik
-odbierzesz w module Tłumacz, a jego kopia trafi do modułu Pliki.
+odbierzesz w tej samej rozmowie, a jego kopia trafi do modułu Pliki. Możesz też wgrać umowę
+w module Tłumacz, w zakładce „Dokumenty”.

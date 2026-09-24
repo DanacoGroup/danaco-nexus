@@ -12,7 +12,7 @@ Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, S
 ## Twoje rzeczy
 
 - **Pliki** — wyniki pracy Nexusa i Twoje wgrane pliki: własne katalogi, wyszukiwanie, porządkowanie.
-- **Chmura** — ta sama przestrzeń widziana jak dysk: wersje, udostępnianie odsyłaczem, synchronizacja z komputerem i telefonem.
+- **Chmura** — Twoja przestrzeń w chmurze osobistej, obok modułu Pliki: udostępnianie odsyłaczem, a w planach Pro i Grupa także wersje plików i synchronizacja z komputerem i telefonem.
 - **Wiedza** — kolekcje stron, plików, prac i notatek; wyszukiwanie po znaczeniu i rozmowa z dokumentami.
 
 ## Biuro
@@ -32,14 +32,14 @@ Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, S
 - **Badania** — przegląd sieci i prac naukowych: badanie tematu w wielu źródłach, raport z przypisami.
 - **Kod** — praca nad repozytorium: zmiany, testy i historia sesji w jednym oknie.
 - **Agenci** — Twoje specjalizacje i wszystko, co pracuje w tle.
-- **Sprzęt** — telefon, Nexus Desktop i rozszerzenie przeglądarki: połączenia, powiadomienia i nadane zgody.
+- **Sprzęt** — telefon, Nexus Desktop i rozszerzenie przeglądarki: połączenie nowego urządzenia, klucze połączonych urządzeń, aplikacje do pobrania i powiadomienia.
 
 ## Nexus
 
 - **Narzędzia** — wykaz tego, po co Nexus sięga w Twoim imieniu, z przykładem przy każdej pozycji.
-- **Twój plan** — plan i subskrypcja, zmiana planu, faktury i kody rabatowe. Płatność obsługuje Stripe. Gdy dostęp w okresie dobiega końca, nad rozmową pojawia się też przycisk **Zmień plan**.
+- **Twój plan** — plan i subskrypcja, zmiana planu, faktury i kody rabatowe. Płatność obsługuje Stripe. Gdy dostęp w okresie dobiega końca albo się wyczerpał, nad rozmową pojawia się też pasek z przyciskiem **Zmień plan**.
 - **Ustawienia** — konto, wygląd, praca, głos, powiadomienia i Twoje dane.
 
-## Moduły, które trzeba najpierw podłączyć
+## Zanim moduł pokaże dane
 
-Poczta czeka na dane skrzynki, a kalendarz i chmura na przestrzeń w chmurze osobistej. Do tego czasu moduł pokazuje ekran z przyciskiem podłączenia, a nie pustą listę. Kroki opisuje materiał „Poczta i kalendarz”.
+Poczta czeka na dane skrzynki. Do tego czasu pokazuje ekran z przyciskiem **Podłącz skrzynkę**, a kroki opisuje materiał „Poczta i kalendarz”. Kalendarz i Chmura korzystają z przestrzeni w chmurze osobistej. Gdy ta przestrzeń jest chwilowo niedostępna, moduły nie pokazują pustej listy, tylko ekran z wyjaśnieniem: Kalendarz z przyciskiem **Zaplanuj w rozmowie**, a Chmura z przyciskiem **Otwórz Pliki**.

@@ -11,7 +11,7 @@ niego generuje się osobne hasło do aplikacji, w ustawieniach bezpieczeństwa 
 pocztowego. Jest ono odwoływalne pojedynczo, więc odcięcie Nexusa nie rusza Twojego
 logowania do poczty.
 
-Nexus zapisuje to hasło po stronie serwera, w postaci nieczytelnej dla przeglądarki.
+Nexus zapisuje to hasło na serwerze, w pliku dostępnym tylko dla usługi Nexusa, i nigdy nie odsyła go do przeglądarki.
 
 ## Adresy serwerów
 
@@ -24,11 +24,10 @@ w wiadomościach, które nie wychodzą.
 
 ## Ile miejsca zajmie poczta
 
-Poczta dzieli przestrzeń konta z plikami i chmurą. Skrzynka z kilkuletnimi załącznikami
-potrafi zająć jej więcej, niż się spodziewasz, więc po pierwszym pobraniu zajrzyj na pasek
-zajętości.
-
-Przy ciasnym planie podłącz najpierw jedną skrzynkę, tę roboczą, i dopiero potem kolejne.
+Podłączona skrzynka zostaje u Twojego dostawcy. Nexus czyta wiadomości z jego serwera
+i nie robi ich kopii, więc sama poczta nie zajmuje przestrzeni konta, bez względu na liczbę
+i wielkość skrzynek. Miejsce zajmują dopiero załączniki, o których pobranie do rozmowy
+poprosisz Nexusa: zapisują się wtedy jako pliki konta.
 
 ## Odpowiedzi, które wysyłasz Ty
 
@@ -40,12 +39,15 @@ stanowiska, przeczytaj jedno i drugie, a potem wyślij albo popraw.
 
 ## Kalendarz i chmura osobista
 
-Kalendarz stoi na chmurze osobistej i wchodzi się do niego tym samym logowaniem co do
-aplikacji. W telefonie pokaże terminy systemowa aplikacja kalendarza po podłączeniu konta
-protokołem CalDAV.
+Kalendarz stoi na chmurze osobistej, a terminy widzisz i dodajesz w module Kalendarz.
+W planach Pro i Grupa pokaże je także systemowa aplikacja kalendarza
+w telefonie. Podłączasz ją protokołem CalDAV do własnego konta w chmurze: adres i nazwę
+użytkownika podaje moduł Kalendarz pod ikoną synchronizacji z telefonem, a hasłem jest hasło
+aplikacji utworzone w chmurze (Ustawienia → Bezpieczeństwo), nie hasło do Nexusa.
 
-Usunięcie wydarzenia również czeka na Twoje zatwierdzenie. Nexus zaproponuje termin,
-przesunie spotkanie w szkicu i pokaże kolizje, a decyzję zostawi Tobie.
+Usunięcie wydarzenia również czeka na Twoje zatwierdzenie. Dodanie i przesunięcie spotkania
+Nexus wprowadza od razu, bez szkicu. Gdy poprosisz o ułożenie planu przyciskiem „Zaplanuj
+z Nexusem”, najpierw przejrzy Twoje terminy, żeby nie nakładać nowych spotkań na istniejące.
 
 ## Praca, która się opłaca po podłączeniu
 
@@ -58,5 +60,5 @@ przesunie spotkanie w szkicu i pokaże kolizje, a decyzję zostawi Tobie.
 ## Od czego zacząć
 
 Przygotuj hasło do aplikacji i dane serwerów, a potem przejdź przez ekran podłączenia
-w module Poczta. Zaraz po pierwszym pobraniu poproś o streszczenie nieprzeczytanych
+w module Poczta. Zaraz po podłączeniu skrzynki poproś o streszczenie nieprzeczytanych
 wiadomości — zobaczysz przygotowaną odpowiedź, zanim cokolwiek wyślesz.

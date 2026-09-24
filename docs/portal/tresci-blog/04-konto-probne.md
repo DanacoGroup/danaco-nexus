@@ -10,8 +10,10 @@ Obietnicę „opisujesz wynik, dostajesz plik” da się sprawdzić tylko na wł
 z interfejsu, zrzut ekranu i lista funkcji pokazują, że coś istnieje, nie że zadziała na
 Twoim skanie z zagiętym rogiem.
 
-Dlatego konto próbne daje ten sam zakres co konto płatne: te same moduły i ten sam sposób
-zlecania pracy.
+Dlatego konto próbne otwiera tę samą aplikację co konto płatne: te same moduły i ten sam
+sposób zlecania pracy. Różni się przydziałem: zakres pracy i miejsce są mniejsze
+niż w planie Osobistym. Jak w nim, zadania idą po jednym naraz, a wersji plików
+i synchronizacji z komputerem nie ma — te są dopiero od planu Pro.
 
 ## Trwałość danych na koncie próbnym
 

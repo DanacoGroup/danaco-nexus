@@ -21,12 +21,14 @@ komputerze zostań przy przeglądarce i wyloguj się po skończonej pracy.
 
 ## Telefon, gdy praca dzieje się w ruchu
 
-Aplikacja na Androida dokłada trzy rzeczy, których przeglądarka nie ma: panel nad innymi
-aplikacjami, szkice odpowiedzi na SMS i obecność w systemowym menu „Udostępnij”. Każda
-startuje wyłączona i wymaga osobnej zgody.
+Aplikacja na Androida dokłada rzeczy, których przeglądarka nie ma. Dwie z nich — przekazanie
+zawartości ekranu telefonu do rozmowy (z panelu nad innymi aplikacjami) i szkice odpowiedzi
+na SMS — startują wyłączone i każda wymaga osobnej zgody.
+Wpis Nexusa w systemowym menu „Udostępnij” daje aplikacja zainstalowana z przeglądarki
+jako własne okno, nie aplikacja na Androida.
 
-Włączaj je pojedynczo i wtedy, gdy wiesz, po co. Panel nad aplikacjami widzi to, co jest
-na ekranie, a wątek SMS zawiera też wiadomości nadawcy.
+Włączaj je pojedynczo i wtedy, gdy wiesz, po co. Panel na Twoje polecenie przekazuje to,
+co jest na ekranie, a wątek SMS zawiera też wiadomości nadawcy.
 
 ## Nexus Desktop, gdy pliki leżą na dysku
 
@@ -43,8 +45,13 @@ albo porównania ofert.
 ## Porządek w kluczach
 
 Każde urządzenie łączy się własnym kluczem, więc wejść można przybywać bez szkody dla
-bezpieczeństwa. Raz na jakiś czas przejrzyj listę i odetnij sprzęt, którego już nie masz:
-pozostałe urządzenia pracują dalej bez zmiany hasła.
+bezpieczeństwa. Raz na jakiś czas przejrzyj listę w module Sprzęt i odetnij przyciskiem
+„Cofnij” sprzęt, którego już nie masz. Przy kluczu z dopiskiem „wyloguje też okno aplikacji”
+kończy to także logowanie w oknie Nexusa na tamtym urządzeniu, a pozostałe urządzenia
+pracują dalej bez zmiany hasła. Cofnięcie klucza bez dopisku, starszego albo wklejonego
+ręcznie, nie wylogowuje okna. Wtedy przed cofnięciem kliknij „Wyloguj pozostałe przeglądarki”
+w Ustawieniach. Zmiana hasła działa mocniej: wylogowuje okna aplikacji na pozostałych
+urządzeniach i od razu odłącza ich klucze, a klucze rozszerzeń zostają.
 
 ## Od czego zacząć
 

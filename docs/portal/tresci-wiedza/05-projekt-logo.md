@@ -1,8 +1,9 @@
 # Jak zlecić projekt logo
 
 Logo zlecasz w rozmowie, tak jak zleciłbyś je grafikowi: piszesz, czym firma się zajmuje,
-do kogo mówi i czego ma unikać. Wraca znak zaprojektowany od zera, w trzech plikach — PNG
-do sieci, SVG do dalszej edycji i PDF do druku.
+do kogo mówi i czego ma unikać. Wraca znak zaprojektowany od zera: PNG do sieci i SVG
+do dalszej edycji. Jeśli potrzebujesz wersji do druku, napisz to w zleceniu, a dostaniesz
+także PDF.
 
 ## Informacje do podania w zleceniu
 

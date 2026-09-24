@@ -17,7 +17,7 @@ nazwy po numerze, więc przenumerowanie pliku zmienia kolejność w spisie, a ni
 Zmiana części po numerze to już nowy adres: stara pozycja zostaje w bazie, dopóki
 nie wczytasz katalogu z `--synchronizuj`.
 
-Kolejność, jaka tu stoi: od formułowania poleceń, przez pięć zadań opisanych krok
+Kolejność, jaka tu stoi: od formułowania poleceń, przez sześć zadań opisanych krok
 po kroku (skany, nagrania, tłumaczenia, znak firmowy, strona, poczta z kalendarzem),
 po formaty, wejścia do aplikacji i granice pracy Nexusa.
 

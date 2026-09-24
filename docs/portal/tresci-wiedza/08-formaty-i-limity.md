@@ -31,21 +31,29 @@ Wynik idzie za przeznaczeniem podanym w poleceniu. Dostaniesz dokument PDF albo
 arkusz, obraz w rozdzielczości do druku lub do sieci, nagranie, plik z napisami albo
 archiwum.
 
-Gotowe pliki trafiają do przestrzeni konta i zostają tam po zamknięciu rozmowy. Historia
-rozmów to osobny zbiór — skasowanie wątku nie kasuje tego, co z niego powstało.
+Gotowe pliki trafiają do przestrzeni konta i zostają tam po zamknięciu rozmowy. Pliki
+wgrane do rozmowy i wyniki, które w niej powstały, należą jednak do niej: usunięcie
+wątku kasuje je razem z nim. Co chcesz zachować, pobierz przed jego usunięciem.
 
 ## Limity
 
-Od planu zależą dwie rzeczy: łączna przestrzeń konta i liczba zadań liczonych naraz.
-Bieżące wartości pokazuje moduł Twój plan.
+Od planu zależą łączna przestrzeń konta, liczba zadań wykonywanych naraz i zakres pracy
+na okres rozliczeniowy. Wersje plików i synchronizację z komputerem i telefonem mają
+plany Pro i Grupa. Bieżące wartości pokazuje moduł Twój plan.
+
+Gdy dostęp w okresie dobiega końca albo się wyczerpał, nad rozmową pojawia się pasek
+z przyciskiem **Zmień plan**. Po wyczerpaniu dostępu nowe zadania ruszą dopiero po jego
+przedłużeniu.
 
 Dopuszczalną wielkość pojedynczego pliku ustala sam serwer, jednakowo dla wszystkich
-planów. Przejście na wyższy plan daje więcej miejsca i więcej zadań naraz; największy
-przyjmowany plik pozostaje ten sam.
+planów. Przejście na wyższy plan daje więcej miejsca, więcej zadań naraz i większy zakres
+pracy; największy przyjmowany plik pozostaje ten sam.
 
-Nexus sprawdza oba limity przy wgrywaniu, zanim praca ruszy. Zapełnioną przestrzeń zgłasza
-przed przyjęciem pliku, a przekroczoną wielkość w trakcie jego odbioru. Zadanie nie urywa
-się w połowie z powodu limitu.
+Przestrzeń i wielkość pliku Nexus sprawdza przy wgrywaniu, zanim praca ruszy. Zapełnioną
+przestrzeń zgłasza przed przyjęciem pliku, a przekroczoną wielkość w trakcie jego odbioru.
+Żaden z tych limitów nie przerwie więc zadania w połowie. Osobną granicą jest czas: zwykłe
+zadanie trwa najwyżej 2 godziny, a badanie w module Badania do 6 godzin. Po tym czasie
+zadanie zostaje przerwane z komunikatem o przekroczeniu limitu czasu.
 
 ## Jakość materiału źródłowego
 

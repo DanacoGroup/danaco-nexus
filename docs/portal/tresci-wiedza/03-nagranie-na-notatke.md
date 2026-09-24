@@ -1,30 +1,28 @@
 # Jak spisać nagranie ze spotkania
 
 Nagranie spotkania zamieniasz w notatkę jednym poleceniem: dołączasz plik dźwiękowy albo
-wideo i piszesz, co ma z niego powstać. Nexus spisuje wypowiedzi ze znacznikami czasu,
-rozdziela mówców i układa z tego notatkę z listą zadań.
+wideo i piszesz, co ma z niego powstać. Nexus spisuje wypowiedzi ze znacznikami czasu
+i układa z tego notatkę z listą zadań.
 
 ## Materiał przyjmowany przez moduł Studio
 
 Nagranie z dyktafonu, ścieżka z komunikatora, plik wideo z kamery. Nexus przyjmuje
 najczęstsze formaty dźwięku i obrazu, więc niczego nie konwertujesz przed wysłaniem.
 
-Dłuższe nagranie idzie własnym torem jako zadanie w tle. Rozmowę prowadzisz dalej,
-a postęp widzisz na karcie pracy.
+Dłuższe nagranie spisuje się dłużej, a postęp widzisz na karcie pracy. Do końca spisywania
+w tej rozmowie nie wyślesz kolejnej wiadomości. W innej rozmowie możesz pracować równolegle,
+jeśli plan na to pozwala: Pro prowadzi cztery zadania naraz, Grupa osiem, a plan Osobisty jedno.
 
 ## Polecenie, które oszczędza poprawki
 
-Napisz, do czego notatka posłuży, i podaj liczbę mówców, jeśli ją znasz. Przykład: „Spisz
-to nagranie, rozdziel trzech mówców, zrób notatkę na jedną stronę i osobną listę zadań
-z terminami i osobą odpowiedzialną”.
+Napisz, do czego notatka posłuży. Przykład: „Spisz to nagranie, zrób notatkę na jedną stronę
+i osobną listę zadań z terminami i osobą odpowiedzialną”.
 
-Dopisz nazwiska i nazwy własne, które padają w nagraniu. Odczyt ze słuchu myli się na
-nazwiskach, skrótach firmowych i nazwach produktów, a podana lista usuwa większość takich
-pomyłek.
+Dopisz nazwiska i nazwy własne, które padają w nagraniu.
 
 ## Postać wyniku
 
-- **Zapis rozmowy** — pełny tekst ze znacznikami czasu i oznaczeniem mówcy.
+- **Zapis rozmowy** — pełny tekst ze znacznikami czasu.
 - **Notatka** — streszczenie ustaleń w kolejności tematów, nie w kolejności wypowiedzi.
 - **Lista zadań** — kto, co i do kiedy, wyciągnięte z ustaleń.
 - **Napisy** — osobne pliki w formatach SRT i VTT, do podpięcia pod nagranie wideo.
@@ -46,4 +44,4 @@ sam dostarczysz.
 ## Od czego zacząć
 
 Wejdź na /wyprobuj, dołącz nagranie z ostatniego spotkania i poproś o notatkę z listą zadań.
-Gotowe pliki znajdziesz w module Studio, a ich kopie w module Pliki.
+Gotowe pliki znajdziesz w rozmowie i w module Pliki.

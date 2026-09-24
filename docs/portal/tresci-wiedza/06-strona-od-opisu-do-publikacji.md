@@ -30,8 +30,12 @@ Poprawiaj po jednej rzeczy naraz i nazywaj miejsce: „Na stronie głównej skr
 sześciu słów”, „W ofercie zamień trzy kafle na listę”. Szkic odświeża się po każdej zmianie,
 więc widzisz skutek od razu.
 
-Wersje zostają zapisane. Powrót do poprzedniego układu nie wymaga odtwarzania go
-poleceniami.
+Wersja powstaje przy każdej publikacji. Możesz ją też zapisać sam przyciskiem „Zapisz
+wersję” w panelu „Wersje” albo poprosić o to Nexusa, najlepiej przed większą przebudową.
+Do zapisanej wersji wracasz przyciskiem „Przywróć”, bez odtwarzania jej poleceniami; bieżący
+szkic zostaje wtedy najpierw zapisany jako osobna wersja. Pojedynczych poprawek
+wprowadzonych po ostatniej zapisanej wersji nie da się w ten sposób cofnąć. Przechowywanych
+jest 50 ostatnich wersji.
 
 ## Publikacja
 
@@ -53,4 +57,6 @@ zanim przeniesiesz ją na docelowy hosting.
 ## Od czego zacząć
 
 Wejdź na /wyprobuj, otwórz moduł Strony i opisz witrynę w pięciu zdaniach. Pierwszy szkic
-zobaczysz w tej samej rozmowie, a publikację zatwierdzisz wtedy, kiedy uznasz ją za gotową.
+zobaczysz w tej samej rozmowie. Konto próbne jest usuwane automatycznie po 2 dniach, a razem
+z nim wszystkie jego strony, także opublikowane. Stronę, którą chcesz zachować, zbuduj
+i opublikuj na własnym koncie.
