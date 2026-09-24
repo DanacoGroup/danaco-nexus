@@ -2,7 +2,7 @@
 
 Pasek po lewej stronie okna prowadzi do modułów. Do pracy nie trzeba ich znać — narzędzia dobiera Nexus. Przydają się wtedy, gdy chcesz zajrzeć do wyniku albo czegoś poszukać.
 
-Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, Sprzęt, Płatności i Ustawienia. Na telefonie pasek przenosi się na dół ekranu i mieści pięć miejsc, a reszta czeka pod **Więcej**. Do dowolnego modułu najszybciej trafisz paletą poleceń: Ctrl + K.
+Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, Sprzęt, Twój plan i Ustawienia. Na telefonie pasek przenosi się na dół ekranu i mieści pięć miejsc, a reszta czeka pod **Więcej**. Do dowolnego modułu najszybciej trafisz paletą poleceń: Ctrl + K.
 
 ## Rozmowa
 
@@ -37,7 +37,7 @@ Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, S
 ## Nexus
 
 - **Narzędzia** — wykaz tego, po co Nexus sięga w Twoim imieniu, z przykładem przy każdej pozycji.
-- **Płatności** — plan i subskrypcja, faktury i kody rabatowe. Płatność obsługuje Stripe.
+- **Twój plan** — plan i subskrypcja, zmiana planu, faktury i kody rabatowe. Płatność obsługuje Stripe. Gdy dostęp w okresie dobiega końca, nad rozmową pojawia się też przycisk **Zmień plan**.
 - **Ustawienia** — konto, wygląd, praca, głos, powiadomienia i Twoje dane.
 
 ## Moduły, które trzeba najpierw podłączyć

@@ -20,6 +20,7 @@ from urllib.parse import quote, unquote, urlsplit
 import httpx
 
 from nexus.config import Settings
+from nexus.db import ADMIN_OWNER
 from nexus.tools.base import ToolError
 from nexus.tools.cloud import KATALOG_KONT, _iso, katalog_konta, normalize_cloud_path
 
@@ -398,8 +399,20 @@ class CloudService:
 
     # --- kosz ---
 
+    def _kosz_konta(self) -> str:
+        """Przedrostek kosza, do którego zawęża się konto klienta (pusty = cały kosz).
+
+        Kosz Nextcloud jest jeden dla konta technicznego. Bez zawężenia klient widział
+        nazwy i ścieżki plików usuniętych przez właściciela i inne konta, i mógł je
+        przywrócić. Właściciel instalacji widzi kosz w całości, jak w samej chmurze.
+        """
+        if self.owner is None or self.owner == ADMIN_OWNER:
+            return ""
+        return katalog_konta(self.owner).lstrip("/") + "/"
+
     async def trash(self) -> list[dict[str, Any]]:
-        """Elementy w koszu (od ostatnio usuniętych)."""
+        """Elementy w koszu (od ostatnio usuniętych), tylko z przestrzeni konta."""
+        zakres = self._kosz_konta()
         url = f"{self.dav}/trashbin/{quote(self.user)}/trash"
         root = await self._propfind(url, PROPFIND_TRASH)
         base = urlsplit(url).path.rstrip("/")
@@ -413,11 +426,14 @@ class CloudService:
                 continue
             size = props.findtext(f"{OC}size") or props.findtext(f"{DAV}getcontentlength")
             deleted = props.findtext(f"{NC}trashbin-deletion-time")
+            polozenie = (props.findtext(f"{NC}trashbin-original-location") or "").lstrip("/")
+            if zakres and not polozenie.startswith(zakres):
+                continue
             result.append(
                 {
                     "id": href.rsplit("/", 1)[-1],
                     "name": props.findtext(f"{NC}trashbin-filename") or href.rsplit("/", 1)[-1],
-                    "original": "/" + (props.findtext(f"{NC}trashbin-original-location") or "").lstrip("/"),
+                    "original": "/" + polozenie.removeprefix(zakres),
                     "type": "folder"
                     if props.find(f"{DAV}resourcetype/{DAV}collection") is not None
                     else "file",
@@ -431,6 +447,8 @@ class CloudService:
     async def restore_trash(self, item_id: str) -> None:
         if not item_id or "/" in item_id or item_id in (".", ".."):
             raise CloudError(400, "Nieprawidłowy element kosza.")
+        if self._kosz_konta() and item_id not in {element["id"] for element in await self.trash()}:
+            raise CloudError(404, "W koszu nie ma takiego elementu.")
         base = f"{self.dav}/trashbin/{quote(self.user)}"
         response = await self.http.request(
             "MOVE",

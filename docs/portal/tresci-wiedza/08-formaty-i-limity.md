@@ -37,7 +37,7 @@ rozmów to osobny zbiór — skasowanie wątku nie kasuje tego, co z niego pows
 ## Limity
 
 Od planu zależą dwie rzeczy: łączna przestrzeń konta i liczba zadań liczonych naraz.
-Bieżące wartości pokazuje moduł Płatności.
+Bieżące wartości pokazuje moduł Twój plan.
 
 Dopuszczalną wielkość pojedynczego pliku ustala sam serwer, jednakowo dla wszystkich
 planów. Przejście na wyższy plan daje więcej miejsca i więcej zadań naraz; największy

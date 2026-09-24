@@ -35,7 +35,7 @@ o rzeczywistym zużyciu.
 
 ## Zmiana planu
 
-Plan zmienia się w module Płatności, tam też stoją faktury i kody rabatowe. Płatność
+Plan zmienia się w module Twój plan, tam też stoją faktury i kody rabatowe. Płatność
 obsługuje Stripe. Przejście na wyższy plan zwiększa przestrzeń od razu, bez przenoszenia
 danych.
 

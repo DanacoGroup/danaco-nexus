@@ -545,3 +545,52 @@ def test_chmura_nie_przecieka_miedzy_kontami(api: TestClient, cloud: FakeNextclo
     assert usluga.url("/Tajne.txt").endswith(f"{katalog_konta(obcy)}/Tajne.txt")
     assert usluga.sciezka_konta("/Tajne.txt") == f"{katalog_konta(obcy)}/Tajne.txt"
     asyncio.run(usluga.close())
+
+
+def test_kosz_konta_klienta_pokazuje_tylko_jego_elementy(tmp_path: Path) -> None:
+    """Kosz Nextcloud jest wspólny dla konta technicznego — klient widzi tylko swoją część."""
+    klient, obcy = uuid.uuid4(), uuid.uuid4()
+    token = tmp_path / "token"
+    token.write_text("haslo", encoding="utf-8")
+    ustawienia = Settings(
+        chmura_url="http://chmura.test", chmura_token_file=token, database_url="sqlite+aiosqlite:///:memory:"
+    )
+    przeniesienia: list[str] = []
+
+    def element(identyfikator: str, polozenie: str) -> str:
+        return (
+            f"<d:response><d:href>/remote.php/dav/trashbin/admin/trash/{identyfikator}</d:href>"
+            "<d:propstat><d:prop><d:resourcetype/>"
+            f"<nc:trashbin-filename>{polozenie.rsplit('/', 1)[-1]}</nc:trashbin-filename>"
+            f"<nc:trashbin-original-location>{polozenie}</nc:trashbin-original-location>"
+            "<nc:trashbin-deletion-time>1790000000</nc:trashbin-deletion-time>"
+            "</d:prop></d:propstat></d:response>"
+        )
+
+    def obsluz(request: httpx.Request) -> httpx.Response:
+        if request.method == "MOVE":
+            przeniesienia.append(request.url.path)
+            return httpx.Response(201)
+        tresc = (
+            '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:" xmlns:nc="http://nextcloud.org/ns">'
+            "<d:response><d:href>/remote.php/dav/trashbin/admin/trash/</d:href></d:response>"
+            + element("moj.d1", f"Konta/{klient}/umowa.pdf")
+            + element("obcy.d2", f"Konta/{obcy}/cudze.pdf")
+            + element("wlasciciel.d3", "Prywatne/zeznanie.pdf")
+            + "</d:multistatus>"
+        )
+        return httpx.Response(207, content=tresc.encode())
+
+    async def run() -> None:
+        async with CloudService(ustawienia, transport=httpx.MockTransport(obsluz), owner=klient) as usluga:
+            kosz = await usluga.trash()
+            assert [(e["id"], e["original"]) for e in kosz] == [("moj.d1", "/umowa.pdf")]
+            with pytest.raises(CloudError):
+                await usluga.restore_trash("wlasciciel.d3")
+            await usluga.restore_trash("moj.d1")
+        transport = httpx.MockTransport(obsluz)
+        async with CloudService(ustawienia, transport=transport, owner=ADMIN_OWNER) as usluga:
+            assert len(await usluga.trash()) == 3
+
+    asyncio.run(run())
+    assert przeniesienia == ["/remote.php/dav/trashbin/admin/trash/moj.d1"]
