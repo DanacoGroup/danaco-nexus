@@ -412,6 +412,25 @@ async def test_code_mode_runs_in_project_directory(tmp_path: Path, monkeypatch: 
     assert failed is not None and failed.status == "failed" and "sklep" in failed.error
 
 
+async def test_code_mode_refuses_project_of_another_account(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rozmowa konta klienta nie uruchomi agenta w projekcie właściciela instalacji."""
+    settings, database, conversation_id, run_id, _file_id, log = await prepare(tmp_path, monkeypatch, "text")
+    (settings.kod_dir / "sklep").mkdir(parents=True)
+    async with database.session() as session:
+        await session.execute(
+            update(Conversation)
+            .where(Conversation.id == conversation_id)
+            .values(meta={"mode": "code", "workspace": "sklep"}, owner_id=uuid.uuid4())
+        )
+    await AgentRunner(settings, database).execute(run_id)
+    async with database.session() as session:
+        run = await session.get(Run, run_id)
+    assert run is not None and run.status == "failed" and "sklep" in run.error
+    assert not log.exists(), "agent nie może wystartować w cudzym projekcie"
+
+
 async def test_worker_runs_sessions_in_parallel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     settings, database, _conversation_id, first_run, _file_id, _log = await prepare(
         tmp_path, monkeypatch, "sleep"

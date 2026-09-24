@@ -41,7 +41,7 @@ from sqlalchemy import select, update
 import nexus as nexus_pakiet
 from nexus.agent import most_mcp, piaskownica
 from nexus.agent.prompt import SUBAGENT_PROMPT, system_prompt
-from nexus.agent.przestrzenie import existing_project
+from nexus.agent.przestrzenie import WorkspaceError, projekt_konta
 from nexus.config import Settings
 from nexus.db import (
     ADMIN_OWNER,
@@ -753,7 +753,7 @@ class AgentRunner:
         timeout = run_timeout_minutes(self._settings, mode)
         await self.emit(run_id, "run.started", {"mode": mode} if mode != "chat" else {})
         try:
-            options = self._options(mode, meta, state.voice)
+            options = self._options(mode, meta, state.voice, state.owner_id)
             prompt = _prompt_text(prompt_message)
             await self._run_cli(state, conversation, prompt, options, timeout)
             result = state.result or {}
@@ -831,11 +831,16 @@ class AgentRunner:
             usage.get("output_tokens", "-"),
         )
 
-    def _options(self, mode: str, meta: dict[str, Any], voice: bool) -> RunOptions:
+    def _options(self, mode: str, meta: dict[str, Any], voice: bool, owner: uuid.UUID) -> RunOptions:
         workspace = None
         if mode == "code":
+            # Projekt musi należeć do konta rozmowy — API to sprawdza, ale tu agent dostaje
+            # powłokę w katalogu projektu, więc kontrola stoi także w miejscu wykonania.
             name = str(meta.get("workspace") or "")
-            workspace = existing_project(self._settings, name)
+            try:
+                workspace = projekt_konta(self._settings, name, owner)
+            except WorkspaceError as blad:
+                raise BladZlecenia(str(blad)) from blad
             if workspace is None:
                 raise BladZlecenia(f"projekt „{name}” nie istnieje w module Kod")
         return RunOptions(mode=mode, workspace=workspace, voice=voice)
