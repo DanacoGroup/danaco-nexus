@@ -170,7 +170,7 @@ describe("nadmiar paska komputera", () => {
     render(<NavRail entries={navEntries(MODULES)} activeId="chat" onSelect={() => undefined} />);
     expect(screen.getByText("Więcej")).toBeTruthy();
     // Moduł spod „Więcej” nie stoi w pasku jako osobna pozycja.
-    expect(screen.queryByRole("button", { name: /^Płatności$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Twój plan$/ })).toBeNull();
   });
 
   it("gdy pracujemy w module spod „Więcej”, przycisk pokazuje jego nazwę", () => {

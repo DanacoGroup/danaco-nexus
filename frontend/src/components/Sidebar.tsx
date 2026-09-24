@@ -327,7 +327,7 @@ export function Sidebar(props: Props) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{props.username}</span>
-                <span className="block truncate text-xs text-muted">Konto i ustawienia</span>
+                <span className="block truncate text-xs text-muted">Konto, plan i ustawienia</span>
               </span>
               <ChevronIcon size={16} className={`shrink-0 text-muted transition-transform ${kontoOtwarte ? "rotate-180" : ""}`} />
             </button>

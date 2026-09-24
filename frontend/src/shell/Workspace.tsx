@@ -24,6 +24,7 @@ import { BezPolaczenia } from "./BezPolaczenia";
 import { EkranWylogowania } from "./EkranWylogowania";
 import { Paleta } from "./Paleta";
 import { PasekAktualizacji } from "./PasekAktualizacji";
+import { PasekPlanu } from "../platnosci/PasekPlanu";
 import { PasekKontaProbnego } from "./PasekKontaProbnego";
 import { SCIEZKA, type Route } from "./route";
 import { TasksButton, TasksPanel, useActiveTasks } from "./TasksPanel";
@@ -415,6 +416,7 @@ export function Workspace({ username, cloudUrl, gosc = false, route, navigate, o
         <BezPolaczenia />
         <PasekAktualizacji />
         {gosc && <PasekKontaProbnego onZaloz={() => window.location.assign("/portal/konto")} />}
+        {!gosc && <PasekPlanu onZmienPlan={() => navigate("/m/platnosci")} />}
         <div
           className="min-h-0 flex-1 overflow-y-auto"
           ref={scroller}

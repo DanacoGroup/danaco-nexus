@@ -227,7 +227,7 @@ export function PlatnosciPage() {
 /** Opis modułu dla rejestru interfejsu (src/modules/platnosci/index.tsx re-eksportuje go). */
 export const module: NexusModule = {
   id: "platnosci",
-  label: "Płatności",
+  label: "Twój plan",
   description: "Plan, subskrypcja, faktury i kody rabatowe. Płatność obsługuje Stripe.",
   icon: PlatnosciIcon,
   order: 95,
