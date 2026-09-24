@@ -34,7 +34,7 @@ from nexus.api.files import (
     typ_nosnika,
     zajete_miejsce,
 )
-from nexus.chmura_konta import BladKontaChmury, KontoChmury, konto_chmury, zapewnij_konto
+from nexus.chmura_konta import BladKontaChmury, KontoChmury, konto_wedlug_planu
 from nexus.cloud_service import CloudError, CloudService, check_name, clean_path
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER, Conversation, Database, StoredFile
@@ -93,17 +93,10 @@ async def _konto_chmury(
     Konto zostaje także po zmianie planu na niższy — pliki są w nim i nie mogą zniknąć.
     ``odswiez`` ponawia ustawienie limitu przestrzeni (ekran synchronizacji).
     """
-    if owner == ADMIN_OWNER:
-        return None
-    settings = _settings(request)
-    istniejace = konto_chmury(settings, owner)
-    if istniejace is not None and not odswiez:
-        return istniejace
-    limity = await limity_uzytkownika(request.app.state.database, str(owner))
-    if not limity.synchronizacja:
-        return istniejace
     try:
-        return await zapewnij_konto(settings, owner, limity.przestrzen_mb, transport)
+        return await konto_wedlug_planu(
+            _settings(request), request.app.state.database, owner, transport, odswiez=odswiez
+        )
     except (BladKontaChmury, httpx.HTTPError, OSError) as blad:
         _dziennik.warning("konto chmury %s: %s", owner, blad)
         raise CloudError(502, "Nie udało się przygotować Twojej chmury. Spróbuj za chwilę.") from blad

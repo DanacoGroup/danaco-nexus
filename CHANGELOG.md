@@ -35,7 +35,9 @@ numeracja wersji zgodna z [SemVer](https://semver.org/lang/pl/).
   planu; pliki z dotychczasowego folderu przechodzą tam same. Logowanie do chmury, także
   z aplikacji Nextcloud na komputerze i telefonie, idzie przez Nexusa. Pozostałe plany pracują
   jak dotąd w module Pliki, a ekran synchronizacji mówi, w którym planie ją znajdą. Nowe konta
-  Nextcloud zaczynają bez przykładowych plików.
+  Nextcloud zaczynają bez przykładowych plików. Kalendarze konta przechodzą do tego konta
+  razem z wydarzeniami, więc w planach Pro i Grupa kalendarz synchronizuje się z telefonem
+  przez CalDAV z loginem konta, a nie konta technicznego.
 
 ### Poprawiono
 

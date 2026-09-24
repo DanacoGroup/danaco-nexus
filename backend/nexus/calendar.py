@@ -118,19 +118,29 @@ class CalendarClient:
         settings: Settings,
         transport: httpx.BaseTransport | None = None,
         owner: uuid.UUID | None = None,
+        konto_techniczne: bool = False,
     ) -> None:
         try:
             token = settings.chmura_token_file.read_text(encoding="utf-8").strip()
         except OSError:
             token = ""
+        # Konto z planem obejmującym synchronizację ma własne konto Nextcloud — tam są jego
+        # kalendarze i tam łączy się telefon. ``konto_techniczne`` wymusza stary układ
+        # (przedrostek w koncie technicznym), np. przy sprzątaniu po usunięciu konta.
+        from nexus.chmura_konta import konto_chmury
+
+        wlasne = None if konto_techniczne or owner is None else konto_chmury(settings, owner)
+        if wlasne is not None:
+            token = wlasne.haslo
         if not settings.chmura_url or not token:
             raise CalendarNotConfigured(
                 "Kalendarz nie jest skonfigurowany (brak adresu chmury lub hasła aplikacji)."
             )
-        self.user = settings.chmura_user
+        self.user = wlasne.uid if wlasne is not None else settings.chmura_user
         self.owner = owner
+        self.wlasne_konto = wlasne is not None
         self.tz = ZoneInfo(settings.kalendarz_timezone)
-        self.przedrostek = przedrostek_konta(owner)
+        self.przedrostek = "" if wlasne is not None else przedrostek_konta(owner)
         self.default_calendar = f"{self.przedrostek}{settings.kalendarz_default}"
         self.root = f"{settings.chmura_url.rstrip('/')}/remote.php/dav/calendars/{quote(self.user)}/"
         self._root_path = urlsplit(self.root).path
@@ -162,7 +172,7 @@ class CalendarClient:
 
     def zapewnij_kalendarz(self) -> None:
         """Zakłada domyślny kalendarz konta, gdy jeszcze go nie ma."""
-        if not self.przedrostek:
+        if not self.przedrostek and not self.wlasne_konto:
             return
         if any(kalendarz["id"] == self.default_calendar for kalendarz in self.calendars()):
             return
@@ -220,7 +230,7 @@ class CalendarClient:
 
     def usun_kalendarze_konta(self) -> int:
         """Usuwa wszystkie kalendarze konta (usunięcie konta); właściciela instalacji — nigdy."""
-        if not self.przedrostek:
+        if not self.przedrostek or self.wlasne_konto:
             raise CalendarError("Kalendarzy konta technicznego nie usuwa się z poziomu konta.")
         usuniete = 0
         for kalendarz in self.calendars():

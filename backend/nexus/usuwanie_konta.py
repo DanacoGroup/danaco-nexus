@@ -179,7 +179,9 @@ def _usun_kalendarze(settings: Settings, owner: uuid.UUID) -> None:
     from nexus.calendar import CalendarClient, CalendarNotConfigured
 
     try:
-        klient = CalendarClient(settings, owner=owner)
+        # Kalendarze w koncie technicznym (przedrostek konta); kalendarze we własnym koncie
+        # Nextcloud znikają razem z nim w kroku „chmura”.
+        klient = CalendarClient(settings, owner=owner, konto_techniczne=True)
     except CalendarNotConfigured:
         return
     with klient:

@@ -533,7 +533,7 @@ export const PYTANIA = [
   {
     pytanie: "Czy Nexus obsłuży moją pocztę i kalendarz?",
     odpowiedz:
-      "Tak. Podłączasz konta IMAP i SMTP — także kilka naraz, z własnymi podpisami. Nexus czyta skrzynkę, wyszukuje w niej sprawy i przygotowuje odpowiedzi, ale wiadomość trafia do „Oczekujących”: wysyłasz ją Ty, przyciskiem. Kalendarz działa przez CalDAV chmury osobistej, więc terminy widać też w telefonie.",
+      "Tak. Podłączasz konta IMAP i SMTP — także kilka naraz, z własnymi podpisami. Nexus czyta skrzynkę, wyszukuje w niej sprawy i przygotowuje odpowiedzi, ale wiadomość trafia do „Oczekujących”: wysyłasz ją Ty, przyciskiem. Kalendarz działa przez CalDAV chmury osobistej — w planach Pro i Grupa terminy widać też w telefonie.",
   },
   {
     pytanie: "Czy Nexus szuka w internecie?",

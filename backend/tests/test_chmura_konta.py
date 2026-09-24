@@ -15,6 +15,8 @@ from nexus.chmura_konta import BladKontaChmury, konto_chmury, uid_konta, zapewni
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER
 
+MULTISTATUS_CALDAV = '<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+
 
 class AtrapaNextcloud:
     """Minimalny Nextcloud: OCS użytkowników i WebDAV plików, wszystko w słownikach."""
@@ -25,24 +27,66 @@ class AtrapaNextcloud:
         self.pliki: dict[str, bytes] = {}
         self.katalogi: set[str] = set()
         self.usuniete: list[str] = []
+        # Kalendarze: ścieżka kolekcji → {nazwa pliku .ics: treść}.
+        self.kalendarze: dict[str, dict[str, str]] = {}
 
     def _ocs(self, kod: int) -> httpx.Response:
         return httpx.Response(200, json={"ocs": {"meta": {"statuscode": kod}, "data": {}}})
 
     def _multistatus(self, sciezka: str) -> httpx.Response:
         prefiks = sciezka.rstrip("/") + "/"
-        wpisy = [f"<d:response><d:href>{prefiks}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/>"
-                 "</d:resourcetype></d:prop></d:propstat></d:response>"]
+        wpisy = [
+            f"<d:response><d:href>{prefiks}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/>"
+            "</d:resourcetype></d:prop></d:propstat></d:response>"
+        ]
         for katalog in sorted(self.katalogi):
-            if katalog.startswith(prefiks) and "/" not in katalog[len(prefiks):].rstrip("/"):
-                wpisy.append(f"<d:response><d:href>{katalog}/</d:href><d:propstat><d:prop><d:resourcetype>"
-                             "<d:collection/></d:resourcetype></d:prop></d:propstat></d:response>")
+            if katalog.startswith(prefiks) and "/" not in katalog[len(prefiks) :].rstrip("/"):
+                wpisy.append(
+                    f"<d:response><d:href>{katalog}/</d:href><d:propstat><d:prop><d:resourcetype>"
+                    "<d:collection/></d:resourcetype></d:prop></d:propstat></d:response>"
+                )
         for plik in sorted(self.pliki):
-            if plik.startswith(prefiks) and "/" not in plik[len(prefiks):]:
-                wpisy.append(f"<d:response><d:href>{plik}</d:href><d:propstat><d:prop><d:resourcetype/>"
-                             "</d:prop></d:propstat></d:response>")
+            if plik.startswith(prefiks) and "/" not in plik[len(prefiks) :]:
+                wpisy.append(
+                    f"<d:response><d:href>{plik}</d:href><d:propstat><d:prop><d:resourcetype/>"
+                    "</d:prop></d:propstat></d:response>"
+                )
         tresc = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">' + "".join(wpisy) + "</d:multistatus>"
         return httpx.Response(207, content=tresc.encode())
+
+    def _caldav(self, request: httpx.Request, sciezka: str, login: str) -> httpx.Response:
+        korzen = f"/remote.php/dav/calendars/{login}/"
+        kolekcja = korzen + sciezka.removeprefix(korzen).split("/")[0] if sciezka != korzen else ""
+        if request.method == "PROPFIND" and sciezka == korzen:
+            wpisy = "".join(
+                f"<d:response><d:href>{k}/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/>"
+                "<c:calendar/></d:resourcetype><d:displayname>Kalendarz</d:displayname></d:prop></d:propstat>"
+                "</d:response>"
+                for k in self.kalendarze
+                if k.startswith(korzen)
+            )
+            tresc = f"{MULTISTATUS_CALDAV}{wpisy}</d:multistatus>"
+            return httpx.Response(207, content=tresc.encode())
+        if request.method == "MKCALENDAR":
+            if kolekcja in self.kalendarze:
+                return httpx.Response(405)
+            self.kalendarze[kolekcja] = {}
+            return httpx.Response(201)
+        if request.method == "REPORT":
+            wpisy = "".join(
+                f"<d:response><d:href>{kolekcja}/{plik}</d:href><d:propstat><d:prop>"
+                f"<c:calendar-data>{dane}</c:calendar-data></d:prop></d:propstat></d:response>"
+                for plik, dane in self.kalendarze.get(kolekcja, {}).items()
+            )
+            tresc = f"{MULTISTATUS_CALDAV}{wpisy}</d:multistatus>"
+            return httpx.Response(207, content=tresc.encode())
+        if request.method == "PUT":
+            self.kalendarze.setdefault(kolekcja, {})[sciezka.rsplit("/", 1)[-1]] = request.read().decode()
+            return httpx.Response(201)
+        if request.method == "DELETE":
+            self.kalendarze.pop(kolekcja, None)
+            return httpx.Response(204)
+        return httpx.Response(405)
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         naglowek = request.headers.get("authorization", "")
@@ -66,6 +110,8 @@ class AtrapaNextcloud:
             else:
                 self.limity[uid] = dane["value"][0]
             return self._ocs(100)
+        if sciezka.startswith(f"/remote.php/dav/calendars/{login}/"):
+            return self._caldav(request, sciezka, login)
         wlasny = f"/remote.php/dav/files/{login}"
         if not sciezka.startswith(wlasny):
             return httpx.Response(403)
@@ -100,7 +146,7 @@ def occ_atrapy(chmura: AtrapaNextcloud):  # type: ignore[no-untyped-def]
         polecenie, uid = argumenty[0], argumenty[-1]
         if polecenie == "user:add":
             if uid in chmura.hasla:
-                return 1, f"The user \"{uid}\" already exists."
+                return 1, f'The user "{uid}" already exists.'
             chmura.hasla[uid] = srodowisko["OC_PASS"]
             chmura.katalogi.add(f"/remote.php/dav/files/{uid}")
             return 0, f'The user "{uid}" was created successfully'
@@ -135,6 +181,9 @@ def test_konto_powstaje_z_limitem_planu_i_przejmuje_pliki(ustawienia: Settings) 
     techniczny = "/remote.php/dav/files/admin"
     chmura.katalogi |= {techniczny, f"{techniczny}/Konta", stary, f"{stary}/Umowy"}
     chmura.pliki[f"{stary}/notatka.txt"] = b"pierwsza"
+    chmura.kalendarze[f"/remote.php/dav/calendars/admin/konto-{klient}-personal"] = {
+        "spotkanie.ics": "BEGIN:VCALENDAR"
+    }
     chmura.pliki[f"{stary}/Umowy/umowa.pdf"] = b"%PDF druga"
     transport = httpx.MockTransport(chmura)
 
@@ -146,6 +195,10 @@ def test_konto_powstaje_z_limitem_planu_i_przejmuje_pliki(ustawienia: Settings) 
     assert chmura.pliki[f"{nowy}/notatka.txt"] == b"pierwsza"
     assert chmura.pliki[f"{nowy}/Umowy/umowa.pdf"] == b"%PDF druga"
     assert stary in chmura.usuniete and not any(k.startswith(stary) for k in chmura.pliki)
+    # Kalendarz konta przechodzi razem z plikami: z przedrostkiem w koncie technicznym, bez niego u klienta.
+    assert chmura.kalendarze == {
+        f"/remote.php/dav/calendars/{konto.uid}/personal": {"spotkanie.ics": "BEGIN:VCALENDAR"}
+    }
     # Hasło zna tylko Nexus: plik z prawami wyłącznie dla właściciela procesu.
     zapisane = konto_chmury(ustawienia, klient)
     assert zapisane == konto

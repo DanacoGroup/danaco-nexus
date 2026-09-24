@@ -340,3 +340,6 @@ def test_klient_z_wlasnym_kontem_chmury_wchodzi_na_nie_przez_sso(tmp_path: Path)
         _zapisz_haslo(ustawienia, uid_konta(owner), "haslo-konta")
         assert klient.get("/api/auth/sso").headers.get("x-nexus-user") == uid_konta(owner)
         assert klient.get("/api/auth/me").json()["cloud_url"] == "https://cloud.example.pl"
+        # Kalendarz z telefonu łączy się z tym samym kontem Nextcloud, nie z kontem technicznym.
+        kalendarz = klient.get("/api/kalendarz/synchronizacja")
+        assert kalendarz.status_code == 200 and kalendarz.json()["user"] == uid_konta(owner)

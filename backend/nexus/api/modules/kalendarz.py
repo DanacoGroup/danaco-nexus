@@ -8,6 +8,7 @@ from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
@@ -15,6 +16,7 @@ from nexus import oczekujace
 from nexus.api import conversations
 from nexus.api.auth import require_session
 from nexus.calendar import CalendarClient, CalendarError, CalendarNotConfigured, EventData, When, caldav_url
+from nexus.chmura_konta import BladKontaChmury, konto_wedlug_planu
 from nexus.config import Settings
 from nexus.db import ADMIN_OWNER
 
@@ -211,11 +213,22 @@ async def sync_info(request: Request) -> dict[str, str]:
     wyłącznie właściciel instalacji. Klient dostawał tu login ``admin``, którym i tak by się
     nie zalogował.
     """
-    if (await require_session(request)).owner_id != ADMIN_OWNER:
+    owner = (await require_session(request)).owner_id
+    settings = _settings(request)
+    if owner == ADMIN_OWNER:
+        return {"caldav_url": caldav_url(settings), "user": settings.chmura_user}
+    try:
+        konto = await konto_wedlug_planu(
+            settings, request.app.state.database, owner, getattr(request.app.state, "cloud_transport", None)
+        )
+    except (BladKontaChmury, httpx.HTTPError, OSError) as blad:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Nie udało się przygotować Twojego kalendarza. Spróbuj za chwilę."
+        ) from blad
+    if konto is None:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "Synchronizacja kalendarza z telefonem nie jest jeszcze dostępna dla Twojego konta. "
-            "Terminy widzisz i dodajesz w module Kalendarz.",
+            "Synchronizacja kalendarza z telefonem jest w planach Pro i Grupa, razem z synchronizacją "
+            "chmury. Terminy widzisz i dodajesz w module Kalendarz.",
         )
-    settings = _settings(request)
-    return {"caldav_url": caldav_url(settings), "user": settings.chmura_user}
+    return {"caldav_url": caldav_url(settings), "user": konto.uid}

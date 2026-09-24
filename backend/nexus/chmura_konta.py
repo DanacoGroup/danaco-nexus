@@ -23,7 +23,9 @@ import xml.etree.ElementTree as ET
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote, unquote, urlsplit
+from xml.sax.saxutils import escape
 
 import httpx
 
@@ -66,6 +68,10 @@ def _znacznik_przeniesienia(settings: Settings, uid: str) -> Path:
     return _katalog_hasel(settings) / f"{uid}.przeniesione"
 
 
+def _znacznik_kalendarzy(settings: Settings, uid: str) -> Path:
+    return _katalog_hasel(settings) / f"{uid}.kalendarze"
+
+
 def konto_chmury(settings: Settings, owner: uuid.UUID) -> KontoChmury | None:
     """Założone wcześniej konto Nextcloud konta Nexusa albo ``None``.
 
@@ -93,7 +99,11 @@ def _zapisz_haslo(settings: Settings, uid: str, haslo: str) -> None:
 
 def usun_haslo(settings: Settings, uid: str) -> None:
     """Zapomina hasło i znacznik przeniesienia konta Nextcloud (po jego usunięciu)."""
-    for plik in (_katalog_hasel(settings) / uid, _znacznik_przeniesienia(settings, uid)):
+    for plik in (
+        _katalog_hasel(settings) / uid,
+        _znacznik_przeniesienia(settings, uid),
+        _znacznik_kalendarzy(settings, uid),
+    ):
         plik.unlink(missing_ok=True)
 
 
@@ -170,6 +180,9 @@ async def zapewnij_konto(
         if not _znacznik_przeniesienia(settings, uid).exists():
             await przenies_pliki(settings, owner, konto, http, transport)
             _znacznik_przeniesienia(settings, uid).touch()
+        if not _znacznik_kalendarzy(settings, uid).exists():
+            await przenies_kalendarze(settings, owner, konto, http, transport)
+            _znacznik_kalendarzy(settings, uid).touch()
         kod, wyjscie = await occ(["user:setting", uid, "files", "quota", f"{max(przestrzen_mb, 1)} MB"], {})
         if kod != 0:
             raise BladKontaChmury(f"Nextcloud nie przyjął limitu konta {uid}: {wyjscie.strip()[-300:]}")
@@ -236,3 +249,127 @@ async def przenies_pliki(
         logger.warning("Folder %s został po przeniesieniu (%s)", zrodlo, usuniecie.status_code)
     logger.info("Przeniesiono %s plików do konta chmury %s", len(pliki), konto.uid)
     return len(pliki)
+
+
+CALDAV = "{urn:ietf:params:xml:ns:caldav}"
+WSZYSTKIE_WYDARZENIA = (
+    '<?xml version="1.0" encoding="utf-8"?>'
+    '<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+    "<d:prop><c:calendar-data/></d:prop>"
+    '<c:filter><c:comp-filter name="VCALENDAR"/></c:filter>'
+    "</c:calendar-query>"
+)
+LISTA_KALENDARZY = (
+    '<?xml version="1.0" encoding="utf-8"?>'
+    '<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:displayname/></d:prop></d:propfind>'
+)
+
+
+async def przenies_kalendarze(
+    settings: Settings,
+    owner: uuid.UUID,
+    konto: KontoChmury,
+    techniczny: httpx.AsyncClient,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> int:
+    """Przenosi kalendarze ``konto-<owner>-*`` z konta technicznego do konta klienta.
+
+    Kalendarz dostaje w nowym koncie nazwę bez przedrostka, wydarzenia przechodzą jako te
+    same pliki .ics, a oryginał trafia do kosza konta technicznego. Zwraca liczbę wydarzeń.
+    """
+    from nexus.calendar import przedrostek_konta
+
+    przedrostek = przedrostek_konta(owner)
+    zrodlo = f"/remote.php/dav/calendars/{quote(settings.chmura_user)}/"
+    cel = f"/remote.php/dav/calendars/{quote(konto.uid)}/"
+    odpowiedz = await techniczny.request(
+        "PROPFIND",
+        zrodlo,
+        headers={"Depth": "1", "Content-Type": "application/xml"},
+        content=LISTA_KALENDARZY,
+    )
+    if odpowiedz.status_code != 207:
+        raise BladKontaChmury(f"Nie da się odczytać kalendarzy konta ({odpowiedz.status_code}).")
+    kalendarze: list[tuple[str, str]] = []
+    for element in ET.fromstring(odpowiedz.content).findall(f"{DAV}response"):
+        nazwa = unquote(urlsplit(element.findtext(f"{DAV}href", "")).path).rstrip("/").rsplit("/", 1)[-1]
+        prop = element.find(f"{DAV}propstat/{DAV}prop")
+        if prop is None or prop.find(f"{DAV}resourcetype/{CALDAV}calendar") is None:
+            continue
+        if nazwa.startswith(przedrostek):
+            kalendarze.append((nazwa, prop.findtext(f"{DAV}displayname") or "Kalendarz"))
+    przeniesione = 0
+    async with httpx.AsyncClient(
+        base_url=settings.chmura_url.rstrip("/"),
+        auth=(konto.uid, konto.haslo),
+        timeout=TIMEOUT,
+        follow_redirects=False,
+        transport=transport,
+    ) as uzytkownik:
+        for nazwa, wyswietlana in kalendarze:
+            nowa = nazwa.removeprefix(przedrostek) or settings.kalendarz_default
+            utworz = await uzytkownik.request(
+                "MKCALENDAR",
+                cel + quote(nowa) + "/",
+                headers={"Content-Type": "application/xml; charset=utf-8"},
+                content=(
+                    '<?xml version="1.0" encoding="utf-8"?>'
+                    '<c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+                    f"<d:set><d:prop><d:displayname>{escape(wyswietlana)}</d:displayname>"
+                    '<c:supported-calendar-component-set><c:comp name="VEVENT"/>'
+                    "</c:supported-calendar-component-set></d:prop></d:set></c:mkcalendar>"
+                ).encode(),
+            )
+            if utworz.status_code not in (201, 405):
+                raise BladKontaChmury(f"Nie da się założyć kalendarza {nowa} ({utworz.status_code}).")
+            wydarzenia = await techniczny.request(
+                "REPORT",
+                zrodlo + quote(nazwa) + "/",
+                headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
+                content=WSZYSTKIE_WYDARZENIA,
+            )
+            if wydarzenia.status_code != 207:
+                raise BladKontaChmury(
+                    f"Nie da się odczytać wydarzeń kalendarza {nazwa} ({wydarzenia.status_code})."
+                )
+            for element in ET.fromstring(wydarzenia.content).findall(f"{DAV}response"):
+                dane = element.findtext(f"{DAV}propstat/{DAV}prop/{CALDAV}calendar-data")
+                plik = unquote(urlsplit(element.findtext(f"{DAV}href", "")).path).rsplit("/", 1)[-1]
+                if not dane or not plik:
+                    continue
+                zapis = await uzytkownik.put(
+                    cel + quote(nowa) + "/" + quote(plik),
+                    content=dane.encode("utf-8"),
+                    headers={"Content-Type": "text/calendar; charset=utf-8"},
+                )
+                if zapis.status_code not in (201, 204):
+                    raise BladKontaChmury(f"Nie da się zapisać wydarzenia {plik} ({zapis.status_code}).")
+                przeniesione += 1
+            await techniczny.request("DELETE", zrodlo + quote(nazwa) + "/")
+    logger.info("Przeniesiono %s wydarzeń do kalendarzy konta %s", przeniesione, konto.uid)
+    return przeniesione
+
+
+async def konto_wedlug_planu(
+    settings: Settings,
+    database: Any,
+    owner: uuid.UUID,
+    transport: httpx.AsyncBaseTransport | None = None,
+    odswiez: bool = False,
+) -> KontoChmury | None:
+    """Konto Nextcloud konta klienta: istniejące albo zakładane, gdy plan obejmuje synchronizację.
+
+    Konto zostaje także po zmianie planu na niższy — pliki i kalendarze są w nim i nie mogą
+    zniknąć. ``odswiez`` ponawia ustawienie limitu przestrzeni (ekrany synchronizacji).
+    """
+    from nexus.platnosci.uprawnienia import limity_uzytkownika
+
+    if owner == ADMIN_OWNER:
+        return None
+    istniejace = konto_chmury(settings, owner)
+    if istniejace is not None and not odswiez:
+        return istniejace
+    limity = await limity_uzytkownika(database, str(owner))
+    if not limity.synchronizacja:
+        return istniejace
+    return await zapewnij_konto(settings, owner, limity.przestrzen_mb, transport)

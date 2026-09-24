@@ -44,4 +44,4 @@ Zadanie na podstawie widocznych terminów zlecasz przyciskiem **Zaplanuj z Nexus
 
 ## Kalendarz w telefonie
 
-Przycisk **Synchronizacja z telefonem** pokazuje adres CalDAV Twojego kalendarza i kopiuje go przyciskiem **Kopiuj adres CalDAV**. Ten adres wpisujesz w aplikacji kalendarza na telefonie albo na komputerze. Terminy dodane tam pojawiają się w Nexusie i odwrotnie.
+W planach Pro i Grupa przycisk **Synchronizacja z telefonem** pokazuje adres CalDAV Twojego kalendarza i nazwę Twojego konta w chmurze, a adres kopiuje przyciskiem **Kopiuj adres CalDAV**. W pozostałych planach przycisk mówi, gdzie synchronizacja jest dostępna — terminy widzisz i dodajesz wtedy w module Kalendarz. Ten adres wpisujesz w aplikacji kalendarza na telefonie albo na komputerze. Terminy dodane tam pojawiają się w Nexusie i odwrotnie.

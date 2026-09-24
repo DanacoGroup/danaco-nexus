@@ -18,7 +18,7 @@ Na komputerze pięć pozycji stoi pod kreską **Więcej**: Agenci, Narzędzia, S
 ## Biuro
 
 - **Poczta** — skrzynka: czytanie, wyszukiwanie, odpowiedzi przygotowane przez Nexusa i wysyłka po Twoim zatwierdzeniu.
-- **Kalendarz** — terminy i spotkania: widok listy, tygodnia i miesiąca, planowanie z Nexusem, synchronizacja z telefonem.
+- **Kalendarz** — terminy i spotkania: widok listy, tygodnia i miesiąca, planowanie z Nexusem, a w planach Pro i Grupa synchronizacja z telefonem.
 
 ## Tworzenie
 
